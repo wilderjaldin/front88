@@ -1,7 +1,10 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -19,16 +22,55 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
-    }
+      "@/*": [
+        "./*"
+      ]
+    },
+    "target": "ES2017"
   },
   "include": [
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "app/admin/register/customers/settings/[...slug].js",
+    "components/forms/spare-form.js",
+    "store/index.js",
+    "store/authSlice.js",
+    "app/admin/register/supplier-freight/page.js",
+    "app/admin/register/suppliers/page.js",
+    "app/admin/register/suppliers/settings.js",
+    "components/datatables/components-datatables-customers.js",
+    "app/admin/register/customers/page.js",
+    "app/admin/register/customers/settings.js",
+    "app/admin/dashboard/page.js",
+    "app/admin/revision/orders-process/page.js",
+    "app/admin/register/exchange-rate/page.js",
+    "components/datatables/components-datatables-spares-stock-register.js",
+    "app/admin/register/availability/page.js",
+    "components/datatables/components-datatables-spares-stock.js",
+    "app/admin/register/utility/page.js",
+    "components/datatables/components-datatables-suppliers.js",
+    "app/admin/register/spares/page.js",
+    "components/datatables/components-datatables-spares.js",
+    "app/admin/queries/purchase-orders/page.js",
+    "app/admin/queries/delivery-report/page.js",
+    "app/admin/queries/change-quote/page.js",
+    "app/admin/delivery/page.js",
+    "app/admin/packaging/page.js",
+    "app/admin/purchase-reception/page.js",
+    "app/admin/queries/spare-parts-identified/page.js",
+    "app/admin/queries/spare-parts-quotation/page.js",
+    "components/datatables/components-datatables-orders-placed.js",
+    "components/datatables/components-datatables-orders-placed.js",
+    "app/admin/queries/orders-placed/page.js",
+    "app/admin/purchase-order/page.js",
+    "app/admin/revision/crm-dashboard/page.js",
+    "app/admin/revision/authorize-purchase/page.js",
+    "public/locales/server.js",
+    ".next/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }

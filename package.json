@@ -1,26 +1,60 @@
 {
-  "name": "front88",
+  "name": "daxsoft",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "next lint"
   },
   "dependencies": {
-    "next": "16.1.6",
-    "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "@floating-ui/react": "^0.27.17",
+    "@headlessui/react": "^2.2.9",
+    "@mantine/core": "^8.3.14",
+    "@mantine/hooks": "^8.3.14",
+    "@reduxjs/toolkit": "^2.11.2",
+    "@tailwindcss/forms": "^0.5.11",
+    "@tailwindcss/typography": "^0.5.19",
+    "@tippyjs/react": "^4.2.6",
+    "axios": "^1.13.5",
+    "jwt-decode": "^4.0.0",
+    "lodash": "^4.17.23",
+    "mantine-datatable": "^8.3.13",
+    "next": "^16.1.6",
+    "next-intl": "^4.8.2",
+    "pdfjs-dist": "^5.4.624",
+    "react": "^19.2.4",
+    "react-animate-height": "^3.2.3",
+    "react-date-picker": "^12.0.1",
+    "react-dom": "^19.2.4",
+    "react-hook-form": "^7.71.1",
+    "react-pdf": "^10.3.0",
+    "react-perfect-scrollbar": "^1.5.8",
+    "react-redux": "^9.2.0",
+    "react-select": "^5.10.2",
+    "redux-persist": "^6.0.0",
+    "redux-thunk": "^3.1.0",
+    "server-only": "^0.0.1",
+    "svg-dom-arrows": "^2.3.0",
+    "sweetalert2": "^11.26.18",
+    "universal-cookie": "^8.0.1",
+    "use-debounce": "^10.1.0"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.1.6",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "@types/node": "^25.2.2",
+    "@types/react": "^19.2.13",
+    "@types/react-dom": "^19.2.3",
+    "autoprefixer": "^10.4.24",
+    "eslint": "^10.0.0",
+    "eslint-config-next": "^16.1.6",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "react-pdf": {
+      "pdfjs-dist": "^5.3.93"
+    }
   }
 }
