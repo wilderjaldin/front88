@@ -227,7 +227,7 @@ const DatatablesUser = ({ data = [], t, total, page, handlePageChange, currentUs
                             {/* Permisos */}
                             <Link
                               title="Permisos"
-                              href={`/admin/register/users/permissions?id=${s.codUsuario}`}
+                              href={`/admin/register/users/permissions/${s.codUsuario}`}
                               className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition"
                             >
                               <IconLock className="w-4 h-4" />

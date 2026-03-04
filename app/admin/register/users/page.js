@@ -18,6 +18,8 @@ import { useOptionsSelect } from '@/app/options'
 import Swal from 'sweetalert2'
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 import IconBackSpace from "@/components/icon/icon-backspace";
+import { usePermissions } from "@/app/hooks/usePermissions";
+
 const url_list = "/usuarios/listar";
 const url_get_user = "/usuarios/detalle";
 const url_status_user = "/usuarios/status";
@@ -26,6 +28,7 @@ const url_rols = "/roles"
 
 export default function Users() {
 
+  const { hasPermission } = usePermissions();
   //Paginacion
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -258,7 +261,10 @@ export default function Users() {
   };
 
   useDynamicTitle(`${t.register} | ${t.users}`);
-
+  
+  if (!hasPermission("Usuarios.listar")) {
+    return <div className="p-6">Acceso Bloqueado</div>;
+  }
   return (
     <div>
       <ul className="flex space-x-2 rtl:space-x-reverse">

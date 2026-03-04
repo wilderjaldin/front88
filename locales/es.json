@@ -879,5 +879,6 @@
   "users" : "Usuarios",
   "inactive" : "Inactivo",
   "active" : "Activo",
-  "password_email" : "Contraseña Correo"
+  "password_email" : "Contraseña Correo",
+  "permissions" : "Permisos"
 }

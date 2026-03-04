@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import axiosClient from "@/app/lib/axiosClient";
+import Link from 'next/link';
+import { useTranslation } from "@/app/locales";
+import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 
 const url_get_user = '/usuarios/permisos';
 const url_update = '/usuarios/permisos/update';
@@ -11,7 +14,7 @@ const url_update = '/usuarios/permisos/update';
 export default function UserPermissions() {
   const params = useParams();
   const id = params?.id;
-
+  const t = useTranslation();
   const [user, setUser] = useState(null);
   const [permissions, setPermissions] = useState([]);
   const [permissionsRol, setPermissionsRol] = useState([]);
@@ -83,8 +86,12 @@ export default function UserPermissions() {
     }
   };
 
+  useDynamicTitle(`${t.register} | ${t.permissions}`);
+
   if (loading) return <div className="p-6">Cargando...</div>;
   if (error) return <div className="p-6 text-red-500">{error}</div>;
+
+  
 
   return (
     <div className="p-6 space-y-6">
@@ -93,7 +100,7 @@ export default function UserPermissions() {
       {user && (
         <div className="bg-white dark:bg-gray-900 shadow rounded-xl p-4">
           <p><strong>Nombre:</strong> {user.nomUsuario}</p>
-          <p><strong>Rol:</strong> {user.rol}</p>
+          <p><strong>Rol:</strong> <Link href={`/admin/register/roles/settings/${user.codRol}`} className="text-blue-600 hover:text-blue-800 underline font-medium" >{user.rol}</Link></p>
         </div>
       )}
 

@@ -877,5 +877,6 @@
   "users" : "Users",
   "inactive" : "Inactive",
   "active" : "Active",
-  "password_email" : "Password Email"
+  "password_email" : "Password Email",
+  "permissions" : "Permissions"
 }

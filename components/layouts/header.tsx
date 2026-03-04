@@ -30,12 +30,16 @@ import IconHome from '../icon/icon-home';
 import IconMenuDashboard from '../icon/menu/icon-menu-dashboard';
 import IconSquares from '../icon/icon-squares';
 import BtnNewQuote from '@/components/BtnNewQuote';
+import { usePermissions } from "@/app/hooks/usePermissions";
 
 const url_list_users = process.env.NEXT_PUBLIC_API_URL + "inbox/MostrarListaUsuarios"
 const url_save_message = process.env.NEXT_PUBLIC_API_URL + "inbox/IniciarMsg"
 
 const Header = () => {
   useAuthGuard();
+
+  const { hasPermission } = usePermissions();
+  
   const pathname = usePathname();
   const dispatch = useDispatch();
   const router = useRouter();
@@ -44,14 +48,15 @@ const Header = () => {
   const t = useTranslation();
 
   const user_redux = useSelector(selectUser);
+  console.log('user_redux', user_redux)
 
   const [showModal, setShowModal] = useState(false);
 
   const initials = user_redux?.name?.split(' ')
-                                   ?.map((n:any) => n[0])
-                                   ?.join('')
-                                   ?.toUpperCase()
-                                   ?.slice(0, 2);
+    ?.map((n: any) => n[0])
+    ?.join('')
+    ?.toUpperCase()
+    ?.slice(0, 2);
 
   const {
     register,
@@ -311,7 +316,7 @@ const Header = () => {
                   offset={[0, 8]}
                   placement={`bottom-end`}
                   btnClassName="block p-2 rounded-full bg-white-light/40 dark:bg-dark/40 hover:text-primary hover:bg-white-light/90 dark:hover:bg-dark/60"
-                  button={<img className="h-5 w-5 rounded-full object-cover" src={`/assets/flags/${locale.toUpperCase()}.svg`} alt="flag" />}
+                  button={<img className="h-5 w-5 rounded-full object-cover" src={`/assets/locale/${locale.toUpperCase()}.svg`} alt="flag" />}
                 >
                   <ul className="grid w-[280px] grid-cols-2 gap-2 !px-2 font-semibold text-dark dark:text-white-dark dark:text-white-light/90">
                     {themeConfig.languageList.map((item: any) => {
@@ -324,7 +329,7 @@ const Header = () => {
                               changeLanguage(item.code);
                             }}
                           >
-                            <img src={`/assets/flags/${item.code.toUpperCase()}.svg`} alt="flag" className="h-5 w-5 rounded-full object-cover" />
+                            <img src={`/assets/locale/${item.code.toUpperCase()}.svg`} alt="flag" className="h-5 w-5 rounded-full object-cover" />
                             <span className="ltr:ml-3 rtl:mr-3">{item.name}</span>
                           </button>
                         </li>
@@ -335,53 +340,105 @@ const Header = () => {
               </div>
 
               <div className="dropdown flex shrink-0">
-                
                 <Dropdown
                   offset={[0, 8]}
                   placement="bottom-end"
                   btnClassName="relative group block"
                   button={
-                    <div className="
-                        h-9 w-9
-                        rounded-full
-                        flex items-center justify-center
-                        bg-yellow-400
-                        text-black
-                        font-bold
-                        text-sm
-                        uppercase
-                        select-none
-                        shadow-sm
-                        transition
-                        group-hover:brightness-105
-                      ">
+                    <div
+                      className="
+          h-10 w-10
+          rounded-full
+          flex items-center justify-center
+          bg-yellow-400
+          text-black
+          font-semibold
+          text-sm
+          uppercase
+          select-none
+          shadow-sm
+          ring-2 ring-white dark:ring-gray-900
+          transition
+          group-hover:scale-105
+        "
+                    >
                       {initials}
                     </div>
                   }
                 >
-                  <ul className="w-[230px] !py-0 font-semibold text-dark dark:text-white-dark dark:text-white-light/90">
+                  <ul className="w-[260px] !py-0 text-gray-700 dark:text-gray-200">
+
+                    {/* PERFIL */}
                     <li>
-                      <div className="flex items-center px-4 py-4">
-                        <img className="h-10 w-10 rounded-md object-cover" src="/assets/images/g-8.png" alt="userProfile" />
-                        <div className="truncate ltr:pl-4 rtl:pr-4">
-                          <h4 className="text-base">
+                      <div className="flex items-start gap-3 px-4 py-4">
+
+                        {/* Bandera dinámica */}
+                        <img
+                          className="h-10 w-10 rounded-md object-cover border border-gray-200 dark:border-gray-700"
+                          src={
+                            user_redux?.countryCode
+                              ? `/assets/flags/${user_redux.countryCode.toLowerCase()}.svg`
+                              : "/assets/flags/bo.svg"
+                          }
+                          alt={user_redux?.countryCode || "country"}
+                        />
+
+                        <div className="flex-1 min-w-0">
+
+                          {/* Nombre completo */}
+                          <h4
+                            className="
+                text-sm font-semibold
+                leading-tight
+                break-words
+              "
+                          >
                             {user_redux?.name}
                           </h4>
-                          <button type="button" className="text-black/60 hover:text-primary dark:text-dark-light/60 dark:hover:text-white">
-                            {user_redux?.email}
-                          </button>
+
+                          {/* Rol como badge */}
+                          <span
+                            className="
+                inline-block mt-1
+                text-xs
+                px-2 py-0.5
+                rounded-full
+                bg-gray-100 dark:bg-gray-800
+                text-gray-600 dark:text-gray-300
+              "
+                          >
+                            {user_redux?.rol}
+                          </span>
+
                         </div>
                       </div>
                     </li>
-                    <li className="border-t border-white-light dark:border-white-light/10">
-                      <button type='button' onClick={() => logout()} className="!py-3 text-danger">
-                        <IconLogout className="h-4.5 w-4.5 shrink-0 rotate-90 ltr:mr-2 rtl:ml-2" />
+
+                    {/* LOGOUT */}
+                    <li className="border-t border-gray-200 dark:border-gray-700">
+                      <button
+                        type="button"
+                        onClick={() => logout()}
+                        className="
+            w-full
+            flex items-center
+            px-4 py-3
+            text-sm
+            text-red-600
+            hover:bg-gray-50
+            dark:hover:bg-gray-800
+            transition
+          "
+                      >
+                        <IconLogout className="h-4.5 w-4.5 mr-2 rotate-90" />
                         {t.logout}
                       </button>
                     </li>
+
                   </ul>
                 </Dropdown>
               </div>
+
             </div>
           </div>
 
@@ -397,9 +454,11 @@ const Header = () => {
                 </div>
               </button>
               <ul className="sub-menu">
+                { hasPermission("Usuarios.listar") && 
                 <li>
                   <Link href="/admin/register/users">{t.users}</Link>
                 </li>
+                }
                 <li>
                   <Link href="/admin/register/spares">{t.spare_parts}</Link>
                 </li>
