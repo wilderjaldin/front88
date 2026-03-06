@@ -19,6 +19,9 @@ import Swal from 'sweetalert2'
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 import IconBackSpace from "@/components/icon/icon-backspace";
 import { usePermissions } from "@/app/hooks/usePermissions";
+import AccessDenied from "@/components/AccessDenied";
+import AllowedCountries from "./allowedCountries"
+import { PERMISSIONS } from "@/constants/permissions";
 
 const url_list = "/usuarios/listar";
 const url_get_user = "/usuarios/detalle";
@@ -43,11 +46,12 @@ export default function Users() {
   const [modal_title, setModalTitle] = useState('');
   const [modal_content, setModalContent] = useState(null);
   const [modal_size, setModalSize] = useState('w-full max-w-5xl');
+  const [modalType, setModalType] = useState("");
 
   const token = useSelector(selectToken);
   const user = useSelector(selectUser);
 
-  const currentUserId = user.id;
+  const currentUserId = user?.id || null;
   const t = useTranslation();
   const locale = useSelector(getLocale);
 
@@ -192,7 +196,7 @@ export default function Users() {
     try {
 
       const userData = null;
-
+      setModalType("user");
       setSelectedUser(userData);
       setModalTitle(`Registrar un nuevo usuario`);
       setShowModal(true);
@@ -212,7 +216,7 @@ export default function Users() {
       });
 
       const userData = rs.data;
-
+      setModalType("user");
       setSelectedUser(userData);
       setModalTitle(`Editar Datos de ${userData.nombre}`);
       setShowModal(true);
@@ -235,25 +239,12 @@ export default function Users() {
     );
   }
 
-  const updateUser = async (formData) => {
-    try {
-      const rs = await axiosClient.put(url_update_user, formData);
-
-      // ✅ Actualizar lista SIN volver a consultar
-      setUsers(prev =>
-        prev.map(u =>
-          u.codUsuario === formData.codUsuario
-            ? { ...u, ...formData }
-            : u
-        )
-      );
-
-      setIsModalOpen(false);
-
-    } catch (error) {
-      console.error(error);
-    }
-  };
+  const handleCountries = (user) => {
+    setSelectedUser(user)
+    setModalType('countries')
+    setModalTitle('Países Permitidos')
+    setShowModal(true)
+  }
 
   const handleCloseModal = () => {
     setShowModal(false);
@@ -261,9 +252,9 @@ export default function Users() {
   };
 
   useDynamicTitle(`${t.register} | ${t.users}`);
-  
-  if (!hasPermission("Usuarios.listar")) {
-    return <div className="p-6">Acceso Bloqueado</div>;
+
+  if (!hasPermission(PERMISSIONS.J8EM1O6F)) {
+    return <AccessDenied />;
   }
   return (
     <div>
@@ -276,9 +267,7 @@ export default function Users() {
         </li>
       </ul>
 
-      {(show_form && spare) && <ComponentSpareForm action_cancel={() => setShowForm(false)} token={token} t={t} spare={spare} updateList={updateList}  ></ComponentSpareForm>}
-      {(show_view) && <ComponentSpareView action_cancel={() => setShowView(false)} token={token} t={t} spare={spare} updateList={updateList} locale={locale} ></ComponentSpareView>}
-      {(users && !(show_form || show_view)) && <DatatablesUsers addUser={addUser} editUser={editUser} page={page} data={users} t={t} total={total} handlePageChange={handlePageChange} currentUserId={currentUserId} token={token} handleSearchChange={handleSearchChange} toggleUserStatus={toggleUserStatus} />}
+      {(users && !(show_form || show_view)) && <DatatablesUsers handleCountries={handleCountries} addUser={addUser} editUser={editUser} page={page} data={users} t={t} total={total} handlePageChange={handlePageChange} currentUserId={currentUserId} token={token} handleSearchChange={handleSearchChange} toggleUserStatus={toggleUserStatus} />}
 
       <Modal
         size={modal_size}
@@ -286,16 +275,28 @@ export default function Users() {
         showModal={show_modal}
         title={modal_title}
       >
-        <UserForm
-          roles={roles}
-          countries={countries}
-          cities_all={cities_all}
-          mode={formMode}
-          user={selectedUser}   // puede ser null
-          action_cancel={handleCloseModal}
-          token={token}
-          updateList={updateList}
-        />
+        {modalType === 'user' && (
+          <UserForm
+            roles={roles}
+            countries={countries}
+            cities_all={cities_all}
+            mode={formMode}
+            user={selectedUser}   // puede ser null
+            action_cancel={handleCloseModal}
+            token={token}
+            updateList={updateList}
+          />
+        )}
+
+        {modalType === 'countries' && (
+          <AllowedCountries
+            user={selectedUser}
+            countries={countries}
+            action_cancel={handleCloseModal}
+            token={token}
+            updateList={updateList}
+          />
+        )}
       </Modal>
 
     </div>

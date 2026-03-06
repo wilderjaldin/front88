@@ -17,12 +17,18 @@ import IconLock from '@/components/icon/icon-lock';
 import IconEye from '@/components/icon/icon-eye';
 import { useRef } from 'react';
 import Link from 'next/link';
+import axiosClient from "@/app/lib/axiosClient";
+import { useDispatch } from "react-redux";
+import { setImpersonation } from "@/store/authSlice";
 
+import UserActionsMenu from "./userActionsMenu"
 
 const url_delete_spare = process.env.NEXT_PUBLIC_API_URL + 'repuesto/EliminarRegistroCliente';
-const DatatablesUser = ({ data = [], t, total, page, handlePageChange, currentUserId, handleSearchChange, toggleUserStatus, addUser, editUser }) => {
+const DatatablesUser = ({ data = [], t, total, page, handlePageChange, currentUserId, handleSearchChange, toggleUserStatus, addUser, editUser, handleCountries }) => {
 
   const { isMobile } = useDevice();
+
+  const dispatch = useDispatch();
 
   const searchRef = useRef('');
   const [value, setValue] = useState((isMobile) ? 'grid' : 'list');
@@ -39,7 +45,7 @@ const DatatablesUser = ({ data = [], t, total, page, handlePageChange, currentUs
   };
 
 
-  const handleViewAs = (user) => {
+  const handleViewAs = async (user) => {
     Swal.fire({
       title: '¿Ver como este usuario?',
       text: `Ingresarás como ${user.nomUsuario}`,
@@ -49,10 +55,30 @@ const DatatablesUser = ({ data = [], t, total, page, handlePageChange, currentUs
       confirmButtonText: 'Sí, continuar',
       cancelButtonText: 'Cancelar',
       reverseButtons: true
-    }).then((result) => {
+    }).then(async (result) => {
       if (result.isConfirmed) {
-        console.log('Impersonando:', user);
-        // Aquí tu lógica de impersonación
+        try {
+
+          const res = await axiosClient.post(`/usuarios/vercomo/${user.codUsuario}`);
+
+          dispatch(setImpersonation({
+            token: res.data.token,
+            user: res.data.user,
+            permissions: res.data.permissions
+          }));
+
+
+        } catch (error) {
+
+          console.error("Error impersonando:", error);
+
+          Swal.fire(
+            'Error',
+            'No se pudo iniciar sesión como este usuario',
+            'error'
+          );
+
+        }
       }
     });
   };
@@ -153,14 +179,16 @@ const DatatablesUser = ({ data = [], t, total, page, handlePageChange, currentUs
             <div className="panel mt-5 border-0 p-0">
 
               <div className="
-                  overflow-x-auto 
-                  rounded-2xl 
+                  overflow-x-auto
+                  overflow-y-visible
+                  rounded-2xl
                   bg-white dark:bg-gray-900
                   border border-gray-200 dark:border-gray-700
                   shadow-sm
                 ">
                 {(data.length > 0) &&
                   <DataTable
+                    style={{ overflow: 'visible' }}
                     className="
                               min-w-[1200px] text-sm
                               [&_thead]:bg-gray-50 
@@ -190,64 +218,14 @@ const DatatablesUser = ({ data = [], t, total, page, handlePageChange, currentUs
                         title: '',
                         accessor: 'codUsuario',
                         render: (s) => (
-                          <div className="flex gap-2">
-
-                            {/* Editar */}
-                            <button
-                              title={t.edit}
-                              className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition"
-                              onClick={() => editUser(s)}
-                            >
-                              <IconPencil className="w-4 h-4" />
-                            </button>
-
-                            {/* Activar / Inactivar dinámico */}
-                            <button
-                              title={s.codEstado === 'AC' ? 'Inactivar usuario' : 'Reactivar usuario'}
-                              disabled={s.codUsuario === currentUserId}
-                              className={`p-2 rounded-lg transition
-                              ${s.codUsuario === currentUserId
-                                  ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
-                                  : (
-                                    `${s.codEstado === 'AC'
-                                      ? 'bg-red-50 text-red-600 hover:bg-red-100'
-                                      : 'bg-green-50 text-green-600 hover:bg-green-100'
-                                    }`
-                                  )
-                                }`}
-
-                              onClick={() => toggleUserStatus(s)}
-                            >
-                              {s.codEstado === 'AC'
-                                ? <IconBan className="w-4 h-4" />
-                                : <IconCheck className="w-4 h-4" />
-                              }
-                            </button>
-
-                            {/* Permisos */}
-                            <Link
-                              title="Permisos"
-                              href={`/admin/register/users/permissions/${s.codUsuario}`}
-                              className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition"
-                            >
-                              <IconLock className="w-4 h-4" />
-                            </Link>
-
-                            {/* Ver como */}
-                            <button
-                              title="Ver como usuario"
-                              disabled={s.codUsuario === currentUserId}
-                              className={`p-2 rounded-lg transition
-                              ${s.codUsuario === currentUserId
-                                  ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
-                                  : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
-                                }`}
-                              onClick={() => handleViewAs(s)}
-                            >
-                              <IconEye className="w-4 h-4" />
-                            </button>
-
-                          </div>
+                          <UserActionsMenu
+                            user={s}
+                            urrentUserId={currentUserId}
+                            editUser={editUser}
+                            toggleUserStatus={toggleUserStatus}
+                            handleViewAs={handleViewAs}
+                            handleCountries={handleCountries}
+                          />
                         )
                       },
                       {
@@ -400,65 +378,14 @@ const DatatablesUser = ({ data = [], t, total, page, handlePageChange, currentUs
                             </div>
                           </div>
 
-                          <div className="relative">
-                            <div className="relative">
-                              <button
-                                onClick={() =>
-                                  setOpenMenu(openMenu === user.codUsuario ? null : user.codUsuario)
-                                }
-                                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-                              >
-                                ⋮
-                              </button>
-
-                              {openMenu === user.codUsuario && (
-                                <div className="absolute right-0 mt-2 w-44 rounded-xl bg-white dark:bg-gray-800 
-                    shadow-xl border border-gray-200 dark:border-gray-700 
-                    py-2 z-50 animate-in fade-in duration-150">
-
-                                  <button
-                                    onClick={() => {
-                                      editUser(user);
-                                      setOpenMenu(null);
-                                    }}
-                                    className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-                                  >
-                                    ✏️ Editar
-                                  </button>
-
-                                  <button
-                                    onClick={() => {
-                                      deleteSparePart(user);
-                                      setOpenMenu(null);
-                                    }}
-                                    className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-                                  >
-                                    🚫 Inactivar
-                                  </button>
-
-                                  <button
-                                    onClick={() => {
-                                      console.log("Permisos", user);
-                                      setOpenMenu(null);
-                                    }}
-                                    className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-                                  >
-                                    🔐 Permisos
-                                  </button>
-
-                                  <button
-                                    onClick={() => {
-                                      console.log("Ver como", user);
-                                      setOpenMenu(null);
-                                    }}
-                                    className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-                                  >
-                                    👁 Ver como
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </div>
+                          <UserActionsMenu
+                            user={user}
+                            urrentUserId={currentUserId}
+                            editUser={editUser}
+                            toggleUserStatus={toggleUserStatus}
+                            handleViewAs={handleViewAs}
+                            handleCountries={handleCountries}
+                          />
                         </div>
 
                         <div className="px-5 pb-5 space-y-3 text-sm">

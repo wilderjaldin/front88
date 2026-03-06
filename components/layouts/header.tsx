@@ -17,7 +17,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useTranslation } from "@/app/locales";
 import { useDispatch, useSelector } from 'react-redux';
 import { useForm } from "react-hook-form"
-import { selectUser, setAuth, selectToken } from '@/store/authSlice';
+import { selectUser, setAuth, selectToken, selectImpersonated } from '@/store/authSlice';
 import { getLocale, setLocale } from '@/store/localeSlice';
 import useAuthGuard from '@/components/layouts/useAuthGuard';
 import { Transition, Dialog, DialogPanel, TransitionChild } from '@headlessui/react';
@@ -31,6 +31,7 @@ import IconMenuDashboard from '../icon/menu/icon-menu-dashboard';
 import IconSquares from '../icon/icon-squares';
 import BtnNewQuote from '@/components/BtnNewQuote';
 import { usePermissions } from "@/app/hooks/usePermissions";
+import { PERMISSIONS } from "@/constants/permissions";
 
 const url_list_users = process.env.NEXT_PUBLIC_API_URL + "inbox/MostrarListaUsuarios"
 const url_save_message = process.env.NEXT_PUBLIC_API_URL + "inbox/IniciarMsg"
@@ -39,7 +40,7 @@ const Header = () => {
   useAuthGuard();
 
   const { hasPermission } = usePermissions();
-  
+  const impersonated = useSelector(selectImpersonated);
   const pathname = usePathname();
   const dispatch = useDispatch();
   const router = useRouter();
@@ -105,7 +106,7 @@ const Header = () => {
   }, [pathname]);
 
   const logout = () => {
-    dispatch(setAuth({ token: null, user: null }))
+    dispatch(setAuth({ token: null, user: null, permissions: null }))
     router.push('/');
   }
 
@@ -415,6 +416,7 @@ const Header = () => {
                     </li>
 
                     {/* LOGOUT */}
+                    { !(impersonated) &&
                     <li className="border-t border-gray-200 dark:border-gray-700">
                       <button
                         type="button"
@@ -434,6 +436,7 @@ const Header = () => {
                         {t.logout}
                       </button>
                     </li>
+                    }
 
                   </ul>
                 </Dropdown>
@@ -454,7 +457,7 @@ const Header = () => {
                 </div>
               </button>
               <ul className="sub-menu">
-                { hasPermission("Usuarios.listar") && 
+                { hasPermission(PERMISSIONS.J8EM1O6F) && 
                 <li>
                   <Link href="/admin/register/users">{t.users}</Link>
                 </li>

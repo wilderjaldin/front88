@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from "next/navigation";
 import { useForm } from 'react-hook-form';
 import axiosClient from "@/app/lib/axiosClient";
 import Link from 'next/link';
+import Swal from "sweetalert2";
 import { useTranslation } from "@/app/locales";
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 
@@ -15,6 +16,8 @@ export default function UserPermissions() {
   const params = useParams();
   const id = params?.id;
   const t = useTranslation();
+  const router = useRouter();
+  const [saving, setSaving] = useState(false);
   const [user, setUser] = useState(null);
   const [permissions, setPermissions] = useState([]);
   const [permissionsRol, setPermissionsRol] = useState([]);
@@ -41,7 +44,7 @@ export default function UserPermissions() {
         setPermissions(data.permisos || []);
 
         setPermissionsRol(data.permisos.filter(p => p.rol === true));
-        setPermissionsUser(data.permisos.filter(p => p.rol === null));
+        setPermissionsUser(data.permisos.filter(p => p.rol === false));
 
 
         const defaultValues = {};
@@ -62,6 +65,9 @@ export default function UserPermissions() {
   }, [id, reset]);
 
   const onSubmit = async (formData) => {
+
+    setSaving(true);
+
     if (!user?.codUsuario) return;
     const selected = permissions.map(p => ({
       codPermiso: p.codPermiso,
@@ -76,22 +82,36 @@ export default function UserPermissions() {
       permisos: selected
     };
 
-    console.log("Payload limpio:", payload);
     try {
       await axiosClient.post(url_update, payload);
-      alert("Permisos actualizados correctamente");
+      Swal.fire({
+        position: "top-end",
+        icon: 'success',
+        title: 'Permisos actualizados correctamente',
+        timer: 3000,
+        showConfirmButton: false
+      });
+      router.push("/admin/register/users");
     } catch (err) {
-      console.error(err);
-      alert("Error al actualizar permisos");
+      console.error('err', err);
+      Swal.fire({
+        position: "top-end",
+        icon: 'error',
+        title: err?.response?.data?.message || "Error al actualizar",
+        timer: 3000,
+        showConfirmButton: false
+      });
+    } finally {
+      setSaving(false);
     }
   };
 
-  useDynamicTitle(`${t.register} | ${t.permissions}`);
+  useDynamicTitle(`${t.users} | ${t.permissions}`);
 
   if (loading) return <div className="p-6">Cargando...</div>;
   if (error) return <div className="p-6 text-red-500">{error}</div>;
 
-  
+
 
   return (
     <div className="p-6 space-y-6">
@@ -114,7 +134,7 @@ export default function UserPermissions() {
           <p className="text-gray-500">No existen permisos registrados</p>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
 
               {/* Columna R */}
               <div className="md:col-span-1 space-y-3">
@@ -123,11 +143,9 @@ export default function UserPermissions() {
                   .map((permiso) => (
                     <label
                       key={permiso.codigo}
-                      className={`${permiso.usuario !== null
-                        ? ""
-                        : permiso.rol !== null
-                          ? "bg-gray-300"
-                          : ""} flex items-center justify-between border rounded-lg px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800`}
+                      className={`${(permiso.rol === true && permiso.final === true)
+                        ? "bg-gray-200"
+                        : ""} flex items-center justify-between border rounded-lg px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800`}
                     >
                       <div className="flex items-center gap-2">
                         <input
@@ -139,11 +157,12 @@ export default function UserPermissions() {
                       </div>
 
                       <span className="text-xs text-gray-500">
-                        {permiso.usuario !== null
-                          ? "Personalizado"
-                          : permiso.rol !== null
-                            ? "ROL"
+                        {permiso.rol === true
+                          ? "ROL"
+                          : permiso.usuario === true
+                            ? "Personalizado"
                             : ""}
+
                       </span>
                     </label>
                   ))
@@ -151,17 +170,21 @@ export default function UserPermissions() {
               </div>
 
               {/* Columna U */}
-              <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
                 {permissions
-                  .filter(p => p.rol === null)
+                  .filter(p => p.rol === false)
                   .map((permiso) => (
                     <label
                       key={permiso.codigo}
                       className={`${permiso.usuario !== null
                         ? ""
-                        : permiso.rol !== null
+                        : permiso.rol !== false
                           ? "bg-gray-300"
-                          : ""} flex items-center justify-between border rounded-lg px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800`}
+                          : ""} 
+          flex items-center justify-between 
+          border rounded-lg px-3 py-2 text-sm 
+          cursor-pointer hover:bg-gray-50 
+          dark:hover:bg-gray-800`}
                     >
                       <div className="flex items-center gap-2">
                         <input
@@ -175,26 +198,43 @@ export default function UserPermissions() {
                       <span className="text-xs text-gray-500">
                         {permiso.usuario !== null
                           ? "Personalizado"
-                          : permiso.rol !== null
+                          : permiso.rol !== false
                             ? "ROL"
                             : ""}
                       </span>
                     </label>
-                  ))
-                }
+                  ))}
               </div>
 
             </div>
           </>
         )}
 
-        <div className="pt-4 text-center justify-center">
+        <div className="flex justify-end gap-3">
+
+          <Link
+            href="/admin/register/users"
+            className="inline-flex items-center justify-center
+                              px-4 py-2
+                              rounded-lg
+                              border border-gray-300 dark:border-gray-700
+                              bg-white dark:bg-gray-800
+                              text-sm font-medium
+                              text-gray-700 dark:text-gray-200
+                              hover:bg-gray-50 dark:hover:bg-gray-700
+                              transition-colors"
+          >
+            {t.btn_cancel}
+          </Link>
+
           <button
             type="submit"
-            className="bg-primary text-white px-4 py-2 rounded-lg hover:opacity-90"
+            disabled={saving}
+            className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            Guardar Permisos
+            {saving ? "Guardando..." : "Guardar Cambios"}
           </button>
+
         </div>
       </form>
     </div>

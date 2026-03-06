@@ -899,3 +899,14 @@ label.required::after {
 .mantine-DataTable-pagination select {
   all: revert;
 }
+
+.menu-item {
+  width:100%;
+  text-align:left;
+  padding:8px 14px;
+  font-size:13px;
+}
+
+.menu-item:hover{
+  background:#f3f4f6;
+}

@@ -413,7 +413,7 @@ const UserForm = ({ action_cancel, user, show_labels_opc = false, token, updateL
                   Contraseña del Correo (SMTP)
                 </label>
                 <input
-                  type="password"
+                  type="text"
                   {...register("password_smtp", { required: false })}
                   className="form-input"
                 />

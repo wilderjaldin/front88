@@ -9,7 +9,7 @@ import TextContextMenu from '@/components/TextContextMenu'
 import { useTranslation } from "@/app/locales";
 import '@mantine/core/styles.css';
 import { MantineProvider } from '@mantine/core';
-
+import ImpersonationBanner from "@/components/ImpersonationBanner";
 
 export default function DefaultLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -32,7 +32,7 @@ export default function DefaultLayout({ children }: { children: React.ReactNode 
 
         {/* BEGIN APP SETTING LAUNCHER */}
         {/* END APP SETTING LAUNCHER */}
-
+        <ImpersonationBanner/>
         <div className={`navbar-sticky main-container min-h-screen text-black dark:text-white-dark`}>
           {/* BEGIN SIDEBAR */}
           <Sidebar />

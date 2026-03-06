@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useForm, SubmitHandler } from "react-hook-form"
 import { useTranslation } from "@/app/locales";
 import Link from "next/link";
-import DatatablesSpares from '@/components/datatables/components-datatables-spares';
+import DatatablesSpares from './components-datatables-spares';
 import ComponentSpareForm from "@/components/forms/spare-form";
 import ComponentSpareView from "@/app/admin/register/spares/view";
 import IconPlusProps from '@/components/icon/icon-plus';
@@ -11,11 +11,12 @@ import { getLocale } from '@/store/localeSlice';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSelector } from 'react-redux';
 import { selectToken } from '@/store/authSlice';
-import axios from 'axios'
+import axiosClient from "@/app/lib/axiosClient"
 import Swal from 'sweetalert2'
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 import IconBackSpace from "@/components/icon/icon-backspace";
-const url = process.env.NEXT_PUBLIC_API_URL + 'repuesto/ObtenerLista';
+
+const url_list = 'repuestos/listar';
 
 const url_get_spare = process.env.NEXT_PUBLIC_API_URL + 'repuesto/RecuperarRegistro';
 
@@ -41,17 +42,54 @@ export default function Spares() {
   const [show_form, setShowForm] = useState((action == 'new') ? true : false)
   const [show_view, setShowView] = useState((action == 'view') ? true : false)
 
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(20);
+  const [total, setTotal] = useState(0);
+
   const {
     register, reset,
     handleSubmit,
     formState: { errors },
   } = useForm({ defaultValues: { query: term, show_inactive: (active == 1) ? true : false } });
 
+
+  useEffect(() => {
+    loadInitial();
+  }, []);
+
+  useEffect(() => {
+    if (id) {
+      getSpare(id);
+    }
+  }, [id, action]);
+
   const onSearch = async (data) => {
-    router.push(`?term=${data.query}&active=${(data.show_inactive) ? '1' : '0'}`)
-    getSpares(data.query, (data.show_inactive) ? '1' : '0');
+
+    const activeFlag = data.show_inactive ? '1' : '0';
+
+    router.push(`?term=${data.query}&active=${activeFlag}`);
+
+    setPage(1);
+
+    getSpares(data.query, "AC", 1);
+
   }
 
+  const changePage = (newPage) => {
+
+    setPage(newPage);
+
+    getSpares(term || '', "", newPage);
+
+  }
+
+
+
+  const loadInitial = () => {
+    getSpares('', "", 1);
+  };
+
+  /*
   useEffect(() => {
     if (term != '') {
       getSpares(term, active);
@@ -60,17 +98,18 @@ export default function Spares() {
     }
 
   }, [term]);
+  */
 
-  useEffect(() => {
-    if (id) {
-      getSpare(id);
-    }
-  }, [id, action]);
 
   const clear = () => {
     router.push(`?term=`)
     getSpares('');
     reset({ query: "" });
+  }
+
+  const handleSearch = (data) => {
+    console.log(data)
+    getSpares(data.term, data.status, 1);
   }
 
 
@@ -80,7 +119,7 @@ export default function Spares() {
     setShowView(false);
 
     try {
-      const rs = await axios.post(url_get_spare, {
+      const rs = await axiosClient.post(url_get_spare, {
         CodRepuesto: id,
         ValToken: token
       });
@@ -98,32 +137,40 @@ export default function Spares() {
     }
   };
 
-  const getSpares = async (term = '', show_inactive = 1) => {
-
+  const getSpares = async (term = '', status = "AC", pageNumber = 1) => {
 
     try {
-      const rs = await axios.post(url, { NroParteFiltro: term, Idioma: locale, EstadoFiltro: show_inactive, ValToken: token });
 
+      const rs = await axiosClient.get(url_list, {
+        params: {
+          page: pageNumber,
+          pageSize: pageSize,
+          term,
+          codEstado: status
+        }
+      });
 
-      //setSpares(Array.isArray(rs.data.dato) ? rs.data.dato : []);
-      if (rs.data.estado == "OK") {
-        setSpares(() => rs.data.dato.map((o, index) => {
-          o.id = index;
-          return o;
-        }));
-      }
+      setPage(rs.data.page);
+      setTotal(rs.data.total);
 
+      const data = rs.data.data.map((o, index) => ({
+        ...o,
+        id: index
+      }));
+
+      setSpares(data);
 
     } catch (error) {
-
+      console.log(error);
     }
-  }
+
+  };
 
   const editSparePart = async (s) => {
     setSpare([])
     setShowForm(false);
     try {
-      const rs = await axios.post(url_get_spare, { CodRepuesto: s.IdRepuesto, ValToken: token });
+      const rs = await axiosClient.post(url_get_spare, { CodRepuesto: s.IdRepuesto, ValToken: token });
 
       setSpare(rs.data.dato[0]);
       setShowForm(true);
@@ -209,49 +256,25 @@ export default function Spares() {
 
       {!(show_form || show_view) &&
         <>
-          <div className="grid grid-cols-1 gap-6 pt-5">
-            <div className={`panel shadow-lg border bg-gray-200`}>
-              <div className="mb-5">
-                <form className="space-y-5" onSubmit={handleSubmit(onSearch)}>
-                  <label htmlFor="search" className="text-sm font-medium text-gray-900 dark:text-white">{t.nro_part}</label>
-                  <div className="relative">
-                    <div className="relative mb-4">
-                      <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-                        <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
-                          <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z" />
-                        </svg>
-                      </div>
-                      <input type="search" defaultValue={term} {...register("query", { required: false })} id="search" className="block w-full p-4 ps-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder={t.enter_search_spare_parts} required />
-                      <div className="mt-4 flex items-center text-center sm:absolute sm:end-2.5 sm:bottom-2.5">
-                        <button type="button" onClick={() => clear()} className="btn-dark hover:bg-gray-900 text-white mr-2 font-medium rounded-lg text-sm px-2.5 py-1.5"><IconBackSpace className=''></IconBackSpace></button>
-                        <button type="submit" className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">{t.btn_search}</button>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="flex cursor-pointer items-center text-black">
-                        <input type="checkbox" {...register("show_inactive")} className="form-checkbox bg-white" />
-                        <span className=" text-black dark:text-white-dark">{t.show_inactive}</span>
-                      </label>
-                    </div>
-                  </div>
-                </form>
-
-              </div>
-            </div>
-          </div>
-          <div className="my-5">
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <button onClick={() => { setSpare([]); setShowForm(true); }} type="button" className="btn btn-primary">
-                <IconPlusProps className="h-5 w-5 shrink-0 ltr:mr-1.5 rtl:ml-1.5" />
-                {t.btn_add_spare_parts}
-              </button>
-            </div>
-          </div>
+          
+       
         </>
       }
       {(show_form && spare) && <ComponentSpareForm action_cancel={() => setShowForm(false)} token={token} t={t} spare={spare} updateList={updateList}  ></ComponentSpareForm>}
       {(show_view) && <ComponentSpareView action_cancel={() => setShowView(false)} token={token} t={t} spare={spare} updateList={updateList} locale={locale} ></ComponentSpareView>}
-      {(spares && !(show_form || show_view)) && <DatatablesSpares data={spares} t={t} editSparePart={editSparePart} token={token} />}
+      
+      <DatatablesSpares
+        data={spares}
+        t={t}
+        editSparePart={editSparePart}
+        token={token}
+        page={page}
+        pageSize={pageSize}
+        total={total}
+        onPageChange={changePage}
+        handleSearch={handleSearch}
+      />
+      
     </div>
   );
 }

@@ -68,17 +68,7 @@ export default function SettingsRol() {
     fetchRol();
   }, [id, reset]);
 
-  const Toast = Swal.mixin({
-    toast: true,
-    position: "top-end",
-    showConfirmButton: false,
-    timer: 3000,
-    timerProgressBar: true,
-    didOpen: (toast) => {
-      toast.onmouseenter = Swal.stopTimer;
-      toast.onmouseleave = Swal.resumeTimer;
-    },
-  });
+
 
   const onSubmit = async (formData) => {
     try {
@@ -123,6 +113,7 @@ export default function SettingsRol() {
     }
   };
 
+  useDynamicTitle(`Roles | ${t.permissions}`);
   if (loading) {
     return <div className="p-6">Cargando información del rol...</div>;
   }
