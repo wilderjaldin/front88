@@ -1,9 +1,10 @@
 'use client';
 import Tippy from '@tippyjs/react';
 import { DataTable } from 'mantine-datatable';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import IconPencil from '@/components/icon/icon-pencil';
-import IconTrashLines from '@/components/icon/icon-trash-lines';
+import IconToggleOff from '@/components/icon/icon-toggle-off';
+import IconToggleOn from '@/components/icon/icon-toggle-on';
 import { useTranslation } from "@/app/locales";
 import IconUserPlus from '@/components/icon/icon-user-plus';
 import IconListCheck from '@/components/icon/icon-list-check';
@@ -13,6 +14,7 @@ import Dropdown from '@/components/dropdown';
 import IconCaretDown from '@/components/icon/icon-caret-down';
 import IconSearch from '@/components/icon/icon-search';
 import Select from 'react-select';
+import AsyncSelect from 'react-select/async';
 import { Controller, useForm } from 'react-hook-form';
 import Swal from 'sweetalert2'
 import { Pagination } from '@mantine/core';
@@ -23,7 +25,7 @@ import IconBackSpace from '@/components/icon/icon-backspace';
 import IconPhoto from '@/components/icon/icon-photo';
 import IconFile from '@/components/icon/icon-file';
 import IconEye from '@/components/icon/icon-eye';
-import IconTrash from '@/components/icon/icon-trash';
+
 
 
 const url_delete_spare = process.env.NEXT_PUBLIC_API_URL + 'repuesto/EliminarRegistroCliente';
@@ -31,13 +33,20 @@ const url_delete_spare = process.env.NEXT_PUBLIC_API_URL + 'repuesto/EliminarReg
 const DatatablesSpares = ({
   data = [],
   t,
-  editSparePart,
-  token,
   page,
   pageSize,
   total,
+  currentFilters = {},
   onPageChange,
-  handleSearch
+  handleSearch,
+  handleClear,
+  handleNew,
+  handleEdit,
+  handleView,
+  handleToggleStatus,
+  brands = [],
+  suppliers = [],
+  typesSpare = []
 }) => {
 
   const { isMobile } = useDevice();
@@ -55,17 +64,90 @@ const DatatablesSpares = ({
     { value: 'IN', label: t.inactive }
   ], [t]);
 
+  // Lookup O(1) — keys normalizadas a Number para evitar mismatch string vs number
+  // (el backend puede devolver value como string "415" pero currentFilters.supplier es Number(415))
+  const brandsMap = useMemo(() => new Map(brands.map(b => [Number(b.value), b])), [brands]);
+  const suppliersMap = useMemo(() => new Map(suppliers.map(s => [Number(s.value), s])), [suppliers]);
+
+  // ── Resolver valor para AsyncSelect ──────────────────────────────────────
+  // AsyncSelect necesita el objeto {value, label} completo para mostrar el label.
+  // Cuando el mapa llega después del montaje (carga asíncrona desde el padre),
+  // el campo ya tiene el id numérico pero el mapa estaba vacío → no mostraba nada.
+  // Esta función devuelve el objeto si el mapa ya lo tiene, o null si aún no cargó.
+  const resolveSupplier = (id) => (id != null ? suppliersMap.get(id) ?? null : null);
+  const resolveBrand = (id) => (id != null ? brandsMap.get(id) ?? null : null);
+
+  // ── AsyncSelect: filtra en memoria, sin requests adicionales ────────────
+  // - Sin texto → no muestra nada (evita que el usuario crea que solo existen N opciones)
+  // - Con 2+ caracteres → filtra el array completo y muestra máx 20 resultados
+  const ASYNC_LIMIT = 20;
+  const ASYNC_MIN_CHARS = 2;
+
+  const filterOptions = (options, inputValue) => {
+    const term = inputValue.trim().toLowerCase();
+    if (term.length < ASYNC_MIN_CHARS) return [];
+    return options
+      .filter(o => o.label.toLowerCase().includes(term))
+      .slice(0, ASYNC_LIMIT);
+  };
+
+  const loadSuppliers = useCallback(
+    (inputValue, callback) => callback(filterOptions(suppliers, inputValue)),
+    [suppliers]
+  );
+
+  const loadBrands = useCallback(
+    (inputValue, callback) => callback(filterOptions(brands, inputValue)),
+    [brands]
+  );
+
   const {
     register, reset,
-    handleSubmit, getValues, setValue, control,
-    formState: { errors },
+    handleSubmit, control,
   } = useForm({
     defaultValues: {
-      term: "",
-      status: 'AC',
+      term: currentFilters.term ?? '',
+      status: currentFilters.status ?? 'AC',
+      supplier: null,  // se resuelve cuando llegan los catálogos
+      brand: null,
+      application: null,
+      type: currentFilters.type ?? '',
     }
   });
 
+  // Sincronizar form cuando la URL cambia externamente (ej: botón atrás del browser)
+  useEffect(() => {
+    reset({
+      term: currentFilters.term ?? '',
+      status: currentFilters.status ?? 'AC',
+      // Los AsyncSelect guardan el objeto {value,label} — se resuelven abajo
+      supplier: suppliersMap.get(currentFilters.supplier) ?? null,
+      brand: brandsMap.get(currentFilters.brand) ?? null,
+      application: brandsMap.get(currentFilters.application) ?? null,
+      type: currentFilters.type ?? '',
+    });
+  }, [
+    currentFilters.term,
+    currentFilters.status,
+    currentFilters.supplier,
+    currentFilters.brand,
+    currentFilters.application,
+    currentFilters.type,
+  ]);
+
+  // Cuando llegan los catálogos desde el servidor, resolver los ids de la URL
+  // en objetos {value,label} y setearlos en el form para que los AsyncSelect
+  // los muestren correctamente.
+  useEffect(() => {
+    if (suppliers.length === 0 && brands.length === 0) return;
+
+    reset((prev) => ({
+      ...prev,
+      supplier: currentFilters.supplier ? suppliersMap.get(currentFilters.supplier) ?? null : prev.supplier,
+      brand: currentFilters.brand ? brandsMap.get(currentFilters.brand) ?? null : prev.brand,
+      application: currentFilters.application ? brandsMap.get(currentFilters.application) ?? null : prev.application,
+    }));
+  }, [suppliers.length, brands.length]);
 
 
   const cols = [
@@ -95,71 +177,11 @@ const DatatablesSpares = ({
 
 
   const deleteSparePart = (s) => {
-    Swal.fire({
-      title: t.question_delete_spare,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#dc2626',
-      text: s.NroParte,
-      confirmButtonText: t.yes_delete,
-      cancelButtonText: t.btn_cancel,
-      reverseButtons: true
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          let rs = await axios.post(url_delete_spare, { IdRepuesto: s.IdRepuesto, ValToken: token });
+    handleToggleStatus(s);
+  };
 
-          if (rs.data.estado == "OK") {
-            setSpares(() => {
-              return spares.filter((item) => {
-                return item.IdRepuesto != s.IdRepuesto;
-              });
-            });
+   
 
-            Swal.fire({
-              position: "top-end",
-              icon: "success",
-              text: t.delete_spare_success,
-              showConfirmButton: false,
-              timer: 1500
-            });
-          } else {
-            Swal.fire({
-              position: "top-end",
-              icon: "error",
-              title: t.delete_spare_error,
-              showConfirmButton: false,
-              timer: 1500
-            });
-          }
-
-        } catch (error) {
-
-          Swal.fire({
-            title: t.error,
-            text: t.delete_spare_error_server,
-            icon: 'error',
-            confirmButtonColor: '#dc2626',
-            confirmButtonText: t.close
-          });
-        }
-
-      }
-
-    });
-  }
-
-  const clear = () => {
-
-    searchRef.current = ''
-    setEstado('')
-    setProveedor('')
-    setMarca('')
-    setAplicacion('')
-
-    onPageChange(1)
-
-  }
 
   const formatDate = (date) => {
     if (!date) return "-";
@@ -234,111 +256,175 @@ const DatatablesSpares = ({
               {/* BUSCAR */}
               <button
                 type="submit"
-                className="flex h-10 w-10 items-center justify-center rounded-lg
-      bg-primary/10 text-primary
-      hover:bg-primary/20 transition"
+                className="flex h-10 px-2 items-center justify-center rounded-lg
+      bg-primary/20 text-primary
+      hover:bg-primary/40 transition"
                 title={t.search}
               >
-                <IconSearch className="h-4 w-4" />
+                <IconSearch className="h-4 w-4 mr-2" /> { t.search }
               </button>
 
               {/* LIMPIAR */}
               <button
                 type="button"
-                onClick={clear}
-                className="flex h-10 w-10 items-center justify-center rounded-lg
+                onClick={() => {
+                  reset({
+                    term: '', status: 'AC',
+                    supplier: null, brand: null, application: null, type: null,
+                  });
+                  handleClear();
+                }}
+                className="flex h-10 items-center justify-center rounded-lg
       bg-gray-200 text-gray-700
       hover:bg-gray-300 transition
-      dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-                title={t.clear}
+      dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 px-2"
+                title={t.btn_clear}
               >
-                <IconBackSpace className="h-4 w-4" />
+                <IconBackSpace className="h-4 w-4 mr-2" />{ t.btn_clear }
               </button>
 
             </form>
 
+            {/* SEPARADOR VERTICAL */}
+            <div className="h-10 w-px bg-gray-300 dark:bg-gray-600 mx-4" />
+
             {/* NUEVO */}
             <button
               type="button"
+              onClick={handleNew}
               className="h-10 rounded-lg bg-primary px-5
-    text-white text-sm font-medium
-    shadow-sm hover:bg-primary/90 transition"
+            text-white text-sm font-medium
+            shadow-sm hover:bg-primary/90 transition"
             >
-              {t.btn_new}
+              {t.btn_add_spare_parts}
             </button>
 
           </div>
 
 
-          {/* FILA ABAJO */}
+          {/* FILA ABAJO — filtros por catálogo */}
           <div className="flex flex-wrap items-center gap-3">
 
             {/* ESTADO */}
-            <Controller
-              name="status"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  options={options_status}
-                  value={options_status.find(o => o.value === field.value)}
-                  onChange={(selected) => field.onChange(selected?.value)}
-                />
-              )}
-            />
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-gray-500 dark:text-gray-400 px-1">Estado</span>
+              <Controller
+                name="status"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    options={options_status}
+                    value={options_status.find(o => o.value === field.value) ?? null}
+                    onChange={(s) => field.onChange(s?.value ?? '')}
+                    placeholder="Estado"
+                    styles={{ control: (base) => ({ ...base, minWidth: '160px', width: '160px' }) }}
+                  />
+                )}
+              />
+            </div>
 
             {/* PROVEEDOR */}
-            <Controller
-              name="supplier"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  options={options_status}
-                  value={options_status.find(o => o.value === field.value)}
-                  onChange={(selected) => field.onChange(selected?.value)}
-                />
-              )}
-            />
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-gray-500 dark:text-gray-400 px-1">Proveedor</span>
+              <Controller
+                name="supplier"
+                control={control}
+                render={({ field }) => (
+                  <AsyncSelect
+                    loadOptions={loadSuppliers}
+                    defaultOptions={false}
+                    value={field.value}
+                    onChange={(s) => field.onChange(s ?? null)}
+                    placeholder="Buscar proveedor..."
+                    noOptionsMessage={({ inputValue }) =>
+                      inputValue.length < ASYNC_MIN_CHARS
+                        ? `Ingresa ${ASYNC_MIN_CHARS} caracteres para buscar`
+                        : 'Sin resultados'
+                    }
+                    isClearable
+                    cacheOptions
+                    styles={{ control: (base) => ({ ...base, minWidth: '200px', width: '200px' }) }}
+                  />
+                )}
+              />
+            </div>
 
             {/* MARCA */}
-            <Controller
-              name="brand"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  options={options_status}
-                  value={options_status.find(o => o.value === field.value)}
-                  onChange={(selected) => field.onChange(selected?.value)}
-                />
-              )}
-            />
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-gray-500 dark:text-gray-400 px-1">Marca</span>
+              <Controller
+                name="brand"
+                control={control}
+                render={({ field }) => (
+                  <AsyncSelect
+                    loadOptions={loadBrands}
+                    defaultOptions={false}
+                    value={field.value}
+                    onChange={(s) => field.onChange(s ?? null)}
+                    placeholder="Buscar marca..."
+                    noOptionsMessage={({ inputValue }) =>
+                      inputValue.length < ASYNC_MIN_CHARS
+                        ? `Ingresa ${ASYNC_MIN_CHARS} caracteres para buscar`
+                        : 'Sin resultados'
+                    }
+                    isClearable
+                    cacheOptions
+                    styles={{ control: (base) => ({ ...base, minWidth: '200px', width: '200px' }) }}
+                  />
+                )}
+              />
+            </div>
 
-            {/* APLICACION */}
-            <Controller
-              name="application"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  options={options_status}
-                  value={options_status.find(o => o.value === field.value)}
-                  onChange={(selected) => field.onChange(selected?.value)}
-                />
-              )}
-            />
+            {/* APLICACIÓN */}
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-gray-500 dark:text-gray-400 px-1">Aplicación</span>
+              <Controller
+                name="application"
+                control={control}
+                render={({ field }) => (
+                  <AsyncSelect
+                    loadOptions={loadBrands}
+                    defaultOptions={false}
+                    value={field.value}
+                    onChange={(s) => field.onChange(s ?? null)}
+                    placeholder="Buscar aplicación..."
+                    noOptionsMessage={({ inputValue }) =>
+                      inputValue.length < ASYNC_MIN_CHARS
+                        ? `Ingresa ${ASYNC_MIN_CHARS} caracteres para buscar`
+                        : 'Sin resultados'
+                    }
+                    isClearable
+                    cacheOptions
+                    styles={{ control: (base) => ({ ...base, minWidth: '200px', width: '200px' }) }}
+                  />
+                )}
+              />
+            </div>
 
-            <Controller
-              name="type_spare"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  options={options_status}
-                  value={options_status.find(o => o.value === field.value)}
-                  onChange={(selected) => field.onChange(selected?.value)}
-                />
-              )}
-            />
+            {/* TIPO DE REPUESTO — vacío por ahora, listo para cuando se agreguen opciones */}
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-gray-500 dark:text-gray-400 px-1">Tipo de Repuesto</span>
+              <Controller
+                name="type"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    options={typesSpare}
+                    value={typesSpare.find(o => o.value === field.value) ?? null}
+                    onChange={(s) => field.onChange(s?.value ?? '')}
+                    placeholder="Tipo de repuesto..."
+                    isClearable
+                    styles={{ control: (base) => ({ ...base, minWidth: '180px', width: '180px' }) }}
+                  />
 
-            {/* COLUMNAS */}
-            <div className="flex flex-col gap-5 md:flex-row md:items-center">
+                )}
+              />
+            </div>
+
+            { value === 'list' && (
+              
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-gray-500 dark:text-gray-400 px-1">Columnas</span>
               <div className="dropdown">
                 <Dropdown
                   placement={`bottom-end`}
@@ -382,6 +468,7 @@ const DatatablesSpares = ({
                 </Dropdown>
               </div>
             </div>
+            ) }
 
           </div>
 
@@ -413,7 +500,7 @@ const DatatablesSpares = ({
 
                         <button
                           className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                          onClick={() => router.push(`/admin/spares/${s.codRepuesto}`)}
+                          onClick={() => handleView(s)}
                           title="Ver"
                         >
                           <IconEye className="w-4 h-4 text-gray-600" />
@@ -421,7 +508,7 @@ const DatatablesSpares = ({
 
                         <button
                           className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                          onClick={() => editSparePart(s)}
+                          onClick={() => handleEdit(s)}
                           title="Editar"
                         >
                           <IconPencil className="w-4 h-4 text-blue-500" />
@@ -429,10 +516,13 @@ const DatatablesSpares = ({
 
                         <button
                           className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                          onClick={() => deleteSparePart(s)}
-                          title="Eliminar"
+                          onClick={() => handleToggleStatus(s)}
+                          title={s.codEstado === 'AC' ? 'Inactivar' : 'Activar'}
                         >
-                          <IconTrash className="w-4 h-4 text-red-500" />
+                          {s.codEstado === 'AC'
+                            ? <IconToggleOn  className="w-5 h-5  fill-green-500" />
+                            : <IconToggleOff className="w-5 h-5 text-gray-400" />
+                          }
                         </button>
 
                       </div>
@@ -491,16 +581,16 @@ const DatatablesSpares = ({
                     hidden: hideCols.includes('aplicacion'),
                   },
                   {
-                    accessor: 'tipRepuesto',
+                    accessor: 'desTipRepuesto',
                     title: t.spare_part_type,
                     sortable: false,
-                    hidden: hideCols.includes('tipRepuesto'),
+                    hidden: hideCols.includes('desTipRepuesto'),
                   },
                   {
-                    accessor: 'estado',
+                    accessor: 'desEstado',
                     title: t.status,
                     sortable: false,
-                    hidden: hideCols.includes('estado'),
+                    hidden: hideCols.includes('desEstado'),
                   },
                   {
                     accessor: 'peso',
@@ -564,15 +654,49 @@ const DatatablesSpares = ({
                   },
                   {
                     accessor: 'fecModifica',
-                    title: t.abb_modified_date,
+                    title: t.date,
                     sortable: false,
                     hidden: hideCols.includes('fecModifica'),
+                    render: (s) => (
+                  
+
+                      <div className="text-xs space-y-1 leading-tight">
+                              <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-2 border border-gray-100 dark:border-gray-700">
+
+                                <div className="flex justify-between">
+                                  <span className="text-gray-400">Registrado</span>
+                                  <span className="text-gray-500" title={  s.fecRegistraCompleto }>
+                                    { s.fecRegistra }
+                                  </span>
+                                </div>
+                                <div className="font-medium text-gray-700 dark:text-gray-200">
+                                  { s.usuarioRegistra }
+                                </div>
+
+                                <div className="border-t border-gray-200 dark:border-gray-600 my-1"></div>
+
+                                <div className="flex justify-between">
+                                  <span className="text-gray-400">Modificado</span>
+                                  <span className="text-gray-500" title={ s.fecModificaCompleto }>
+                                    { s.fecModifica }
+                                  </span>
+                                </div>
+                                <div className="font-medium text-gray-700 dark:text-gray-200">
+                                  { s.usuarioModifica }
+                                </div>
+
+                              </div>
+                            </div>
+                    )
                   },
                   {
                     accessor: 'fecVencimiento',
                     title: t.abb_validity_date,
                     sortable: false,
                     hidden: hideCols.includes('fecVencimiento'),
+                    render: (s) => (
+                      <span title={ s.fecVencimientoCompleto } >{ s.fecVencimiento }</span>
+                    )
                   },
                   {
                     accessor: 'codEstado',
@@ -657,7 +781,7 @@ const DatatablesSpares = ({
 
                       <button
                         className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                        onClick={() => editSparePart(s)}
+                        onClick={() => handleEdit(s)}
                         title="Editar"
                       >
                         <IconPencil className="w-4 h-4 text-blue-500" />
@@ -665,10 +789,13 @@ const DatatablesSpares = ({
 
                       <button
                         className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                        onClick={() => deleteSparePart(s)}
-                        title="Eliminar"
+                        onClick={() => handleToggleStatus(s)}
+                        title={s.codEstado === 'AC' ? 'Inactivar' : 'Activar'}
                       >
-                        <IconTrash className="w-4 h-4 text-red-500" />
+                        {s.codEstado === 'AC'
+                          ? <IconToggleOn  className="w-5 h-5 text-green-500" />
+                          : <IconToggleOff className="w-5 h-5 text-gray-400" />
+                        }
                       </button>
 
                     </div>
@@ -704,7 +831,7 @@ const DatatablesSpares = ({
 
                     <div className="flex justify-between">
                       <span className="text-gray-400">Tipo</span>
-                      <span className="font-medium">{s.tipRepuesto}</span>
+                      <span className="font-medium">{s.desTipRepuesto}</span>
                     </div>
 
                   </div>
@@ -762,22 +889,22 @@ const DatatablesSpares = ({
                         Reg: {s.usuarioRegistra || '-'}
                       </span>
                       <span>
-                        {formatDate(s.fecRegistra)}
+                        { s.fecRegistra }
                       </span>
                     </div>
 
                     <div className="flex justify-between">
                       <span>
-                        Mod: {s.usuarioModifica || '-'}
+                        Mod: { s.usuarioModifica || '-'}
                       </span>
                       <span>
-                        {formatDate(s.fecModifica)}
+                        { s.fecModifica }
                       </span>
                     </div>
 
                     <div className="flex justify-between">
                       <span>Vencimiento</span>
-                      <span>{formatDate(s.fecVencimiento)}</span>
+                      <span>{ s.fecVencimiento }</span>
                     </div>
 
                   </div>
