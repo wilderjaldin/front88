@@ -878,5 +878,7 @@
   "inactive" : "Inactive",
   "active" : "Active",
   "password_email" : "Password Email",
-  "permissions" : "Permissions"
+  "permissions" : "Permissions",
+  "admin": "Administration",
+  "roles" : "Roles"
 }

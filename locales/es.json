@@ -880,5 +880,7 @@
   "inactive" : "Inactivo",
   "active" : "Activo",
   "password_email" : "Contraseña Correo",
-  "permissions" : "Permisos"
+  "permissions" : "Permisos",
+  "admin": "Administración",
+  "roles" : "Roles"
 }

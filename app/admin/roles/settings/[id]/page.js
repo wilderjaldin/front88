@@ -94,7 +94,7 @@ export default function SettingsRol() {
         timer: 3000,
         showConfirmButton: false
       }).then(r => {
-        router.push("/admin/register/roles");
+        router.push("/admin/roles");
       });
 
     } catch (error) {
@@ -222,7 +222,7 @@ export default function SettingsRol() {
         <div className="flex justify-end gap-3">
 
           <Link
-            href="/admin/register/roles"
+            href="/admin/roles"
             className="inline-flex items-center justify-center
                       px-4 py-2
                       rounded-lg

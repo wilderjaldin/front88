@@ -1,332 +1,174 @@
-"use client";
-import { useEffect, useState } from "react";
-import { useForm, SubmitHandler } from "react-hook-form"
-import { useTranslation } from "@/app/locales";
-import IconPlusProps from '@/components/icon/icon-plus';
-import ComponentCustomerForm from "@/components/forms/customer-form";
-import DatatablesCustomers from "@/components/datatables/components-datatables-customers";
-import { useRouter } from 'next/navigation';
-import CustomerSettings from "./settings";
+'use client';
+import { useCallback, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import axiosClient from '@/app/lib/axiosClient';
+import Swal from 'sweetalert2';
+import { useDebounce } from 'use-debounce';
+import { useTranslation } from '@/app/locales';
+import { useDynamicTitle } from '@/app/hooks/useDynamicTitle';
+import IconSearch from '@/components/icon/icon-search';
+import IconPlus from '@/components/icon/icon-plus';
+import Modal from '@/components/modal';
+import DatatablesCustomers from './datatables-customers';
+import CustomerForm from './form/page';
 
-import axios from 'axios'
-import Swal from 'sweetalert2'
-import { useSelector } from 'react-redux';
-import { getLocale } from '@/store/localeSlice';
-import { selectToken } from '@/store/authSlice';
-import { useSearchParams } from "next/navigation";
-import { getNameOption, getNameCity } from '@/app/options'
-import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
-import IconBackSpace from "@/components/icon/icon-backspace";
+const URL_BASE   = '/clientes';
+const PAGE_SIZE  = 20;
 
-const url = process.env.NEXT_PUBLIC_API_URL + 'cliente/ObtenerLista';
-//const url_get_customer = process.env.NEXT_PUBLIC_API_URL + 'cliente/RecuperarListaCliente';
-const url_get_customer = process.env.NEXT_PUBLIC_API_URL + 'cliente/RecuperarRegistroCliente';
-const tabs = { '0': 'general', '1': 'contacts', '2': 'shipping', '3': 'conditions', '4': 'anexos' }
-const url_list_control = process.env.NEXT_PUBLIC_API_URL + "cliente/ListaControlesCli"
+const Toast = Swal.mixin({
+  toast: true, position: 'top-end',
+  showConfirmButton: false, timer: 3000, timerProgressBar: true,
+});
 
-export default function Customers() {
 
-  const router = useRouter();
+export default function CustomersPage() {
+  const router       = useRouter();
   const searchParams = useSearchParams();
-  const token = useSelector(selectToken);
-  const t = useTranslation();
-  const [show_form, setShowForm] = useState(false);
-  let term = searchParams.get("term") || '';
+  const t            = useTranslation();
 
-  const option = searchParams.get("option");
-  const customer_id = searchParams.get("customer") || 0;
-  const current_tab = Object.keys(tabs).find((key) => tabs[key] === option) || 0;
-  const [show_labels, setShowLabels] = useState(true)
-  const [contacts, setContacts] = useState([])
-  const [addresses, setAddresses] = useState([]);
-  const locale = useSelector(getLocale);
-  const [load_options, setLoadOptions] = useState(true);
-  const [docTypesLoaded, setDocTypesLoaded] = useState(false);
-  const [doc_types, setDocTypes] = useState([]);
-  const [conditions, setConditions] = useState([])
-  const [sellers, setSellers] = useState([]);
+  useDynamicTitle(t.customers ?? 'Clientes');
 
-  const {
-    register, reset,
-    handleSubmit,
-    formState: { errors },
-  } = useForm({ defaultValues: { query: term } });
+  const [clientes, setClientes] = useState([]);
+  const [total, setTotal]       = useState(0);
+  const [page, setPage]         = useState(1);
+  const [loading, setLoading]   = useState(true);
+  const [term, setTerm]         = useState('');
+  const [debouncedTerm]         = useDebounce(term, 350);
 
-  const [customer, setCustomer] = useState(null)
-  const [customers, setCustomers] = useState(null)
+  // Modal formulario
+  const [showModal, setShowModal]     = useState(false);
+  const [clienteEdit, setClienteEdit] = useState(null);
 
+  // ── Carga ─────────────────────────────────────────────────────────────────
+  const fetchClientes = useCallback(async (p = 1, t = '') => {
+    setLoading(true);
+    try {
+      const res = await axiosClient.get(URL_BASE, {
+        params: { page: p, pageSize: PAGE_SIZE, term: t, codEstado: 'AC' },
+      });
+      setClientes(res.data.data);
+      setTotal(res.data.total);
+      setPage(p);
+    } catch {
+      Toast.fire({ icon: 'error', title: 'Error cargando clientes' });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
+    fetchClientes(1, debouncedTerm);
+  }, [debouncedTerm, fetchClientes]);
 
-    async function fetchData() {
-      await getCustomers(term);
-      await getList();
-    }
-    fetchData();
-
-
-  }, [term]);
-
-  const getList = async () => {
-    try {
-      const rs = await axios.post(url_list_control, { Idioma: locale, ValToken: token });
-      if (rs.data.estado === 'OK' && Array.isArray(rs.data.dato1)) {
-
-        const options = rs.data.dato1
-          .filter(o => o.CodDoc !== 0)
-          .map(o => ({
-            value: o.CodDoc,
-            label: o.DesDoc
-          }));
-        setDocTypes(options);
-        setDocTypesLoaded(true);
-        //conditions
-        let options_conditions = [];
-        rs.data.dato2.map((o) => {
-          options_conditions.push({ value: o.CodCondPago, label: o.DesCondPago })
-        });
-        setConditions(options_conditions)
-        // sellers
-        let options_sellers = [];
-        rs.data.dato3.map((o) => {
-          options_sellers.push({ value: o.CodVendedor, label: o.NomVendedor })
-        });
-        setSellers(options_sellers)
-
-
-      } else {
-        
-      }
-
-    } catch (error) {
-      
-    }
-  }
-
-
-  useEffect(() => {
-    if (customer_id != 0 && docTypesLoaded) {
-      getCustomer(customer_id);
-      setShowForm(false);
-    } else {
-      setCustomer(null);
-    }
-  }, [customers, customer_id, docTypesLoaded]);
-
-
-  const onSearch = async (data) => {
-    router.push(`?term=${data.query}`)
-    getCustomers(data.query);
-  }
-
-  const clear = () => {
-    router.push(`?term=`)
-    getCustomers('');
-    reset({ query: "" });
-  }
-
-  const getCustomers = async (term = '') => {
-    
-    try {
-      const response = await axios.post(url, { Filtro: term, ValToken: token });
-      if (response.data.estado == "OK") {
-        setCustomers(response.data.dato);
-      }
-
-    } catch (error) {
-      
-    }
-  }
-
-  const showSettings = (c) => {
-    getCustomer(c.IdCliente)
-    setShowLabels(true);
-    router.push(`?customer=${c.IdCliente}&option=general`)
-  }
-
-  const getLabel = (options, value) => {
-    const item = options.find(o => o.value === value);
-    return item ? item.label : '';
+  // ── Modal ─────────────────────────────────────────────────────────────────
+  const openNuevo = () => {
+    setClienteEdit(null);
+    setShowModal(true);
   };
 
-  const getCustomer = async (id) => {
+  const openEditar = (cliente) => {
+    setClienteEdit(cliente);
+    setShowModal(true);
+  };
 
-    try {
+  const closeModal = () => {
+    setShowModal(false);
+    setClienteEdit(null);
+  };
 
-      const rs = await axios.post(url_get_customer, { Idioma: locale, CodCliente: id, ValToken: token });
+  const handleSaved = (res) => {
+    setClientes(res.data);
+    setTotal(res.total);
+    closeModal();
+  };
 
-      
-      if (rs.data.estado == 'Ok') {
+  // ── Paginación ────────────────────────────────────────────────────────────
+  const handlePageChange = (newPage) => {
+    fetchClientes(newPage, debouncedTerm);
+  };
 
-        /*
-        if (rs.data.dato[0]?.NomPais == undefined) {
-          let country_name = getNameOption("countries", rs.data.dato[0]?.CodPais);
-          
-          rs.data.dato[0].NomPais = country_name;
-        }
-
-        if (rs.data.dato[0].NomCiudad == undefined) {
-          let city_name = getNameCity(rs.data.dato[0].CodPais, rs.data.dato[0].CodCiudad)
-          
-          rs.data.dato[0].NomCiudad = city_name;
-        }
-        */
-        if (rs.data.dato[0].NomDocumento == undefined) {
-          let doc_name = getLabel(doc_types, rs.data.dato[0].CodDocumento);
-          rs.data.dato[0].NomDocumento = doc_name;
-        }
-        if (rs.data.dato[0].NomIdioma == undefined) {
-          let report_name = getNameOption('reports', rs.data.dato[0].IdiomaRep)
-
-          rs.data.dato[0].NomIdioma = report_name;
-        }
-
-
-        setCustomer(rs.data.dato[0]);
-        /*
-        setContacts(rs.data.dato2);
-        setAddresses(rs.data.dato3);
-        */
-      } else {
-        
-        Swal.fire({
-          title: t.error,
-          text: t.customer_error_get + " - " + rs.data.mensaje,
-          icon: 'error',
-          confirmButtonColor: '#dc2626',
-          confirmButtonText: t.close
-        });
-      }
-
-    } catch (error) {
-      
-      Swal.fire({
-        title: t.error,
-        text: t.customer_error_get_server,
-        icon: 'error',
-        confirmButtonColor: '#dc2626',
-        confirmButtonText: t.close
-      });
-    }
-  }
-
-  const updateList = (data) => {
-
-    let exist = false;
-    let options = [];
-
-    options = customers.map((cm) => {
-
-      if (cm.IdCliente == data.IdCliente) {
-        exist = true;
-        cm.NomCliente = data.NomCliente;
-        cm.DirCliente = data.DirCliente;
-        cm.NomPais = data.NomPais;
-        cm.NomCiudad = data.NomCiudad;
-        cm.Documento = data.Documento;
-        cm.CodPais = data.CodPais;
-        cm.CodCiudad = data.CodCiudad;
-        cm.TipDocumento = data.TipDocumento;
-        cm.NroDocumento = data.NroDocumento;
-        cm.SitioWeb = data.SitioWeb;
-        cm.ActPrincipal = data.ActPrincipal;
-        cm.NomIdioma = data.NomIdioma;
-      }
-      return cm;
-    });
-    if (!exist) {
-      options = [];
-      options.push(...customers, {
-        IdCliente: data.IdCliente,
-        NomCliente: data.NomCliente,
-        DirCliente: data.DirCliente,
-        NomPais: data.NomPais,
-        NomCiudad: data.NomCiudad,
-        Documento: data.Documento,
-        CodPais: data.CodPais,
-        CodCiudad: data.CodCiudad,
-        TipDocumento: data.TipDocumento,
-        NroDocumento: data.NroDocumento,
-        SitioWeb: data.SitioWeb,
-        ActPrincipal: data.ActPrincipal,
-        NomIdioma: data.NomIdioma,
-        Email: "",
-        FecRegistra: "",
-        NomContacto: "",
-        Telefonos: ""
-      }
-
-      );
-    }
-
-    setCustomers(options);
-  }
-
-  const updateCustomerTradding = (data) => {
-    customer.CodConPago = data.condition;
-    customer.CodVendedor = data.seller;
-    customer.PorUtilidad = data.utility;
-  }
-  useDynamicTitle(`${t.register} | ${t.customers}`);
+  // ─────────────────────────────────────────────────────────────────────────
   return (
     <>
-      {!(customer) &&
-        <>
-          <div>
-            <ul className="flex space-x-2 rtl:space-x-reverse">
-              <li>
-                {t.register}
-              </li>
-              <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
-                <span>{t.customers}</span>
-              </li>
-            </ul>
+      <div className="p-6 space-y-6">
 
+        {/* ── HEADER ── */}
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
+              {t.customers ?? 'Clientes'}{' '}
+              <span className="text-base font-normal text-gray-400">({total})</span>
+            </h1>
+            <div className="h-1 w-12 rounded bg-primary/70 mt-2" />
           </div>
 
-          {!(show_form) &&
-            <>
-              <div className="grid grid-cols-1 gap-6 pt-5">
-                <div className={`panel shadow-lg border bg-gray-200`}>
-                  <div className="mb-5">
-                    <form className="space-y-5" onSubmit={handleSubmit(onSearch)}>
-                      <label htmlFor="search" className="text-sm font-medium text-gray-900 dark:text-white">{t.customer}</label>
-                      <div className="relative">
-                        <div className="relative mb-4">
-                          <div className="absolute inset-y-4 sm:inset-y-0 start-0 flex sm:items-center ps-3 pointer-events-none">
-                            <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
-                              <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z" />
-                            </svg>
-                          </div>
-                          <input type="search" {...register("query", { required: false })} id="search" className="block w-full p-4 ps-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder={t.enter_data_search} />
-                          <div className="mt-4 flex items-center text-center sm:absolute sm:end-2.5 sm:bottom-2.5">
-                            <button type="button" onClick={() => clear()} className="btn-dark hover:bg-gray-900 text-white mr-2 font-medium rounded-lg text-sm px-2.5 py-1.5"><IconBackSpace className=''></IconBackSpace></button>
-                            <button type="submit" className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">{t.btn_search}</button>
-                          </div>
-                        </div>
-                      </div>
-                    </form>
+          <div className="flex flex-wrap items-start gap-3">
 
-                  </div>
-                </div>
-              </div>
-              <div className="my-5">
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  <button onClick={() => { setShowForm(true); setShowLabels(false); }} type="button" className="btn btn-primary">
-                    <IconPlusProps className="h-5 w-5 shrink-0 ltr:mr-1.5 rtl:ml-1.5" />
-                    {t.btn_add_customer}
-                  </button>
-                </div>
-              </div>
-            </>
-          }
-        </>
-      }
+            {/* Buscador */}
+            <div className="relative w-72">
+              <input
+                type="text"
+                value={term}
+                onChange={e => setTerm(e.target.value)}
+                placeholder="Buscar por nombre o documento..."
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700
+                           bg-white dark:bg-gray-900
+                           px-4 py-2 pr-10 text-sm
+                           focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400">
+                <IconSearch className="h-4 w-4" />
+              </span>
+            </div>
 
-      {(customer) && <CustomerSettings conditions={conditions} sellers={sellers} setSellers={setSellers} setConditions={setConditions} doc_types={doc_types} updateList={updateList} updateCustomerTradding={updateCustomerTradding} tabs={tabs} _customer={customer} setCustomer={setCustomer} token={token} t={t} contacts={contacts} addresses={addresses}></CustomerSettings>}
-      {(show_form) && <ComponentCustomerForm doc_types={doc_types} show_labels_opc={false} customer={customer} action_cancel={() => setShowForm(false)} token={token} updateList={updateList}></ComponentCustomerForm>}
-      {(customers && (!customer && !show_form)) && <DatatablesCustomers data={customers} customer={customer} showSettings={showSettings} t={t} token={token} />}
+            {/* Botón nuevo */}
+            <button
+              type="button"
+              onClick={openNuevo}
+              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2
+                         text-white text-sm font-medium shadow-sm hover:shadow-md transition-all"
+            >
+              <IconPlus className="h-4 w-4" />
+              {t.btn_add_customer ?? 'Nuevo Cliente'}
+            </button>
 
+          </div>
+        </div>
+
+        {/* ── TABLA ── */}
+        {loading ? (
+          <p className="text-sm text-gray-500">Cargando...</p>
+        ) : clientes.length === 0 ? (
+          <p className="text-sm text-gray-500">Sin resultados.</p>
+        ) : (
+          <DatatablesCustomers
+            data={clientes}
+            total={total}
+            page={page}
+            pageSize={PAGE_SIZE}
+            onPageChange={handlePageChange}
+            onEdit={openEditar}
+            setData={setClientes}
+            setTotal={setTotal}
+          />
+        )}
+
+      </div>
+
+      {/* ── MODAL CREAR / EDITAR ── */}
+      <Modal
+        size="w-full max-w-3xl"
+        showModal={showModal}
+        closeModal={closeModal}
+        title={clienteEdit ? 'Editar Cliente' : 'Nuevo Cliente'}
+      >
+        <CustomerForm
+          cliente={clienteEdit}
+          onCancel={closeModal}
+          onSaved={handleSaved}
+        />
+      </Modal>
     </>
   );
 }

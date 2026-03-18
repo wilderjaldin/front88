@@ -91,7 +91,7 @@ export default function UserPermissions() {
         timer: 3000,
         showConfirmButton: false
       });
-      router.push("/admin/register/users");
+      router.push("/admin/users");
     } catch (err) {
       console.error('err', err);
       Swal.fire({
@@ -120,7 +120,7 @@ export default function UserPermissions() {
       {user && (
         <div className="bg-white dark:bg-gray-900 shadow rounded-xl p-4">
           <p><strong>Nombre:</strong> {user.nomUsuario}</p>
-          <p><strong>Rol:</strong> <Link href={`/admin/register/roles/settings/${user.codRol}`} className="text-blue-600 hover:text-blue-800 underline font-medium" >{user.rol}</Link></p>
+          <p><strong>Rol:</strong> <Link href={`/admin/roles/settings/${user.codRol}`} className="text-blue-600 hover:text-blue-800 underline font-medium" >{user.rol}</Link></p>
         </div>
       )}
 
@@ -213,7 +213,7 @@ export default function UserPermissions() {
         <div className="flex justify-end gap-3">
 
           <Link
-            href="/admin/register/users"
+            href="/admin/users"
             className="inline-flex items-center justify-center
                               px-4 py-2
                               rounded-lg

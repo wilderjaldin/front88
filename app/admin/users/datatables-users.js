@@ -85,15 +85,16 @@ const DatatablesUser = ({ data = [], t, total, page, handlePageChange, currentUs
 
   return (
     <>
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 p-6 space-y-6">
 
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 
           <div>
             <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
-              {t.users} <span>{t.records} ({total})</span>
+              {t.users ?? "Usuarios"}{" "}
+              <span className="text-base font-normal text-gray-400">({total})</span>
             </h1>
-            <div className="h-1 w-12 rounded bg-primary/70 mt-2"></div>
+            <div className="h-1 w-12 rounded bg-primary/70 mt-2" />
           </div>
 
 

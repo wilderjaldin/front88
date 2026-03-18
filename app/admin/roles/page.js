@@ -13,7 +13,7 @@ import { useForm } from "react-hook-form"
 const url_roles = "/roles";
 
 export default function RolesPage() {
-  const { t } = useTranslation();
+  const t            = useTranslation();
   const router = useRouter();
 
   const [roles, setRoles] = useState([]);
@@ -98,20 +98,32 @@ export default function RolesPage() {
   };
 
   const handleEdit = (id) => {
-    router.push(`/admin/register/roles/settings/${id}`);
+    router.push(`/admin/roles/settings/${id}`);
   };
 
   useDynamicTitle("Roles");
 
   return (
     <>
+      <ul className="flex space-x-2 rtl:space-x-reverse">
+        <li>
+          {t.admin}
+        </li>
+        <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
+          <span>{t.roles}</span>
+        </li>
+      </ul>
       <div className="p-6 space-y-6">
-
+        
         {/* HEADER */}
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold">
-            Roles ({roles.length})
-          </h1>
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
+              {t.roles ?? "Roles"}{" "}
+              <span className="text-base font-normal text-gray-400">({roles.length})</span>
+            </h1>
+            <div className="h-1 w-12 rounded bg-primary/70 mt-2" />
+          </div>
 
           <button
             onClick={() => {
@@ -134,7 +146,7 @@ export default function RolesPage() {
         </div>
 
         {/* CONTENIDO */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl shadow p-4">
+        <div className="panel border-0 p-0 overflow-x-auto">
 
           {loading ? (
             <p className="text-sm text-gray-500">Cargando...</p>
@@ -145,10 +157,10 @@ export default function RolesPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="border-b dark:border-gray-700 text-left">
+                <thead className="border-b dark:border-gray-700 text-left bg-gray-50 dark:bg-gray-800">
                   <tr>
                     <th className="py-2">Nombre</th>
-                    <th className="py-2 w-40 text-right">Acciones</th>
+                    <th className="py-2 w-40 text-right"></th>
                   </tr>
                 </thead>
                 <tbody>

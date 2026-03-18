@@ -125,7 +125,7 @@ export default function UserActionsMenu({
 
           {/* Permisos */}
           <Link
-            href={`/admin/register/users/permissions/${user.codUsuario}`}
+            href={`/admin/users/permissions/${user.codUsuario}`}
             className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
             onClick={() => setOpen(false)}
           >

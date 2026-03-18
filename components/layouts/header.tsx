@@ -30,6 +30,9 @@ import IconHome from '../icon/icon-home';
 import IconMenuDashboard from '../icon/menu/icon-menu-dashboard';
 import IconSquares from '../icon/icon-squares';
 import BtnNewQuote from '@/components/BtnNewQuote';
+import { useVisibleMenu } from '@/app/hooks/useVisibleMenu';
+import { MenuItem } from '@/components/layouts/menuConfig';
+
 import { usePermissions } from "@/app/hooks/usePermissions";
 import { PERMISSIONS } from "@/constants/permissions";
 
@@ -39,6 +42,7 @@ const url_save_message = process.env.NEXT_PUBLIC_API_URL + "inbox/IniciarMsg"
 const Header = () => {
   useAuthGuard();
 
+  const visibleMenu = useVisibleMenu();
   const { hasPermission } = usePermissions();
   const impersonated = useSelector(selectImpersonated);
   const pathname = usePathname();
@@ -416,12 +420,12 @@ const Header = () => {
                     </li>
 
                     {/* LOGOUT */}
-                    { !(impersonated) &&
-                    <li className="border-t border-gray-200 dark:border-gray-700">
-                      <button
-                        type="button"
-                        onClick={() => logout()}
-                        className="
+                    {!(impersonated) &&
+                      <li className="border-t border-gray-200 dark:border-gray-700">
+                        <button
+                          type="button"
+                          onClick={() => logout()}
+                          className="
             w-full
             flex items-center
             px-4 py-3
@@ -431,11 +435,11 @@ const Header = () => {
             dark:hover:bg-gray-800
             transition
           "
-                      >
-                        <IconLogout className="h-4.5 w-4.5 mr-2 rotate-90" />
-                        {t.logout}
-                      </button>
-                    </li>
+                        >
+                          <IconLogout className="h-4.5 w-4.5 mr-2 rotate-90" />
+                          {t.logout}
+                        </button>
+                      </li>
                     }
 
                   </ul>
@@ -446,124 +450,41 @@ const Header = () => {
           </div>
 
           {/* horizontal menu */}
-          <ul className="horizontal-menu hidden border-t border-[#ebedf2] bg-white px-6 py-1.5 font-semibold text-black rtl:space-x-reverse dark:border-[#191e3a] dark:bg-black dark:text-white-dark lg:space-x-1.5 xl:space-x-8">
-            <li className="menu nav-item relative">
-              <button type="button" className="nav-link">
-                <div className="flex items-center">
-                  <span className="px-1">{t.register}</span>
-                </div>
-                <div className="right_arrow">
-                  <IconCaretDown />
-                </div>
-              </button>
-              <ul className="sub-menu">
-                { hasPermission(PERMISSIONS.J8EM1O6F) && 
-                <li>
-                  <Link href="/admin/register/users">{t.users}</Link>
-                </li>
-                }
-                <li>
-                  <Link href="/admin/register/spares">{t.spare_parts}</Link>
-                </li>
-                <li>
-                  <Link href="/admin/register/spares-in-lot">{t.spare_parts_in_lot}</Link>
-                </li>
-                <li>
-                  <Link href="/admin/register/reference-change-part">{t.reference_part_change}</Link>
-                </li>
-                <li>
-                  <Link href="/admin/register/reference-change-part-lot">{t.reference_change_part_in_lot}</Link>
-                </li>
-                <li>
-                  <Link href="/admin/register/customers">{t.customers}</Link>
-                </li>
-                <li>
-                  <Link href="/admin/register/suppliers">{t.suppliers}</Link>
-                </li>
-                <li>
-                  <Link href="/admin/register/supplier-freight">{t.freight_supplier}</Link>
-                </li>
-                <li>
-                  <Link href="/admin/register/company">{t.company}</Link>
-                </li>
-                <li>
-                  <Link href="/admin/register/utility">{t.utility}</Link>
-                </li>
-                <li>
-                  <Link href="/admin/register/availability">{t.availability}</Link>
-                </li>
-                <li>
-                  <Link href="/admin/register/exchange-rate">{t.exchange_rate}</Link>
-                </li>
-              </ul>
-            </li>
-            <li className="menu nav-item relative">
-              <button type="button" className="nav-link">
-                <div className="flex items-center">
-                  <span className="px-1">{t.revision}</span>
-                </div>
-                <div className="right_arrow">
-                  <IconCaretDown />
-                </div>
-              </button>
-              <ul className="sub-menu">
-                <li>
-                  <Link href="/admin/revision/orders-process">{t.orders_in_process}</Link>
-                </li>
-                <li>
-                  <Link href="/admin/revision/authorize-purchase">{t.authorize_purchase}</Link>
-                </li>
-                <li>
-                  <Link href="/admin/revision/crm-dashboard">{t.panel_crm}</Link>
-                </li>
-              </ul>
-            </li>
-            <li className="">
-              <Link href="/admin/purchase-order" className="nav-link">{t.purchase_order}</Link>
-            </li>
-            <li className="">
-              <Link href="/admin/purchase-reception" className="nav-link">{t.purchase_reception}</Link>
-            </li>
-            <li className="">
-              <Link href="/admin/packaging" className="nav-link">{t.packaging}</Link>
-            </li>
-            <li className="">
-              <Link href="/admin/delivery" className="nav-link">{t.delivery}</Link>
-            </li>
-            <li className="menu nav-item relative">
-              <button type="button" className="nav-link">
-                <div className="flex items-center">
-                  <span className="px-1">{t.query}</span>
-                </div>
-                <div className="right_arrow">
-                  <IconCaretDown />
-                </div>
-              </button>
-              <ul className="sub-menu">
-                <li>
-                  <Link href="/admin/queries/spare-parts-quotation">{t.spare_parts_to_be_quoted}</Link>
-                </li>
-                <li>
-                  <Link href="/admin/queries/spare-parts-identified">{t.spare_parts_to_be_identified}</Link>
-                </li>
-                <li>
-                  <Link href="/admin/queries/orders-placed">{t.quotes_orders_done}</Link>
-                </li>
-                <li>
-                  <Link href="/admin/queries/purchase-orders">{t.purchase_orders}</Link>
-                </li>
-                <li>
-                  <Link href="/admin/queries/delivery-report">{t.delivery_report}</Link>
-                </li>
-                <li>
-                  <Link href="/admin/queries/change-quote">{t.change_quote}</Link>
-                </li>
-              </ul>
-            </li>
-            <li className="">
-              <Link href="/admin/inbox" className="nav-link">{t.inbox}</Link>
-            </li>
+          <ul className="horizontal-menu hidden border-t border-[#ebedf2] bg-white px-6 py-1.5 font-semibold text-black dark:border-[#191e3a] dark:bg-[#0e1726] dark:text-white-dark lg:space-x-1.5 xl:space-x-8 rtl:space-x-reverse">
+            {visibleMenu.map((item: MenuItem, index: number) => {
+              const label = (t as any)[item.labelKey] ?? item.labelKey;
 
+              if (item.type === 'link') {
+                return (
+                  <li key={index} className="">
+                    <Link href={item.href} className="nav-link">{label}</Link>
+                  </li>
+                );
+              }
+
+              // Dropdown
+              return (
+                <li key={index} className="menu nav-item relative">
+                  <button type="button" className="nav-link">
+                    <div className="flex items-center">
+                      <span className="px-1">{label}</span>
+                    </div>
+                    <div className="right_arrow">
+                      <IconCaretDown />
+                    </div>
+                  </button>
+                  <ul className="sub-menu">
+                    {item.children.map((child, ci) => (
+                      <li key={ci}>
+                        <Link href={child.href}>
+                          {(t as any)[child.labelKey] ?? child.labelKey}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              );
+            })}
           </ul>
         </div>
       </header>

@@ -180,7 +180,7 @@ const DatatablesSpares = ({
     handleToggleStatus(s);
   };
 
-   
+
 
 
   const formatDate = (date) => {
@@ -261,7 +261,7 @@ const DatatablesSpares = ({
       hover:bg-primary/40 transition"
                 title={t.search}
               >
-                <IconSearch className="h-4 w-4 mr-2" /> { t.search }
+                <IconSearch className="h-4 w-4 mr-2" /> {t.search}
               </button>
 
               {/* LIMPIAR */}
@@ -280,7 +280,7 @@ const DatatablesSpares = ({
       dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 px-2"
                 title={t.btn_clear}
               >
-                <IconBackSpace className="h-4 w-4 mr-2" />{ t.btn_clear }
+                <IconBackSpace className="h-4 w-4 mr-2" />{t.btn_clear}
               </button>
 
             </form>
@@ -421,54 +421,54 @@ const DatatablesSpares = ({
               />
             </div>
 
-            { value === 'list' && (
-              
-            <div className="flex flex-col gap-1">
-              <span className="text-xs text-gray-500 dark:text-gray-400 px-1">Columnas</span>
-              <div className="dropdown">
-                <Dropdown
-                  placement={`bottom-end`}
-                  btnClassName="!flex items-center btn btn-outline-primary font-semibold dark:border-[#253b5c] rounded-md px-4 py-2 text-sm dark:bg-[#1b2e4b] dark:text-white-dark"
-                  button={
-                    <>
-                      <span className="ltr:mr-1 rtl:ml-1">{t.columns}</span>
-                      <IconCaretDown className="h-5 w-5" />
-                    </>
-                  }
-                >
-                  <ul className="!min-w-[240px]">
-                    {cols.map((col, i) => {
-                      return (
-                        <li
-                          key={i}
-                          className="flex flex-col"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                          }}
-                        >
-                          <div className="flex items-center px-4 py-1">
-                            <label className="mb-0 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={!hideCols.includes(col.accessor)}
-                                className="form-checkbox"
-                                defaultValue={col.accessor}
-                                onChange={(event) => {
-                                  setHideCols(event.target.value);
-                                  showHideColumns(col.accessor, event.target.checked);
-                                }}
-                              />
-                              <span className="ltr:ml-2 rtl:mr-2">{col.title}</span>
-                            </label>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </Dropdown>
+            {value === 'list' && (
+
+              <div className="flex flex-col gap-1">
+                <span className="text-xs text-gray-500 dark:text-gray-400 px-1">Columnas</span>
+                <div className="dropdown">
+                  <Dropdown
+                    placement={`bottom-end`}
+                    btnClassName="!flex items-center btn btn-outline-primary font-semibold dark:border-[#253b5c] rounded-md px-4 py-2 text-sm dark:bg-[#1b2e4b] dark:text-white-dark"
+                    button={
+                      <>
+                        <span className="ltr:mr-1 rtl:ml-1">{t.columns}</span>
+                        <IconCaretDown className="h-5 w-5" />
+                      </>
+                    }
+                  >
+                    <ul className="!min-w-[240px]">
+                      {cols.map((col, i) => {
+                        return (
+                          <li
+                            key={i}
+                            className="flex flex-col"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                            }}
+                          >
+                            <div className="flex items-center px-4 py-1">
+                              <label className="mb-0 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={!hideCols.includes(col.accessor)}
+                                  className="form-checkbox"
+                                  defaultValue={col.accessor}
+                                  onChange={(event) => {
+                                    setHideCols(event.target.value);
+                                    showHideColumns(col.accessor, event.target.checked);
+                                  }}
+                                />
+                                <span className="ltr:ml-2 rtl:mr-2">{col.title}</span>
+                              </label>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </Dropdown>
+                </div>
               </div>
-            </div>
-            ) }
+            )}
 
           </div>
 
@@ -520,8 +520,8 @@ const DatatablesSpares = ({
                           title={s.codEstado === 'AC' ? 'Inactivar' : 'Activar'}
                         >
                           {s.codEstado === 'AC'
-                            ? <IconToggleOn  className="w-5 h-5  fill-green-500" />
-                            : <IconToggleOff className="w-5 h-5 text-gray-400" />
+                            ? <IconToggleOn className="w-10 h-10  fill-green-500" />
+                            : <IconToggleOff className="w-10 h-10 text-gray-400" />
                           }
                         </button>
 
@@ -658,35 +658,35 @@ const DatatablesSpares = ({
                     sortable: false,
                     hidden: hideCols.includes('fecModifica'),
                     render: (s) => (
-                  
+
 
                       <div className="text-xs space-y-1 leading-tight">
-                              <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-2 border border-gray-100 dark:border-gray-700">
+                        <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-2 border border-gray-100 dark:border-gray-700">
 
-                                <div className="flex justify-between">
-                                  <span className="text-gray-400">Registrado</span>
-                                  <span className="text-gray-500" title={  s.fecRegistraCompleto }>
-                                    { s.fecRegistra }
-                                  </span>
-                                </div>
-                                <div className="font-medium text-gray-700 dark:text-gray-200">
-                                  { s.usuarioRegistra }
-                                </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Registrado</span>
+                            <span className="text-gray-500" title={s.fecRegistraCompleto}>
+                              {s.fecRegistra}
+                            </span>
+                          </div>
+                          <div className="font-medium text-gray-700 dark:text-gray-200">
+                            {s.usuarioRegistra}
+                          </div>
 
-                                <div className="border-t border-gray-200 dark:border-gray-600 my-1"></div>
+                          <div className="border-t border-gray-200 dark:border-gray-600 my-1"></div>
 
-                                <div className="flex justify-between">
-                                  <span className="text-gray-400">Modificado</span>
-                                  <span className="text-gray-500" title={ s.fecModificaCompleto }>
-                                    { s.fecModifica }
-                                  </span>
-                                </div>
-                                <div className="font-medium text-gray-700 dark:text-gray-200">
-                                  { s.usuarioModifica }
-                                </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Modificado</span>
+                            <span className="text-gray-500" title={s.fecModificaCompleto}>
+                              {s.fecModifica}
+                            </span>
+                          </div>
+                          <div className="font-medium text-gray-700 dark:text-gray-200">
+                            {s.usuarioModifica}
+                          </div>
 
-                              </div>
-                            </div>
+                        </div>
+                      </div>
                     )
                   },
                   {
@@ -695,7 +695,7 @@ const DatatablesSpares = ({
                     sortable: false,
                     hidden: hideCols.includes('fecVencimiento'),
                     render: (s) => (
-                      <span title={ s.fecVencimientoCompleto } >{ s.fecVencimiento }</span>
+                      <span title={s.fecVencimientoCompleto} >{s.fecVencimiento}</span>
                     )
                   },
                   {
@@ -793,7 +793,7 @@ const DatatablesSpares = ({
                         title={s.codEstado === 'AC' ? 'Inactivar' : 'Activar'}
                       >
                         {s.codEstado === 'AC'
-                          ? <IconToggleOn  className="w-5 h-5 text-green-500" />
+                          ? <IconToggleOn className="w-5 h-5 text-green-500" />
                           : <IconToggleOff className="w-5 h-5 text-gray-400" />
                         }
                       </button>
@@ -889,22 +889,22 @@ const DatatablesSpares = ({
                         Reg: {s.usuarioRegistra || '-'}
                       </span>
                       <span>
-                        { s.fecRegistra }
+                        {s.fecRegistra}
                       </span>
                     </div>
 
                     <div className="flex justify-between">
                       <span>
-                        Mod: { s.usuarioModifica || '-'}
+                        Mod: {s.usuarioModifica || '-'}
                       </span>
                       <span>
-                        { s.fecModifica }
+                        {s.fecModifica}
                       </span>
                     </div>
 
                     <div className="flex justify-between">
                       <span>Vencimiento</span>
-                      <span>{ s.fecVencimiento }</span>
+                      <span>{s.fecVencimiento}</span>
                     </div>
 
                   </div>

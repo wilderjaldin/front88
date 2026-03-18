@@ -15,7 +15,7 @@ import Modal from '@/components/modal';
 import FormAddBrand from '@/components/forms/add-brand-form';
 import SpareFiles from '../SpareFiles';
 
-const URL_CONTROLS = 'repuestos/controles';
+const URL_CONTROLS = 'repuestos/controles?incluirEstados=true';
 const URL_DETAIL = 'repuestos/detalle';
 const URL_SAVE = 'repuestos/registrar';
 const URL_UPDATE = 'repuestos/editar';
@@ -80,11 +80,18 @@ export default function SpareFormPage() {
   const id = searchParams.get('id') ? Number(searchParams.get('id')) : null;
   const isEdit = !!id;
 
+  const options_status = useMemo(() => [
+    { value: 'AC', label: t.active },
+    { value: 'IN', label: t.inactive }
+  ], [t]);
+
   useDynamicTitle(isEdit ? 'Editar Repuesto' : 'Nuevo Repuesto');
 
   const [brands, setBrands] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [types, setTypes] = useState([]);
+  const [status, setStatus] = useState([]);
+  const [status_code, setStatusCode] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
 
   // ── Modal (Agregar marca/aplicación) ─────────────────────────────────────
@@ -94,7 +101,7 @@ export default function SpareFormPage() {
 
   //imagenes
   const [tempToken] = useState(() => crypto.randomUUID());
-  
+
   const openAddApp = () => {
     setModalTitle(t.add_application ?? 'Agregar Aplicación');
     setModalContent(
@@ -157,12 +164,12 @@ export default function SpareFormPage() {
       codAplicacion: null,
       codMarca: null,
       tipRepuesto: null,
-      estado: { value: 'NU', label: 'Nuevo' },
-      codEstado: { value: 'AC', label: 'Activo' },
+      estado: { value: 'NU', label: 'NUEVO' },
+      codEstado: { value: 'VA', label: 'VALIDO' },
       peso: '0.00',
       costo: '0.00',
       canMin: 1,
-      uniMed: { value: 'UNI', label: 'Unidad' },
+      uniMed: { value: 'UNI', label: 'UNIDAD' },
       blnPedEspecialSinFecha: false,
       blnPedidoEspecial: false,
       canDias: 0,
@@ -184,11 +191,19 @@ export default function SpareFormPage() {
 
       try {
         const rsControls = await axiosClient.get(URL_CONTROLS);
+
+        // ── Variables locales — disponibles inmediatamente ──────────────
         const newBrands = rsControls.data.marcas ?? [];
         const newSuppliers = rsControls.data.proveedores ?? [];
+        const newTypes = rsControls.data.tiposRepuesto ?? [];
+        const newStatus = rsControls.data.estados ?? [];
+        const newStatusCode = rsControls.data.estado_codigo ?? [];
+
         setBrands(newBrands);
         setSuppliers(newSuppliers);
-        setTypes(rsControls.data.tiposRepuesto ?? []);
+        setTypes(newTypes);
+        setStatus(newStatus);
+        setStatusCode(newStatusCode);
 
         if (isEdit) {
           const rsDetail = await axiosClient.get(`${URL_DETAIL}/${id}`);
@@ -196,8 +211,7 @@ export default function SpareFormPage() {
 
           const bMap = new Map(newBrands.map(b => [Number(b.value), b]));
           const sMap = new Map(newSuppliers.map(s => [Number(s.value), s]));
-          const tipMap = new Map(tiposRepuesto.map(o => [o.value, o]));
-          console.log('DDTA', d)
+
           reset({
             nroParte: d.nroParte ?? '',
             nroParte2: d.nroParte2 ?? '',
@@ -205,9 +219,9 @@ export default function SpareFormPage() {
             codPrv: sMap.get(Number(d.codPrv)) ?? null,
             codAplicacion: bMap.get(Number(d.codAplicacion)) ?? null,
             codMarca: bMap.get(Number(d.codMarca)) ?? null,
-            tipRepuesto: tipMap.get(d.tipRepuesto) ?? null,
-            estado: STATUS_OPTIONS.find(o => o.value === d.estado) ?? null,
-            codEstado: COD_ESTADO_OPTIONS.find(o => o.value === d.codEstado) ?? null,
+            tipRepuesto: newTypes.find(o => o.value === d.tipRepuesto) ?? null,
+            estado: newStatus.find(o => o.value === d.estado) ?? null,
+            codEstado: newStatusCode.find(o => o.value === d.codEstado) ?? null,
             peso: d.peso ?? '0.00',
             costo: d.costo ?? '0.00',
             canMin: d.canMin ?? 1,
@@ -218,13 +232,7 @@ export default function SpareFormPage() {
           });
         }
       } catch (err) {
-        console.error('Error en carga inicial', err);
-        Swal.fire({
-          title: 'Error',
-          text: 'No se pudo cargar la información',
-          icon: 'error',
-          confirmButtonColor: '#dc2626',
-        });
+        // ...
       } finally {
         Swal.close();
       }
@@ -273,14 +281,16 @@ export default function SpareFormPage() {
       await axiosClient[method](url, payload);
 
       Swal.fire({
-        title: t.success ?? '¡Guardado!',
+        position: "top-end",
         text: isEdit
           ? 'Repuesto actualizado correctamente'
           : 'Repuesto registrado correctamente',
         icon: 'success',
-        confirmButtonColor: '#15803d',
-        confirmButtonText: t.close ?? 'Cerrar',
+        title: t.success ?? '¡Guardado!',
+        timer: 3000,
+        showConfirmButton: false,
       }).then(() => router.push('/admin/register/spares'));
+
 
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || 'Error al guardar';
@@ -368,6 +378,7 @@ export default function SpareFormPage() {
                 type="text"
                 autoComplete="off"
                 placeholder="Ej: 3415661"
+                maxLength={50}
                 {...register('nroParte', { required: 'Campo requerido' })}
                 className={`form-input ${errors.nroParte ? 'border-red-500' : ''}`}
               />
@@ -615,7 +626,7 @@ export default function SpareFormPage() {
                 render={({ field }) => (
                   <Select
                     tabIndex={11}
-                    options={[]}
+                    options={status}
                     value={field.value}
                     onChange={(s) => field.onChange(s ?? null)}
                     placeholder="Seleccionar..."
@@ -639,7 +650,7 @@ export default function SpareFormPage() {
                 render={({ field }) => (
                   <Select
                     tabIndex={12}
-                    options={COD_ESTADO_OPTIONS}
+                    options={status_code}
                     value={field.value}
                     onChange={(s) => field.onChange(s ?? null)}
                     placeholder="Seleccionar..."
@@ -711,7 +722,7 @@ export default function SpareFormPage() {
             <div />
 
           </div>{/* fin grid */}
-          
+
         </div>{/* fin panel */}
 
         {/* ── Acciones ─────────────────────────────────────────────────── */}
