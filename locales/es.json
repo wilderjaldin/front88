@@ -882,5 +882,6 @@
   "password_email" : "Contraseña Correo",
   "permissions" : "Permisos",
   "admin": "Administración",
-  "roles" : "Roles"
+  "roles" : "Roles",
+  "spare_parts_in_lot_supplier" : "Repuestos en lote Proveedor"
 }

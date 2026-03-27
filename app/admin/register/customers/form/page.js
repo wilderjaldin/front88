@@ -8,14 +8,18 @@ import { useTranslation } from '@/app/locales';
 import IconPlus from '@/components/icon/icon-plus';
 import Modal from '@/components/modal';
 
-const URL_CONTROLES = '/clientes/controles';
-const URL_REGISTRO  = '/clientes/registro';
-const URL_EDITAR    = '/clientes/editar';
+const URL_CONTROLES  = '/clientes/controles';
+const URL_CIUDADES   = '/ciudades';          // GET /ciudades?codPais=XX
+const URL_REGISTRO   = '/clientes/registro';
+const URL_EDITAR     = '/clientes/editar';
 
 const IDIOMA_OPTIONS = [
   { value: 'ES', label: 'Español' },
   { value: 'US', label: 'Inglés' },
 ];
+
+const IDIOMA_ES = IDIOMA_OPTIONS[0]; // Español
+const IDIOMA_EN = IDIOMA_OPTIONS[1]; // Inglés
 
 const Toast = Swal.mixin({
   toast: true, position: 'top-end',
@@ -27,13 +31,15 @@ const FieldError = ({ error }) =>
 
 // ─────────────────────────────────────────────────────────────────────────────
 const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
-  const t       = useTranslation();
-  const isEdit  = !!cliente;
-  const [saving, setSaving]     = useState(false);
-  const [paises, setPaises]     = useState([]);
-  const [ciudades, setCiudades] = useState([]);
-  const [docTypes, setDocTypes] = useState([]);
-  const [loading, setLoading]   = useState(true);
+  const t      = useTranslation();
+  const isEdit = !!cliente;
+
+  const [saving, setSaving]         = useState(false);
+  const [paises, setPaises]         = useState([]);
+  const [ciudades, setCiudades]     = useState([]);
+  const [docTypes, setDocTypes]     = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [loadingCities, setLoadingCities] = useState(false);
 
   // Modales agregar país / ciudad
   const [showModalPais, setShowModalPais]     = useState(false);
@@ -43,48 +49,74 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
   const [savingPais, setSavingPais]     = useState(false);
   const [savingCiudad, setSavingCiudad] = useState(false);
 
-  const { register, handleSubmit, control, reset, watch, setValue, formState: { errors } } = useForm({
+  const {
+    register, handleSubmit, control, reset, watch, setValue,
+    formState: { errors },
+  } = useForm({
     defaultValues: {
-      nomCliente:   '',
-      tipDocumento: null,
-      numNit:       '',
-      codPais:      null,
-      codCiudad:    null,
-      dirCliente:   '',
-      sitWeb:       '',
-      actPrincipal: '',
-      cliIdioma:    IDIOMA_OPTIONS[0],
-    }
+      nomCliente:    '',
+      tipDocumento:  null,
+      numNit:        '',
+      codPais:       null,
+      codCiudad:     null,
+      dirCliente:    '',
+      sitWeb:        '',
+      actPrincipal:  '',
+      cliIdioma:     IDIOMA_ES,
+      // US-only
+      estado:        '',
+      zip:           '',
+      // IVA
+      pctIva:        0,
+      noConsiderarIva: false,
+      // Revendedor
+      esRevendedor:  false,
+    },
   });
 
-  const watchPais = watch('codPais');
+  const watchPais         = watch('codPais');
+  const watchNoIva        = watch('noConsiderarIva');
+  const isUS              = watchPais?.value === 'US';
 
   // ── Carga controles ───────────────────────────────────────────────────────
   useEffect(() => {
     const init = async () => {
       setLoading(true);
       try {
-        const res = await axiosClient.get(URL_CONTROLES);
+        const res         = await axiosClient.get(URL_CONTROLES);
         const newPaises   = res.data.paises   ?? [];
         const newDocTypes = res.data.docTypes ?? [];
         setPaises(newPaises);
         setDocTypes(newDocTypes);
 
         if (isEdit && cliente) {
-          // Filtrar ciudades del país actual
           const paisObj = newPaises.find(p => p.value === cliente.codPais) ?? null;
-          if (paisObj?.ciudades) setCiudades(paisObj.ciudades);
+
+          // Cargar ciudades desde API si hay país
+          let ciudadesInit = [];
+          if (paisObj) {
+            try {
+              const cr = await axiosClient.get(URL_CIUDADES, { params: { codPais: paisObj.value } });
+              ciudadesInit = cr.data ?? [];
+            } catch { /* silencioso */ }
+          }
+          setCiudades(ciudadesInit);
 
           reset({
-            nomCliente:   cliente.nomCliente   ?? '',
-            tipDocumento: newDocTypes.find(d => d.value === cliente.tipDocumento) ?? null,
-            numNit:       cliente.numNit       ?? '',
-            codPais:      paisObj,
-            codCiudad:    paisObj?.ciudades?.find(c => c.value === cliente.codCiudad) ?? null,
-            dirCliente:   cliente.dirCliente   ?? '',
-            sitWeb:       cliente.sitWeb       ?? '',
-            actPrincipal: cliente.actPrincipal ?? '',
-            cliIdioma:    IDIOMA_OPTIONS.find(o => o.value === cliente.cliIdioma) ?? IDIOMA_OPTIONS[0],
+            nomCliente:    cliente.nomCliente   ?? '',
+            tipDocumento:  newDocTypes.find(d => d.value === cliente.tipDocumento) ?? null,
+            numNit:        cliente.numNit        ?? '',
+            codPais:       paisObj,
+            codCiudad:     ciudadesInit.find(c => c.value === cliente.codCiudad) ?? null,
+            dirCliente:    cliente.dirCliente    ?? '',
+            sitWeb:        cliente.sitWeb        ?? '',
+            actPrincipal:  cliente.actPrincipal  ?? '',
+            cliIdioma:     IDIOMA_OPTIONS.find(o => o.value === cliente.cliIdioma) ?? IDIOMA_ES,
+            estado:        cliente.estado        ?? '',
+            zip:           cliente.zip           ?? '',
+            pctIva:        cliente.pctIva        ?? 0,
+            noConsiderarIva: cliente.noConsiderarIva ?? false,
+            esRevendedor:  cliente.esRevendedor  ?? false,
           });
         }
       } catch {
@@ -96,32 +128,69 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
     init();
   }, [cliente]);
 
-  // ── Actualizar ciudades al cambiar país ───────────────────────────────────
+  // ── Cargar ciudades desde API al cambiar país ─────────────────────────────
   useEffect(() => {
-    if (!watchPais) { setCiudades([]); return; }
-    setCiudades(watchPais.ciudades ?? []);
+    if (!watchPais) {
+      setCiudades([]);
+      return;
+    }
+
+    // Ajustar idioma por defecto según país
+    const idiomaDefault = watchPais.value === 'US' ? IDIOMA_EN : IDIOMA_ES;
+    setValue('cliIdioma', idiomaDefault);
+
+    // Limpiar campos US si cambia de país
+    if (watchPais.value !== 'US') {
+      setValue('estado', '');
+      setValue('zip', '');
+    }
+
+    // Limpiar ciudad y cargar desde API
     if (!isEdit) setValue('codCiudad', null);
+
+    const fetchCities = async () => {
+      setLoadingCities(true);
+      try {
+        const res = await axiosClient.get(URL_CIUDADES, { params: { codPais: watchPais.value } });
+        setCiudades(res.data ?? []);
+      } catch {
+        Toast.fire({ icon: 'error', title: 'Error cargando ciudades' });
+        setCiudades([]);
+      } finally {
+        setLoadingCities(false);
+      }
+    };
+
+    fetchCities();
   }, [watchPais?.value]);
 
-  // ── Submit ─────────────────────────────────────────────────────────────────
+  // ── Submit ────────────────────────────────────────────────────────────────
   const onSubmit = async (data) => {
     setSaving(true);
     try {
       const payload = {
         ...(isEdit && { codCliente: cliente.codCliente }),
-        nomCliente:   data.nomCliente.trim(),
-        tipDocumento: data.tipDocumento?.value ?? '',
-        numNit:       data.numNit?.trim() ?? '',
-        codPais:      data.codPais?.value ?? '',
-        codCiudad:    data.codCiudad?.value ?? '',
-        dirCliente:   data.dirCliente?.trim() || null,
-        sitWeb:       data.sitWeb?.trim()     || null,
-        actPrincipal: data.actPrincipal?.trim() || null,
-        cliIdioma:    data.cliIdioma?.value ?? 'ES',
+        nomCliente:    data.nomCliente.trim(),
+        tipDocumento:  data.tipDocumento?.value ?? '',
+        numNit:        data.numNit?.trim()      ?? '',
+        codPais:       data.codPais?.value      ?? '',
+        codCiudad:     data.codCiudad?.value    ?? '',
+        dirCliente:    data.dirCliente?.trim()  || null,
+        sitWeb:        data.sitWeb?.trim()      || null,
+        actPrincipal:  data.actPrincipal?.trim()|| null,
+        cliIdioma:     data.cliIdioma?.value    ?? 'ES',
+        // US-only (se envía null si no aplica)
+        estado:        isUS ? (data.estado?.trim() || null) : null,
+        zip:           isUS ? (data.zip?.trim()    || null) : null,
+        // IVA
+        pctIva:        data.noConsiderarIva ? null : Number(data.pctIva),
+        noConsiderarIva: data.noConsiderarIva,
+        // Revendedor
+        esRevendedor:  data.esRevendedor,
       };
 
       const res = isEdit
-        ? await axiosClient.put(URL_EDITAR, payload)
+        ? await axiosClient.put(URL_EDITAR,    payload)
         : await axiosClient.post(URL_REGISTRO, payload);
 
       Toast.fire({ icon: 'success', title: isEdit ? 'Cliente actualizado' : 'Cliente registrado' });
@@ -138,9 +207,9 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
     if (!nuevoPais.trim()) return;
     setSavingPais(true);
     try {
-      const res = await axiosClient.post('/paises/registro', { nomPais: nuevoPais.trim() });
-      const nuevo = { value: res.data.codPais, label: res.data.nomPais, ciudades: [] };
-      setPaises(prev => [...prev, nuevo].sort((a,b) => a.label.localeCompare(b.label)));
+      const res  = await axiosClient.post('/paises/registro', { nomPais: nuevoPais.trim() });
+      const nuevo = { value: res.data.codPais, label: res.data.nomPais };
+      setPaises(prev => [...prev, nuevo].sort((a, b) => a.label.localeCompare(b.label)));
       setValue('codPais', nuevo);
       setShowModalPais(false);
       setNuevoPais('');
@@ -156,12 +225,12 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
     if (!nuevaCiudad.trim() || !watchPais) return;
     setSavingCiudad(true);
     try {
-      const res = await axiosClient.post('/ciudades/registro', {
+      const res  = await axiosClient.post('/ciudades/registro', {
         nomCiudad: nuevaCiudad.trim(),
-        codPais: watchPais.value,
+        codPais:   watchPais.value,
       });
       const nueva = { value: res.data.codCiudad, label: res.data.nomCiudad };
-      setCiudades(prev => [...prev, nueva].sort((a,b) => a.label.localeCompare(b.label)));
+      setCiudades(prev => [...prev, nueva].sort((a, b) => a.label.localeCompare(b.label)));
       setValue('codCiudad', nueva);
       setShowModalCiudad(false);
       setNuevaCiudad('');
@@ -180,7 +249,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
 
-          {/* Columna izquierda */}
+          {/* ── Columna izquierda ── */}
           <div className="space-y-4">
 
             {/* Nombre cliente */}
@@ -230,10 +299,15 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                       classNamePrefix="select"
                       className="flex-1"
                       isClearable
+                      instanceId="country"
+                      menuPosition="fixed"
+                      menuShouldScrollIntoView={false}
                     />
                   )}
                 />
-                <button type="button" onClick={() => setShowModalPais(true)}
+                <button
+                  type="button"
+                  onClick={() => setShowModalPais(true)}
                   className="flex items-center gap-1 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-800
                              border border-gray-300 dark:border-gray-700 text-sm hover:bg-gray-200 transition">
                   <IconPlus className="h-4 w-4" />
@@ -257,16 +331,26 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                     <Select
                       {...field}
                       options={ciudades}
-                      placeholder={watchPais ? 'Seleccionar ciudad...' : 'Primero selecciona un país'}
-                      isDisabled={!watchPais}
+                      placeholder={
+                        !watchPais        ? 'Primero selecciona un país' :
+                        loadingCities     ? 'Cargando ciudades...'       :
+                                           'Seleccionar ciudad...'
+                      }
+                      isDisabled={!watchPais || loadingCities}
+                      isLoading={loadingCities}
                       classNamePrefix="select"
                       className="flex-1"
                       isClearable
+                      instanceId="city"
+                      menuPosition="fixed"
+                      menuShouldScrollIntoView={false}
                     />
                   )}
                 />
-                <button type="button" onClick={() => setShowModalCiudad(true)}
-                  disabled={!watchPais}
+                <button
+                  type="button"
+                  onClick={() => setShowModalCiudad(true)}
+                  disabled={!watchPais || loadingCities}
                   className="flex items-center gap-1 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-800
                              border border-gray-300 dark:border-gray-700 text-sm hover:bg-gray-200
                              disabled:opacity-40 disabled:cursor-not-allowed transition">
@@ -277,9 +361,43 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
               <FieldError error={errors.codCiudad} />
             </div>
 
+            {/* Estado y ZIP — solo para US */}
+            {isUS && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Estado <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    {...register('estado', {
+                      required: isUS ? 'Requerido' : false,
+                      maxLength: { value: 60, message: 'Máximo 60 caracteres' },
+                    })}
+                    placeholder="Ej: California"
+                    className="form-input w-full"
+                  />
+                  <FieldError error={errors.estado} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    ZIP <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    {...register('zip', {
+                      required: isUS ? 'Requerido' : false,
+                      maxLength: { value: 10, message: 'Máximo 10 caracteres' },
+                    })}
+                    placeholder="Ej: 90210"
+                    className="form-input w-full"
+                  />
+                  <FieldError error={errors.zip} />
+                </div>
+              </div>
+            )}
+
           </div>
 
-          {/* Columna derecha */}
+          {/* ── Columna derecha ── */}
           <div className="space-y-4">
 
             {/* Documento */}
@@ -351,9 +469,53 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                     options={IDIOMA_OPTIONS}
                     classNamePrefix="select"
                     className="w-full"
+                    instanceId="idioma"
+                    menuPosition="fixed"
+                    menuShouldScrollIntoView={false}
                   />
                 )}
               />
+            </div>
+
+            {/* % IVA */}
+            <div>
+              <label className="block text-sm font-medium mb-1">% IVA</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  {...register('pctIva', {
+                    min: { value: 0,   message: 'Mínimo 0'   },
+                    max: { value: 100, message: 'Máximo 100' },
+                  })}
+                  disabled={watchNoIva}
+                  className="form-input w-28 disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    {...register('noConsiderarIva')}
+                    className="h-4 w-4 rounded border-gray-300 accent-primary cursor-pointer"
+                  />
+                  No Considerar IVA
+                </label>
+              </div>
+              <FieldError error={errors.pctIva} />
+            </div>
+
+            {/* Es Revendedor */}
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="checkbox"
+                id="esRevendedor"
+                {...register('esRevendedor')}
+                className="h-4 w-4 rounded border-gray-300 accent-primary cursor-pointer"
+              />
+              <label htmlFor="esRevendedor" className="text-sm font-medium cursor-pointer select-none">
+                Es Revendedor
+              </label>
             </div>
 
           </div>
@@ -361,12 +523,16 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
 
         {/* Botones */}
         <div className="flex justify-end gap-3 pt-2">
-          <button type="button" onClick={onCancel}
+          <button
+            type="button"
+            onClick={onCancel}
             className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700
                        text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition">
             Cancelar
           </button>
-          <button type="submit" disabled={saving}
+          <button
+            type="submit"
+            disabled={saving}
             className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2
                        text-white text-sm font-medium shadow-sm hover:shadow-md
                        disabled:opacity-50 transition-all">

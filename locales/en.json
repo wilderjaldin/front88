@@ -880,5 +880,6 @@
   "password_email" : "Password Email",
   "permissions" : "Permissions",
   "admin": "Administration",
-  "roles" : "Roles"
+  "roles" : "Roles",
+  "spare_parts_in_lot_supplier" : "Spares In Lot Supplier"
 }

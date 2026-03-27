@@ -48,6 +48,7 @@ export const MENU_CONFIG: MenuItem[] = [
     children: [
       { labelKey: 'spare_parts', href: '/admin/register/spares' },
       { labelKey: 'spare_parts_in_lot', href: '/admin/register/spares-in-lot' },
+      { labelKey: 'spare_parts_in_lot_supplier', href: '/admin/register/spares-suppliers' },
       { labelKey: 'reference_part_change', href: '/admin/register/reference-change-part' },
       { labelKey: 'reference_change_part_in_lot', href: '/admin/register/reference-change-part-lot' },
       { labelKey: 'customers', href: '/admin/register/customers' },
