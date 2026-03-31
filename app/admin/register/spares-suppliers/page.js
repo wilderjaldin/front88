@@ -56,12 +56,11 @@ export default function SparesSupplierImportPage() {
   const [file,             setFile]             = useState(null);
   const [dragging,         setDragging]         = useState(false);
   const [step,             setStep]             = useState(1);
-  const [preview,          setPreview]          = useState({ columns: [], rows: [], rawRows: [], total: 0, warnings: [] });
-  const [importResult,     setImportResult]     = useState(null);
-  const [loadingValidate,  setLoadingValidate]  = useState(false);
-  const [loadingImport,    setLoadingImport]    = useState(false);
-  const [loadingExport,    setLoadingExport]    = useState(false);
-  const [errorRowsForExport, setErrorRowsForExport] = useState([]);
+  const [preview,         setPreview]         = useState({ columns: [], rows: [], rawRows: [], total: 0, totalValidos: 0, totalOmitidos: 0, warnings: [] });
+  const [importResult,    setImportResult]    = useState(null);
+  const [loadingValidate, setLoadingValidate] = useState(false);
+  const [loadingImport,   setLoadingImport]   = useState(false);
+  const [loadingExport,   setLoadingExport]   = useState(false);
 
   const selectedSupplier = SUPPLIERS.find((s) => s.id === supplierId);
 
@@ -87,9 +86,8 @@ export default function SparesSupplierImportPage() {
   const resetAll = () => {
     setSupplierId(null);
     setFile(null);
-    setPreview({ columns: [], rows: [], rawRows: [], total: 0, warnings: [] });
+    setPreview({ columns: [], rows: [], rawRows: [], total: 0, totalValidos: 0, totalOmitidos: 0, warnings: [] });
     setImportResult(null);
-    setErrorRowsForExport([]);
     setStep(1);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -153,24 +151,22 @@ export default function SparesSupplierImportPage() {
   };
 
   const handleGoToClean = () => {
-    setErrorRowsForExport(enrichedRows.filter((r) => r.hasError));
     setStep(3);
   };
 
   const handleDownloadErrors = async () => {
-    if (!errorRowsForExport.length) return;
+    if (!file) return;
     setLoadingExport(true);
 
-    // El nombre lo genera el servidor: ktractor_errores_{codUsuario}_{horaBase36}.xlsx
-    // NO se construye nombre local ni se envía nombreArchivo en el payload.
-    const payload = {
-      rows: errorRowsForExport.map(({ rawRow, obs }) => ({ rawData: rawRow, observacion: obs })),
-    };
+    // El backend re-lee el archivo completo y genera el Excel de errores
+    const form = new FormData();
+    form.append("archivo",      file);
+    form.append("codProveedor", supplierId);
 
     try {
       const rs = await axiosClient.post(
-        `${URL_EXPORT_ERRORS}?codProveedor=${supplierId}`, payload,
-        { responseType: "blob", headers: { "Content-Type": "application/json" } }
+        URL_EXPORT_ERRORS, form,
+        { responseType: "blob", headers: { "Content-Type": "multipart/form-data" } }
       );
 
       // El nombre viene del servidor vía Content-Disposition.
@@ -200,7 +196,7 @@ export default function SparesSupplierImportPage() {
   };
 
   const handleImport = async () => {
-    const cleanCount = enrichedRows.filter((r) => !r.hasError).length;
+    const cleanCount = preview.totalValidos ?? enrichedRows.filter((r) => !r.hasError).length;
     const confirm = await Swal.fire({
       title: "¿Confirmar importación?",
       html: `Se registrarán <strong>${cleanCount}</strong> repuestos del proveedor <strong>${selectedSupplier?.label}</strong>.`,
@@ -235,7 +231,8 @@ export default function SparesSupplierImportPage() {
     { n: 4, label: "Resultado"     },
   ];
 
-  const cleanCount = enrichedRows.filter((r) => !r.hasError).length;
+  const cleanCount = preview.totalValidos ?? enrichedRows.filter((r) => !r.hasError).length;
+  const errorCount  = preview.totalOmitidos ?? 0;
 
   return (
     <div>
@@ -353,9 +350,9 @@ export default function SparesSupplierImportPage() {
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">{selectedSupplier?.label}</span>
               <span className="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/30 px-3 py-1 text-xs font-semibold text-green-700 dark:text-green-400">{preview.total} registros totales</span>
-              {enrichedRows.filter((r) => r.hasError).length > 0 && (
+              {(preview.totalOmitidos ?? 0) > 0 && (
                 <span className="inline-flex items-center rounded-full bg-red-100 dark:bg-red-900/30 px-3 py-1 text-xs font-semibold text-red-700 dark:text-red-400">
-                  {enrichedRows.filter((r) => r.hasError).length} con observaciones
+                  {preview.totalOmitidos} con observaciones
                 </span>
               )}
               {duplicateSet.size > 0 && (
@@ -404,9 +401,9 @@ export default function SparesSupplierImportPage() {
               <span className="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/30 px-3 py-1 text-xs font-semibold text-green-700 dark:text-green-400">
                 {cleanCount} listos para importar
               </span>
-              {errorRowsForExport.length > 0 && (
+              {errorCount > 0 && (
                 <span className="inline-flex items-center rounded-full bg-red-100 dark:bg-red-900/30 px-3 py-1 text-xs font-semibold text-red-700 dark:text-red-400">
-                  {errorRowsForExport.length} excluidos
+                  {errorCount} excluidos
                 </span>
               )}
             </div>
@@ -443,12 +440,12 @@ export default function SparesSupplierImportPage() {
                   </svg>
                   <p className="text-sm font-semibold text-red-700 dark:text-red-400">Filas excluidas — con observaciones</p>
                 </div>
-                {errorRowsForExport.length > 0 && (
+                {errorCount > 0 && (
                   <DownloadButton onClick={handleDownloadErrors} loading={loadingExport} />
                 )}
               </div>
               <p className="text-xs text-red-600 dark:text-red-500">
-                {errorRowsForExport.length} filas excluidas. Descarga el Excel, corrígelas y vuelve a cargarlas.
+                {errorCount} filas excluidas. Descarga el Excel, corrígelas y vuelve a cargarlas.
               </p>
             </div>
           </div>
@@ -456,8 +453,9 @@ export default function SparesSupplierImportPage() {
           {/* Tabla filas limpias */}
           {cleanCount > 0 && (
             <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
-              <div className="px-4 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+              <div className="px-4 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
                 <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Vista previa — filas que se importarán</p>
+                <p className="text-xs text-gray-400">Muestra parcial · todos serán procesados al importar</p>
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
@@ -486,43 +484,6 @@ export default function SparesSupplierImportPage() {
             </div>
           )}
 
-          {/* Tabla filas excluidas */}
-          {errorRowsForExport.length > 0 && (
-            <div className="mt-4 rounded-2xl border border-red-200 dark:border-red-800 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
-              <div className="px-4 py-3 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-700 flex items-center justify-between">
-                <p className="text-xs font-semibold text-red-700 dark:text-red-400 uppercase tracking-wide">Filas excluidas (con observaciones)</p>
-                <span className="text-xs text-red-500">{errorRowsForExport.length} filas</span>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="bg-red-50/50 dark:bg-red-900/10 border-b border-red-100 dark:border-red-800">
-                      <th className="w-10 px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">#</th>
-                      {preview.columns.map((col) => (
-                        <th key={col.key} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">{col.label}</th>
-                      ))}
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-red-500 uppercase tracking-wider whitespace-nowrap">Observación</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {errorRowsForExport.map(({ row, obs }, idx) => (
-                      <tr key={idx} className="border-b border-red-50 dark:border-red-900/20 bg-red-50/30 dark:bg-red-900/10 hover:bg-red-50">
-                        <td className="px-4 py-2.5 text-xs text-gray-400 tabular-nums">{idx + 1}</td>
-                        {preview.columns.map((col) => (
-                          <td key={col.key} className="px-4 py-2.5 text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                            <CellValue colKey={col.key} value={row[col.key]} dimmed />
-                          </td>
-                        ))}
-                        <td className="px-4 py-2.5 whitespace-nowrap">
-                          <span className="inline-flex items-center rounded-full bg-red-100 dark:bg-red-900/40 px-2 py-0.5 text-xs font-medium text-red-700 dark:text-red-400">{obs}</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -573,9 +534,9 @@ export default function SparesSupplierImportPage() {
             </div>
           )}
 
-          {errorRowsForExport.length > 0 && (
+          {errorCount > 0 && (
             <div className="flex flex-col items-center gap-2">
-              <DownloadButton onClick={handleDownloadErrors} loading={loadingExport} count={errorRowsForExport.length} />
+              <DownloadButton onClick={handleDownloadErrors} loading={loadingExport} count={errorCount} />
               <p className="text-xs text-gray-400">En formato original del proveedor · corrígelas y vuelve a cargarlas</p>
             </div>
           )}
