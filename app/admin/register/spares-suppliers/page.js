@@ -61,6 +61,9 @@ export default function SparesSupplierImportPage() {
   const [loadingValidate, setLoadingValidate] = useState(false);
   const [loadingImport,   setLoadingImport]   = useState(false);
   const [loadingExport,   setLoadingExport]   = useState(false);
+  // Filas del preview para mostrar en paso 3 (limitado a PREVIEW_MAX_ROWS del backend)
+  const [cleanRowsDisplay, setCleanRowsDisplay] = useState([]);
+  const [errorRowsDisplay, setErrorRowsDisplay] = useState([]);
 
   const selectedSupplier = SUPPLIERS.find((s) => s.id === supplierId);
 
@@ -88,6 +91,8 @@ export default function SparesSupplierImportPage() {
     setFile(null);
     setPreview({ columns: [], rows: [], rawRows: [], total: 0, totalValidos: 0, totalOmitidos: 0, warnings: [] });
     setImportResult(null);
+    setCleanRowsDisplay([]);
+    setErrorRowsDisplay([]);
     setStep(1);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -151,6 +156,8 @@ export default function SparesSupplierImportPage() {
   };
 
   const handleGoToClean = () => {
+    setCleanRowsDisplay(enrichedRows.filter((r) => !r.hasError));
+    setErrorRowsDisplay(enrichedRows.filter((r) => r.hasError));
     setStep(3);
   };
 
@@ -451,11 +458,17 @@ export default function SparesSupplierImportPage() {
           </div>
 
           {/* Tabla filas limpias */}
-          {cleanCount > 0 && (
+          {cleanRowsDisplay.length > 0 && (
             <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
               <div className="px-4 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Vista previa — filas que se importarán</p>
-                <p className="text-xs text-gray-400">Muestra parcial · todos serán procesados al importar</p>
+                <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">
+                  Vista previa — filas que se importarán
+                </p>
+                {cleanCount > cleanRowsDisplay.length && (
+                  <p className="text-xs text-gray-400">
+                    Mostrando {cleanRowsDisplay.length} de {cleanCount} · Todos serán procesados al importar
+                  </p>
+                )}
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
@@ -468,7 +481,7 @@ export default function SparesSupplierImportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {enrichedRows.filter((r) => !r.hasError).map(({ row }, idx) => (
+                    {cleanRowsDisplay.map(({ row }, idx) => (
                       <tr key={idx} className={`border-b border-gray-100 dark:border-gray-800 hover:bg-primary/5 ${idx % 2 === 0 ? "bg-white dark:bg-gray-900" : "bg-gray-50/50 dark:bg-gray-800/30"}`}>
                         <td className="px-4 py-2.5 text-xs text-gray-400 tabular-nums">{idx + 1}</td>
                         {preview.columns.map((col) => (
@@ -476,6 +489,50 @@ export default function SparesSupplierImportPage() {
                             <CellValue colKey={col.key} value={row[col.key]} />
                           </td>
                         ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Tabla filas excluidas — preview parcial con observaciones */}
+          {errorRowsDisplay.length > 0 && (
+            <div className="mt-4 rounded-2xl border border-red-200 dark:border-red-800 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-700 flex items-center justify-between">
+                <p className="text-xs font-semibold text-red-700 dark:text-red-400 uppercase tracking-wide">
+                  Filas excluidas — muestra parcial
+                </p>
+                {errorCount > errorRowsDisplay.length && (
+                  <span className="text-xs text-red-400">
+                    Mostrando {errorRowsDisplay.length} de {errorCount} · Descarga el Excel para verlas todas
+                  </span>
+                )}
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="bg-red-50/50 dark:bg-red-900/10 border-b border-red-100 dark:border-red-800">
+                      <th className="w-10 px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">#</th>
+                      {preview.columns.map((col) => (
+                        <th key={col.key} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">{col.label}</th>
+                      ))}
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-red-500 uppercase tracking-wider whitespace-nowrap">Observación</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {errorRowsDisplay.map(({ row, obs }, idx) => (
+                      <tr key={idx} className="border-b border-red-50 dark:border-red-900/20 bg-red-50/30 dark:bg-red-900/10 hover:bg-red-50">
+                        <td className="px-4 py-2.5 text-xs text-gray-400 tabular-nums">{idx + 1}</td>
+                        {preview.columns.map((col) => (
+                          <td key={col.key} className="px-4 py-2.5 text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                            <CellValue colKey={col.key} value={row[col.key]} dimmed />
+                          </td>
+                        ))}
+                        <td className="px-4 py-2.5 whitespace-nowrap">
+                          <span className="inline-flex items-center rounded-full bg-red-100 dark:bg-red-900/40 px-2 py-0.5 text-xs font-medium text-red-700 dark:text-red-400">{obs}</span>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

@@ -76,6 +76,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
 
   const watchPais         = watch('codPais');
   const watchNoIva        = watch('noConsiderarIva');
+  const watchTipDoc       = watch('tipDocumento');
   const isUS              = watchPais?.value === 'US';
 
   // ── Carga controles ───────────────────────────────────────────────────────
@@ -259,8 +260,13 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
               </label>
               <input
                 {...register('nomCliente', {
-                  required: 'Requerido',
-                  maxLength: { value: 150, message: 'Máximo 150 caracteres' },
+                  required: 'El nombre del cliente es obligatorio',
+                  maxLength: { value: 50, message: 'Máximo 50 caracteres' },
+                  pattern: {
+                    value: /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ0-9\s\-\.\,\&']+$/,
+                    message: 'Solo se permiten letras, números y caracteres básicos',
+                  },
+                  validate: v => v.trim().length > 0 || 'El nombre no puede estar vacío',
                 })}
                 placeholder="Nombre completo del cliente"
                 className="form-input w-full"
@@ -274,6 +280,10 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
               <input
                 {...register('dirCliente', {
                   maxLength: { value: 150, message: 'Máximo 150 caracteres' },
+                  pattern: {
+                    value: /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ0-9\s\.\,\-\#\/\(\)]+$/,
+                    message: 'Solo se permiten caracteres válidos para una dirección',
+                  },
                 })}
                 placeholder="Ej: Av. Flores 545, Edificio Torres"
                 className="form-input w-full"
@@ -286,7 +296,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
               <label className="block text-sm font-medium mb-1">
                 País <span className="text-red-500">*</span>
               </label>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
                 <Controller
                   name="codPais"
                   control={control}
@@ -308,10 +318,11 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                 <button
                   type="button"
                   onClick={() => setShowModalPais(true)}
-                  className="flex items-center gap-1 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-800
-                             border border-gray-300 dark:border-gray-700 text-sm hover:bg-gray-200 transition">
+                  title="Agregar nuevo país"
+                  className="flex-shrink-0 h-9 w-9 flex items-center justify-center
+                             rounded-lg bg-primary text-white shadow-sm
+                             hover:bg-primary/85 active:scale-95 transition-all">
                   <IconPlus className="h-4 w-4" />
-                  Agregar
                 </button>
               </div>
               <FieldError error={errors.codPais} />
@@ -322,7 +333,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
               <label className="block text-sm font-medium mb-1">
                 Ciudad <span className="text-red-500">*</span>
               </label>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
                 <Controller
                   name="codCiudad"
                   control={control}
@@ -332,9 +343,9 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                       {...field}
                       options={ciudades}
                       placeholder={
-                        !watchPais        ? 'Primero selecciona un país' :
-                        loadingCities     ? 'Cargando ciudades...'       :
-                                           'Seleccionar ciudad...'
+                        !watchPais    ? 'Primero selecciona un país' :
+                        loadingCities ? 'Cargando ciudades...'       :
+                                       'Seleccionar ciudad...'
                       }
                       isDisabled={!watchPais || loadingCities}
                       isLoading={loadingCities}
@@ -351,27 +362,34 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                   type="button"
                   onClick={() => setShowModalCiudad(true)}
                   disabled={!watchPais || loadingCities}
-                  className="flex items-center gap-1 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-800
-                             border border-gray-300 dark:border-gray-700 text-sm hover:bg-gray-200
-                             disabled:opacity-40 disabled:cursor-not-allowed transition">
+                  title="Agregar nueva ciudad"
+                  className="flex-shrink-0 h-9 w-9 flex items-center justify-center
+                             rounded-lg bg-primary text-white shadow-sm
+                             hover:bg-primary/85 active:scale-95 transition-all
+                             disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none">
                   <IconPlus className="h-4 w-4" />
-                  Agregar
                 </button>
               </div>
               <FieldError error={errors.codCiudad} />
             </div>
 
-            {/* Estado y ZIP — solo para US */}
-            {isUS && (
-              <div className="grid grid-cols-2 gap-3">
+            {/* Estado y ZIP — aparece con animación suave al seleccionar US */}
+            <div
+              className={`grid grid-cols-2 gap-3 overflow-hidden transition-all duration-300 ease-in-out
+                ${isUS ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}
+            >
                 <div>
                   <label className="block text-sm font-medium mb-1">
                     Estado <span className="text-red-500">*</span>
                   </label>
                   <input
                     {...register('estado', {
-                      required: isUS ? 'Requerido' : false,
+                      required: isUS ? 'El estado es requerido para USA' : false,
                       maxLength: { value: 60, message: 'Máximo 60 caracteres' },
+                      pattern: {
+                        value: /^[a-zA-Z\s]+$/,
+                        message: 'Solo se permiten letras',
+                      },
                     })}
                     placeholder="Ej: California"
                     className="form-input w-full"
@@ -384,47 +402,62 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                   </label>
                   <input
                     {...register('zip', {
-                      required: isUS ? 'Requerido' : false,
-                      maxLength: { value: 10, message: 'Máximo 10 caracteres' },
+                      required: isUS ? 'El ZIP es requerido para USA' : false,
+                      pattern: {
+                        value: /^\d{5}(-\d{4})?$/,
+                        message: 'Formato inválido. Ej: 90210 o 90210-1234',
+                      },
                     })}
                     placeholder="Ej: 90210"
                     className="form-input w-full"
                   />
                   <FieldError error={errors.zip} />
                 </div>
-              </div>
-            )}
+            </div>
 
           </div>
 
           {/* ── Columna derecha ── */}
           <div className="space-y-4">
 
-            {/* Documento */}
+            {/* Documento — tipo encima, número debajo con placeholder dinámico */}
             <div>
               <label className="block text-sm font-medium mb-1">Num. NIT / CI</label>
-              <div className="flex gap-2">
-                <Controller
-                  name="tipDocumento"
-                  control={control}
-                  render={({ field }) => (
-                    <Select
-                      {...field}
-                      options={docTypes}
-                      placeholder="Tipo"
-                      classNamePrefix="select"
-                      className="w-36 shrink-0"
-                      isClearable
-                    />
-                  )}
-                />
-                <input
-                  {...register('numNit', { maxLength: { value: 45, message: 'Máximo 45 caracteres' } })}
-                  placeholder="Número de documento"
-                  className="form-input flex-1"
-                />
-              </div>
-              <FieldError error={errors.numNit} />
+              <Controller
+                name="tipDocumento"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    {...field}
+                    options={docTypes}
+                    placeholder="Seleccionar tipo..."
+                    classNamePrefix="select"
+                    className="w-full mb-2"
+                    isClearable
+                    instanceId="doctype"
+                    menuPosition="fixed"
+                    menuShouldScrollIntoView={false}
+                  />
+                )}
+              />
+              <input
+                {...register('numNit', {
+                  maxLength: { value: 45, message: 'Máximo 45 caracteres' },
+                  pattern: {
+                    value: /^[0-9\-]*$/,
+                    message: 'Solo se permiten números y el carácter -',
+                  },
+                  validate: v => {
+                    const tipo = watch('tipDocumento');
+                    if (tipo && !v?.trim()) return 'El número de documento es requerido';
+                    return true;
+                  },
+                })}
+                placeholder={watchTipDoc ? `Nro. de ${watchTipDoc.label}` : 'Número de documento'}
+                disabled={!watchTipDoc}
+                className="form-input w-full disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+              {watchTipDoc && <FieldError error={errors.numNit} />}
             </div>
 
             {/* Página web */}
@@ -433,9 +466,14 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
               <input
                 {...register('sitWeb', {
                   maxLength: { value: 100, message: 'Máximo 100 caracteres' },
-                  pattern: {
-                    value: /^(https?:\/\/)?([\w-]+\.)+[\w-]+(\/[\w\-./?%&=]*)?$/i,
-                    message: 'Ingresa una URL válida',
+                  validate: v => {
+                    if (!v || !v.trim()) return true; // opcional
+                    try {
+                      const url = new URL(v.startsWith('http') ? v : `https://${v}`);
+                      return (url.hostname.includes('.')) || 'Ingresa una URL válida (ej: https://ejemplo.com)';
+                    } catch {
+                      return 'Ingresa una URL válida (ej: https://ejemplo.com)';
+                    }
                   },
                 })}
                 placeholder="https://ejemplo.com"
@@ -449,7 +487,11 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
               <label className="block text-sm font-medium mb-1">Actividad Principal</label>
               <input
                 {...register('actPrincipal', {
-                  maxLength: { value: 60, message: 'Máximo 60 caracteres' },
+                  maxLength: { value: 50, message: 'Máximo 50 caracteres' },
+                  pattern: {
+                    value: /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ0-9\s\.\,\-]+$/,
+                    message: 'Solo se permiten letras, números y caracteres básicos',
+                  },
                 })}
                 placeholder="Ej: Comercio de repuestos automotrices"
                 className="form-input w-full"

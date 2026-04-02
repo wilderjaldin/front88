@@ -99,7 +99,7 @@ const DatatablesCustomers = ({
   const [view, setView] = useState(isMobile ? 'grid' : 'list');
 
   const onSettings = (c) => {
-    router.push(`/admin/register/customers?customer=${c.codCliente}&option=general`);
+    router.push(`/admin/register/customers/${c.codCliente}/general`);
   };
 
   const handleStatus = async (c) => {
@@ -161,6 +161,7 @@ const DatatablesCustomers = ({
           <div className="datatables">
             <DataTable
               className="table-hover whitespace-nowrap"
+              idAccessor="codCliente"
               records={data}
               columns={[
                 {
