@@ -21,7 +21,7 @@ const Dropdown = (props: any, forwardedRef: any) => {
 
     const handleDocumentClick = (event: any) => {
         if (
-            refs.reference.current?.contains(event.target) ||
+            (refs.reference.current as Element | null)?.contains(event.target) ||
             refs.floating.current?.contains(event.target)
         ) {
             return;

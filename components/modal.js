@@ -8,7 +8,7 @@ export default function Modal({ closeModal, openModal, title = '', content = nul
   return (
     <>
       <Transition appear show={showModal} as={Fragment}>
-        <Dialog as="div" open={showModal} onClose={openModal}>
+        <Dialog as="div" onClose={closeModal}>
           <TransitionChild
             as={Fragment}
             enter="ease-out duration-300"
@@ -44,9 +44,7 @@ export default function Modal({ closeModal, openModal, title = '', content = nul
                   <div className="p-5">
 
                     <div>
-                      {content}
-                      {children}
-                      
+                      {children ?? content}                      
                     </div>
                     {(show_buttons) &&
                       <div className="mt-8 flex items-center justify-end">

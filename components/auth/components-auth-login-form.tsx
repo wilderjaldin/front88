@@ -14,6 +14,7 @@ import { setUser, setAuth, selectToken, selectUser, selectAuth } from '@/store/a
 
 const url_login = process.env.NEXT_PUBLIC_API_URL + 'usuarios/login';
 import Loading from '@/components/layouts/loading';
+import IconUser from '../icon/icon-user';
 
 const ComponentsAuthLoginForm = () => {
   const router = useRouter();
@@ -29,13 +30,11 @@ const ComponentsAuthLoginForm = () => {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm({ defaultValues: { email: '', password: '', remember: 0 } });
-
+  } = useForm({ defaultValues: { username: '', password: '', rememberme: false } });
   const onSubmit = async (data: any) => {
     setIsLoading(true);
-
     try {
-      const res = await axios.post(url_login, data);
+      const res = await axios.post(url_login, { LogUsuario: data.username, PwdUsuario: data.password, RememberMe: data.rememberme });
 
       dispatch(setAuth({
         token: res.data.token,
@@ -43,19 +42,14 @@ const ComponentsAuthLoginForm = () => {
         permissions: res.data.permissions
       }));
 
-      /*
-      dispatch(setAuth({ 
-        token: res.data.token, 
-        user: { name: res.data.dato[0].NomCliente, email: data.email } }));
-        */
       Swal.fire({
-        title: t.welcome,
+        title: `${t.welcome} ${res.data.user.name}`,
         icon: 'success',
         confirmButtonColor: '#15803d',
         confirmButtonText: t.btn_close
       }).then(() => {
         router.push('/admin/dashboard');
-      });
+      })
 
 
     } catch (error:any) {
@@ -66,6 +60,7 @@ const ComponentsAuthLoginForm = () => {
         Swal.fire('Error', t.error_server, 'error');
       }
       setIsLoading(false);
+
     }
   }
 
@@ -76,14 +71,14 @@ const ComponentsAuthLoginForm = () => {
       {isLoading && <Loading />}
       <form className="mt-8" onSubmit={handleSubmit(onSubmit)}>
         <div>
-          <label htmlFor="Email">{t.email}</label>
+          <label htmlFor="Username">{t.username}</label>
           <div className="relative text-white-dark">
-            <input type='email' autoComplete='OFF' defaultValue='' {...register("email", { required: { value: true, message: t.required_field } })} aria-invalid={errors.email ? "true" : "false"} placeholder={t.enter_email} className="form-input ps-10 placeholder:text-white-dark" />
+            <input type='text' autoComplete='OFF' defaultValue='' {...register("username", { required: { value: true, message: t.required_field } })} aria-invalid={errors.username ? "true" : "false"} placeholder={t.enter_username} className="form-input ps-10 placeholder:text-white-dark" />
 
             <span className="absolute start-4 top-4.5 -translate-y-1/2">
-              <IconMail fill={true} />
+              <IconUser fill={true} />
             </span>
-            {errors.email && <span className='text-red-400 error block mb-5 text-xs mt-1' role="alert">{errors.email?.message?.toString()}</span>}
+            {errors.username && <span className='text-red-400 error block mb-5 text-xs mt-1' role="alert">{errors.username?.message?.toString()}</span>}
           </div>
         </div>
         <div>
@@ -111,7 +106,7 @@ const ComponentsAuthLoginForm = () => {
             </span>
           </div>
         </div>
-        <div className="flex justify-between"><label className="block text-gray-500 font-bold my-4"><input {...register("remember")} type="checkbox" className="leading-loose text-pink-600" />
+        <div className="flex justify-between"><label className="block text-gray-500 font-bold my-4"><input {...register("rememberme")} type="checkbox" className="leading-loose text-pink-600" />
           <span className="py-2 text-sm text-gray-600 leading-snug"> {t.remember} </span></label> <label className="block text-gray-500 font-bold my-4">
             <Link
               href="/forgot"

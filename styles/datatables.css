@@ -1,5 +1,26 @@
-table > thead > tr > th,
-table > tbody > tr > td {
+.mantine-Pagination-control[data-active="true"] {
+  background-color: var(--mantine-primary-color-filled) !important;
+  color: white !important;
+}
+
+.mantine-Pagination-control[data-active="true"]:hover {
+  background-color: var(--mantine-primary-color-filled) !important;
+  color: white !important;
+}
+.mantine-datatable-pagination-pages .mantine-Group-root {
+  justify-content: center !important;
+}
+.mantine-datatable-footer {
+  display: flex !important;
+  justify-content: center !important;
+}
+.mantine-datatable-empty-state {
+  display: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+.datatables table > thead > tr > th,
+.datatables table > tbody > tr > td {
     @apply !py-3 !px-4 text-sm;
 }
 table > thead > tr > th.mantine-187dsit {
@@ -119,4 +140,9 @@ table tr .mantine-Checkbox-root {
 }
 .mantine-ScrollArea-viewport > div:first-child > div {
     @apply bg-none;
+}
+
+.mantine-DataTable-root table > thead > tr > th,
+.mantine-DataTable-root table > tbody > tr > td {
+    padding: revert !important;
 }

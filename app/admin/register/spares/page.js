@@ -1,257 +1,238 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useForm, SubmitHandler } from "react-hook-form"
-import { useTranslation } from "@/app/locales";
-import Link from "next/link";
-import DatatablesSpares from '@/components/datatables/components-datatables-spares';
-import ComponentSpareForm from "@/components/forms/spare-form";
-import ComponentSpareView from "@/app/admin/register/spares/view";
-import IconPlusProps from '@/components/icon/icon-plus';
-import { getLocale } from '@/store/localeSlice';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSelector } from 'react-redux';
 import { selectToken } from '@/store/authSlice';
-import axios from 'axios'
-import Swal from 'sweetalert2'
+import axiosClient from "@/app/lib/axiosClient";
+import Swal from 'sweetalert2';
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
-import IconBackSpace from "@/components/icon/icon-backspace";
-const url = process.env.NEXT_PUBLIC_API_URL + 'repuesto/ObtenerLista';
+import { useTranslation } from "@/app/locales";
+import DatatablesSpares from './components-datatables-spares';
 
-const url_get_spare = process.env.NEXT_PUBLIC_API_URL + 'repuesto/RecuperarRegistro';
+const URL_LIST     = 'repuestos/listar';
+const URL_STATUS   = 'repuestos/status';
+const URL_CONTROLS = 'repuestos/controles';
 
+export default function SparesPage() {
 
-export default function Spares() {
-
-  const router = useRouter();
+  const router       = useRouter();
   const searchParams = useSearchParams();
-  const token = useSelector(selectToken);
-  const t = useTranslation();
-  const locale = useSelector(getLocale);
+  const t            = useTranslation();
 
-  const [rowData, setRowData] = useState(null)
+  const [spares,    setSpares]    = useState([]);
+  const [pageSize]                = useState(20);
+  const [total,     setTotal]     = useState(0);
+  const [brands,    setBrands]    = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [typesSpare, setTypesSpare] = useState([]);
 
-  const [spares, setSpares] = useState([]);
-  const [spare, setSpare] = useState(null);
+  useDynamicTitle('Registrar | Repuestos');
 
-  const term = searchParams.get("term") || '';
-  const active = searchParams.get("active") || 0;
-  const action = searchParams.get("action") || '';
-  const id = searchParams.get("id") || null;
+  // ── Parámetros actuales de la URL — la fuente de verdad ──────────────────
+  const currentPage        = Number(searchParams.get('page'))  || 1;
+  const currentTerm        = searchParams.get('term')          || '';
+  const currentStatus      = searchParams.get('status')        || '';
+  const currentSupplier    = searchParams.get('supplier')      || '';
+  const currentBrand       = searchParams.get('brand')         || '';
+  const currentApplication = searchParams.get('application')   || '';
+  const currentType        = searchParams.get('type')          || '';
 
-  const [show_form, setShowForm] = useState((action == 'new') ? true : false)
-  const [show_view, setShowView] = useState((action == 'view') ? true : false)
-
-  const {
-    register, reset,
-    handleSubmit,
-    formState: { errors },
-  } = useForm({ defaultValues: { query: term, show_inactive: (active == 1) ? true : false } });
-
-  const onSearch = async (data) => {
-    router.push(`?term=${data.query}&active=${(data.show_inactive) ? '1' : '0'}`)
-    getSpares(data.query, (data.show_inactive) ? '1' : '0');
-  }
-
+  // ── Catálogos: una sola vez, independiente de los filtros ─────────────────
   useEffect(() => {
-    if (term != '') {
-      getSpares(term, active);
-    } else {
-      getSpares('%', active);
-    }
+    loadOptions();
+  }, []);
 
-  }, [term]);
-
+  // ── Búsqueda: SOLO se dispara cuando cambia la URL ────────────────────────
+  // No se llama directamente desde el form — el form actualiza la URL
+  // y este efecto reacciona al cambio
   useEffect(() => {
-    if (id) {
-      getSpare(id);
-    }
-  }, [id, action]);
+    fetchSpares();
+  }, [searchParams]);
 
-  const clear = () => {
-    router.push(`?term=`)
-    getSpares('');
-    reset({ query: "" });
-  }
-
-
-  const getSpare = async (id) => {
-    setSpare(null);
-    setShowForm(false);
-    setShowView(false);
-
+  const loadOptions = async () => {
     try {
-      const rs = await axios.post(url_get_spare, {
-        CodRepuesto: id,
-        ValToken: token
-      });
-
-      setSpare(rs.data.dato[0]);
-
-      if (action === 'edit') {
-        setShowForm(true);
-      } else if (action === 'view') {
-        setShowView(true);
-      }
-
-    } catch (error) {
-      console.log(error);
+      const rs = await axiosClient.get(URL_CONTROLS);
+      setBrands(rs.data.marcas        ?? []);
+      setSuppliers(rs.data.proveedores ?? []);
+      setTypesSpare(rs.data.tiposRepuesto ?? []);
+    } catch (err) {
+      console.error('Error loading options', err);
     }
   };
 
-  const getSpares = async (term = '', show_inactive = 1) => {
-
-
-    try {
-      const rs = await axios.post(url, { NroParteFiltro: term, Idioma: locale, EstadoFiltro: show_inactive, ValToken: token });
-
-
-      //setSpares(Array.isArray(rs.data.dato) ? rs.data.dato : []);
-      if (rs.data.estado == "OK") {
-        setSpares(() => rs.data.dato.map((o, index) => {
-          o.id = index;
-          return o;
-        }));
-      }
-
-
-    } catch (error) {
-
-    }
-  }
-
-  const editSparePart = async (s) => {
-    setSpare([])
-    setShowForm(false);
-    try {
-      const rs = await axios.post(url_get_spare, { CodRepuesto: s.IdRepuesto, ValToken: token });
-
-      setSpare(rs.data.dato[0]);
-      setShowForm(true);
-    } catch (error) {
-
-    }
-  }
-
-  const updateList = (data) => {
-
-    let exist = false;
-    let options = [];
-
-    options = spares.map((cs) => {
-
-      if (cs.IdRepuesto == data.IdRepuesto) {
-
-        exist = true;
-        cs.NroParte = data.NroParte;
-        cs.DesRepuesto = data.DesRepuesto;
-        cs.Proveedor = data.Proveedor;
-
-        cs.Marca = data.Marca;
-        cs.Aplicacion = data.Aplicacion;
-        cs.TipRepuesto = data.TipRepuesto;
-        cs.Estado = data.Estado;
-        cs.Peso = data.Peso;
-        cs.Costo = data.Costo;
-        cs.CanStock = data.CanStock;
-        cs.CanMin = data.CanMin;
-        cs.UniMed = data.UniMed;
-        cs.PedidoEspecial = data.PedidoEspecial;
-        cs.PedEspecialSinFecha = data.PedEspecialSinFecha;
-        cs.FecModifica = data.FecModifica;
-        cs.FecVencimiento = data.FecVencimiento;
-        cs.CodEstado = data.CodEstadoNroParte;
-      }
-      return cs;
+  const fetchSpares = async () => {
+    Swal.fire({
+      title: t.searching,
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      showConfirmButton: false,
+      didOpen: () => { Swal.showLoading(); },
     });
-    if (!exist) {
 
-      options = [];
-      options.push(...spares, {
-        IdRepuesto: data.IdRepuesto,
-        NroParte: data.NroParte,
-        DesRepuesto: data.DesRepuesto,
-        Proveedor: data.Proveedor,
+    try {
+      const rs = await axiosClient.get(URL_LIST, {
+        params: {
+          page:          currentPage,
+          pageSize,
+          term:          currentTerm,
+          codEstado:     currentStatus,
+          codPrv:        currentSupplier,
+          codMarca:      currentBrand,
+          codAplicacion: currentApplication,
+          tipRepuesto:   currentType,
+        },
+      });
 
-        Marca: data.Marca,
-        Aplicacion: data.Aplicacion,
-        TipRepuesto: data.TipRepuesto,
-        Estado: data.Estado,
-        Peso: data.Peso,
-        Costo: data.Costo,
-        CanStock: data.CanStock,
-        CanMin: data.CanMin,
-        UniMed: data.UniMed,
-        PedidoEspecial: data.PedidoEspecial,
-        PedEspecialSinFecha: data.PedEspecialSinFecha,
-        FecModifica: data.FecModifica,
-        FecVencimiento: data.FecVencimiento,
-        CodEstado: data.CodEstado
-      }
-
-      );
+      setTotal(rs.data.total ?? 0);
+      setSpares(rs.data.data.map((o, i) => ({ ...o, id: i })));
+    } catch (err) {
+      console.error('Error fetching spares', err);
+    } finally {
+      Swal.close();
     }
+  };
 
-    setSpares(options);
-  }
+  // ── Construir y navegar a la nueva URL ────────────────────────────────────
+  const pushFilters = (filters, resetPage = true) => {
+    const params = new URLSearchParams();
 
-  useDynamicTitle(`${t.register} | ${t.spare_parts}`);
+    const page = resetPage ? 1 : (filters.page || 1);
+    if (page > 1)              params.set('page',        page);
+    if (filters.term)          params.set('term',        filters.term.trim());
+    if (filters.status)        params.set('status',      filters.status);
+    if (filters.supplier)      params.set('supplier',    filters.supplier);
+    if (filters.brand)         params.set('brand',       filters.brand);
+    if (filters.application)   params.set('application', filters.application);
+    if (filters.type)          params.set('type',        filters.type);
 
+    router.push(`?${params.toString()}`);
+  };
+
+  // ── Handlers para el datatable ────────────────────────────────────────────
+
+  // Recibe los valores del form.
+  // supplier/brand/application ahora son objetos {value, label} — se extrae solo el id.
+  const handleSearch = (formData) => {
+    pushFilters({
+      term:        formData.term              || '',
+      status:      formData.status            || '',
+      supplier:    formData.supplier?.value   || '',
+      brand:       formData.brand?.value      || '',
+      application: formData.application?.value || '',
+      type:        formData.type              || '',
+    });
+  };
+
+  // Cambio de página: conserva filtros actuales, solo cambia page
+  const handlePageChange = (newPage) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (newPage > 1) {
+      params.set('page', newPage);
+    } else {
+      params.delete('page');
+    }
+    router.push(`?${params.toString()}`);
+  };
+
+  // Limpiar: URL limpia, solo status por defecto
+  const handleClear = () => {
+    router.push('?status=AC');
+  };
+
+  const handleNew = () => {
+    router.push('/admin/register/spares/form');
+  };
+
+  const handleEdit = (spare) => {
+    router.push(`/admin/register/spares/form?id=${spare.codRepuesto}`);
+  };
+
+  const handleView = (spare) => {
+    router.push(`/admin/register/spares/${spare.codRepuesto}`);
+  };
+
+  const handleToggleStatus = (spare) => {
+    const activating = spare.codEstado !== 'AC';
+
+    Swal.fire({
+      title:               activating ? '¿Reactivar repuesto?' : '¿Desactivar repuesto?',
+      text:                spare.nroParte ?? spare.descripcion,
+      icon:                'warning',
+      showCancelButton:    true,
+      confirmButtonColor:  activating ? '#16a34a' : '#dc2626',
+      confirmButtonText:   activating ? 'Sí, activar' : 'Sí, desactivar',
+      cancelButtonText:    'Cancelar',
+      reverseButtons:      true,
+      showLoaderOnConfirm: true,
+      allowOutsideClick:   () => !Swal.isLoading(),
+      preConfirm: async () => {
+        try {
+          const rs = await axiosClient.post(URL_STATUS, {
+            codRepuesto: spare.codRepuesto,
+            codEstado:   activating ? 'AC' : 'IN',
+          });
+          return rs.data;
+        } catch (err) {
+          Swal.showValidationMessage(
+            err?.response?.data?.message || 'Error al procesar la solicitud'
+          );
+        }
+      },
+    }).then((result) => {
+      if (result.isConfirmed) {
+        setSpares((prev) =>
+          prev.map((s) =>
+            s.codRepuesto === spare.codRepuesto
+              ? { ...s, codEstado: activating ? 'AC' : 'IN' }
+              : s
+          )
+        );
+        Swal.fire({
+          icon:              'success',
+          title:             activating ? 'Repuesto activado' : 'Repuesto desactivado',
+          timer:             2500,
+          showConfirmButton: false,
+        });
+      }
+    });
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
   return (
     <div>
-      <ul className="flex space-x-2 rtl:space-x-reverse">
-        <li>
-          {t.register}
-        </li>
-        <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
-          <span>{t.spare_parts}</span>
+      <ul className="flex space-x-2 rtl:space-x-reverse mb-4">
+        <li className="text-sm text-gray-500">Registrar</li>
+        <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2 text-sm text-gray-800 dark:text-gray-100">
+          Repuestos
         </li>
       </ul>
 
-      {!(show_form || show_view) &&
-        <>
-          <div className="grid grid-cols-1 gap-6 pt-5">
-            <div className={`panel shadow-lg border bg-gray-200`}>
-              <div className="mb-5">
-                <form className="space-y-5" onSubmit={handleSubmit(onSearch)}>
-                  <label htmlFor="search" className="text-sm font-medium text-gray-900 dark:text-white">{t.nro_part}</label>
-                  <div className="relative">
-                    <div className="relative mb-4">
-                      <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-                        <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
-                          <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z" />
-                        </svg>
-                      </div>
-                      <input type="search" defaultValue={term} {...register("query", { required: false })} id="search" className="block w-full p-4 ps-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder={t.enter_search_spare_parts} required />
-                      <div className="mt-4 flex items-center text-center sm:absolute sm:end-2.5 sm:bottom-2.5">
-                        <button type="button" onClick={() => clear()} className="btn-dark hover:bg-gray-900 text-white mr-2 font-medium rounded-lg text-sm px-2.5 py-1.5"><IconBackSpace className=''></IconBackSpace></button>
-                        <button type="submit" className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">{t.btn_search}</button>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="flex cursor-pointer items-center text-black">
-                        <input type="checkbox" {...register("show_inactive")} className="form-checkbox bg-white" />
-                        <span className=" text-black dark:text-white-dark">{t.show_inactive}</span>
-                      </label>
-                    </div>
-                  </div>
-                </form>
-
-              </div>
-            </div>
-          </div>
-          <div className="my-5">
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <button onClick={() => { setSpare([]); setShowForm(true); }} type="button" className="btn btn-primary">
-                <IconPlusProps className="h-5 w-5 shrink-0 ltr:mr-1.5 rtl:ml-1.5" />
-                {t.btn_add_spare_parts}
-              </button>
-            </div>
-          </div>
-        </>
-      }
-      {(show_form && spare) && <ComponentSpareForm action_cancel={() => setShowForm(false)} token={token} t={t} spare={spare} updateList={updateList}  ></ComponentSpareForm>}
-      {(show_view) && <ComponentSpareView action_cancel={() => setShowView(false)} token={token} t={t} spare={spare} updateList={updateList} locale={locale} ></ComponentSpareView>}
-      {(spares && !(show_form || show_view)) && <DatatablesSpares data={spares} t={t} editSparePart={editSparePart} token={token} />}
+      <DatatablesSpares
+        data={spares}
+        t={t}
+        page={currentPage}
+        pageSize={pageSize}
+        total={total}
+        // Valores actuales de la URL → datatable los usa como defaultValues
+        currentFilters={{
+          term:        currentTerm,
+          status:      currentStatus,
+          supplier:    currentSupplier    ? Number(currentSupplier)    : null,
+          brand:       currentBrand       ? Number(currentBrand)       : null,
+          application: currentApplication ? Number(currentApplication) : null,
+          type:        currentType        || null,
+        }}
+        onPageChange={handlePageChange}
+        handleSearch={handleSearch}
+        handleClear={handleClear}
+        handleNew={handleNew}
+        handleEdit={handleEdit}
+        handleView={handleView}
+        handleToggleStatus={handleToggleStatus}
+        brands={brands}
+        suppliers={suppliers}
+        typesSpare={typesSpare}
+      />
     </div>
   );
 }

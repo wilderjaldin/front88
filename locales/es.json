@@ -169,7 +169,7 @@
   "currency_code": "Código de moneda",
   "currency_name": "Nombre de la moneda",
   "currency_symbol": "Símbolo de la moneda",
-  "select_option": "Selecciona una opción",
+  "select_option": "Selecciona...",
   "select": "Seleccionar",
   "add": "Agregar",
   "edit": "Editar",
@@ -701,7 +701,6 @@
   "error_saving_the_file" : "Hubo un problema al guardar el archivo",
   "welcome" : "Bienvenid(a)",
   "login_incorrect" : "Credenciales incorrectas",
-  "error_server" : "Ocurrio un error en el servidor. Por favor, contacte con soporte",
   "pending_orders_not_assigned" : "Ordenes de Compra Pendientes No Asignados",
   "assign" : "Asignar",
   "value" : "Valor",
@@ -874,5 +873,15 @@
   "classification" : "Clasificación",
   "commercial_data" : "Dato Comercial",
   "verify" : "Verificar",
-  "step" : "Paso"
+  "step" : "Paso",
+  "username" : "Usuario",
+  "enter_username" : "Ingresa Usuario",
+  "users" : "Usuarios",
+  "inactive" : "Inactivo",
+  "active" : "Activo",
+  "password_email" : "Contraseña Correo",
+  "permissions" : "Permisos",
+  "admin": "Administración",
+  "roles" : "Roles",
+  "spare_parts_in_lot_supplier" : "Repuestos en lote Proveedor"
 }

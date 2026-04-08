@@ -701,7 +701,6 @@
   "error_saving_the_file" : "There was a problem saving the file",
   "welcome" : "Welcome",
   "login_incorrect" : "Login is incorrect",
-  "error_server" : "An error occurred on the server. Please contact support.",
   "pending_orders_not_assigned" : "Purchase Orders not assigned",
   "assign" : "Assign",
   "value" : "Value",
@@ -872,5 +871,15 @@
   "classification" : "Classification",
   "commercial_data" : "Commercial data",
   "verify" : "Verify",
-  "step" : "Step"
+  "step" : "Step",
+  "username" : "Username",
+  "enter_username" : "Enter username",
+  "users" : "Users",
+  "inactive" : "Inactive",
+  "active" : "Active",
+  "password_email" : "Password Email",
+  "permissions" : "Permissions",
+  "admin": "Administration",
+  "roles" : "Roles",
+  "spare_parts_in_lot_supplier" : "Spares In Lot Supplier"
 }

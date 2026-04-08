@@ -8,10 +8,23 @@ import Loading from "@/app/admin/loading";
 import TextContextMenu from '@/components/TextContextMenu'
 import { useTranslation } from "@/app/locales";
 import '@mantine/core/styles.css';
+import { MantineProvider } from '@mantine/core';
+import ImpersonationBanner from "@/components/ImpersonationBanner";
 
 export default function DefaultLayout({ children }: { children: React.ReactNode }) {
   return (
-    <>
+    <MantineProvider
+      theme={{
+        components: {
+          Pagination: {
+            defaultProps: {
+              size: 'sm',
+              radius: 'xl',
+            },
+          },
+        },
+      }}
+    >
       {/* BEGIN MAIN CONTAINER */}
       <div className="relative">
         <Overlay />
@@ -19,7 +32,7 @@ export default function DefaultLayout({ children }: { children: React.ReactNode 
 
         {/* BEGIN APP SETTING LAUNCHER */}
         {/* END APP SETTING LAUNCHER */}
-
+        <ImpersonationBanner/>
         <div className={`navbar-sticky main-container min-h-screen text-black dark:text-white-dark`}>
           {/* BEGIN SIDEBAR */}
           <Sidebar />
@@ -43,6 +56,6 @@ export default function DefaultLayout({ children }: { children: React.ReactNode 
           </div>
         </div>
       </div>
-    </>
+    </MantineProvider>
   );
 }
