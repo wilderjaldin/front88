@@ -4,7 +4,7 @@ import { DataTable } from 'mantine-datatable';
 import IconPencil from '@/components/icon/icon-pencil';
 import IconTrashLines from '@/components/icon/icon-trash-lines';
 
-export default function ClientesTable({ data, total, page, pageSize, loading, onPageChange, onStatus }) {
+export default function ClientesTable({ data, total, page, pageSize, loading, onPageChange, onStatus, t }) {
   const router = useRouter();
 
   if (!loading && data.length === 0) {
@@ -75,7 +75,7 @@ export default function ClientesTable({ data, total, page, pageSize, loading, on
                 ${c.CodEstado === 'AC'
                   ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                   : 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'}`}>
-                {c.CodEstado === 'AC' ? 'Activo' : 'Inactivo'}
+                {c.CodEstado === 'AC' ? t.active : t.inactive}
               </span>
             ),
           },

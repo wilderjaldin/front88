@@ -10,7 +10,7 @@ const Field = ({ label, value }) => (
   </div>
 );
 
-export default function GeneralInformation({ cliente, onEdit }) {
+export default function GeneralInformation({ cliente, onEdit, t }) {
   return (
     <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm p-6 space-y-6">
 
@@ -35,7 +35,7 @@ export default function GeneralInformation({ cliente, onEdit }) {
         <Field label="Ciudad"            value={cliente.codCiudad} />
         <Field label="Actividad"         value={cliente.actPrincipal} />
         <Field label="Reportes en"       value={cliente.cliIdioma === 'ES' ? 'Español' : 'English'} />
-        <Field label="Estado"            value={cliente.codEstado === 'AC' ? 'Activo' : 'Inactivo'} />
+        <Field label="Estado"            value={cliente.codEstado === 'AC' ? t.active : t.inactive} />
       </div>
 
       {(cliente.usuarioRegistra || cliente.usuarioModifica) && (

@@ -270,7 +270,7 @@ const DatatablesUser = ({ data = [], t, total, page, handlePageChange, currentUs
                               : 'bg-red-100 text-red-600'
                               }`}
                           >
-                            {row.codEstado === 'AC' ? 'Activo' : 'Inactivo'}
+                            {row.codEstado === 'AC' ? t.active : t.inactive}
                           </span>
                         )
                       },
@@ -421,7 +421,7 @@ const DatatablesUser = ({ data = [], t, total, page, handlePageChange, currentUs
                                   : 'bg-red-100 text-red-600'
                                 }`}
                             >
-                              {user.codEstado === 'AC' ? 'Activo' : 'Inactivo'}
+                              {user.codEstado === 'AC' ? t.active : t.inactive}
                             </span>
                           </div>
                         </div>

@@ -1,12 +1,9 @@
 "use client";
-import { use, useEffect, useState } from "react";
-import { useForm, SubmitHandler } from "react-hook-form"
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form"
 import { useTranslation } from "@/app/locales";
-import Link from "next/link";
 import DatatablesUsers from './datatables-users';
 import UserForm from './form';
-import ComponentSpareForm from "@/components/forms/spare-form";
-import ComponentSpareView from "@/app/admin/register/spares/view";
 
 import { getLocale } from '@/store/localeSlice';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -14,77 +11,62 @@ import { useSelector } from 'react-redux';
 import { selectToken, selectUser } from '@/store/authSlice';
 import Modal from '@/components/modal';
 import axiosClient from "@/app/lib/axiosClient";
-import { useOptionsSelect } from '@/app/options'
 import Swal from 'sweetalert2'
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
-import IconBackSpace from "@/components/icon/icon-backspace";
 import { usePermissions } from "@/app/hooks/usePermissions";
 import AccessDenied from "@/components/AccessDenied";
 import AllowedCountries from "./allowedCountries"
 import { PERMISSIONS } from "@/constants/permissions";
 
-const url_list = "/usuarios/listar";
-const url_get_user = "/usuarios/detalle";
-const url_status_user = "/usuarios/status";
-const url_rols = "/roles"
-
+// ── URLs ──────────────────────────────────────────────────────────────────────
+const URL_LISTAR_USUARIOS  = "/usuarios/listar";
+const URL_DETALLE_USUARIO  = "/usuarios/detalle";
+const URL_STATUS_USUARIO   = "/usuarios/status";
+const URL_ROLES            = "/roles";
+const URL_PAISES           = "/usuarios/paises";
 
 export default function Users() {
 
   const { hasPermission } = usePermissions();
-  //Paginacion
-  const router = useRouter();
+
+  const router       = useRouter();
   const searchParams = useSearchParams();
 
   const pageFromUrl = Number(searchParams.get("page")) || 1;
-
   const [page, setPage] = useState(pageFromUrl);
-  //end paginacion
 
-  //Modal
-  const [show_modal, setShowModal] = useState(false);
+  const [show_modal,  setShowModal]  = useState(false);
   const [modal_title, setModalTitle] = useState('');
-  const [modal_content, setModalContent] = useState(null);
-  const [modal_size, setModalSize] = useState('w-full max-w-5xl');
-  const [modalType, setModalType] = useState("");
+  const [modal_size]                 = useState('w-full max-w-5xl');
+  const [modalType,   setModalType]  = useState("");
 
   const token = useSelector(selectToken);
-  const user = useSelector(selectUser);
-
+  const user  = useSelector(selectUser);
   const currentUserId = user?.id || null;
-  const t = useTranslation();
+
+  const t      = useTranslation();
   const locale = useSelector(getLocale);
 
-  const [total, setTotal] = useState(null)
-
-  const [users, setUsers] = useState([]);
-  const [roles, setRoles] = useState([]);
-  const countries = useOptionsSelect("countries");
-  const cities_all = useOptionsSelect("cities");
+  const [total,        setTotal]        = useState(null);
+  const [users,        setUsers]        = useState([]);
+  const [roles,        setRoles]        = useState([]);
+  const [countries,    setCountries]    = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
-
-  const [spare, setSpare] = useState(null);
-
-  const [term, setTerm] = useState('');
+  const [term,         setTerm]         = useState('');
+  const [formMode,     setFormMode]     = useState("create");
 
   const active = searchParams.get("active") || 0;
-  const action = searchParams.get("action") || '';
-  const id = searchParams.get("id") || null;
 
-  const [show_form, setShowForm] = useState((action == 'new') ? true : false)
-  const [show_view, setShowView] = useState((action == 'view') ? true : false)
-  const [formMode, setFormMode] = useState("create");
+  const { register, reset, handleSubmit, formState: { errors } } = useForm({
+    defaultValues: { query: term, show_inactive: (active == 1) ? true : false }
+  });
 
-  const {
-    register, reset,
-    handleSubmit,
-    formState: { errors },
-  } = useForm({ defaultValues: { query: term, show_inactive: (active == 1) ? true : false } });
-
-
+  // Carga inicial: roles + países una sola vez al montar
   useEffect(() => {
     loadRoles();
+    loadCountries();
   }, []);
+
   useEffect(() => {
     const currentPage = Number(searchParams.get("page")) || 1;
     setPage(currentPage);
@@ -93,6 +75,15 @@ export default function Users() {
   useEffect(() => {
     getUsers(page, term);
   }, [page, term]);
+
+  const loadCountries = async () => {
+    try {
+      const rs = await axiosClient.get(URL_PAISES);
+      setCountries(rs.data ?? []);
+    } catch (error) {
+      console.error("Error cargando países", error);
+    }
+  };
 
   const handleSearchChange = (value) => {
     setPage(1);
@@ -107,22 +98,10 @@ export default function Users() {
 
   const getUsers = async (page = 1, searchTerm = term) => {
     try {
-      const rs = await axiosClient.get(url_list, {
-        params: {
-          page,
-          term: searchTerm
-        }
-      });
-
+      const rs = await axiosClient.get(URL_LISTAR_USUARIOS, { params: { page, term: searchTerm } });
       const data = Array.isArray(rs.data.data) ? rs.data.data : [];
-      setTotal(rs.data.total ? rs.data.total : 0);
-
-      setUsers(
-        data.map((o, index) => ({
-          ...o,
-          id: index,
-        }))
-      );
+      setTotal(rs.data.total ?? 0);
+      setUsers(data.map((o, index) => ({ ...o, id: index })));
     } catch (error) {
       console.error("Error cargando usuarios", error);
     }
@@ -130,15 +109,8 @@ export default function Users() {
 
   const loadRoles = async () => {
     try {
-      const rs = await axiosClient.get(url_rols);
-
-      const formattedRoles = rs.data.map(r => ({
-        value: r.codRol,
-        label: r.nomRol
-      }));
-
-      setRoles(formattedRoles);
-
+      const rs = await axiosClient.get(URL_ROLES);
+      setRoles(rs.data.map(r => ({ value: r.codRol, label: r.nomRol })));
     } catch (error) {
       console.error(error);
     }
@@ -162,11 +134,10 @@ export default function Users() {
       allowOutsideClick: () => !Swal.isLoading(),
       preConfirm: async () => {
         try {
-          const response = await axiosClient.post(url_status_user, {
+          const response = await axiosClient.post(URL_STATUS_USUARIO, {
             codUsuario: user.codUsuario,
             codEstado: activating ? 'AC' : 'IN'
           });
-
           return response.data;
         } catch (error) {
           Swal.showValidationMessage(
@@ -176,9 +147,6 @@ export default function Users() {
       }
     }).then((result) => {
       if (result.isConfirmed) {
-
-        const data = result.value;
-
         Swal.fire({
           icon: 'success',
           title: activating ? 'Usuario activado' : 'Usuario inactivado',
@@ -186,65 +154,44 @@ export default function Users() {
           timer: 3000,
           showConfirmButton: false
         });
-
-        updateList(data)
+        updateList(result.value);
       }
     });
   };
 
-  const addUser = async (user) => {
-    try {
-
-      const userData = null;
-      setModalType("user");
-      setSelectedUser(userData);
-      setModalTitle(`Registrar un nuevo usuario`);
-      setShowModal(true);
-      setFormMode("create")
-
-    } catch (error) {
-      console.error(error);
-    }
+  const addUser = () => {
+    setModalType("user");
+    setSelectedUser(null);
+    setModalTitle("Registrar un nuevo usuario");
+    setShowModal(true);
+    setFormMode("create");
   };
 
   const editUser = async (user) => {
     try {
-      const rs = await axiosClient.get(url_get_user, {
-        params: {
-          codUsuario: user.codUsuario
-        }
-      });
-
-      const userData = rs.data;
+      const rs = await axiosClient.get(URL_DETALLE_USUARIO, { params: { codUsuario: user.codUsuario } });
       setModalType("user");
-      setSelectedUser(userData);
-      setModalTitle(`Editar Datos de ${userData.nombre}`);
+      setSelectedUser(rs.data);
+      setModalTitle(`Editar Datos de ${rs.data.nombre}`);
       setShowModal(true);
-      setFormMode("edit")
-
+      setFormMode("edit");
     } catch (error) {
       console.error(error);
     }
   };
 
   const updateList = (rs) => {
-    console.log('LISTA AC', rs)
     const data = Array.isArray(rs.data) ? rs.data : [];
-    setTotal(rs.total ? rs.total : 0);
-    setUsers(
-      data.map((o, index) => ({
-        ...o,
-        id: index,
-      }))
-    );
-  }
+    setTotal(rs.total ?? 0);
+    setUsers(data.map((o, index) => ({ ...o, id: index })));
+  };
 
   const handleCountries = (user) => {
-    setSelectedUser(user)
-    setModalType('countries')
-    setModalTitle('Países Permitidos')
-    setShowModal(true)
-  }
+    setSelectedUser(user);
+    setModalType('countries');
+    setModalTitle('Países Permitidos');
+    setShowModal(true);
+  };
 
   const handleCloseModal = () => {
     setShowModal(false);
@@ -256,18 +203,30 @@ export default function Users() {
   if (!hasPermission(PERMISSIONS.J8EM1O6F)) {
     return <AccessDenied />;
   }
+
   return (
     <div>
       <ul className="flex space-x-2 rtl:space-x-reverse">
-        <li>
-          {t.register}
-        </li>
+        <li>{t.register}</li>
         <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
           <span>{t.users}</span>
         </li>
       </ul>
 
-      {(users && !(show_form || show_view)) && <DatatablesUsers handleCountries={handleCountries} addUser={addUser} editUser={editUser} page={page} data={users} t={t} total={total} handlePageChange={handlePageChange} currentUserId={currentUserId} token={token} handleSearchChange={handleSearchChange} toggleUserStatus={toggleUserStatus} />}
+      <DatatablesUsers
+        handleCountries={handleCountries}
+        addUser={addUser}
+        editUser={editUser}
+        page={page}
+        data={users}
+        t={t}
+        total={total}
+        handlePageChange={handlePageChange}
+        currentUserId={currentUserId}
+        token={token}
+        handleSearchChange={handleSearchChange}
+        toggleUserStatus={toggleUserStatus}
+      />
 
       <Modal
         size={modal_size}
@@ -279,9 +238,8 @@ export default function Users() {
           <UserForm
             roles={roles}
             countries={countries}
-            cities_all={cities_all}
             mode={formMode}
-            user={selectedUser}   // puede ser null
+            user={selectedUser}
             action_cancel={handleCloseModal}
             token={token}
             updateList={updateList}
@@ -298,9 +256,6 @@ export default function Users() {
           />
         )}
       </Modal>
-
     </div>
-
-
   );
 }

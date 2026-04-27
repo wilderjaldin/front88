@@ -47,6 +47,7 @@ export const MENU_CONFIG: MenuItem[] = [
     icon: 'invoice',
     children: [
       { labelKey: 'spare_parts', href: '/admin/register/spares' },
+      { labelKey: 'spare_parts_site', href: '/admin/register/spares-site' },
       { labelKey: 'spare_parts_in_lot', href: '/admin/register/spares-in-lot' },
       { labelKey: 'spare_parts_in_lot_supplier', href: '/admin/register/spares-suppliers' },
       { labelKey: 'reference_part_change', href: '/admin/register/reference-change-part' },

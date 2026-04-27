@@ -617,10 +617,10 @@ const DatatablesSpares = ({
                     hidden: hideCols.includes('canMin'),
                   },
                   {
-                    accessor: 'uniMed',
+                    accessor: 'desUniMed',
                     title: t.abb_unit,
                     sortable: false,
-                    hidden: hideCols.includes('uniMed'),
+                    hidden: hideCols.includes('desUniMed'),
                   },
                   {
                     accessor: 'blnPedidoEspecial',
@@ -703,6 +703,16 @@ const DatatablesSpares = ({
                     title: t.status,
                     sortable: false,
                     hidden: hideCols.includes('codEstado'),
+                    render: (row) => (
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-semibold ${row.codEstado === 'AC'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-red-100 text-red-600'
+                          }`}
+                      >
+                        {row.codEstado === 'AC' ? t.active : t.inactive }
+                      </span>
+                    )
                   }
 
                 ]}
@@ -875,7 +885,7 @@ const DatatablesSpares = ({
                           : 'bg-red-100 text-red-600'
                         }`}
                     >
-                      {s.codEstado === 'AC' ? 'Activo' : 'Inactivo'}
+                      {s.codEstado === 'AC' ? t.active : t.inactive}
                     </span>
 
                   </div>
