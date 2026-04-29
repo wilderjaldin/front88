@@ -12,6 +12,8 @@ import IconSun from '@/components/icon/icon-sun';
 import IconMoon from '@/components/icon/icon-moon';
 import IconLaptop from '@/components/icon/icon-laptop';
 import IconLogout from '@/components/icon/icon-logout';
+import IconSettings from '@/components/icon/icon-settings';
+import IconLayoutGrid from '@/components/icon/icon-layout-grid';
 import IconCaretDown from '@/components/icon/icon-caret-down';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTranslation } from "@/app/locales";
@@ -417,6 +419,26 @@ const Header = () => {
 
                         </div>
                       </div>
+                    </li>
+
+                    {/* DASHBOARD + SETTINGS */}
+                    <li className="border-t border-gray-200 dark:border-gray-700">
+                      <Link
+                        href="/admin/users/dashboard"
+                        className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+                      >
+                        <IconLayoutGrid className="h-4 w-4 text-gray-400" />
+                        {t.dashboard}
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        href="/admin/users/settings"
+                        className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+                      >
+                        <IconSettings className="h-4 w-4 text-gray-400" />
+                        {t.settings}
+                      </Link>
                     </li>
 
                     {/* LOGOUT */}

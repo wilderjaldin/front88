@@ -44,7 +44,7 @@ export default function SupplierLayout({ children }) {
   const [annexes,        setAnnexes]        = useState({});
   const [loadAnnexes,    setLoadAnnexes]    = useState(true);
 
-  const [freight,        setFreight]        = useState([]);
+  const [freight,        setFreight]        = useState({});
   const [loadFreight,    setLoadFreight]    = useState(true);
 
   const [general,        setGeneral]        = useState(null);

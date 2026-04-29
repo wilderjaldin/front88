@@ -8,6 +8,7 @@ import ShippingAddress from './tabs/ShippingAddress';
 import TradingConditions from './tabs/TradingConditions';
 import Attachments from './tabs/Attachments';
 import UserAccounts from './tabs/UserAccounts';
+import MeetingCustomer from './tabs/MeetingCustomer';
 import { useTranslation } from "@/app/locales";
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 
@@ -24,6 +25,7 @@ export default function CustomerTabPage() {
     conditions:  'Clientes | Condiciones Comerciales',
     attachments: 'Clientes | Anexos',
     accounts:    'Clientes | Usuarios',
+    meetings:    'Clientes | Reuniones',
   };
   useDynamicTitle(TAB_TITLES[tab] ?? 'Clientes');
 
@@ -35,6 +37,7 @@ export default function CustomerTabPage() {
     conditions, setConditions, loadConditions, setLoadConditions,
     attachments, setAttachments, loadAttachments, setLoadAttachments,
     accounts, setAccounts, loadAccounts, setLoadAccounts,
+    meetings, setMeetings, loadMeetings, setLoadMeetings,
   } = ctx;
 
   switch (tab) {
@@ -69,6 +72,12 @@ export default function CustomerTabPage() {
         t={t} cliente={cliente}
         accounts={accounts}         setAccounts={setAccounts}
         loadAccounts={loadAccounts} setLoadAccounts={setLoadAccounts}
+      />;
+    case 'meetings':
+      return <MeetingCustomer
+        t={t} cliente={cliente}
+        meetings={meetings}         setMeetings={setMeetings}
+        loadMeetings={loadMeetings} setLoadMeetings={setLoadMeetings}
       />;
     default:
       return <GeneralInformation t={t} cliente={cliente} onEdit={onEdit} />;

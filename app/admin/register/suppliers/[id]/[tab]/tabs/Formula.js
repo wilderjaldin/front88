@@ -25,7 +25,7 @@ export default function Formula() {
 
   useEffect(() => {
     if (!loadFormula) return;
-    axiosClient.get(`/proveedores/${proveedor.codProveedor}/formula`)
+    axiosClient.get(`/proveedores/${proveedor.codPrv}/formula`)
       .then(res => {
         const data = res.data ?? {};
         setFormula(data.formula ?? null);
@@ -58,7 +58,7 @@ export default function Formula() {
     }).then(async (result) => {
       if (!result.isConfirmed) return;
       try {
-        await axiosClient.post(`/proveedores/${proveedor.codProveedor}/formula/eliminar`, {});
+        await axiosClient.delete(`/proveedores/${proveedor.codPrv}/formula/eliminar`);
         setFormula(null);
         setVariables([]);
         Swal.fire({
@@ -75,32 +75,28 @@ export default function Formula() {
     });
   };
 
-  // ── Vista: formulario de edición ─────────────────────────────────────────
-  if (showForm) {
-    return (
-      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6">
-        <ImportFormulaForm
-          vars={variables}
-          formula={formula ?? ''}
-          setFormula={setFormula}
-          updateVariables={setVariables}
-          action_cancel={() => setShowForm(false)}
-          supplier={{ CodPrv: proveedor.codProveedor }}
-          token={token}
-          t={t}
-        />
-      </div>
-    );
-  }
-
-  // ── Vista: estado actual de la fórmula ───────────────────────────────────
+  // ── Vista ────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
       <h2 className="text-base font-semibold text-gray-700 dark:text-gray-300">
         {t.import_formula}
       </h2>
 
-      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-8 flex flex-col items-center gap-6">
+      {showForm ? (
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-md dark:shadow-gray-900/40 p-6">
+          <ImportFormulaForm
+            vars={variables}
+            formula={formula ?? ''}
+            setFormula={setFormula}
+            updateVariables={setVariables}
+            action_cancel={() => setShowForm(false)}
+            supplier={{ CodPrv: proveedor.codPrv }}
+            token={token}
+            t={t}
+          />
+        </div>
+      ) : (
+      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-md dark:shadow-gray-900/40 p-8 flex flex-col items-center gap-6">
 
         {/* Fórmula actual */}
         <div className="text-center">
@@ -128,14 +124,14 @@ export default function Formula() {
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-900">
                 {variables.map((v, i) => (
                   <tr key={i}>
-                    <td className="px-3 py-2 font-mono">{v.Variable ?? v.name}</td>
-                    <td className="px-3 py-2 text-gray-500">{v.Valor ?? v.value}</td>
+                    <td className="px-3 py-2 font-mono">{v.variable}</td>
+                    <td className="px-3 py-2 text-gray-500">{v.valor}</td>
                     <td className="px-3 py-2">
                       <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium
-                        ${(v.Tipo ?? v.type) === 'DINAMICA'
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'bg-gray-100 text-gray-600'}`}>
-                        {v.Tipo ?? v.type}
+                        ${v.tipoVariable === 'DINAMICA'
+                          ? 'bg-warning/10 text-warning'
+                          : 'bg-secondary/10 text-secondary'}`}>
+                        {v.tipoVariable}
                       </span>
                     </td>
                   </tr>
@@ -167,6 +163,7 @@ export default function Formula() {
           </button>
         </div>
       </div>
+      )}
     </div>
   );
 }

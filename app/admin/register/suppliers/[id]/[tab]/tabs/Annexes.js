@@ -1,7 +1,4 @@
 'use client';
-// Tab: Anexos — basado en captura 4
-// Izquierda: Marcas del proveedor (agregar/eliminar)
-// Derecha: Países asignados al proveedor (agregar/eliminar, select + All checkbox)
 import { useEffect, useState } from 'react';
 import { useSupplier } from '../../SupplierContext';
 import { useTranslation } from '@/app/locales';
@@ -21,29 +18,31 @@ export default function Annexes() {
   const { proveedor, annexes, setAnnexes, loadAnnexes, setLoadAnnexes } = useSupplier();
   const t = useTranslation();
 
-  // Marcas
-  const [marcas,         setMarcas]         = useState([]);   // marcas del proveedor
-  const [allMarcas,      setAllMarcas]       = useState([]);   // todas las marcas (para async)
-  const [selectedMarca,  setSelectedMarca]   = useState(null);
-  const [addingMarca,    setAddingMarca]     = useState(false);
+  const [marcas,        setMarcas]        = useState([]);
+  const [allMarcas,     setAllMarcas]     = useState([]);
+  const [selectedMarca, setSelectedMarca] = useState(null);
+  const [addingMarca,   setAddingMarca]   = useState(false);
 
-  // Países
-  const [paises,         setPaises]          = useState([]);   // países del proveedor
-  const [paisOptions,    setPaisOptions]      = useState([]);   // todas las opciones
-  const [selectedPais,   setSelectedPais]    = useState(null);
-  const [allPaises,      setAllPaises]       = useState(false);
-  const [addingPais,     setAddingPais]      = useState(false);
+  const [paises,        setPaises]        = useState([]);
+  const [paisOptions,   setPaisOptions]   = useState([]);
+  const [selectedPais,  setSelectedPais]  = useState(null);
+  const [addingPais,    setAddingPais]    = useState(false);
 
   useEffect(() => {
-    if (!loadAnnexes) return;
-    axiosClient.get(`/proveedores/${proveedor.codProveedor}/anexos`)
+    if (!loadAnnexes) {
+      setMarcas(annexes.marcasProveedor ?? []);
+      setAllMarcas((annexes.marcasSistema ?? []).filter(m => m.label));
+      setPaises(annexes.paisesProveedor ?? []);
+      setPaisOptions((annexes.paisesSistema ?? []).filter(p => p.label));
+      return;
+    }
+    axiosClient.get(`/proveedores/${proveedor.codPrv}/anexos`)
       .then(res => {
         const data = res.data ?? {};
         setMarcas(data.marcasProveedor ?? []);
-        setAllMarcas(data.marcas ?? []);
+        setAllMarcas((data.marcasSistema ?? []).filter(m => m.label));
         setPaises(data.paisesProveedor ?? []);
-        setPaisOptions(data.paises ?? []);
-        setAllPaises(data.allPaises ?? false);
+        setPaisOptions((data.paisesSistema ?? []).filter(p => p.label));
         setAnnexes(data);
       })
       .catch(() => {})
@@ -58,7 +57,7 @@ export default function Annexes() {
     );
   }
 
-  // ── Marcas ────────────────────────────────────────────────────────────────
+  // ── Marcas ─────────────────────────────────────────────────────────────────
   const loadMarcaOptions = (inputValue, callback) => {
     if (!inputValue || inputValue.length < 2) { callback([]); return; }
     const q = inputValue.toLowerCase();
@@ -71,14 +70,13 @@ export default function Annexes() {
     }
     setAddingMarca(true);
     try {
-      const res = await axiosClient.post(`/proveedores/${proveedor.codProveedor}/marcas/agregar`, {
+      const res = await axiosClient.post(`/proveedores/${proveedor.codPrv}/marcas/guardar`, {
         codMarca: selectedMarca.value,
       });
       setMarcas(res.data ?? []);
       setSelectedMarca(null);
     } catch (err) {
-      const msg = err?.response?.data?.message ?? t.brand_save_error;
-      Toast.fire({ icon: 'error', title: msg });
+      Toast.fire({ icon: 'error', title: err?.response?.data?.message ?? t.brand_save_error });
     } finally {
       setAddingMarca(false);
     }
@@ -96,7 +94,9 @@ export default function Annexes() {
     }).then(async (result) => {
       if (!result.isConfirmed) return;
       try {
-        const res = await axiosClient.post(`/proveedores/${proveedor.codProveedor}/marcas/eliminar`, { codRegistro });
+        const res = await axiosClient.delete(`/proveedores/${proveedor.codPrv}/marcas/eliminar`, {
+          data: { codRegistro },
+        });
         setMarcas(res.data ?? []);
         Toast.fire({ icon: 'success', title: t.brand_deleted });
       } catch {
@@ -112,20 +112,19 @@ export default function Annexes() {
     }
     setAddingPais(true);
     try {
-      const res = await axiosClient.post(`/proveedores/${proveedor.codProveedor}/paises/agregar`, {
+      const res = await axiosClient.post(`/proveedores/${proveedor.codPrv}/paises/guardar`, {
         codPais: selectedPais.value,
       });
       setPaises(res.data ?? []);
       setSelectedPais(null);
     } catch (err) {
-      const msg = err?.response?.data?.message ?? t.country_error_save;
-      Toast.fire({ icon: 'error', title: msg });
+      Toast.fire({ icon: 'error', title: err?.response?.data?.message ?? t.country_error_save });
     } finally {
       setAddingPais(false);
     }
   };
 
-  const handleDeletePais = (codRegistro) => {
+  const handleDeletePais = (codPais) => {
     Swal.fire({
       title: t.question_delete_record,
       icon: 'question',
@@ -137,25 +136,15 @@ export default function Annexes() {
     }).then(async (result) => {
       if (!result.isConfirmed) return;
       try {
-        const res = await axiosClient.post(`/proveedores/${proveedor.codProveedor}/paises/eliminar`, { codRegistro });
+        const res = await axiosClient.delete(`/proveedores/${proveedor.codPrv}/paises/eliminar`, {
+          data: { codPais },
+        });
         setPaises(res.data ?? []);
         Toast.fire({ icon: 'success', title: t.record_deleted });
       } catch {
         Toast.fire({ icon: 'error', title: t.record_deleted_error });
       }
     });
-  };
-
-  const handleToggleAll = async (checked) => {
-    try {
-      const res = await axiosClient.post(`/proveedores/${proveedor.codProveedor}/paises/all`, {
-        allPaises: checked,
-      });
-      setAllPaises(checked);
-      setPaises(res.data ?? []);
-    } catch {
-      Toast.fire({ icon: 'error', title: t.record_updated_error });
-    }
   };
 
   return (
@@ -165,10 +154,14 @@ export default function Annexes() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* ── MARCAS ─────────────────────────────────────────────────────── */}
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 space-y-4">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t.brands}</h3>
+        <div className="rounded-xl border border-secondary/30 bg-white dark:bg-gray-900 shadow-md dark:shadow-gray-900/40 p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-secondary">{t.brands}</h3>
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-secondary/10 text-secondary">
+              {marcas.length}
+            </span>
+          </div>
 
-          {/* Agregar marca */}
           <div className="flex gap-2">
             <div className="flex-1">
               <AsyncSelect
@@ -183,7 +176,9 @@ export default function Annexes() {
                 classNamePrefix="react-select"
                 filterOption={false}
                 noOptionsMessage={({ inputValue }) =>
-                  !inputValue || inputValue.length < 2 ? 'Escribe al menos 2 caracteres' : 'Sin resultados'
+                  !inputValue || inputValue.length < 2
+                    ? 'Escribe al menos 2 caracteres'
+                    : 'Sin resultados'
                 }
               />
             </div>
@@ -191,24 +186,25 @@ export default function Annexes() {
               type="button"
               onClick={handleAddMarca}
               disabled={addingMarca || !selectedMarca}
-              className="flex items-center gap-1.5 btn btn-primary shrink-0 disabled:opacity-50"
+              className="group flex items-center gap-1.5 btn btn-secondary shrink-0 disabled:opacity-50"
             >
-              <IconPlus className="h-3.5 w-3.5" />
-              + Mark
+              <IconPlus className="h-3.5 w-3.5 transition-transform group-hover:rotate-90" />
+              {t.btn_add}
             </button>
           </div>
 
-          {/* Lista marcas */}
-          <div className="min-h-[120px] rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="min-h-[80px] max-h-52 overflow-y-auto rounded-lg border border-secondary/20 dark:border-secondary/20">
             {marcas.length === 0 ? (
-              <div className="flex items-center justify-center h-full p-6 text-sm text-gray-400">
+              <div className="flex items-center justify-center h-20 text-sm text-gray-400">
                 {t.record_empty}
               </div>
             ) : (
-              <ul className="divide-y divide-gray-100 dark:divide-gray-700">
+              <ul className="divide-y divide-secondary/10 dark:divide-secondary/10">
                 {marcas.map((m) => (
-                  <li key={m.codRegistro ?? m.codMarca}
-                    className="flex items-center justify-between px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 text-sm">
+                  <li
+                    key={m.codRegistro ?? m.codMarca}
+                    className="flex items-center justify-between px-3 py-2 hover:bg-secondary/5 text-sm"
+                  >
                     <span className="text-gray-800 dark:text-gray-200">{m.nomMarca}</span>
                     <button
                       onClick={() => handleDeleteMarca(m.codRegistro)}
@@ -224,21 +220,14 @@ export default function Annexes() {
         </div>
 
         {/* ── PAÍSES ─────────────────────────────────────────────────────── */}
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 space-y-4">
+        <div className="rounded-xl border border-info/30 bg-white dark:bg-gray-900 shadow-md dark:shadow-gray-900/40 p-4 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t.country}</h3>
-            <label className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={allPaises}
-                onChange={e => handleToggleAll(e.target.checked)}
-                className="form-checkbox"
-              />
-              All
-            </label>
+            <h3 className="text-sm font-semibold text-info">{t.country}</h3>
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-info/10 text-info">
+              {paises.length}
+            </span>
           </div>
 
-          {/* Agregar país */}
           <div className="flex gap-2">
             <div className="flex-1">
               <Select
@@ -255,48 +244,39 @@ export default function Annexes() {
               type="button"
               onClick={handleAddPais}
               disabled={addingPais || !selectedPais}
-              className="flex items-center gap-1.5 btn btn-primary shrink-0 disabled:opacity-50"
+              className="group flex items-center gap-1.5 btn btn-info shrink-0 disabled:opacity-50"
             >
-              <IconPlus className="h-3.5 w-3.5" />
-              + Country
+              <IconPlus className="h-3.5 w-3.5 transition-transform group-hover:rotate-90" />
+              {t.btn_add}
             </button>
           </div>
 
-          {/* Lista países */}
-          <div className="min-h-[120px] rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="min-h-[80px] max-h-52 overflow-y-auto rounded-lg border border-info/20 dark:border-info/20">
             {paises.length === 0 ? (
-              <div className="flex items-center justify-center h-full p-6 text-sm text-gray-400">
+              <div className="flex items-center justify-center h-20 text-sm text-gray-400">
                 {t.record_empty}
               </div>
             ) : (
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 dark:bg-gray-800 text-xs text-gray-500 uppercase">
-                  <tr>
-                    <th className="px-3 py-2 text-left w-6"></th>
-                    <th className="px-3 py-2 text-left">{t.country}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                  {paises.map((p) => (
-                    <tr key={p.codRegistro ?? p.codPais} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                      <td className="px-3 py-2">
-                        <button
-                          onClick={() => handleDeletePais(p.codRegistro)}
-                          className="text-red-400 hover:text-red-600 transition"
-                        >
-                          <IconTrashLines className="h-4 w-4" />
-                        </button>
-                      </td>
-                      <td className="px-3 py-2 text-gray-800 dark:text-gray-200 font-medium">
-                        {p.nomPais}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <ul className="divide-y divide-info/10 dark:divide-info/10">
+                {paises.map((p) => (
+                  <li
+                    key={p.codRegistro ?? p.codPais}
+                    className="flex items-center justify-between px-3 py-2 hover:bg-info/5 text-sm"
+                  >
+                    <span className="text-gray-800 dark:text-gray-200 font-medium">{p.nomPais}</span>
+                    <button
+                      onClick={() => handleDeletePais(p.codPais)}
+                      className="p-1 rounded text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+                    >
+                      <IconTrashLines className="h-4 w-4" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         </div>
+
       </div>
     </div>
   );
