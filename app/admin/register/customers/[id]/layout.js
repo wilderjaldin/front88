@@ -19,6 +19,7 @@ const TABS = [
   { key: 'conditions',  label: 'Condiciones Comerciales' },
   { key: 'attachments', label: 'Anexos'                  },
   { key: 'accounts',    label: 'Cuentas de Usuario'      },
+  { key: 'meetings',    label: 'Reuniones'               },
 ];
 
 export default function CustomerLayout({ children }) {
@@ -49,6 +50,9 @@ export default function CustomerLayout({ children }) {
 
   const [accounts,        setAccounts]        = useState([]);
   const [loadAccounts,    setLoadAccounts]    = useState(true);
+
+  const [meetings,        setMeetings]        = useState([]);
+  const [loadMeetings,    setLoadMeetings]    = useState(true);
 
   // ── Carga del cliente (una sola vez) ─────────────────────────────────────
   useEffect(() => {
@@ -99,6 +103,7 @@ export default function CustomerLayout({ children }) {
     conditions,  setConditions,  loadConditions,  setLoadConditions,
     attachments, setAttachments, loadAttachments, setLoadAttachments,
     accounts,    setAccounts,    loadAccounts,    setLoadAccounts,
+    meetings,    setMeetings,    loadMeetings,    setLoadMeetings,
   };
 
   return (

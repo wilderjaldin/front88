@@ -1,108 +1,124 @@
 'use client';
-import React, { useEffect, useState } from 'react';
-import { useForm, SubmitHandler } from "react-hook-form"
+// components/forms/add-brand-customer-form.js
+import React from 'react';
+import { useForm, Controller } from 'react-hook-form';
 import Select from 'react-select';
-import axios from 'axios'
-import Swal from 'sweetalert2'
-import { useOptionsSelect } from '@/app/options'
+import axiosClient from '@/app/lib/axiosClient';
+import Swal from 'sweetalert2';
+import { useTranslation } from '@/app/locales';
 
-const url_add_brand = process.env.NEXT_PUBLIC_API_URL + "cliente/AdicionarMarcaCliente";
+// POST /api/clientes/{id}/marcas/agregar
+// Body:    { codMarca: int }
+// Returns: MarcaClienteListadoDto[] → [{ codRegistro, codMarca, nomMarca, codEstado }]
+const URL_AGR_MARCA = (codCliente) => `/clientes/${codCliente}/marcas/agregar`;
 
-const AddBrandCustomerForm = ({ current_brands, action_cancel, customer, token, updateListBrands, t }) => {
+// Sin texto → muestra todo (el valor seleccionado queda visible)
+// 1 carácter → oculta (espera el 2do)
+// 2+ caracteres → filtra normalmente
+const filterFromSecondChar = (option, inputValue) => {
+  if (!inputValue) return true;
+  if (inputValue.length < 2) return false;
+  return option.label.toLowerCase().includes(inputValue.toLowerCase());
+};
 
-
-  const brands = useOptionsSelect("brands") || [];
-  const [select, setSelect] = useState({});
+// Props:
+//   marcasCliente → MarcaClienteListadoDto[] ya asignadas (validación local duplicado)
+//   marcas        → [{ value, label }] todas las marcas — viene de attachments.marcas
+//                   (cargadas en /anexos, NO se hace otro GET aquí)
+//   cliente       → { codCliente }
+//   onCancel      → cierra el modal
+//   onSaved       → (nuevaLista: MarcaClienteListadoDto[]) actualiza el padre
+const AddBrandCustomerForm = ({ marcasCliente = [], marcas = [], cliente, onCancel, onSaved }) => {
+  const t = useTranslation();
 
   const {
-    register, reset, setValue,
-    handleSubmit, setError,
-    formState: { errors },
-  } = useForm({ defaultValues: { brand: '' } });
-
+    control, handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm({ defaultValues: { brand: null } });
 
   const onSubmit = async (data) => {
+    const selected = data.brand;
 
-    let exist = current_brands.filter((item) => {
-      return item.CodMarca == data.brand;
-    });
-    if(exist.length){
-      setError('brand', { type: 'custom', message: t.brand_exist_error });
-      return true;
+    // Validación local duplicado
+    const exists = marcasCliente.some(m => m.codMarca === selected.value);
+    if (exists) {
+      Swal.fire({ title: t.warning, text: t.brand_exist_error, icon: 'warning',
+        confirmButtonColor: '#dc2626', confirmButtonText: t.close });
+      return;
     }
 
-    
     try {
-      const rs = await axios.post(url_add_brand, { CodMarca: data.brand, CodCliente: customer.IdCliente, ValToken: token });
-      
-      if (rs.data.estado == 'OK') {
-        updateListBrands(select);
-        action_cancel();
-        Swal.fire({
-          position: "top-end",
-          icon: "success",
-          title: t.brand_add_save,
-          showConfirmButton: false,
-          timer: 1500
-        });
-      }
-    } catch (error) {
-      
-    }
-  }
+      const res = await axiosClient.post(URL_AGR_MARCA(cliente.codCliente), {
+        codMarca: selected.value,
+      });
 
-  const handlerOnChange = (value) => {
-    if (value) {
-      setValue('brand', value.value)
-      setSelect(value)
-    } else {
-      setValue('brand', null)
-      setSelect({})
+      Swal.fire({ title: t.success, icon: 'success', confirmButtonColor: '#15803d',
+        text: t.brand_add_save, confirmButtonText: t.close,
+      }).then(() => onSaved?.(res.data ?? []));
+
+    } catch (err) {
+      const status = err?.response?.status;
+      const msg    = err?.response?.data?.message ?? err?.response?.data?.mensaje;
+      if (status === 400 && msg) {
+        Swal.fire({ title: t.warning, text: msg, icon: 'warning',
+          confirmButtonColor: '#dc2626', confirmButtonText: t.close });
+      } else {
+        Swal.fire({ title: t.error, text: t.brand_save_error_server, icon: 'error',
+          confirmButtonColor: '#dc2626', confirmButtonText: t.close });
+      }
     }
-  }
+  };
 
   return (
-    <>
-      <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
-        <div className='space-y-4'>
-          <div>
-            <label htmlFor="brand-select" className='required'>{ t.brand }</label>
-            <div className={errors.brand ? "react-select-error" : ""}>
-              <Select placeholder={t.select_option} className='w-full' options={brands}
-                {...register('brand', { required: { value: true, message: t.required_select } })}
-                isSearchable
-                id="brand-select"
-                instanceId="brand-select"
-                onChange={handlerOnChange}
-                menuPosition={'fixed'}
+    <div className="space-y-5">
+      <div className="space-y-1.5">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          {t.brand}<span className="text-red-500 ml-0.5">*</span>
+        </label>
+        <div className={errors.brand ? 'react-select-error' : ''}>
+          <Controller
+            name="brand"
+            control={control}
+            rules={{ required: { value: true, message: t.required_select } }}
+            render={({ field }) => (
+              <Select
+                {...field}
+                options={marcas}
+                isSearchable isClearable
+                placeholder="Escribe al menos 2 caracteres..."
+                instanceId="brand-form-select"
+                menuPosition="fixed"
                 classNamePrefix="select"
                 menuShouldScrollIntoView={false}
+                filterOption={filterFromSecondChar}
+                noOptionsMessage={({ inputValue }) =>
+                  !inputValue || inputValue.length < 2
+                    ? 'Escribe al menos 2 caracteres para buscar'
+                    : 'Sin resultados'
+                }
               />
-              {errors.brand && <span className='text-red-400 error block mb-5 text-xs mt-1' role="alert">{errors.brand?.message?.toString()}</span>}
-            </div>
-          </div>
-
+            )}
+          />
         </div>
+        {errors.brand && <p className="text-red-400 text-xs mt-1">{errors.brand.message}</p>}
+      </div>
 
-
-
-        <div className="mb-5">
-
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <button onClick={() => action_cancel()} type="button" className="btn btn-outline-danger">
-              { t.btn_cancel }
-            </button>
-
-            <button type="submit" className="btn btn-success">
-              { t.btn_save }
-            </button>
-
-          </div>
-        </div>
-
-      </form>
-
-    </>
+      <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100 dark:border-gray-700">
+        <button type="button" onClick={onCancel} disabled={isSubmitting}
+          className="btn btn-outline-danger disabled:opacity-50 disabled:cursor-not-allowed">
+          {t.btn_cancel}
+        </button>
+        <button type="button" onClick={handleSubmit(onSubmit)} disabled={isSubmitting}
+          className="btn btn-success disabled:opacity-50 disabled:cursor-not-allowed min-w-[90px]">
+          {isSubmitting ? (
+            <span className="flex items-center gap-2">
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              Guardando...
+            </span>
+          ) : t.btn_save}
+        </button>
+      </div>
+    </div>
   );
 };
 

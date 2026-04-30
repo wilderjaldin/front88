@@ -39,7 +39,7 @@ const ClienteCard = ({ c, onEdit, onStatus, onSettings }) => (
           ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
           : 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300'
         }`}>
-        {c.codEstado === 'AC' ? 'Activo' : 'Inactivo'}
+        {c.codEstado === 'AC' ? t.active : t.inactive}
       </span>
     </div>
 
@@ -93,6 +93,7 @@ const DatatablesCustomers = ({
   onEdit,
   setData,
   setTotal,
+  t
 }) => {
   const router = useRouter();
   const { isMobile } = useDevice();
@@ -250,7 +251,7 @@ const DatatablesCustomers = ({
                         ? 'bg-green-100 text-green-700'
                         : 'bg-red-100 text-red-600'
                       }`}>
-                      {c.codEstado === 'AC' ? 'Activo' : 'Inactivo'}
+                      {c.codEstado === 'AC' ? t.active : t.inactive}
                     </span>
                   ),
                 },

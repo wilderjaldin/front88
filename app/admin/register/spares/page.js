@@ -31,11 +31,18 @@ export default function SparesPage() {
   // ── Parámetros actuales de la URL — la fuente de verdad ──────────────────
   const currentPage        = Number(searchParams.get('page'))  || 1;
   const currentTerm        = searchParams.get('term')          || '';
-  const currentStatus      = searchParams.get('status')        || '';
+  const currentStatus      = searchParams.get('status')        || 'AC';   // ← default AC
   const currentSupplier    = searchParams.get('supplier')      || '';
   const currentBrand       = searchParams.get('brand')         || '';
   const currentApplication = searchParams.get('application')   || '';
   const currentType        = searchParams.get('type')          || '';
+
+  // ── Si no hay status en la URL, establecer AC por defecto ─────────────────
+  useEffect(() => {
+    if (!searchParams.get('status')) {
+      router.replace('?status=AC');
+    }
+  }, []);
 
   // ── Catálogos: una sola vez, independiente de los filtros ─────────────────
   useEffect(() => {
@@ -43,8 +50,6 @@ export default function SparesPage() {
   }, []);
 
   // ── Búsqueda: SOLO se dispara cuando cambia la URL ────────────────────────
-  // No se llama directamente desde el form — el form actualiza la URL
-  // y este efecto reacciona al cambio
   useEffect(() => {
     fetchSpares();
   }, [searchParams]);
@@ -108,10 +113,6 @@ export default function SparesPage() {
     router.push(`?${params.toString()}`);
   };
 
-  // ── Handlers para el datatable ────────────────────────────────────────────
-
-  // Recibe los valores del form.
-  // supplier/brand/application ahora son objetos {value, label} — se extrae solo el id.
   const handleSearch = (formData) => {
     pushFilters({
       term:        formData.term              || '',
@@ -123,7 +124,6 @@ export default function SparesPage() {
     });
   };
 
-  // Cambio de página: conserva filtros actuales, solo cambia page
   const handlePageChange = (newPage) => {
     const params = new URLSearchParams(searchParams.toString());
     if (newPage > 1) {
@@ -134,7 +134,6 @@ export default function SparesPage() {
     router.push(`?${params.toString()}`);
   };
 
-  // Limpiar: URL limpia, solo status por defecto
   const handleClear = () => {
     router.push('?status=AC');
   };
@@ -213,7 +212,6 @@ export default function SparesPage() {
         page={currentPage}
         pageSize={pageSize}
         total={total}
-        // Valores actuales de la URL → datatable los usa como defaultValues
         currentFilters={{
           term:        currentTerm,
           status:      currentStatus,

@@ -1,12 +1,12 @@
 'use client';
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import Select from 'react-select';
 import axiosClient from '@/app/lib/axiosClient';
 import Swal from 'sweetalert2';
 import { useTranslation } from '@/app/locales';
-import IconPlus from '@/components/icon/icon-plus';
-import Modal from '@/components/modal';
+import SelectCountry from '@/components/select-country';
+import SelectCity from '@/components/select-city';
 
 const URL_CONTROLES  = '/clientes/controles';
 const URL_CIUDADES   = '/ciudades';          // GET /ciudades?codPais=XX
@@ -41,13 +41,6 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
   const [loading, setLoading]       = useState(true);
   const [loadingCities, setLoadingCities] = useState(false);
 
-  // Modales agregar país / ciudad
-  const [showModalPais, setShowModalPais]     = useState(false);
-  const [showModalCiudad, setShowModalCiudad] = useState(false);
-  const [nuevoPais, setNuevoPais]       = useState('');
-  const [nuevaCiudad, setNuevaCiudad]   = useState('');
-  const [savingPais, setSavingPais]     = useState(false);
-  const [savingCiudad, setSavingCiudad] = useState(false);
 
   const {
     register, handleSubmit, control, reset, watch, setValue,
@@ -57,8 +50,8 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
       nomCliente:    '',
       tipDocumento:  null,
       numNit:        '',
-      codPais:       null,
-      codCiudad:     null,
+      country:       null,
+      city:          null,
       dirCliente:    '',
       sitWeb:        '',
       actPrincipal:  '',
@@ -74,7 +67,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
     },
   });
 
-  const watchPais         = watch('codPais');
+  const watchPais         = watch('country');
   const watchNoIva        = watch('noConsiderarIva');
   const watchTipDoc       = watch('tipDocumento');
   const isUS              = watchPais?.value === 'US';
@@ -107,8 +100,8 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
             nomCliente:    cliente.nomCliente   ?? '',
             tipDocumento:  newDocTypes.find(d => d.value === cliente.tipDocumento) ?? null,
             numNit:        cliente.numNit        ?? '',
-            codPais:       paisObj,
-            codCiudad:     ciudadesInit.find(c => c.value === cliente.codCiudad) ?? null,
+            country:       paisObj,
+            city:          ciudadesInit.find(c => c.value === cliente.codCiudad) ?? null,
             dirCliente:    cliente.dirCliente    ?? '',
             sitWeb:        cliente.sitWeb        ?? '',
             actPrincipal:  cliente.actPrincipal  ?? '',
@@ -147,7 +140,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
     }
 
     // Limpiar ciudad y cargar desde API
-    if (!isEdit) setValue('codCiudad', null);
+    if (!isEdit) setValue('city', null);
 
     const fetchCities = async () => {
       setLoadingCities(true);
@@ -174,8 +167,8 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
         nomCliente:    data.nomCliente.trim(),
         tipDocumento:  data.tipDocumento?.value ?? '',
         numNit:        data.numNit?.trim()      ?? '',
-        codPais:       data.codPais?.value      ?? '',
-        codCiudad:     data.codCiudad?.value    ?? '',
+        codPais:       data.country?.value      ?? '',
+        codCiudad:     data.city?.value          ?? '',
         dirCliente:    data.dirCliente?.trim()  || null,
         sitWeb:        data.sitWeb?.trim()      || null,
         actPrincipal:  data.actPrincipal?.trim()|| null,
@@ -200,45 +193,6 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
       Toast.fire({ icon: 'error', title: err?.response?.data?.message || 'Error al guardar' });
     } finally {
       setSaving(false);
-    }
-  };
-
-  // ── Agregar país ──────────────────────────────────────────────────────────
-  const handleAgregarPais = async () => {
-    if (!nuevoPais.trim()) return;
-    setSavingPais(true);
-    try {
-      const res  = await axiosClient.post('/paises/registro', { nomPais: nuevoPais.trim() });
-      const nuevo = { value: res.data.codPais, label: res.data.nomPais };
-      setPaises(prev => [...prev, nuevo].sort((a, b) => a.label.localeCompare(b.label)));
-      setValue('codPais', nuevo);
-      setShowModalPais(false);
-      setNuevoPais('');
-    } catch {
-      Toast.fire({ icon: 'error', title: 'Error al registrar país' });
-    } finally {
-      setSavingPais(false);
-    }
-  };
-
-  // ── Agregar ciudad ────────────────────────────────────────────────────────
-  const handleAgregarCiudad = async () => {
-    if (!nuevaCiudad.trim() || !watchPais) return;
-    setSavingCiudad(true);
-    try {
-      const res  = await axiosClient.post('/ciudades/registro', {
-        nomCiudad: nuevaCiudad.trim(),
-        codPais:   watchPais.value,
-      });
-      const nueva = { value: res.data.codCiudad, label: res.data.nomCiudad };
-      setCiudades(prev => [...prev, nueva].sort((a, b) => a.label.localeCompare(b.label)));
-      setValue('codCiudad', nueva);
-      setShowModalCiudad(false);
-      setNuevaCiudad('');
-    } catch {
-      Toast.fire({ icon: 'error', title: 'Error al registrar ciudad' });
-    } finally {
-      setSavingCiudad(false);
     }
   };
 
@@ -296,36 +250,21 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
               <label className="block text-sm font-medium mb-1">
                 País <span className="text-red-500">*</span>
               </label>
-              <div className="flex items-center gap-2">
-                <Controller
-                  name="codPais"
-                  control={control}
-                  rules={{ required: 'Requerido' }}
-                  render={({ field }) => (
-                    <Select
-                      {...field}
-                      options={paises}
-                      placeholder="Seleccionar país..."
-                      classNamePrefix="select"
-                      className="flex-1"
-                      isClearable
-                      instanceId="country"
-                      menuPosition="fixed"
-                      menuShouldScrollIntoView={false}
-                    />
-                  )}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowModalPais(true)}
-                  title="Agregar nuevo país"
-                  className="flex-shrink-0 h-9 w-9 flex items-center justify-center
-                             rounded-lg bg-primary text-white shadow-sm
-                             hover:bg-primary/85 active:scale-95 transition-all">
-                  <IconPlus className="h-4 w-4" />
-                </button>
-              </div>
-              <FieldError error={errors.codPais} />
+              <SelectCountry
+                t={t}
+                options={paises}
+                control={control}
+                errors={errors}
+                setValue={setValue}
+                current={cliente?.codPais ?? ''}
+                isLoading={loading}
+                onChange={(val) => {
+                  setValue('city', null);
+                  setCiudades([]);
+                }}
+                instanceId="select-country-customer"
+                onCountryAdded={({ paises: nuevaLista }) => setPaises(nuevaLista)}
+              />
             </div>
 
             {/* Ciudad */}
@@ -333,44 +272,19 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
               <label className="block text-sm font-medium mb-1">
                 Ciudad <span className="text-red-500">*</span>
               </label>
-              <div className="flex items-center gap-2">
-                <Controller
-                  name="codCiudad"
-                  control={control}
-                  rules={{ required: 'Requerido' }}
-                  render={({ field }) => (
-                    <Select
-                      {...field}
-                      options={ciudades}
-                      placeholder={
-                        !watchPais    ? 'Primero selecciona un país' :
-                        loadingCities ? 'Cargando ciudades...'       :
-                                       'Seleccionar ciudad...'
-                      }
-                      isDisabled={!watchPais || loadingCities}
-                      isLoading={loadingCities}
-                      classNamePrefix="select"
-                      className="flex-1"
-                      isClearable
-                      instanceId="city"
-                      menuPosition="fixed"
-                      menuShouldScrollIntoView={false}
-                    />
-                  )}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowModalCiudad(true)}
-                  disabled={!watchPais || loadingCities}
-                  title="Agregar nueva ciudad"
-                  className="flex-shrink-0 h-9 w-9 flex items-center justify-center
-                             rounded-lg bg-primary text-white shadow-sm
-                             hover:bg-primary/85 active:scale-95 transition-all
-                             disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none">
-                  <IconPlus className="h-4 w-4" />
-                </button>
-              </div>
-              <FieldError error={errors.codCiudad} />
+              <SelectCity
+                t={t}
+                cities={ciudades}
+                control={control}
+                errors={errors}
+                isLoading={loadingCities}
+                instanceId="select-city-customer"
+                selectedCountry={watchPais}
+                setValue={setValue}
+                onCityAdded={({ ciudades: nuevaLista }) => {
+                  setCiudades(nuevaLista);
+                }}
+              />
             </div>
 
             {/* Estado y ZIP — aparece con animación suave al seleccionar US */}
@@ -584,55 +498,6 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
 
       </form>
 
-      {/* Modal — Agregar país */}
-      <Modal showModal={showModalPais} closeModal={() => setShowModalPais(false)} title="Agregar País" size="w-full max-w-sm">
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Nombre del país</label>
-            <input
-              value={nuevoPais}
-              onChange={e => setNuevoPais(e.target.value)}
-              placeholder="Ej: Colombia"
-              className="form-input w-full"
-            />
-          </div>
-          <div className="flex justify-end gap-3">
-            <button type="button" onClick={() => setShowModalPais(false)}
-              className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm hover:bg-gray-100 transition">
-              Cancelar
-            </button>
-            <button type="button" onClick={handleAgregarPais} disabled={savingPais}
-              className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium disabled:opacity-50 transition">
-              {savingPais ? 'Guardando...' : 'Guardar'}
-            </button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Modal — Agregar ciudad */}
-      <Modal showModal={showModalCiudad} closeModal={() => setShowModalCiudad(false)} title="Agregar Ciudad" size="w-full max-w-sm">
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Nombre de la ciudad</label>
-            <input
-              value={nuevaCiudad}
-              onChange={e => setNuevaCiudad(e.target.value)}
-              placeholder="Ej: Cochabamba"
-              className="form-input w-full"
-            />
-          </div>
-          <div className="flex justify-end gap-3">
-            <button type="button" onClick={() => setShowModalCiudad(false)}
-              className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm hover:bg-gray-100 transition">
-              Cancelar
-            </button>
-            <button type="button" onClick={handleAgregarCiudad} disabled={savingCiudad}
-              className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium disabled:opacity-50 transition">
-              {savingCiudad ? 'Guardando...' : 'Guardar'}
-            </button>
-          </div>
-        </div>
-      </Modal>
 
     </>
   );

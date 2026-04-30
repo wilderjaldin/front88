@@ -1,324 +1,276 @@
-"use client";
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form"
-import { useTranslation } from "@/app/locales";
-import IconPlusProps from '@/components/icon/icon-plus';
-import DatatablesSuppliers from "@/components/datatables/components-datatables-suppliers";
-import SupplierSettings from "./settings";
-import ComponentSupplierForm from '@/components/forms/supplier-form'
-import axios from 'axios'
-import Swal from 'sweetalert2'
-import { useSelector } from 'react-redux';
-import { getLocale } from '@/store/localeSlice';
-import { selectToken } from '@/store/authSlice';
-import { getNameOption, useOptionsSelect } from '@/app/options'
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
-import IconBackSpace from "@/components/icon/icon-backspace";
+'use client';
+import { useEffect, useRef, useState } from 'react';
+import axiosClient from '@/app/lib/axiosClient';
+import Swal from 'sweetalert2';
+import { useDebounce } from 'use-debounce';
+import { useDynamicTitle } from '@/app/hooks/useDynamicTitle';
+import IconSearch from '@/components/icon/icon-search';
+import IconPlus from '@/components/icon/icon-plus';
+import IconX from '@/components/icon/icon-x';
+import Modal from '@/components/modal';
+import DatatablesSuppliers from './datatables-suppliers';
+import SupplierForm from './form/page';
+import { useTranslation } from '@/app/locales';
 
-const url = process.env.NEXT_PUBLIC_API_URL + 'proveedor/ObtenerLista';
-const url_get_supplier = process.env.NEXT_PUBLIC_API_URL + 'proveedor/RecuperarRegistroPrv';
-const url_list = process.env.NEXT_PUBLIC_API_URL + "proveedor/ListaControlesPrv";
+const URL_BASE  = '/proveedores';
+const PAGE_SIZE = 20;
 
-const tabs = { '0': 'general', '1': 'contacts', '2': 'conditions', '3': 'formula', '4': 'anexos', "5": 'cost' }
+const Toast = Swal.mixin({
+  toast: true, position: 'top-end',
+  showConfirmButton: false, timer: 3000, timerProgressBar: true,
+});
 
-export default function Suppliers() {
+const parseTerm = (raw) => {
+  const match = raw.match(/estado:\s*(AC|IN)/i);
+  if (match) {
+    return { term: raw.replace(match[0], '').trim(), codEst: match[1].toUpperCase() };
+  }
+  return { term: raw.trim(), codEst: null };
+};
 
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const token = useSelector(selectToken);
+export default function SuppliersPage() {
+  useDynamicTitle('Proveedores');
+
   const t = useTranslation();
 
-  const [supplier, setSupplier] = useState(null)
-  const [suppliers, setSuppliers] = useState([])
-  const [zones, setZones] = useState([])
+  const [suppliers,    setSuppliers]    = useState([]);
+  const [total,        setTotal]        = useState(0);
+  const [page,         setPage]         = useState(1);
+  const [loading,      setLoading]      = useState(true);
+  const [term,         setTerm]         = useState('');
+  const [debouncedTerm] = useDebounce(term, 350);
+  const [paises,       setPaises]       = useState([]);
+  const [selectedPais, setSelectedPais] = useState(null);
+  const [controles,    setControles]    = useState({ paises: [], docTypes: [] });
 
-  const [show_form, setShowForm] = useState(false)
+  // Modal nuevo
+  const [showNewModal, setShowNewModal] = useState(false);
 
-  const options_supplier = useOptionsSelect("suppliers");
+  // Modal editar — carga el proveedor desde la API
+  const [showEditModal,   setShowEditModal]   = useState(false);
+  const [editProveedor,   setEditProveedor]   = useState(null);
+  const [loadingEdit,     setLoadingEdit]     = useState(false);
 
-  const supplier_id = searchParams.get("supplier") || 0;
-  let term = searchParams.get("term") || '';
-
-  const locale = useSelector(getLocale);
-  const [load_options, setLoadOptions] = useState(true);
-  const [docTypesLoaded, setDocTypesLoaded] = useState(false);
-  const [doc_types, setDocTypes] = useState([]);
-
-
-  const {
-    register, reset,
-    handleSubmit,
-    formState: { },
-  } = useForm({ defaultValues: { query: '' } });
+  const selectedPaisRef = useRef(null);
 
   useEffect(() => {
+    axiosClient.get(`${URL_BASE}/controles`)
+      .then(res => setControles(res.data))
+      .catch(() => {});
+  }, []);
 
-    async function fetchData() {
-      await getSuppliers(term);
-      await getList();
-    }
-    fetchData();
-
-
-  }, [term]);
-
-
-  useEffect(() => {
-    if (supplier_id == 0 && docTypesLoaded) {
-      setSupplier(null);
-    }
-  }, [supplier_id, docTypesLoaded]);
-
-  useEffect(() => {
-    if (supplier_id != 0) {
-      getSupplier(supplier_id);
-    }
-  }, [suppliers]);
-
-
-  const onSearch = async (data) => {
-    router.push(`?term=${data.query}`)
-    getSuppliers(data.query);
-  }
-
-  const clear = () => {
-    router.push(`?term=`)
-    getSuppliers('');
-    reset({ query: "" });
-  }
-  const getList = async () => {
+  const fetchSuppliers = async (p = 1, rawTerm = '', codPais = null) => {
+    setLoading(true);
     try {
-      const response = await axios.post(url_list, { Idioma: locale, ValToken: token });
-
-      let zones = [];
-      if (response.data.dato5) {
-        response.data.dato5.map((z) => {
-          if (z.NomZona != "") {
-            zones.push({ value: z.NomZona, label: z.NomZona });
-          }
-        });
-      }
-      setZones(zones);
-
-      if (response.data.estado === 'OK' && Array.isArray(response.data.dato1)) {
-
-        const options = response.data.dato1
-          .filter(o => o.CodDoc !== 0)
-          .map(o => ({
-            value: o.CodDoc,
-            label: o.DesDoc
-          }));
-        setDocTypes(options);
-        setDocTypesLoaded(true);
-      }
-
-    } catch (error) {
-
+      const { term: searchTerm, codEst } = parseTerm(rawTerm);
+      const params = { page: p, pageSize: PAGE_SIZE, term: searchTerm };
+      if (codPais) params.codPais = codPais;
+      if (codEst)  params.codEst  = codEst;
+      const res = await axiosClient.get(URL_BASE, { params });
+      setSuppliers(res.data.data ?? []);
+      setTotal(res.data.total ?? 0);
+      setPage(p);
+      if (p === 1 && res.data.paises) setPaises(res.data.paises);
+    } catch {
+      Toast.fire({ icon: 'error', title: 'Error cargando proveedores' });
+    } finally {
+      setLoading(false);
     }
-  }
-  const getSuppliers = async (term = '') => {
-    try {
-      const response = await axios.post(url, { Filtro: term, ValToken: token });
-
-      setSuppliers(response.data.dato);
-
-    } catch (error) {
-
-    }
-  }
-
-  const getLabel = (options, value) => {
-
-    const item = options.find(o => o.value === value);
-    return item ? item.label : '';
   };
 
-  const getSupplier = async (id) => {
+  useEffect(() => {
+    fetchSuppliers(1, debouncedTerm, selectedPaisRef.current);
+  }, [debouncedTerm]);
 
+  const handleSelectPais = (codPais) => {
+    const next = codPais === selectedPaisRef.current ? null : codPais;
+    selectedPaisRef.current = next;
+    setSelectedPais(next);
+    fetchSuppliers(1, debouncedTerm, next);
+  };
+
+  const handlePageChange = (p) => {
+    fetchSuppliers(p, debouncedTerm, selectedPaisRef.current);
+  };
+
+  // Abre modal de edición cargando datos frescos desde la API
+  const handleEdit = async (s) => {
+    setShowEditModal(true);
+    setEditProveedor(null);
+    setLoadingEdit(true);
     try {
-      const rs = await axios.post(url_get_supplier, { CodPrv: id, ValToken: token });
-
-      if (rs.data.estado == 'OK') {
-
-        if (rs.data.dato1[0].NomDocumento == undefined) {
-          let doc_name = getLabel(doc_types, rs.data.dato1[0].TipDocumento);
-          rs.data.dato1[0].NomDocumento = doc_name;
-        }
-
-
-        if (rs.data.dato1[0].NomIdioma == undefined) {
-          let report_name = getNameOption('reports', rs.data.dato1[0].IdiomaReporte)
-          rs.data.dato1[0].NomIdioma = report_name;
-        }
-
-
-        /*
-        if (rs.data.dato1[0].Condicion == undefined) {
-          rs.data.dato1[0].Condicion = "C45";
-        }
-        */
-
-        setSupplier(rs.data.dato1[0]);
-
-      } else {
-
-        Swal.fire({
-          title: t.error,
-          text: t.supplier_error_get + " - " + rs.data.mensaje,
-          icon: 'error',
-          confirmButtonColor: '#dc2626',
-          confirmButtonText: t.close
-        });
-      }
-
-    } catch (error) {
-      Swal.fire({
-        title: t.error,
-        text: t.supplier_error_get_server,
-        icon: 'error',
-        confirmButtonColor: '#dc2626',
-        confirmButtonText: t.close
-      });
+      const res = await axiosClient.get(`${URL_BASE}/${s.codPrv}`);
+      setEditProveedor(res.data);
+    } catch {
+      Toast.fire({ icon: 'error', title: 'Error cargando datos del proveedor' });
+      setShowEditModal(false);
+    } finally {
+      setLoadingEdit(false);
     }
-  }
+  };
 
-  const showSettings = (s) => {
-    getSupplier(s.CodPrv);
-    //setShowLabels(true);
-    router.push(`?supplier=${s.CodPrv}&option=general`)
-  }
+  const handleSaved = () => {
+    fetchSuppliers(1, debouncedTerm, selectedPaisRef.current);
+    setShowNewModal(false);
+    setShowEditModal(false);
+    Toast.fire({ icon: 'success', title: t.supplier_success_save });
+  };
 
-  const updateList = async (data) => {
+  const { codEst: activeCodEst } = parseTerm(term);
 
-
-    let exist = false;
-    let options = [];
-    
-    options = Array.isArray(suppliers)
-      ? suppliers.map((cs) => {
-        if (cs.CodPrv == data.CodPrv) {
-          exist = true;
-          cs.NomPrv = data.NomPrv;
-          cs.DirPrv = data.DirPrv;
-          cs.NomPais = data.NomPais;
-          cs.NomCiudad = data.NomCiudad;
-          cs.NumDocumento = data.TipDocumento + ' ' + data.NumDocumento;
-          cs.CodPais = data.CodPais;
-          cs.CodCiudad = data.CodCiudad;
-          cs.TipDocumento = data.TipDocumento;
-          cs.NroDocumento = data.NroDocumento;
-          cs.SitioWeb = data.SitioWeb;
-          cs.DiasProceso = data.DiasProceso;
-          cs.DiasShipingStandard = data.DiasShipingStandard;
-          cs.IdiomaReporte = data.IdiomaReporte;
-          cs.ConsiderarStock = data.TieneStock;
-        }
-        return cs;
-      })
-      : [];
-    if (!exist) {
-
-      options = [];
-      options.push(...suppliers, {
-        CodPrv: data.CodPrv,
-        NomPrv: data.NomPrv,
-        DirPrv: data.DirPrv,
-        NomPais: data.NomPais,
-        NomCiudad: data.NomCiudad,
-        NumDocumento: data.TipDocumento + ' ' + data.NumDocumento,
-        CodPais: data.CodPais,
-        CodCiudad: data.CodCiudad,
-        TipDocumento: data.TipDocumento,
-        NroDocumento: data.NroDocumento,
-        SitioWeb: data.SitioWeb,
-        DiasProceso: data.DiasProceso,
-        DiasShipingStandard: data.DiasShipingStandard,
-        IdiomaReporte: data.IdiomaReporte,
-        ConsiderarStock: data.TieneStock
-      }
-
-      );
-    } else {
-      //actualizar lista de proveedores
-      let new_options = [];
-      options_supplier.map((s) => {
-        if (s.value == data.CodPrv) {
-          s.label = data.NomPrv;
-        }
-        new_options.push(s);
-      });
-    }
-
-    setSuppliers(options);
-  }
-
-  const updateConditionSupplier = (value) => {
-    supplier.CodCondPago = value;
-
-    setSupplier(supplier);
-  }
-  useDynamicTitle(`${t.register} | ${t.suppliers}`);
   return (
     <>
-      {!(supplier) &&
-        <>
-          <div>
-            <ul className="flex space-x-2 rtl:space-x-reverse">
-              <li>
-                {t.register}
-              </li>
-              <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
-                <span>{t.suppliers}</span>
-              </li>
-            </ul>
+      <div className="p-6 space-y-6">
 
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
+              {t.suppliers}{' '}
+              <span className="text-base font-normal text-gray-400">({total})</span>
+            </h1>
+            <div className="h-1 w-12 rounded bg-primary/70 mt-2" />
           </div>
 
-          {!(show_form) &&
-            <>
-              <div className="grid grid-cols-1 gap-6 pt-5">
-                <div className={`panel shadow-lg border bg-gray-200`}>
-                  <div className="mb-5">
-                    <form className="space-y-5" onSubmit={handleSubmit(onSearch)}>
-                      <label htmlFor="search" className="text-sm font-medium text-gray-900 dark:text-white">{t.supplier}</label>
-                      <div className="relative">
-                        <div className="relative mb-4">
-                          <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-                            <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
-                              <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z" />
-                            </svg>
-                          </div>
-                          <input type="search" defaultValue='' {...register("query", { required: false })} id="search" className="block w-full p-4 ps-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder={t.enter_data_search} required />
-                          <div className="mt-4 flex items-center text-center sm:absolute sm:end-2.5 sm:bottom-2.5">
-                            <button type="button" onClick={() => clear()} className="btn-dark hover:bg-gray-900 text-white mr-2 font-medium rounded-lg text-sm px-2.5 py-1.5"><IconBackSpace className=''></IconBackSpace></button>
-                            <button type="submit" className="text-white  bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">{t.btn_search}</button>
-                          </div>
-                        </div>
-                      </div>
-                    </form>
-
-                  </div>
-                </div>
+          <div className="flex flex-wrap items-start gap-3">
+            <div className="flex flex-col gap-1.5 min-w-[280px]">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={term}
+                  onChange={e => setTerm(e.target.value)}
+                  placeholder="Buscar proveedor..."
+                  className={`w-full rounded-lg border px-4 py-2 pr-10 text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/40 ${activeCodEst ? 'border-primary/50' : 'border-gray-300 dark:border-gray-700'}`}
+                />
+                {term ? (
+                  <button type="button" onClick={() => setTerm('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-600 transition">
+                    <IconX className="h-4 w-4" />
+                  </button>
+                ) : (
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400">
+                    <IconSearch className="h-4 w-4" />
+                  </span>
+                )}
               </div>
-              <div className="my-5">
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  <button onClick={() => setShowForm(true)} type="button" className="btn btn-primary">
-                    <IconPlusProps className="h-5 w-5 shrink-0 ltr:mr-1.5 rtl:ml-1.5" />
-                    {t.btn_add_supplier}
+
+              {activeCodEst ? (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${activeCodEst === 'AC' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    Estado: {activeCodEst === 'AC' ? 'Activos' : 'Inactivos'}
+                    <button type="button" onClick={() => setTerm(term.replace(/estado:\s*(AC|IN)/i, '').trim())} className="ml-0.5 hover:opacity-70">
+                      <IconX className="h-3 w-3" />
+                    </button>
+                  </span>
+                  <button type="button" onClick={() => setTerm('')} className="text-[11px] text-primary hover:underline">
+                    Limpiar todo
                   </button>
                 </div>
-              </div>
-            </>
-          }
-        </>
-      }
+              ) : (
+                <p className="text-[11px] text-gray-400">
+                  Prefijos: <span className="font-mono">estado:AC</span> · <span className="font-mono">estado:IN</span>
+                </p>
+              )}
+            </div>
 
-      {(supplier) && <SupplierSettings doc_types={doc_types} _supplier={supplier} setSupplier={setSupplier} updateList={updateList} tabs={tabs} token={token} t={t} zones={zones} updateConditionSupplier={updateConditionSupplier}></SupplierSettings>}
-      {(show_form) && <ComponentSupplierForm doc_types={doc_types} how_labels_opc={false} supplier={supplier} action_cancel={() => setShowForm(false)} token={token} updateList={updateList} t={t}></ComponentSupplierForm>}
-      {(suppliers && (!supplier && !show_form)) && <DatatablesSuppliers data={suppliers} supplier={supplier} showSettings={showSettings} t={t} token={token} />}
+            <button
+              type="button"
+              onClick={() => setShowNewModal(true)}
+              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-white text-sm font-medium shadow-sm hover:bg-primary/90 transition-all"
+            >
+              <IconPlus className="h-4 w-4" />
+              {t.btn_add_supplier}
+            </button>
+          </div>
+        </div>
 
+        {paises.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleSelectPais(null)}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium border transition-all duration-150
+                ${selectedPais === null
+                  ? 'bg-primary text-white border-primary shadow-sm'
+                  : 'bg-white dark:bg-gray-900 text-gray-500 border-gray-300 dark:border-gray-700 hover:border-primary/50 hover:text-primary'}`}
+            >
+              <span className="text-base leading-none">🌐</span>
+              Todos
+            </button>
+            {paises.map(p => {
+              const isSelected = selectedPais === p.codPais;
+              return (
+                <button
+                  key={p.codPais}
+                  type="button"
+                  onClick={() => handleSelectPais(p.codPais)}
+                  title={p.nomPais}
+                  className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium border transition-all duration-150
+                    ${isSelected
+                      ? 'border-primary bg-primary/5 text-primary shadow-sm dark:bg-primary/10'
+                      : 'bg-white dark:bg-gray-900 text-gray-500 border-gray-200 dark:border-gray-700 hover:border-primary/40 hover:text-primary'}`}
+                >
+                  <img
+                    src={`/assets/flags/${p.codPais.toLowerCase()}.svg`}
+                    alt={p.codPais}
+                    className={`h-4 w-6 rounded-sm object-cover border ${isSelected ? 'border-primary/30' : 'border-gray-200 dark:border-gray-600 grayscale opacity-60'}`}
+                    onError={e => { e.currentTarget.style.display = 'none'; }}
+                  />
+                  <span className="max-w-[80px] truncate">{p.nomPais}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
+        <DatatablesSuppliers
+          data={suppliers}
+          total={total}
+          page={page}
+          pageSize={PAGE_SIZE}
+          loading={loading}
+          onPageChange={handlePageChange}
+          onEdit={handleEdit}
+          setData={setSuppliers}
+          setTotal={setTotal}
+          t={t}
+        />
+      </div>
+
+      {/* Modal nuevo */}
+      <Modal
+        size="w-full max-w-2xl"
+        showModal={showNewModal}
+        closeModal={() => setShowNewModal(false)}
+        title="Nuevo Proveedor"
+      >
+        <SupplierForm
+          proveedor={null}
+          controles={controles}
+          onCancel={() => setShowNewModal(false)}
+          onSaved={handleSaved}
+        />
+      </Modal>
+
+      {/* Modal editar */}
+      <Modal
+        size="w-full max-w-2xl"
+        showModal={showEditModal}
+        closeModal={() => setShowEditModal(false)}
+        title="Editar Proveedor"
+      >
+        {loadingEdit ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          </div>
+        ) : editProveedor ? (
+          <SupplierForm
+            proveedor={editProveedor}
+            controles={controles}
+            onCancel={() => setShowEditModal(false)}
+            onSaved={handleSaved}
+          />
+        ) : null}
+      </Modal>
     </>
   );
 }

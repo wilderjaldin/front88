@@ -1,64 +1,67 @@
+// components/select-country.js
 import React, { useEffect, useState } from 'react';
 import Select from 'react-select';
-import IconPlusProps from '@/components/icon/icon-plus';
-import { useOptionsSelect } from '@/app/options'
+import IconPlus from '@/components/icon/icon-plus';
 import Modal from '@/components/modal';
 import CountryForm from '@/components/forms/country-form';
-import { useSelector } from 'react-redux';
-import { selectToken } from '@/store/authSlice';
 import { Controller } from 'react-hook-form';
 
+// Props:
+//   options       → [{ value, label }] — lista de países (viene del padre, cargada desde API)
+//   control       → react-hook-form control
+//   errors        → react-hook-form errors
+//   setValue      → react-hook-form setValue
+//   onChange      → callback adicional al cambiar (ej: para cargar ciudades)
+//   current       → codPais para preseleccionar al editar (ej: 'BO')
+//   isLoading     → muestra spinner mientras el padre carga los países
+//   show_add      → mostrar o no el botón [+] (default: true)
+//   instanceId    → para múltiples selects en la misma página
+//   t             → traducciones
+//   onCountryAdded → callback para refrescar la lista de países tras agregar uno nuevo
+const SelectCountry = ({
+  t,
+  options      = [],
+  control,
+  errors       = {},
+  setValue,
+  onChange,
+  current      = '',
+  isLoading    = false,
+  show_add     = true,
+  instanceId   = 'select-country',
+  className    = '',
+  onCountryAdded,
+}) => {
+  const [showModal,  setShowModal]  = useState(false);
 
-const SelectCountry = ({ t, current = '', show_add = true, className = '', onChange, control, errors, options, setValue }) => {
-
-
-  const [show_modal, setShowModal] = useState(false);
-  const [modal_title, setModalTitle] = useState('');
-  const [modal_content, setModalContent] = useState(null);
-  console.log('current', current)
-  let cs = Object.keys(options).find((key) => options[key].value.toUpperCase() == current.toUpperCase()) || null;
-  console.log('ddd', cs);
-
-  const [current_select, setCurrentSelect] = useState(cs)
-  const token = useSelector(selectToken);
-
-
-
+  // Preseleccionar cuando llegan las opciones (edición)
   useEffect(() => {
     if (!options.length || !current) return;
 
-    console.log('actualizando')
     const selected = options.find(
-      c => c.value?.toUpperCase() === current.toUpperCase()
+      c => c.value?.toUpperCase() === current.toString().toUpperCase()
     );
 
-    console.log('selected', selected)
-
     if (selected) {
-      setValue('country', selected, {
-        shouldDirty: false,
-        shouldTouch: false,
-        shouldValidate: true,
-      });
+      setValue('country', selected, { shouldValidate: false });
     }
+  }, [options, current]);
 
-    let cs = Object.keys(options).find((key) => options[key].value.toUpperCase() == current.toUpperCase()) || null;
-    console.log('CS', cs);
-    setCurrentSelect(cs);
-
-  }, [options, current, setValue]);
-
-  const addCountry = () => {
-    setModalTitle(t.add_country)
-    setModalContent(<CountryForm countries={options} action_cancel={() => setShowModal(false)} token={token}></CountryForm>);
+  const handleAdd = () => {
     setShowModal(true);
-  }
+  };
+
+  const handleCountrySaved = ({ newCountry, paises }) => {
+    setShowModal(false);
+    // Notifica al padre con la lista de países actualizada que devolvió la API.
+    // El padre simplemente hace setPaises(paises) para refrescar el select.
+    onCountryAdded?.({ newCountry, paises });
+  };
 
   return (
-
     <>
-      <div className={errors.country ? "react-select-error" : ""}>
-        <div className='flex flex-1'>
+      <div>
+        <div className={`flex items-stretch gap-0 ${errors.country ? 'react-select-error' : ''}`}>
           <Controller
             name="country"
             control={control}
@@ -67,9 +70,10 @@ const SelectCountry = ({ t, current = '', show_add = true, className = '', onCha
               <Select
                 {...field}
                 options={options}
-                placeholder={t.select_option}
-                className={`${className} w-full`}
-                instanceId="select-country"
+                isLoading={isLoading}
+                placeholder={isLoading ? 'Cargando...' : t.select_option}
+                className={`w-full ${className}`}
+                instanceId={instanceId}
                 menuPosition="fixed"
                 classNamePrefix="select"
                 menuShouldScrollIntoView={false}
@@ -81,19 +85,42 @@ const SelectCountry = ({ t, current = '', show_add = true, className = '', onCha
               />
             )}
           />
-          {(show_add) &&
-            <button onClick={() => addCountry()} type="button" className="btn bg-gray-400 shadow-none ltr:rounded-l-none rtl:rounded-r-none">
-              <IconPlusProps className="h-5 w-5 shrink-0 ltr:mr-1.5 rtl:ml-1.5" /> {t.btn_add}
+          {show_add && (
+            <button
+              type="button"
+              onClick={handleAdd}
+              title={t.add_country}
+              className="flex items-center justify-center px-3 border border-l-0 border-gray-300
+                         dark:border-gray-600 rounded-r-lg bg-gray-100 dark:bg-gray-800
+                         text-gray-500 dark:text-gray-400 hover:bg-primary hover:border-primary
+                         hover:text-white dark:hover:bg-primary dark:hover:border-primary
+                         dark:hover:text-white transition-all duration-150 shrink-0 group"
+            >
+              <IconPlus className="h-4 w-4 transition-transform duration-150 group-hover:rotate-90" />
             </button>
-          }
+          )}
         </div>
+        {errors.country && (
+          <span className="block text-red-400 text-xs mt-1" role="alert">
+            {errors.country?.message?.toString()}
+          </span>
+        )}
       </div>
-      <div className='block'>
-        {errors.country && <span className='block text-red-400 error block text-xs mt-1' role="alert">{errors.country?.message?.toString()}</span>}
-      </div>
-      <Modal closeModal={() => setShowModal(false)} openModal={() => setShowModal(true)} showModal={show_modal} title={modal_title} content={modal_content}></Modal>
+
+      <Modal
+        size="w-full max-w-md"
+        showModal={showModal}
+        closeModal={() => setShowModal(false)}
+        title={t.add_country}
+      >
+        <CountryForm
+          existingCountries={options}
+          onCancel={() => setShowModal(false)}
+          onSaved={handleCountrySaved}
+        />
+      </Modal>
     </>
   );
-}
+};
 
 export default SelectCountry;

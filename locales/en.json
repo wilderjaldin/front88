@@ -881,5 +881,6 @@
   "permissions" : "Permissions",
   "admin": "Administration",
   "roles" : "Roles",
-  "spare_parts_in_lot_supplier" : "Spares In Lot Supplier"
+  "spare_parts_in_lot_supplier" : "Spares In Lot Supplier",
+  "spare_parts_site" : "Spares Site"
 }
