@@ -57,6 +57,8 @@ export const MENU_CONFIG: MenuItem[] = [
       { labelKey: 'freight_supplier', href: '/admin/register/supplier-freight' },
       { labelKey: 'company', href: '/admin/register/company' },
       { labelKey: 'utility', href: '/admin/register/utility' },
+      { labelKey: 'carrier', href: '/admin/register/carrier' },
+      { labelKey: 'categorization', href: '/admin/register/categorization' },
       { labelKey: 'availability', href: '/admin/register/availability' },
       { labelKey: 'exchange_rate', href: '/admin/register/exchange-rate' },
     ],

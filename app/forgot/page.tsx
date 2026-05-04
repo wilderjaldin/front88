@@ -1,39 +1,46 @@
 "use client";
 import ComponentsAuthForgotPasswordForm from '@/components/auth/components-auth-forgot-password-form';
-
+import AuthBackground from '@/components/auth/auth-background';
 import React from 'react';
 import { useTranslation } from "@/app/locales";
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 
 const Forgot = () => {
-    const t = useTranslation();
+  const t = useTranslation();
+  useDynamicTitle(`${t.recovery_password}`);
 
-    useDynamicTitle(`${t.recovery_password}`);
-    return (
-        <div>
-            <div className="absolute inset-0">
-                <img src="/assets/images/auth/bg-gradient.png" alt="image" className="h-full w-full object-cover" />
-            </div>
+  return (
+    <div
+      className="min-h-screen flex flex-col items-center justify-center px-4 py-12 relative overflow-hidden"
+      style={{ background: '#0c1222' }}
+    >
+      <AuthBackground />
 
-            <div className="relative flex min-h-screen items-center justify-center bg-[url(/assets/images/auth/map.png)] bg-cover bg-center bg-no-repeat px-6 py-10 dark:bg-[#060818] sm:px-16">
-                <img src="/assets/images/auth/coming-soon-object1.png" alt="image" className="absolute left-0 top-1/2 h-full max-h-[893px] -translate-y-1/2" />
-                <img src="/assets/images/auth/coming-soon-object2.png" alt="image" className="absolute left-24 top-0 h-40 md:left-[30%]" />
-                <img src="/assets/images/auth/coming-soon-object3.png" alt="image" className="absolute right-0 top-0 h-[300px]" />
-                <img src="/assets/images/auth/polygon-object.svg" alt="image" className="absolute bottom-0 end-[28%]" />
-                <div className="relative w-full max-w-[870px] rounded-md bg-[linear-gradient(45deg,#fff9f9_0%,rgba(255,255,255,0)_25%,rgba(255,255,255,0)_75%,_#fff9f9_100%)] p-2 dark:bg-[linear-gradient(52.22deg,#0E1726_0%,rgba(14,23,38,0)_18.66%,rgba(14,23,38,0)_51.04%,rgba(14,23,38,0)_80.07%,#0E1726_100%)]">
-                    <div className="relative flex flex-col justify-center rounded-md bg-white/60 px-6 py-20 backdrop-blur-lg dark:bg-black/50">
-                        <div className="mx-auto w-full max-w-[440px]">
-                            <div className="mb-10">
-                                <h1 className="mb-3 text-2xl font-bold !leading-snug text-primary !leading-snug dark:text-white">{t.recovery_password}</h1>
-                                <p className="text-base font-bold leading-normal text-white-dark">{t.recovery_password_description}</p>
-                            </div>
-                            <ComponentsAuthForgotPasswordForm />
-                        </div>
-                    </div>
-                </div>
-            </div>
+      {/* Card */}
+      <div
+        className="relative z-10 w-full max-w-[440px] bg-white rounded-2xl overflow-hidden"
+        style={{ boxShadow: '0 28px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(245,158,11,0.10)' }}
+      >
+        <div className="px-10 pt-10 pb-6 flex justify-center">
+          <img src="/assets/images/logo.png" alt="logo" className="w-full max-w-[260px] object-contain" />
         </div>
-    );
+
+        <div className="h-[3px] bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600" />
+
+        <div className="px-10 pb-10 pt-7">
+          <div className="mb-6">
+            <h1 className="text-xl font-bold text-slate-800 tracking-tight">{t.recovery_password}</h1>
+            <p className="text-sm text-slate-500 mt-1">{t.recovery_password_description}</p>
+          </div>
+          <ComponentsAuthForgotPasswordForm />
+        </div>
+      </div>
+
+      <p className="relative z-10 mt-8 text-xs text-slate-600">
+        © {new Date().getFullYear()} — Sistema de Gestión Daxparts
+      </p>
+    </div>
+  );
 };
 
 export default Forgot;

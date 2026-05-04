@@ -148,15 +148,7 @@ const ComponentsAuthLoginForm = () => {
       <button
         type="submit"
         disabled={isLoading}
-        className="w-full py-3 rounded-lg text-white text-sm font-bold uppercase tracking-widest
-                   transition-all duration-200 mt-2
-                   disabled:opacity-65 disabled:cursor-not-allowed"
-        style={{
-          background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-        }}
-        onMouseEnter={e => !isLoading && ((e.target as HTMLElement).style.boxShadow = '0 6px 28px rgba(0,0,0,0.4)')}
-        onMouseLeave={e => ((e.target as HTMLElement).style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)')}
+        className="w-full py-3 rounded-lg bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-sm font-bold uppercase tracking-widest transition-colors duration-200 mt-2 disabled:opacity-60 disabled:cursor-not-allowed shadow-[0_4px_20px_rgba(245,158,11,0.3)]"
       >
         {isLoading ? (
           <span className="flex items-center justify-center gap-2">

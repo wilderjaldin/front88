@@ -205,6 +205,7 @@ export default function SpareFormPage() {
     try {
       const payload = {
         ...(isEdit && { codRepuesto: id }),
+        ...(!isEdit && { tempToken }),
         nroParte:               data.nroParte.trim(),
         desRepuesto:            data.desRepuesto.trim(),
         codPrv:                 data.codPrv?.value        ? parseInt(data.codPrv.value)        : null,
@@ -699,6 +700,15 @@ export default function SpareFormPage() {
 
           </div>{/* fin grid */}
         </div>{/* fin panel */}
+
+        {/* ── Archivos: imágenes y documentos ───────────────────────────────── */}
+        <div className="mt-5">
+          <SpareFiles
+            mode={isEdit ? 'edit' : 'new'}
+            codRepuesto={isEdit ? id : null}
+            tempToken={!isEdit ? tempToken : null}
+          />
+        </div>
 
         {/* ── Acciones ──────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-end gap-3 mt-5">
