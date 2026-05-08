@@ -1,4 +1,7 @@
 'use client';
+import { useLayoutEffect } from 'react';
+
+const AUTH_BG = '#f4f6fb';
 
 const rings = [
   { w: 320, h: 320, pos: { top: '-8%',    right: '-6%'  }, dur: '28s', dir: 'normal'  },
@@ -36,6 +39,12 @@ const lines = [
 ];
 
 export default function AuthBackground() {
+  useLayoutEffect(() => {
+    const prev = document.body.style.backgroundColor;
+    document.body.style.backgroundColor = AUTH_BG;
+    return () => { document.body.style.backgroundColor = prev; };
+  }, []);
+
   return (
     <>
       <style>{`
@@ -62,16 +71,16 @@ export default function AuthBackground() {
           to   { transform: rotate(360deg); }
         }
         @keyframes auth-pulse {
-          0%,100% { opacity:0.3; transform:scale(1); }
-          50%      { opacity:0.6; transform:scale(1.05); }
+          0%,100% { opacity:0.5; transform:scale(1); }
+          50%      { opacity:1; transform:scale(1.05); }
         }
         @keyframes auth-blink {
-          0%,100% { opacity:0.8; }
-          50%      { opacity:0.12; }
+          0%,100% { opacity:0.7; }
+          50%      { opacity:0.15; }
         }
         @keyframes auth-slide {
-          0%,100% { opacity:0.3; transform:scaleX(1) translateX(0); }
-          50%      { opacity:0.12; transform:scaleX(0.65) translateX(18px); }
+          0%,100% { opacity:0.4; transform:scaleX(1) translateX(0); }
+          50%      { opacity:0.15; transform:scaleX(0.65) translateX(18px); }
         }
 
         .auth-fa { animation: auth-float-a 8s  ease-in-out infinite; }
@@ -84,22 +93,22 @@ export default function AuthBackground() {
         .auth-sl { animation: auth-slide    9s ease-in-out infinite; }
       `}</style>
 
-      {/* Orbs ámbar pulsantes */}
+      {/* Orbs ámbar sutiles */}
       <div className="auth-po absolute pointer-events-none" style={{
         width: 700, height: 700, borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(245,158,11,0.05), transparent 60%)',
+        background: 'radial-gradient(circle, rgba(245,158,11,0.10), transparent 60%)',
         top: '-25%', left: '-20%',
       }} />
       <div className="auth-po absolute pointer-events-none" style={{
         width: 500, height: 500, borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(245,158,11,0.03), transparent 60%)',
+        background: 'radial-gradient(circle, rgba(245,158,11,0.07), transparent 60%)',
         bottom: '-20%', right: '-15%',
         animationDelay: '3s',
       }} />
 
       {/* Grid sutil */}
       <div className="absolute inset-0 pointer-events-none" style={{
-        backgroundImage: 'repeating-linear-gradient(0deg,transparent,transparent 59px,rgba(255,255,255,0.008) 59px,rgba(255,255,255,0.008) 60px),repeating-linear-gradient(90deg,transparent,transparent 59px,rgba(255,255,255,0.008) 59px,rgba(255,255,255,0.008) 60px)',
+        backgroundImage: 'repeating-linear-gradient(0deg,transparent,transparent 59px,rgba(99,102,241,0.05) 59px,rgba(99,102,241,0.05) 60px),repeating-linear-gradient(90deg,transparent,transparent 59px,rgba(99,102,241,0.05) 59px,rgba(99,102,241,0.05) 60px)',
       }} />
 
       {/* Anillos giratorios */}
@@ -108,7 +117,7 @@ export default function AuthBackground() {
           className="auth-ss absolute rounded-full pointer-events-none"
           style={{
             width: r.w, height: r.h,
-            border: '1px solid rgba(245,158,11,0.06)',
+            border: '1px solid rgba(245,158,11,0.22)',
             animationDuration: r.dur,
             animationDirection: r.dir as any,
             ...r.pos,
@@ -122,8 +131,8 @@ export default function AuthBackground() {
           className={`${s.anim} absolute rounded-xl pointer-events-none`}
           style={{
             width: s.w, height: s.h,
-            border: '1px solid rgba(245,158,11,0.08)',
-            background: 'rgba(245,158,11,0.02)',
+            border: '1px solid rgba(245,158,11,0.22)',
+            background: 'rgba(245,158,11,0.04)',
             transform: `rotate(${s.rot}deg)`,
             animationDuration: s.dur,
             animationDelay: s.delay,
@@ -138,7 +147,7 @@ export default function AuthBackground() {
           className="auth-sl absolute pointer-events-none"
           style={{
             width: l.w, height: 1,
-            background: 'linear-gradient(90deg, transparent, rgba(245,158,11,0.15), transparent)',
+            background: 'linear-gradient(90deg, transparent, rgba(217,119,6,0.35), transparent)',
             animationDelay: l.delay,
             ...l.pos,
           }}
@@ -150,8 +159,8 @@ export default function AuthBackground() {
         <div key={i}
           className="auth-bd absolute rounded-full pointer-events-none"
           style={{
-            width: 5, height: 5,
-            background: 'rgba(245,158,11,0.25)',
+            width: 6, height: 6,
+            background: 'rgba(217,119,6,0.50)',
             animationDelay: d.delay,
             ...d.pos,
           }}

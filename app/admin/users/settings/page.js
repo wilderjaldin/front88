@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useSelector } from 'react-redux';
 import { selectUser } from '@/store/authSlice';
+import IconSave from '@/components/icon/icon-save';
 import { useTranslation } from '@/app/locales';
 import { useDynamicTitle } from '@/app/hooks/useDynamicTitle';
 import Swal from 'sweetalert2';
@@ -94,14 +95,19 @@ export default function UserSettings() {
             type="button"
             onClick={submitName(onSaveName)}
             disabled={savingName}
-            className="btn btn-primary disabled:opacity-50 min-w-[110px]"
+            className="inline-flex items-center gap-2 h-10 px-6 rounded-lg text-sm font-semibold text-white bg-primary hover:bg-primary/90 shadow-md shadow-primary/25 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none transition-all duration-150"
           >
             {savingName ? (
-              <span className="flex items-center gap-2">
-                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              <>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                 {t.updating}
-              </span>
-            ) : t.btn_save}
+              </>
+            ) : (
+              <>
+                <IconSave className="h-4 w-4" />
+                {t.btn_save}
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -173,14 +179,19 @@ export default function UserSettings() {
             type="button"
             onClick={submitPwd(onSavePwd)}
             disabled={savingPwd}
-            className="btn btn-success disabled:opacity-50 min-w-[130px]"
+            className="inline-flex items-center gap-2 h-10 px-6 rounded-lg text-sm font-semibold text-white bg-primary hover:bg-primary/90 shadow-md shadow-primary/25 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none transition-all duration-150"
           >
             {savingPwd ? (
-              <span className="flex items-center gap-2">
-                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              <>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                 {t.updating}
-              </span>
-            ) : t.btn_reset_password}
+              </>
+            ) : (
+              <>
+                <IconSave className="h-4 w-4" />
+                {t.btn_reset_password}
+              </>
+            )}
           </button>
         </div>
       </div>

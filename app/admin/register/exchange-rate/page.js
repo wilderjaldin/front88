@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from '@/app/locales';
 import axiosClient from '@/app/lib/axiosClient';
+import IconSave from '@/components/icon/icon-save';
 import Swal from 'sweetalert2';
 import { useDynamicTitle } from '@/app/hooks/useDynamicTitle';
 import IconPencilPaper from '@/components/icon/icon-pencil-paper';
@@ -186,14 +187,19 @@ export default function ExchangeRate() {
               type="button"
               onClick={handleSubmit(onSubmit)}
               disabled={isSubmitting}
-              className={`flex-1 btn disabled:opacity-50 ${isEditing ? 'btn-warning' : 'btn-success'}`}
+              className="inline-flex flex-1 items-center justify-center gap-2 h-10 px-6 rounded-lg text-sm font-semibold text-white bg-primary hover:bg-primary/90 shadow-md shadow-primary/25 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none transition-all duration-150"
             >
               {isSubmitting ? (
-                <span className="flex items-center justify-center gap-2">
-                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                   {t.updating}
-                </span>
-              ) : isEditing ? t.btn_update : t.btn_add}
+                </>
+              ) : (
+                <>
+                  <IconSave className="h-4 w-4" />
+                  {isEditing ? t.btn_update : t.btn_add}
+                </>
+              )}
             </button>
           </div>
 

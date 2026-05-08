@@ -10,6 +10,7 @@ import { useDynamicTitle } from '@/app/hooks/useDynamicTitle';
 import IconArrowBackward from '@/components/icon/icon-arrow-backward';
 import IconSave from '@/components/icon/icon-save';
 import SelectBrand from '@/components/select-brand';
+import Link from 'next/link';
 
 // ── Estilos react-select ───────────────────────────────────────────────────────
 const selectStyles = {
@@ -98,12 +99,7 @@ export default function SparesSiteFormPage() {
   // ── Helper error inline ───────────────────────────────────────────────────
   const FieldError = ({ name }) =>
     errors[name]
-      ? <span className="text-red-500 text-xs mt-1.5 flex items-center gap-1">
-          <svg className="w-3 h-3 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-          </svg>
-          {errors[name].message}
-        </span>
+      ? <span className="text-red-500 text-xs mt-1.5 block">{errors[name].message}</span>
       : null;
 
   // ── Carga inicial ─────────────────────────────────────────────────────────
@@ -210,7 +206,6 @@ export default function SparesSiteFormPage() {
       Swal.fire({
         title:              t.warning          ?? 'Advertencia',
         text:               msg,
-        icon:               'warning',
         confirmButtonColor: '#dc2626',
         confirmButtonText:  t.close            ?? 'Cerrar',
       });
@@ -250,18 +245,14 @@ export default function SparesSiteFormPage() {
 
       {/* Breadcrumb */}
       <ul className="flex space-x-2 rtl:space-x-reverse mb-6">
-        <li className="text-sm text-gray-500">Registrar</li>
-        <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2 text-sm text-gray-500">
-          <button
-            type="button"
-            className="hover:text-primary transition"
-            onClick={() => router.push('/admin/register/spares-site')}
-          >
+        <li>Registrar</li>
+        <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
+          <Link href="/admin/register/spares-site" className="text-primary hover:underline">
             Repuestos Site
-          </button>
+          </Link>
         </li>
-        <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2 text-sm text-gray-800 dark:text-gray-100">
-          {isEdit ? 'Editar' : 'Nuevo'}
+        <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
+          <span>{isEdit ? 'Editar' : 'Nuevo'}</span>
         </li>
       </ul>
 
@@ -290,12 +281,7 @@ export default function SparesSiteFormPage() {
       {/* Formulario */}
       <form onSubmit={handleSubmit(onSubmit)} noValidate>
 
-        <div className={`
-          bg-white dark:bg-[#0e1726]
-          border border-gray-200 dark:border-gray-700
-          rounded-xl shadow-sm p-6
-          ${isSaving ? 'form-saving' : ''}
-        `}>
+        <div className={`bg-white dark:bg-[#0e1726] rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.08)] border border-gray-100 dark:border-gray-700 p-6 ${isSaving ? 'form-saving' : ''}`}>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-5">
 
             {/* ── FILA 1 ── */}
@@ -310,7 +296,7 @@ export default function SparesSiteFormPage() {
                 type="text"
                 autoComplete="off"
                 placeholder="Ej: 3415661"
-                disabled={(isEdit) ? true : flase}
+                disabled={(isEdit) ? true : false}
                 {...register('nroParte', {
                   required:  'Campo requerido',
                   maxLength: { value: 100, message: 'Máximo 100 caracteres' },

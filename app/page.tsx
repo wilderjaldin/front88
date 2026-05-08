@@ -19,14 +19,17 @@ export default function Home() {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center px-4 py-12 relative overflow-hidden"
-      style={{ background: '#0c1222' }}
+      style={{ background: 'linear-gradient(135deg, #f9fafb 0%, #eef2ff 100%)' }}
     >
       <AuthBackground />
 
       {/* Card */}
       <div
-        className="relative z-10 w-full max-w-[440px] bg-white rounded-2xl overflow-hidden"
-        style={{ boxShadow: '0 28px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(245,158,11,0.10)' }}
+        className="relative z-10 w-full max-w-[440px] rounded-2xl overflow-hidden"
+        style={{
+          background: '#ffffff',
+          boxShadow: '0 20px 60px rgba(100,116,139,0.14), 0 0 0 1px rgba(245,158,11,0.14), 0 4px 20px rgba(245,158,11,0.05)',
+        }}
       >
         {/* Logo — fondo blanco garantiza visibilidad */}
         <div className="px-10 pt-10 pb-6 flex justify-center">
@@ -46,7 +49,7 @@ export default function Home() {
         </div>
       </div>
 
-      <p className="relative z-10 mt-8 text-xs text-slate-600">
+      <p className="relative z-10 mt-8 text-xs text-slate-400">
         © {new Date().getFullYear()} — Sistema de Gestión Daxparts
       </p>
     </div>

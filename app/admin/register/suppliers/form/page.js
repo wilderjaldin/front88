@@ -7,6 +7,7 @@ import SelectCountry from '@/components/select-country';
 import SelectCity from '@/components/select-city';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
+import IconSave from '@/components/icon/icon-save';
 
 const URL_PAISES   = '/clientes/paises';
 const URL_CIUDADES = (codPais) => `/clientes/ciudades?codPais=${codPais}`;
@@ -377,13 +378,18 @@ const SupplierForm = ({
           {t.btn_cancel}
         </button>
         <button type="submit" disabled={isSubmitting}
-          className="btn btn-success disabled:opacity-50 disabled:cursor-not-allowed min-w-[110px]">
+          className="inline-flex items-center gap-2 h-10 px-6 rounded-lg text-sm font-semibold text-white bg-primary hover:bg-primary/90 shadow-md shadow-primary/25 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none transition-all duration-150">
           {isSubmitting ? (
-            <span className="flex items-center gap-2">
-              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            <>
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
               {t.saving_data}
-            </span>
-          ) : isEdit ? t.btn_update : t.btn_save}
+            </>
+          ) : (
+            <>
+              <IconSave className="h-4 w-4" />
+              {isEdit ? t.btn_update : t.btn_save}
+            </>
+          )}
         </button>
       </div>
     </form>

@@ -7,6 +7,7 @@ import { selectToken } from "@/store/authSlice";
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 import axios from "axios";
 import Swal from "sweetalert2";
+import IconSave from '@/components/icon/icon-save';
 import Link from "next/link";
 
 const URL_GET  = process.env.NEXT_PUBLIC_API_URL + 'transportistas/Obtener';
@@ -279,15 +280,19 @@ export default function CarrierFormPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="btn btn-success disabled:opacity-60 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-2 h-10 px-6 rounded-lg text-sm font-semibold text-white bg-primary hover:bg-primary/90 shadow-md shadow-primary/25 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none transition-all duration-150"
             >
-              {isLoading
-                ? <span className="flex items-center gap-2">
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    Guardando...
-                  </span>
-                : isEdit ? 'Actualizar' : 'Guardar'
-              }
+              {isLoading ? (
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <IconSave className="h-4 w-4" />
+                  {isEdit ? 'Actualizar' : 'Guardar'}
+                </>
+              )}
             </button>
             <Link href="/admin/register/carrier" className="btn btn-outline-dark">
               Cancelar

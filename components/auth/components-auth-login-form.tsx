@@ -52,11 +52,24 @@ const ComponentsAuthLoginForm = () => {
         permissions: res.data.permissions,
       }));
 
+      const { name, rol } = res.data.user;
+      const initials = name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) ?? '?';
+
       Swal.fire({
-        title:              `${t.welcome} ${res.data.user.name}`,
-        icon:               'success',
-        confirmButtonColor: '#15803d',
-        confirmButtonText:  t.btn_close,
+        html: `
+          <div style="padding:12px 0 6px">
+            <div style="width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#b45309);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;box-shadow:0 8px 24px rgba(245,158,11,0.4)">
+              <span style="color:#fff;font-size:24px;font-weight:800;letter-spacing:-1px">${initials}</span>
+            </div>
+            <p style="color:#94a3b8;font-size:11px;margin:0 0 6px;text-transform:uppercase;letter-spacing:.1em">Bienvenido de nuevo</p>
+            <h2 style="color:#1e293b;font-size:19px;font-weight:700;margin:0 0 14px;line-height:1.3">${name}</h2>
+            <span style="display:inline-block;background:#fef3c7;color:#92400e;font-size:11px;font-weight:600;padding:4px 14px;border-radius:20px;letter-spacing:.06em;text-transform:uppercase">${rol}</span>
+          </div>`,
+        showConfirmButton: true,
+        confirmButtonText: 'Ir al dashboard &rarr;',
+        confirmButtonColor: '#d97706',
+        timer: 4000,
+        timerProgressBar: true,
       }).then(() => router.push('/admin/dashboard'));
 
     } catch (error: any) {
@@ -68,7 +81,7 @@ const ComponentsAuthLoginForm = () => {
   useDynamicTitle(`${t.login?.title ?? 'Sign In'}`);
 
   return (
-    <form className="mt-6 space-y-4" onSubmit={handleSubmit(onSubmit)}>
+    <form className="mt-6 space-y-4" onSubmit={handleSubmit(onSubmit)} autoComplete="off">
 
       {/* Usuario */}
       <div>
@@ -105,10 +118,11 @@ const ComponentsAuthLoginForm = () => {
             <IconLockDots fill={true} />
           </span>
           <input
-            type={showPassword ? 'text' : 'password'}
-            autoComplete="new-password"
+            type="text"
+            autoComplete="off"
             placeholder={t.enter_password}
             {...register("password", { required: { value: true, message: t.required_field } })}
+            style={showPassword ? undefined : { WebkitTextSecurity: 'disc' } as React.CSSProperties}
             className={`form-input ps-10 pe-10 w-full bg-white/70 border-gray-200
               focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-200
               placeholder:text-gray-400 text-gray-800
@@ -139,7 +153,7 @@ const ComponentsAuthLoginForm = () => {
           <span className="text-sm text-gray-500">{t.remember}</span>
         </label>
         <Link href="/forgot"
-          className="text-sm text-gray-500 hover:text-amber-700 border-b border-transparent hover:border-amber-500 transition">
+          className="no-load text-sm text-gray-500 hover:text-amber-700 border-b border-transparent hover:border-amber-500 transition">
           {t.forgot}
         </Link>
       </div>

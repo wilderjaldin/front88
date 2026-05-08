@@ -11,7 +11,12 @@ export function LoadingProvider({ children }: { children: React.ReactNode }) {
     const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       const anchor = target.closest('a');
-      if (anchor && anchor.href && anchor.origin === location.origin) {
+      if (
+        anchor &&
+        !anchor.classList.contains('no-load') &&
+        anchor.href &&
+        anchor.origin === location.origin
+      ) {
         setIsLoading(true);
       }
     };

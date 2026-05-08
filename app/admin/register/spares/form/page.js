@@ -702,6 +702,7 @@ export default function SpareFormPage() {
         </div>{/* fin panel */}
 
         {/* ── Archivos: imágenes y documentos ───────────────────────────────── */}
+        { (false) && 
         <div className="mt-5">
           <SpareFiles
             mode={isEdit ? 'edit' : 'new'}
@@ -709,6 +710,7 @@ export default function SpareFormPage() {
             tempToken={!isEdit ? tempToken : null}
           />
         </div>
+        }
 
         {/* ── Acciones ──────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-end gap-3 mt-5">

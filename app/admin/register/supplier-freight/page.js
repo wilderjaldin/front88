@@ -396,11 +396,11 @@ export default function SupplierFreight() {
               type="button"
               onClick={handleSubmit(onSubmit)}
               disabled={submitting}
-              className="flex items-center gap-2 btn btn-success disabled:opacity-50 min-w-[110px]"
+              className="inline-flex items-center gap-2 h-10 px-6 rounded-lg text-sm font-semibold text-white bg-primary hover:bg-primary/90 shadow-md shadow-primary/25 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none transition-all duration-150"
             >
               {submitting ? (
                 <>
-                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                   {t.saving_data}
                 </>
               ) : (

@@ -92,7 +92,7 @@ const ComponentsAuthForgotPasswordForm = () => {
         </button>
 
         <div className="flex justify-center pt-1">
-          <Link href="/" className="text-sm text-slate-500 hover:text-amber-600 transition-colors font-medium">
+          <Link href="/" className="no-load text-sm text-slate-500 hover:text-amber-600 transition-colors font-medium">
             {t.go_to_login}
           </Link>
         </div>

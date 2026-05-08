@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import Select from 'react-select';
+import IconSave from '@/components/icon/icon-save';
 import axiosClient from '@/app/lib/axiosClient';
 import Swal from 'sweetalert2';
 import { useTranslation } from '@/app/locales';
@@ -489,10 +490,18 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
           <button
             type="submit"
             disabled={saving}
-            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2
-                       text-white text-sm font-medium shadow-sm hover:shadow-md
-                       disabled:opacity-50 transition-all">
-            {saving ? 'Guardando...' : isEdit ? 'Actualizar' : 'Guardar'}
+            className="inline-flex items-center gap-2 h-10 px-6 rounded-lg text-sm font-semibold text-white bg-primary hover:bg-primary/90 shadow-md shadow-primary/25 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none transition-all duration-150">
+            {saving ? (
+              <>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                Guardando...
+              </>
+            ) : (
+              <>
+                <IconSave className="h-4 w-4" />
+                {isEdit ? 'Actualizar' : 'Guardar'}
+              </>
+            )}
           </button>
         </div>
 
