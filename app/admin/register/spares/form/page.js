@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useCallback, useEffect, useState, useMemo } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -8,6 +8,9 @@ import Select from 'react-select';
 import Swal from 'sweetalert2';
 import { useTranslation } from '@/app/locales';
 import { useDynamicTitle } from '@/app/hooks/useDynamicTitle';
+import { usePermissions } from '@/app/hooks/usePermissions';
+import { PERMISSIONS } from '@/constants/permissions';
+import AccessDenied from '@/components/AccessDenied';
 import IconArrowBackward from '@/components/icon/icon-arrow-backward';
 import IconSave from '@/components/icon/icon-save';
 import SelectBrand from '@/components/select-brand';
@@ -75,11 +78,14 @@ export default function SpareFormPage() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const t            = useTranslation();
+  const { hasPermission } = usePermissions();
 
   const id     = searchParams.get('id') ? Number(searchParams.get('id')) : null;
   const isEdit = !!id;
 
   useDynamicTitle(isEdit ? 'Editar Repuesto' : 'Nuevo Repuesto');
+
+  if (!hasPermission(PERMISSIONS.REPUESTOS_CREAR)) return <AccessDenied />;
 
   const [brands,      setBrands]      = useState([]);
   const [suppliers,   setSuppliers]   = useState([]);
@@ -335,10 +341,10 @@ export default function SpareFormPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
+          <h1 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
             {isEdit ? 'Editar Repuesto' : 'Nuevo Repuesto'}
           </h1>
-          <div className="h-1 w-12 rounded bg-primary/70 mt-2" />
+          <div className="h-0.5 w-10 rounded bg-primary/60 mt-1" />
         </div>
         <button
           type="button"

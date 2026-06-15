@@ -5,13 +5,14 @@ import { DataTable } from 'mantine-datatable';
 import { Pagination } from '@mantine/core';
 import IconPencil from '@/components/icon/icon-pencil';
 import IconToggleOn from '@/components/icon/icon-toggle-on';
-import IconToggleOff from '@/components/icon/icon-toggle-off';
+import IconTrash from '@/components/icon/icon-trash';
 import IconSettings from '@/components/icon/icon-settings';
 import IconListCheck from '@/components/icon/icon-list-check';
 import IconLayoutGrid from '@/components/icon/icon-layout-grid';
 import { useDevice } from '@/context/device-context';
 import Swal from 'sweetalert2';
 import axiosClient from '@/app/lib/axiosClient';
+import { PERMISSIONS } from '@/constants/permissions';
 
 const URL_STATUS = '/proveedores/status';
 
@@ -20,7 +21,7 @@ const Toast = Swal.mixin({
   showConfirmButton: false, timer: 3000, timerProgressBar: true,
 });
 
-const SupplierCard = ({ s, t, onEdit, onStatus, onSettings }) => (
+const SupplierCard = ({ s, t, onEdit, onStatus, onSettings, hasPermission }) => (
   <div className="rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 overflow-hidden">
     <div className="flex items-start justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
       <div className="min-w-0 flex-1">
@@ -58,9 +59,11 @@ const SupplierCard = ({ s, t, onEdit, onStatus, onSettings }) => (
       <button onClick={() => onEdit(s)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition">
         <IconPencil className="w-4 h-4 text-blue-500" />
       </button>
-      <button onClick={() => onStatus(s)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition">
-        {s.codEst === 'AC' ? <IconToggleOn className="w-6 h-6 fill-green-500" /> : <IconToggleOff className="w-6 h-6 text-gray-400" />}
-      </button>
+      {(hasPermission(PERMISSIONS.ELIMINAR_PROVEEDORES)) &&
+        <button onClick={() => onStatus(s)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+          {s.codEst === 'AC' ? <IconTrash className="w-4 h-4 text-red-500" /> : <IconToggleOn className="w-6 h-6 text-gray-400" />}
+        </button>
+      }
       <button onClick={() => onSettings(s)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition">
         <IconSettings className="w-4 h-4 text-gray-500" />
       </button>
@@ -70,7 +73,7 @@ const SupplierCard = ({ s, t, onEdit, onStatus, onSettings }) => (
 
 const DatatablesSuppliers = ({
   data = [], total = 0, page = 1, pageSize = 20,
-  onPageChange, onEdit, setData, setTotal, t,
+  onPageChange, onEdit, setData, setTotal, t, hasPermission = () => false,
 }) => {
   const router = useRouter();
   const { isMobile } = useDevice();
@@ -81,7 +84,7 @@ const DatatablesSuppliers = ({
 
   const handleStatus = async (s) => {
     const nuevoEstado = s.codEst === 'AC' ? 'IN' : 'AC';
-    const accion = nuevoEstado === 'IN' ? 'desactivar' : 'activar';
+    const accion = nuevoEstado === 'IN' ? 'eliminar' : 'activar';
     const result = await Swal.fire({
       title: `¿Deseas ${accion} este proveedor?`,
       text: s.razSoc,
@@ -94,10 +97,10 @@ const DatatablesSuppliers = ({
     });
     if (!result.isConfirmed) return;
     try {
-      const res = await axiosClient.post(URL_STATUS, { codPrv: s.codPrv, codEst: nuevoEstado });
+      const res = await axiosClient.post(URL_STATUS, { CodPrv: s.codPrv, CodEstado: nuevoEstado });
       setData(res.data.data ?? []);
       setTotal(res.data.total ?? 0);
-      Toast.fire({ icon: 'success', title: `Proveedor ${nuevoEstado === 'AC' ? 'activado' : 'desactivado'}` });
+      Toast.fire({ icon: 'success', title: nuevoEstado === 'AC' ? 'Proveedor activado' : 'Proveedor eliminado' });
     } catch {
       Toast.fire({ icon: 'error', title: 'Error al cambiar estado' });
     }
@@ -125,7 +128,14 @@ const DatatablesSuppliers = ({
         <div className="panel mt-5 overflow-hidden border-0 p-0">
           <div className="datatables">
             <DataTable
-              className="table-hover whitespace-nowrap"
+              className="
+                whitespace-nowrap text-xs
+                [&_thead]:bg-gray-50 [&_thead]:dark:bg-gray-800
+                [&_thead_th]:text-[11px] [&_thead_th]:font-semibold [&_thead_th]:uppercase [&_thead_th]:tracking-wide
+                [&_thead_th]:text-gray-500 [&_thead_th]:dark:text-gray-400
+                [&_tbody_td]:text-xs [&_tbody_td]:text-gray-700 [&_tbody_td]:dark:text-gray-300
+                [&_tbody_tr]:transition [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700
+              "
               idAccessor="codPrv"
               records={data}
               columns={[
@@ -139,11 +149,13 @@ const DatatablesSuppliers = ({
                       <button className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => onSettings(s)}>
                         <IconSettings className="w-4 h-4 text-gray-500" />
                       </button>
+                      {(hasPermission(PERMISSIONS.ELIMINAR_PROVEEDORES)) &&
                       <button className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => handleStatus(s)}>
                         {s.codEst === 'AC'
-                          ? <IconToggleOn className="w-8 h-8 fill-green-500" />
-                          : <IconToggleOff className="w-8 h-8 text-gray-400" />}
+                          ? <IconTrash className="w-4 h-4 text-red-500" />
+                          : <IconToggleOn className="w-8 h-8 text-gray-400" />}
                       </button>
+                      }
                     </div>
                   ),
                 },
@@ -229,6 +241,7 @@ const DatatablesSuppliers = ({
                 onEdit={handleEdit}
                 onStatus={handleStatus}
                 onSettings={onSettings}
+                hasPermission={hasPermission}
               />
             ))}
           </div>

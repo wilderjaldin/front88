@@ -1,233 +1,271 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useForm, SubmitHandler } from "react-hook-form"
-import axios from 'axios'
-import IconUserPlus from "@/components/icon/icon-user-plus";
+import { useRouter } from 'next/navigation';
+import Link from "next/link";
+import Swal from 'sweetalert2';
+import { Pagination } from '@mantine/core';
 import IconListCheck from "@/components/icon/icon-list-check";
 import IconLayoutGrid from "@/components/icon/icon-layout-grid";
 import IconSearch from "@/components/icon/icon-search";
-import IconPrinter from "@/components/icon/icon-printer";
-import Swal from 'sweetalert2'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import Link from "next/link";
-import BtnPrintQuote from "@/components/BtnPrintQuote"
+import IconPlusCircle from "@/components/icon/icon-plus-circle";
+import BtnPrintQuote from "@/components/BtnPrintQuote";
+import { customFormat } from '@/app/lib/format';
+import { PERMISSIONS } from '@/constants/permissions';
 
-const url = process.env.NEXT_PUBLIC_API_URL + "ordenes/MostrarCotizaciones"
+const thClass = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap";
+const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-3 py-2";
 
-export default function Quotes({ token, customer_id, quotes, setQuotes, loadQuotes, setLoadQuotes, t }) {
-
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  const [value, setValue] = useState('list');
-  const [filteredItems, setFilteredItems] = useState(quotes);
-  const [search, setSearch] = useState('');
-
-  const [show_modal, setShowModal] = useState(false);
-  const [modal_title, setModalTitle] = useState('');
-  const [modal_content, setModalContent] = useState(null);
-
-  useEffect(() => {
-    if (loadQuotes) {
-      
-      getQuotes();
-    }
-  }, []);
-
-  useEffect(() => {
-    async function fetchData() {
-
-      await getQuotes();
-
-    }
-    fetchData();
-
-  }, [customer_id]);
-
-  const getQuotes = async () => {
-    try {
-      const rs = await axios.post(url,
-        {
-          CodCliente: customer_id,
-          Todos: 1,
-          NroOrden: 0,
-          NroPedido: "",
-          ValToken: token
-        }
-      );
-      
-      if (rs.data.estado == 'OK') {
-        setQuotes(rs.data.dato);
-        setFilteredItems(rs.data.dato);
-        setLoadQuotes(false);
+const SortIcon = ({ active, dir }) => {
+  if (!active)
+    return (
+      <svg width="7" height="11" viewBox="0 0 7 11" fill="currentColor" className="shrink-0 text-gray-300">
+        <path d="M3.5 0L7 4.5H0L3.5 0Z"/>
+        <path d="M3.5 11L0 6.5H7L3.5 11Z"/>
+      </svg>
+    );
+  return (
+    <svg width="7" height="7" viewBox="0 0 7 7" fill="currentColor" className="shrink-0 text-primary">
+      {dir === 'asc'
+        ? <path d="M3.5 0L7 7H0L3.5 0Z"/>
+        : <path d="M3.5 7L0 0H7L3.5 7Z"/>
       }
-    } catch (error) {
+    </svg>
+  );
+};
 
-    }
-  }
+const SortableHeader = ({ col, label, sort, dir, onSort, className = '' }) => (
+  <th
+    onClick={() => onSort(col)}
+    className={`${thClass} cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${className}`}
+  >
+    <span className="inline-flex items-center gap-1.5">
+      {label}
+      <SortIcon active={sort === col} dir={dir} />
+    </span>
+  </th>
+);
 
-  const searchQuotes = () => {
-    setFilteredItems(() => {
-      return quotes.filter((item) => {
-        return (item.NroOrden).toString().toLowerCase().includes(search.toLowerCase());
-      });
+export default function Quotes({
+  token, customer_id, items = [], loading = false, t, hasPermission = () => false,
+  page = 1, total = 0, pageSize = 20, onPageChange,
+  sort = '', dir = 'asc', onSort,
+  search = '', onSearch,
+}) {
+  const router = useRouter();
+
+  const [view,     setView]     = useState('list');
+  const [inputVal, setInputVal] = useState(search);
+
+  useEffect(() => { setInputVal(search); }, [search]);
+
+  const submitSearch = () => onSearch?.(inputVal);
+
+  const addQuote = () => {
+    const ICON_Q = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    Swal.fire({
+      html: `<div style="padding:12px 0 6px">
+        <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#a5b4fc,#4f46e5);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 8px 24px rgba(79,70,229,0.3)">${ICON_Q}</div>
+        <h2 style="color:#1e293b;font-size:17px;font-weight:700;margin:0;line-height:1.3">${t.question_do_you_have_the_codes}</h2>
+      </div>`,
+      showCancelButton: true,
+      confirmButtonText: t.yes ?? 'Sí',
+      cancelButtonText: t.no ?? 'No',
+      confirmButtonColor: '#15803d',
+      cancelButtonColor: '#ef4444',
+      reverseButtons: true,
+    }).then(result => {
+      if (result.isConfirmed) {
+        router.push(`/admin/revision/quotes?customer=${customer_id}&option=quotes`);
+      } else if (result.dismiss === Swal.DismissReason.cancel) {
+        router.push(`/admin/revision/quotes?customer=${customer_id}&option=quotes-without-code`);
+      }
     });
   };
 
-  useEffect(() => {
-    searchQuotes();
-  }, [search]);
+  const batch = () => router.push(`/admin/revision/quotes?customer=${customer_id}&option=batch`);
 
-  const addQuote = () => {
-    const swalWithBootstrapButtons = Swal.mixin({
-      customClass: {
-        confirmButton: "btn btn-success mr-4",
-        cancelButton: "btn btn-danger"
-      },
-      buttonsStyling: false
-    });
-    swalWithBootstrapButtons.fire({
-      title: t.question_do_you_have_the_codes,
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonText: t.yes,
-      cancelButtonText: t.no,
-      reverseButtons: false
-    }).then((result) => {
-      if (result.isConfirmed) {
-        router.push(`/admin/revision/quotes?customer=${customer_id}&option=quotes`)
-      } else if (result.dismiss === Swal.DismissReason.cancel
-      ) {
-        router.push(`/admin/revision/quotes?customer=${customer_id}&option=quotes-without-code`)
-      }
-    });
-  }
+  const getRoute   = (q) => q.catCotizacion === 'NR' ? 'quotes' : 'quotes-without-code';
+  const formatDate = (iso) => iso?.split('T')[0] ?? '';
 
-  const batch = () => {
-    router.push(`/admin/revision/quotes?customer=${customer_id}&option=batch`)
-  }
+  const estadoBadge = (estado) => {
+    if (estado === 'COTIZADO') return 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400';
+    if (estado === 'COMPRADO') return 'bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400';
+    return 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400';
+  };
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-        <h2 className="text-xl px-5">{t.quotes}</h2>
-        <div className="flex w-full flex-col gap-4 sm:w-auto sm:flex-row sm:items-center sm:gap-3 px-5">
-          <div className="flex gap-3">
-            <div>
-              <button type="button" className="btn btn-primary" onClick={() => addQuote()}>
-                { t.new_quote }
-              </button>
-            </div>
-            <div>
-              <button type="button" className="btn btn-primary" onClick={() => batch()}>
-                { t.enter_codes_in_batch }
-              </button>
-            </div>
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-4 pb-3 pr-4">
+        <div>
+          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+            {t.quotes}{' '}
+            <span className="font-normal text-gray-400">({total})</span>
+          </p>
+          <div className="h-0.5 w-8 rounded bg-primary/60 mt-0.5" />
+        </div>
 
-            <div>
-              <button type="button" className={`btn btn-outline-primary p-2 ${value === 'list' && 'bg-primary text-white'}`} onClick={() => setValue('list')}>
-                <IconListCheck />
-              </button>
-            </div>
-            <div>
-              <button type="button" className={`btn btn-outline-primary p-2 ${value === 'grid' && 'bg-primary text-white'}`} onClick={() => setValue('grid')}>
-                <IconLayoutGrid />
-              </button>
-            </div>
-
-          </div>
-          <div className="relative">
-            <input type="text" placeholder={t.search} className="peer form-input py-2 ltr:pr-11 rtl:pl-11" onChange={(e) => setSearch(e.target.value)} />
-            <button type="button" className="absolute top-1/2 -translate-y-1/2 peer-focus:text-primary ltr:right-[11px] rtl:left-[11px]">
-              <IconSearch className="mx-auto" />
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex items-center">
+            <input
+              type="text"
+              value={inputVal}
+              placeholder={t.search}
+              onChange={e => setInputVal(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && submitSearch()}
+              className="h-9 w-44 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            <button
+              type="button"
+              onClick={submitSearch}
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 flex items-center justify-center rounded-md bg-gray-100 hover:bg-primary/10 hover:text-primary text-gray-400 transition dark:bg-gray-700 dark:hover:bg-primary/20"
+            >
+              <IconSearch className="h-3.5 w-3.5" />
             </button>
           </div>
+
+          <div className="flex items-center rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden">
+            <button type="button" onClick={() => setView('list')}
+              className={`p-2 transition ${view === 'list' ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 dark:text-gray-400'}`}>
+              <IconListCheck className="h-4 w-4" />
+            </button>
+            <button type="button" onClick={() => setView('grid')}
+              className={`p-2 transition ${view === 'grid' ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 dark:text-gray-400'}`}>
+              <IconLayoutGrid className="h-4 w-4" />
+            </button>
+          </div>
+
+          {hasPermission(PERMISSIONS.CREAR_COTIZACION) && (
+            <>
+              <button type="button" onClick={batch}
+                className="h-9 flex items-center gap-1.5 rounded-lg border border-primary/40 px-4 text-primary text-sm font-medium hover:bg-primary/5 transition">
+                {t.enter_codes_in_batch}
+              </button>
+              <button type="button" onClick={addQuote}
+                className="h-9 flex items-center gap-1.5 rounded-lg bg-primary px-4 text-white text-sm font-medium hover:bg-primary/90 transition shadow-sm">
+                <IconPlusCircle className="h-4 w-4" />
+                {t.new_quote}
+              </button>
+            </>
+          )}
         </div>
       </div>
-      {!(filteredItems.length) && <h2 className="rounded-br-md rounded-tr-md border border-l-2 border-white-light !border-l-primary bg-white mt-6 p-5 text-black shadow-md ltr:pl-3.5 rtl:pr-3.5 dark:border-[#060818] dark:bg-[#060818]">{t.quotes_empty}</h2>}
 
-      {value === 'list' && (
-        <div className="panel mt-5 overflow-hidden border-0 p-0">
-          <div className="table-responsive">
-            {(filteredItems.length > 0) &&
-
-              <table className="bg-white table-hover">
-                <thead>
-                  <tr className="relative !bg-gray-400 text-center uppercase">
-                    <th></th>
-                    <th>{t.nro_quote}</th>
-                    <th>Items</th>
-                    <th>Total</th>
-                    <th>{ t.nro_pedido }</th>
-                    <th>{ t.quote_date }</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredItems.map((q, index) => {
-                    return (
-                      <tr key={index} className={`${(q.TipoCot == 'SC') ? 'bg-gray-200' : '' }`}>
-                        <td>
-                          <BtnPrintQuote order={q} token={token} className={`btn btn-sm btn-info`}></BtnPrintQuote>
-                        </td>
-                        <td>
-                          <Link className="btn btn-sm btn-outline-info inline-block" href={`/admin/revision/quotes?customer=${customer_id}&option=${ (q.TipoCot == 'NR' ? 'quotes' : 'quotes-without-code') }&id=${q.NroOrden}`}>{q.NroOrden}</Link>
-                        </td>
-                        <td>{q.NroItems}</td>
-                        <td>{q.Total}</td>
-                        <td>{q.NroPedido}</td>
-                        <td>{q.FecCotizacion}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            }
-          </div>
-        </div>)}
-
-      {value === 'grid' && (
-        <div className="mt-5 grid w-full grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 px-5">
-          {filteredItems.map((q, index) => {
-            return (
-              <div className={`${(q.TipoCot == 'SC') ? 'bg-gray-200' : 'bg-white' } border relative overflow-hidden rounded-md  text-center shadow dark:bg-[#1c232f]`} key={index}>
-                <div className="relative mt-10 px-6">
-                  <div className="mt-6 grid grid-cols-1 gap-4 ltr:text-left rtl:text-right">
-                    <div className="flex items-center">
-                      <div className="flex-none ltr:mr-2 rtl:ml-2">{t.nro_quote}</div>
-                      <div className="text-white-dark">
-                        <Link className="text-blue-900 hover:underline font-bold" href={`/admin/revision/quotes?customer=${customer_id}&option=${ (q.TipoCot == 'NR' ? 'quotes' : 'quotes-without-code') }&id=${q.NroOrden}`}>{q.NroOrden}</Link>
-                      </div>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="flex-none ltr:mr-2 rtl:ml-2">Items</div>
-                      <div className="text-white-dark">{q.NroItems}</div>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="flex-none ltr:mr-2 rtl:ml-2">Total</div>
-                      <div className="text-white-dark">{q.Total}</div>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="flex-none ltr:mr-2 rtl:ml-2">{ t.nro_pedido }</div>
-                      <div className="text-white-dark">{q.NroPedido}</div>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="flex-none ltr:mr-2 rtl:ml-2">{ t.quote_date }</div>
-                      <div className="text-white-dark">{q.FecCotizacion}</div>
-                    </div>
-                  </div>
-
-                  <div className="flex w-full gap-4 my-6 items-center justify-center">
-                    <BtnPrintQuote order={q} token={token} className={`btn btn-sm btn-info`}></BtnPrintQuote>
-                  </div>
-
-                </div>
-              </div>
-            );
-          })}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <span className="text-sm text-gray-400 animate-pulse">{t.searching}</span>
         </div>
       )}
 
+      {!loading && items.length === 0 && (
+        <div className="flex items-center justify-center py-10">
+          <p className="text-sm text-gray-400">{t.quotes_empty}</p>
+        </div>
+      )}
+
+      {/* Vista lista */}
+      {!loading && view === 'list' && items.length > 0 && (
+        <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0 mt-3">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse bg-white dark:bg-gray-900">
+              <thead>
+                <tr>
+                  <th className={`${thClass} w-10`} />
+                  <SortableHeader col="quote"     label={t.nro_quote}  sort={sort} dir={dir} onSort={onSort} />
+                  <SortableHeader col="item"      label="Items"         sort={sort} dir={dir} onSort={onSort} className="text-center" />
+                  <SortableHeader col="total"     label="Total $us"     sort={sort} dir={dir} onSort={onSort} className="text-right" />
+                  <SortableHeader col="order"     label={t.nro_pedido}  sort={sort} dir={dir} onSort={onSort} />
+                  <SortableHeader col="status"    label={t.condition}   sort={sort} dir={dir} onSort={onSort} />
+                  <SortableHeader col="quotedate" label={t.quote_date}  sort={sort} dir={dir} onSort={onSort} />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                {items.map((q, i) => {
+                  const isSC = q.catCotizacion !== 'NR';
+                  return (
+                    <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                      <td className={tdClass}>
+                        <BtnPrintQuote order={{ NroOrden: q.nroCotizacion }} token={token}
+                          className="h-7 w-7 flex items-center justify-center rounded bg-sky-50 text-sky-600 hover:bg-sky-100 transition" />
+                      </td>
+                      <td className={tdClass}>
+                        <div className="flex items-center gap-1.5">
+                          <Link href={`/admin/revision/quotes?customer=${customer_id}&option=${getRoute(q)}&id=${q.nroCotizacion}`}
+                            className="font-semibold text-primary hover:underline">
+                            {q.nroCotizacion}
+                          </Link>
+                          {isSC
+                            ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400 leading-none">SC</span>
+                            : <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary leading-none">NR</span>
+                          }
+                        </div>
+                      </td>
+                      <td className={`${tdClass} text-center`}>{q.nroItems}</td>
+                      <td className={`${tdClass} text-right font-medium`}>{customFormat(q.totalSus)}</td>
+                      <td className={tdClass}>{q.nroPedido || '—'}</td>
+                      <td className={tdClass}>
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${estadoBadge(q.estado)}`}>
+                          {q.estado}
+                        </span>
+                      </td>
+                      <td className={`${tdClass} text-gray-400`}>{formatDate(q.fecCotizacion)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Vista grid */}
+      {!loading && view === 'grid' && items.length > 0 && (
+        <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {items.map((q, i) => (
+            <div key={i} className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 dark:border-gray-700">
+                <Link href={`/admin/revision/quotes?customer=${customer_id}&option=${getRoute(q)}&id=${q.nroCotizacion}`}
+                  className="text-sm font-bold text-primary hover:underline">
+                  #{q.nroCotizacion}
+                </Link>
+                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${estadoBadge(q.estado)}`}>
+                  {q.estado}
+                </span>
+              </div>
+              <div className="p-4 space-y-1.5">
+                {[
+                  ['Items',            q.nroItems],
+                  ['Total $us',        customFormat(q.totalSus)],
+                  [t.nro_pedido,       q.nroPedido || '—'],
+                  [t.quote_date,       formatDate(q.fecCotizacion)],
+                  [t.type ?? 'Tipo',   q.catCotizacion],
+                ].map(([label, val]) => (
+                  <div key={label} className="flex items-center justify-between text-xs">
+                    <span className="text-gray-400">{label}</span>
+                    <span className="text-gray-700 dark:text-gray-300 font-medium">{val}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="px-4 pb-3">
+                <BtnPrintQuote order={{ NroOrden: q.nroCotizacion }} token={token}
+                  className="h-7 w-7 flex items-center justify-center rounded bg-sky-50 text-sky-600 hover:bg-sky-100 transition" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!loading && total > pageSize && (
+        <div className="flex justify-center mt-4">
+          <Pagination
+            total={Math.ceil(total / pageSize)}
+            value={page}
+            onChange={onPageChange}
+            size="sm"
+            radius="xl"
+          />
+        </div>
+      )}
     </>
   );
 }

@@ -1,5 +1,6 @@
 import ProviderComponent from '@/components/layouts/provider-component';
 import type { Metadata } from "next";
+import 'react-quill-new/dist/quill.snow.css';
 import '../styles/tailwind.css';
 import { Nunito } from 'next/font/google';
 import { useTranslation } from "./locales";

@@ -1,10 +1,11 @@
 'use client';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSelector } from 'react-redux';
 import { selectUser } from '@/store/authSlice';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/constants/permissions';
+import axiosClient from '@/app/lib/axiosClient';
 import AccessDenied from '@/components/AccessDenied';
 
 const ROL_REPRESENTANTE = 'Representante';
@@ -14,17 +15,32 @@ export default function CompanyPage() {
   const user   = useSelector(selectUser);
   const router = useRouter();
 
-  const isAdmin = hasPermission(PERMISSIONS.WXLPVQFT);
+  const isAdmin = hasPermission(PERMISSIONS.LISTAR_REPRESENTANTES);
   const isRep   = user?.rol === ROL_REPRESENTANTE;
+
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     if (isAdmin) {
-      router.replace('/admin/register/company/representatives');
-    } else if (isRep) {
-      router.replace('/admin/register/company/me');
+      router.replace('/admin/register/representatives');
+      return;
     }
-    // else: neither — render AccessDenied below
-  }, [isAdmin, isRep]);
+    if (isRep && user?.countryCode) {
+      axiosClient.get(`/representantes/detalle-por-pais/${user.countryCode}`)
+        .then(res => {
+          const codEmp = res.data?.codEmp;
+          if (codEmp) {
+            router.replace('/admin/register/representative/general');
+          } else {
+            router.replace('/admin/register/company/me');
+          }
+        })
+        .catch(() => router.replace('/admin/register/company/me'))
+        .finally(() => setReady(true));
+      return;
+    }
+    setReady(true);
+  }, [isAdmin, isRep, user?.countryCode]);
 
   if (!isAdmin && !isRep) {
     return <AccessDenied />;

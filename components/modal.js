@@ -8,7 +8,7 @@ export default function Modal({ closeModal, openModal, title = '', content = nul
   return (
     <>
       <Transition appear show={showModal} as={Fragment}>
-        <Dialog as="div" onClose={closeModal}>
+        <Dialog as="div" onClose={() => {}}>
           <TransitionChild
             as={Fragment}
             enter="ease-out duration-300"

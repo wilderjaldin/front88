@@ -1,108 +1,119 @@
 'use client';
-import React, { useEffect, useState } from 'react';
-import sortBy from 'lodash/sortBy';
-import { Checkbox } from '@mantine/core';
-import { DataTable, DataTableSortStatus } from 'mantine-datatable';
-import { useForm, SubmitHandler } from "react-hook-form"
+import React from 'react';
+import { useForm } from "react-hook-form";
+import SelectBrand from '@/components/select-brand';
 import IconSave from '@/components/icon/icon-save';
-import IconTrashLines from '@/components/icon/icon-trash-lines';
-import Select from 'react-select';
-import { current } from '@reduxjs/toolkit';
 
-const Form = ({ t, token, brands, action_cancel, handleSave }) => {
-
+const Form = ({ t, brands = [], action_cancel, handleSave }) => {
 
   const {
     register,
     handleSubmit,
     setValue,
-    getValues,
+    control,
     formState: { errors },
   } = useForm();
 
-  const onChangeSelect = (select, field) => {
-    setValue(field, (select?.value) ?? 0);
-  }
-
   const onSave = (data) => {
-    let send = {
+    handleSave({
       NroParteOriginal: data.nro_part,
-      NroParteCambio: data.reference,
-      CodMarcaOriginal: data.application_part,
-      CodMarcaCambio: data.application_reference,
-      UltimoCambio: (data.last_change) ? 1 : 0,
-    }
-    handleSave(send);
-  }
+      NroParteCambio:   data.reference,
+      CodMarcaOriginal: data.application_part?.value ?? 0,
+      CodMarcaCambio:   data.application_reference?.value ?? 0,
+      UltimoCambio:     data.last_change ? 1 : 0,
+    });
+  };
+
   return (
-    <form action="" onSubmit={handleSubmit(onSave)}>
+    <form onSubmit={handleSubmit(onSave)}>
       <fieldset className="space-y-4">
 
-        <div className="grid grid-cols-1 sm:flex justify-between gap-2 border p-4">
-          <div className="w-1/2 relative">
-            <label htmlFor="">{ t.nro_part }</label>
-            <input type={'text'} autoComplete='OFF' {...register("nro_part", { required: { value: true, message: t.required_field } })} aria-invalid={errors.nro_part ? "true" : "false"} placeholder={ t.nro_part } className="form-input placeholder:" />
-            {errors.nro_part && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.nro_part?.message?.toString()}</span>}
+        <div className="grid grid-cols-2 gap-4 border p-4 rounded bg-blue-50/60 dark:bg-blue-900/20">
+          <div>
+            <label className="block text-sm font-medium mb-1">{t.nro_part}</label>
+            <input
+              type="text"
+              autoComplete="OFF"
+              {...register("nro_part", { required: { value: true, message: t.required_field } })}
+              placeholder={t.nro_part}
+              className="form-input w-full"
+            />
+            {errors.nro_part && (
+              <span className="text-red-400 text-xs mt-1 block">{errors.nro_part.message?.toString()}</span>
+            )}
           </div>
-          <div className="w-1/2 relative">
-            <label htmlFor="">{t.application}</label>
-            <Select isClearable={true}
-              isSearchable={true}
-              id="application_part"
-              instanceId={`application_part`}
-              menuPosition={'fixed'}
-              menuShouldScrollIntoView={false}
-              placeholder={t.select_option}
-              {...register("application_part", { required: { value: true, message: t.required_select } })}
-              className='w-full'
-              options={brands}
-              onChange={(select) => onChangeSelect(select, 'application_part')} />
-            {errors.application_part && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.application_part?.message?.toString()}</span>}
+          <div>
+            <label className="block text-sm font-medium mb-1">{t.application}</label>
+            <SelectBrand
+              t={t}
+              control={control}
+              errors={errors}
+              setValue={setValue}
+              name="application_part"
+              required={t.required_select}
+              instanceId="application_part"
+              brands={brands}
+              placeholder="Buscar marca..."
+            />
           </div>
-
         </div>
 
-        <div className="grid grid-cols-1 sm:flex justify-between gap-5 border p-4">
-          <div className="w-1/2 relative">
-            <label htmlFor="">{ t.reference }/{ t.change }</label>
-            <input type={'text'} autoComplete='OFF' {...register("reference", { required: { value: true, message: t.required_field } })} aria-invalid={errors.reference ? "true" : "false"} placeholder={`${ t.reference }/${t.change}`} className="form-input placeholder:" />
-            {errors.reference && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.reference?.message?.toString()}</span>}
+        <div className="grid grid-cols-2 gap-4 border p-4 rounded bg-violet-50/60 dark:bg-violet-900/20">
+          <div>
+            <label className="block text-sm font-medium mb-1">{t.reference}/{t.change}</label>
+            <input
+              type="text"
+              autoComplete="OFF"
+              {...register("reference", { required: { value: true, message: t.required_field } })}
+              placeholder={`${t.reference}/${t.change}`}
+              className="form-input w-full"
+            />
+            {errors.reference && (
+              <span className="text-red-400 text-xs mt-1 block">{errors.reference.message?.toString()}</span>
+            )}
           </div>
-          <div className="w-1/2 relative">
-            <label htmlFor="">{t.application}</label>
-            <Select isClearable={true}
-              isSearchable={true}
-              id="application_reference"
-              instanceId={`application_reference`}
-              menuPosition={'fixed'}
-              menuShouldScrollIntoView={false}
-              placeholder={t.select_option}
-              {...register("application_reference", { required: { value: true, message: t.required_select } })}
-              className='w-full'
-              options={brands}
-              onChange={(select) => onChangeSelect(select, 'application_reference')} />
-            {errors.application_reference && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.application_reference?.message?.toString()}</span>}
+          <div>
+            <label className="block text-sm font-medium mb-1">{t.application}</label>
+            <SelectBrand
+              t={t}
+              control={control}
+              errors={errors}
+              setValue={setValue}
+              name="application_reference"
+              required={t.required_select}
+              instanceId="application_reference"
+              brands={brands}
+              placeholder="Buscar marca..."
+            />
           </div>
-
         </div>
 
-        <div className="flex justify-between">
-          <label className="block text-gray-500 font-bold">
-            <input {...register("last_change")} type="checkbox" className="leading-loose text-pink-600" />
-            <span className="py-2 text-sm text-gray-600 leading-snug"> { t.last_change } </span></label>
+        <div>
+          <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-600">
+            <input {...register("last_change")} type="checkbox" className="form-checkbox" />
+            {t.last_change}
+          </label>
         </div>
 
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <button onClick={() => action_cancel()} type="button" className="btn btn-dark">
+        <div className="flex justify-end gap-3 pt-2">
+          <button
+            type="button"
+            onClick={action_cancel}
+            className="h-10 rounded-lg border border-gray-300 bg-white px-5
+              text-sm text-gray-700 hover:bg-gray-50 transition
+              dark:border-gray-600 dark:bg-transparent dark:text-gray-300 dark:hover:bg-gray-800"
+          >
             {t.btn_cancel}
           </button>
-
-          <button type="submit" className="btn btn-success">
+          <button
+            type="submit"
+            className="flex h-10 items-center gap-2 rounded-lg bg-primary px-5
+              text-white text-sm font-medium shadow-sm hover:bg-primary/90 transition"
+          >
+            <IconSave className="h-4 w-4" />
             {t.btn_save}
           </button>
-
         </div>
-
 
       </fieldset>
     </form>

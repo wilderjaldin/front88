@@ -1,260 +1,304 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import axios from 'axios'
+import axiosClient from '@/app/lib/axiosClient';
 import Modal from '@/components/modal';
 import Select from 'react-select';
-import { useSearchParams } from "next/navigation";
+import { useSearchParams } from 'next/navigation';
 import IconPlusProps from '@/components/icon/icon-plus';
-import ComponentShippingForm from "@/components/forms/shipping-form";
 import IconPencil from '@/components/icon/icon-pencil';
-const url = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/MostrarListasDesplegables';
-const url_get_detail = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/SeleccionarDirEntrega';
-const url_get_address = process.env.NEXT_PUBLIC_API_URL + 'cliente/RecuperarDirEntrega';
+import ShippingForm from '@/app/admin/register/customers/form/shipping';
 
-const ShippingQuote = ({ shipping, setShipping, load_shipping, token, t, order_id, getValues, registerShipping, reset, errors }) => {
+const URL_OPCIONES  = 'cotizaciondetalle/opciones-envio';
+const URL_DIRECCION = 'cotizaciondetalle/direccion-entrega';
+const URL_GUARDAR   = (codCliente) => `clientes/${codCliente}/direcciones/guardar`;
 
+const ShippingQuote = ({ token, t, order_id, customer, savedShipping, registerShipping, reset, setValue, errors }) => {
   const searchParams = useSearchParams();
+  const customer_id  = searchParams.get("customer");
 
-  const [show_modal, setShowModal] = useState(false);
-  const [modal_title, setModalTitle] = useState('');
-  const [modal_content, setModalContent] = useState(null);
-  const [isEdit, setIsEdit] = useState(false)
-  const [current_address, setCurrentAddress] = useState(null)
+  const [transportes,   setTransportes]  = useState([]);
+  const [direcciones,   setDirecciones]  = useState([]);
+  const [loading,       setLoading]      = useState(true);
+  const [selTransporte, setSelTransporte] = useState(null);
+  const [selDireccion,  setSelDireccion]  = useState(null);
+  const [currentDir,    setCurrentDir]   = useState(null);
+  const [loadingDir,    setLoadingDir]   = useState(false);
+  const [showModal,     setShowModal]    = useState(false);
+  const [modalTitle,    setModalTitle]   = useState('');
+  const [editDir,       setEditDir]      = useState(null);
 
-  const [selectedAddress, setSelectedAddress] = useState(null);
+  const clienteNorm = {
+    codCliente: customer?.CodCliente ?? customer?.codCliente ?? customer_id,
+    nomCliente: customer?.NomCliente ?? customer?.nomCliente ?? '',
+  };
 
   useEffect(() => {
-    if (load_shipping) {
-      getShippingSelect();
+    if (!order_id) return;
+    axiosClient
+      .get(`${URL_OPCIONES}/${order_id}`)
+      .then(rs => {
+        setTransportes(rs.data.transportes ?? []);
+        setDirecciones(rs.data.direcciones ?? []);
+      })
+      .finally(() => setLoading(false));
+  }, [order_id]);
+
+  // Restaurar estado desde Redux cuando los datos ya están cargados
+  useEffect(() => {
+    if (loading || !savedShipping?.codDireccion) return;
+
+    if (savedShipping.codTransporte) {
+      const opt = transportes.find(o => o.value === savedShipping.codTransporte)
+        ?? { value: savedShipping.codTransporte, label: savedShipping._transporteLabel ?? '' };
+      setSelTransporte(opt);
     }
-  }, []);
 
-  const getShippingSelect = async () => {
-    try {
-      const rs = await axios.post(url, { NroOrden: order_id, ValToken: token });
-      if (rs.data.estado == 'OK') {
-        //setQuoteDetail(rs.data.dato2[0]);
-        let options = [];
-        rs.data.dato.map((o) => {
-          if (o.CodDireccion != 0) {
-            options.push({ value: o.CodDireccion, label: o.DesDireccion });
-          }
-        });
-        setShipping(options);
-      }
-    } catch (error) {
+    const dirOpt = { value: savedShipping.codDireccion, label: savedShipping._direccionLabel ?? savedShipping.address ?? '' };
+    setSelDireccion(dirOpt);
 
-    }
-  }
-
-  const handleChange = async (select) => {
-    setSelectedAddress(select);
-    if (select.value) {
-      try {
-        const rs = await axios.post(url_get_detail, { CodDireccion: select.value, ValToken: token });
-        if (rs.data.estado == 'Ok') {
-          const data = rs.data.dato[0];
-          data.CodDireccion = select.value;
-          setCurrentAddress(data);
-          reset({
-            'company': data.DirEntNomEmpresa,
-            'contact': data.DirEntNomContacto,
-            'phone': data.DirEntNumTelefono,
-            'email': data.DirEntMail,
-            'country': data.DirEntPais,
-            'address': data.DirEntDireccion,
-            'city': data.DirEntCiudad,
-            'state': data.DirEntNomEstado,
-            'zip': data.DirEntCodPostal
-          });
-        }
-      } catch (error) {
-
-      }
-    }
-  }
-
-  const handleAddAddress = () => {
-    setModalTitle(t.btn_add_address)
-    const customer_id = searchParams.get("customer") || 0;
-    let customer = { IdCliente: customer_id }
-    setModalContent(<ComponentShippingForm updateList={updateList} token={token} customer={customer} action_cancel={() => setShowModal(false)} is_new={true} address={[]}></ComponentShippingForm>);
-    setShowModal(true);
-  }
-
-  const updateList = (addresses) => {
-    const options = addresses
-      .filter(o => o.CodDir !== 0)
-      .map(o => ({ value: o.CodDir, label: o.DesDireccion }));
-
-    setShipping(options);
-
-    if (selectedAddress) {
-      const updated = options.find(o => o.value === selectedAddress.value);
-      if (updated) {
-        setSelectedAddress(updated);
-        handleChange(updated);
-      }
-    }
-  }
-
-  const getAddress = async () => {
-
-    try {
-      const rs = await axios.post(url_get_address, { CodRegistro: current_address.CodDireccion, ValToken: token });
-
-      return rs.data.dato[0];
-    } catch (error) {
-      return [];
-    }
-  }
-
-  const handleEditAddress = async () => {
-
-    let address_edit = await getAddress();
-
-    setModalTitle(t.btn_update_address)
-    const customer_id = searchParams.get("customer") || 0;
-    let customer = { IdCliente: customer_id }
-    setModalContent(<ComponentShippingForm current_country={(address_edit.CodPais) ?? null} current_city={(address_edit.CodCiudad) ?? null} updateList={updateList} token={token} customer={customer} action_cancel={() => setShowModal(false)} is_new={false} address={address_edit}></ComponentShippingForm>);
-    setShowModal(true);
-  }
-
-  const handleEditCancelAddress = () => {
-    setIsEdit(false);
-    reset({
-      'company': current_address.DirEntNomEmpresa,
-      'contact': current_address.DirEntNomContacto,
-      'phone': current_address.DirEntNumTelefono,
-      'email': current_address.DirEntMail,
-      'country': current_address.DirEntPais,
-      'address': current_address.DirEntDireccion,
-      'city': current_address.DirEntCiudad,
-      'state': current_address.DirEntNomEstado,
-      'zip': current_address.DirEntCodPostal
+    setCurrentDir({
+      codPais:      savedShipping.codPais,
+      nomPais:      savedShipping.country,
+      nomCiudad:    savedShipping.city,
+      desDireccion: savedShipping.address,
+      nomEmpresa:   savedShipping.company,
+      nomContacto:  savedShipping.contact,
+      numTelefono:  savedShipping.phone,
+      mail:         savedShipping.email,
+      nomEstado:    savedShipping.state,
+      codPostal:    savedShipping.zip,
     });
-  }
 
-  const handleUpdateAddress = () => {
+    reset({
+      codTransporte:    savedShipping.codTransporte    ?? '',
+      cuentaTransporte: savedShipping.cuentaTransporte ?? '',
+      codDireccion:     savedShipping.codDireccion,
+      _transporteLabel: savedShipping._transporteLabel ?? '',
+      _direccionLabel:  savedShipping._direccionLabel  ?? '',
+      codPais:  savedShipping.codPais  ?? '',
+      company: savedShipping.company ?? '', contact: savedShipping.contact ?? '',
+      phone:   savedShipping.phone   ?? '', email:   savedShipping.email   ?? '',
+      country: savedShipping.country ?? '', address: savedShipping.address ?? '',
+      city:    savedShipping.city    ?? '', state:   savedShipping.state   ?? '',
+      zip:     savedShipping.zip     ?? '', note:    savedShipping.note    ?? '',
+    });
+  }, [loading]);
 
+  const handleTransporteChange = (sel) => {
+    setSelTransporte(sel);
+    setValue('codTransporte',    sel?.value ?? '');
+    setValue('_transporteLabel', sel?.label ?? '');
+  };
 
-  }
+  const handleDireccionChange = async (sel) => {
+    setSelDireccion(sel);
+    if (!sel) { setCurrentDir(null); return; }
+
+    setLoadingDir(true);
+    try {
+      const rs = await axiosClient.get(`${URL_DIRECCION}/${sel.value}`, { params: { codCliente: customer_id } });
+      const d  = rs.data;
+      setCurrentDir(d);
+      setValue('_direccionLabel', sel.label ?? '');
+      reset({
+        codTransporte:    selTransporte?.value ?? '',
+        cuentaTransporte: '',
+        codDireccion:     sel.value,
+        _transporteLabel: selTransporte?.label ?? '',
+        _direccionLabel:  sel.label ?? '',
+        codPais:  d.codPais      ?? '',
+        company: d.nomEmpresa   ?? '', contact: d.nomContacto ?? '',
+        phone:   d.numTelefono  ?? '', email:   d.mail        ?? '',
+        country: d.nomPais      ?? '', address: d.desDireccion ?? '',
+        city:    d.nomCiudad    ?? '', state:   d.nomEstado   ?? '',
+        zip:     d.codPostal    ?? '', note:    '',
+      });
+    } catch {
+      setCurrentDir(null);
+    } finally {
+      setLoadingDir(false);
+    }
+  };
+
+  const openAdd = () => {
+    setEditDir(null);
+    setModalTitle(`${t.add_address ?? 'Agregar Dirección'} — ${clienteNorm.nomCliente}`);
+    setShowModal(true);
+  };
+
+  const openEdit = () => {
+    setEditDir(currentDir);
+    setModalTitle(`${t.edit_address ?? 'Editar Dirección'} — ${clienteNorm.nomCliente}`);
+    setShowModal(true);
+  };
+
+  const handleSaved = (updatedList) => {
+    const opts = (updatedList ?? [])
+      .filter(d => d.codEstado === 'AC')
+      .map(d => ({
+        value: d.codRegistro,
+        label: [d.nomPais, d.nomCiudad, d.desDireccion].filter(Boolean).join(' · '),
+      }));
+    setDirecciones(opts);
+
+    // Si estábamos editando la dirección actualmente seleccionada, recargar su detalle
+    if (editDir && selDireccion) {
+      const updated = opts.find(o => o.value === selDireccion.value);
+      if (updated) handleDireccionChange(updated);
+    }
+    setShowModal(false);
+  };
+
+  const dirOptions = direcciones.map(d => ({ value: d.value, label: d.label }));
+
+  const DetailRow = ({ label, value }) => {
+    if (!value) return null;
+    return (
+      <div className="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0">
+        <span className="w-28 shrink-0 text-xs font-medium text-gray-400 text-right">{label}</span>
+        <span className="text-sm font-medium text-gray-800 flex-1">{value}</span>
+      </div>
+    );
+  };
 
   return (
     <>
-      <div className="mb-5 flex items-center justify-center">
-        <div className="px-8 w-1/2 bg-white shadow-[4px_6px_10px_-3px_#bfc9d4] rounded border border-white-light dark:border-[#1b2e4b] dark:bg-[#191e3a] dark:shadow-none">
+      <div className="flex justify-center">
+        <div className="w-full max-w-xl bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-6">
 
-          <div className='mt-4'>
-            <label htmlFor="select_shipping">{ t.select_option }</label>
-            <div className="flex flex-1">
-              <Select onChange={handleChange} value={selectedAddress} id="select_shipping" placeholder={t.select_option} className='w-full' options={shipping} />
-              <button onClick={() => handleAddAddress()} type="button" className='btn btn-dark'> <IconPlusProps></IconPlusProps> {t.btn_add} </button>
-            </div>
+          {/* ── Transporte ──────────────────────────────────────────────── */}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-600 mb-3">
+              {t.select_transport ?? 'Seleccione el Transporte'}
+            </h3>
+            <Select
+              value={selTransporte}
+              onChange={handleTransporteChange}
+              options={transportes}
+              isLoading={loading}
+              placeholder={t.select_option}
+              isClearable
+            />
+            {selTransporte && selTransporte.value !== '1' && (
+              <div className="flex items-center gap-3 mt-3">
+                <label className="w-28 shrink-0 text-xs font-medium text-gray-400 text-right">
+                  {t.account_number ?? '# Cuenta'}
+                </label>
+                <input
+                  type="text"
+                  autoComplete="off"
+                  {...registerShipping('cuentaTransporte')}
+                  placeholder="—"
+                  className="form-input h-9 text-sm flex-1"
+                />
+              </div>
+            )}
+            <input type="hidden" {...registerShipping('codTransporte')} />
           </div>
 
-
-          <hr />
-
-          <div className='space-y-4 mt-8 relative'>
-            {(current_address) &&
-              <div className='top-0 right-0 z-10 flex flex-wrap items-center justify-center gap-2'>
-                {(isEdit) ?
-                  <>
-                    <button onClick={() => handleEditCancelAddress()} className='btn btn-sm btn-dark'> {t.btn_cancel}</button>
-                    <button onClick={() => handleUpdateAddress()} className='btn btn-sm btn-primary'> {t.btn_update}</button>
-                  </>
-                  :
-                  <button onClick={() => handleEditAddress()} className='btn btn-sm btn-info'> {t.btn_edit}</button>
-                }
+          {/* ── Dirección de entrega ──────────────────────────────────────── */}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-600 mb-3">
+              {t.select_address ?? 'Seleccione una dirección'}
+            </h3>
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <Select
+                  value={selDireccion}
+                  onChange={handleDireccionChange}
+                  options={dirOptions}
+                  isLoading={loading}
+                  placeholder={t.select_option}
+                  isClearable
+                />
               </div>
-            }
-            <div className="flex sm:flex-row flex-col items-center">
-              <label className="mb-0 sm:w-1/4 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="company">{t.company}</label>
-              <div className="relative flex-1">
-                <input type='text' readOnly={!isEdit} autoComplete='OFF' {...registerShipping("company", { required: { value: true, message: t.required_field } })} aria-invalid={errors.company ? "true" : "false"} placeholder={t.enter_company} className="form-input placeholder: read-only:border-none read-only:cursor-default" />
-                {errors.company && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.company?.message?.toString()}</span>}
-              </div>
+              <button
+                type="button"
+                onClick={openAdd}
+                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-gray-300 text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 transition shrink-0"
+              >
+                <IconPlusProps className="h-4 w-4" />
+                {t.btn_add ?? 'Agregar'}
+              </button>
             </div>
 
-            <div className="flex sm:flex-row flex-col items-center">
-              <label className="mb-0 sm:w-1/4 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="contact">{t.contact}</label>
-              <div className="relative flex-1">
-                <input type='text' readOnly={!isEdit} autoComplete='OFF' {...registerShipping("contact", { required: { value: true, message: t.required_field } })} aria-invalid={errors.contact ? "true" : "false"} placeholder={t.enter_contact} className="form-input placeholder: read-only:border-none read-only:cursor-default" />
-                {errors.contact && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.contact?.message?.toString()}</span>}
+            {/* Skeleton mientras carga */}
+            {loadingDir && (
+              <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 space-y-2 animate-pulse">
+                {[1,2,3,4].map(i => (
+                  <div key={i} className="flex gap-3 py-1.5">
+                    <div className="h-3.5 w-24 bg-gray-200 rounded ml-auto" />
+                    <div className="h-3.5 w-40 bg-gray-200 rounded" />
+                  </div>
+                ))}
               </div>
-            </div>
+            )}
 
-            <div className="flex sm:flex-row flex-col items-center">
-              <label className="mb-0 sm:w-1/4 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="phone">{t.phone}</label>
-              <div className="relative flex-1">
-                <input type='text' readOnly={!isEdit} autoComplete='OFF' {...registerShipping("phone", { required: { value: true, message: t.required_field } })} aria-invalid={errors.phone ? "true" : "false"} placeholder={t.enter_phone} className="form-input placeholder: read-only:border-none read-only:cursor-default" />
-                {errors.phone && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.phone?.message?.toString()}</span>}
+            {/* Detalle de la dirección */}
+            {!loadingDir && currentDir && (
+              <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 px-4 pt-1 pb-3">
+                <DetailRow
+                  label={`${t.country ?? 'País'} / ${t.city ?? 'Ciudad'}`}
+                  value={[currentDir.nomPais, currentDir.nomCiudad].filter(Boolean).join(' - ')}
+                />
+                <DetailRow label={t.address ?? 'Dirección'}   value={currentDir.desDireccion} />
+                <DetailRow label={t.company ?? 'Empresa'}     value={currentDir.nomEmpresa}   />
+                <DetailRow label={t.contact ?? 'Contacto'}    value={currentDir.nomContacto}  />
+                <DetailRow label={t.phone   ?? 'Teléfono'}    value={currentDir.numTelefono}  />
+                <DetailRow label={t.email   ?? 'Mail'}        value={currentDir.mail}         />
+                <DetailRow label={t.state   ?? 'Estado'}      value={currentDir.nomEstado}    />
+                <DetailRow label={t.zip     ?? 'Cod. Postal'} value={currentDir.codPostal}    />
+                <div className="flex justify-end mt-3">
+                  <button
+                    type="button"
+                    onClick={openEdit}
+                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm font-medium text-blue-600 hover:bg-blue-50 transition"
+                  >
+                    <IconPencil className="h-3.5 w-3.5" />
+                    {t.btn_edit ?? 'Editar'}
+                  </button>
+                </div>
               </div>
-            </div>
-
-            <div className="flex sm:flex-row flex-col items-center">
-              <label className="mb-0 sm:w-1/4 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="email">{t.email}</label>
-              <div className="relative flex-1">
-                <input type='text' readOnly={!isEdit} autoComplete='OFF' {...registerShipping("email", { required: { value: true, message: t.required_field } })} aria-invalid={errors.email ? "true" : "false"} placeholder={t.enter_email} className="form-input placeholder: read-only:border-none read-only:cursor-default" />
-                {errors.email && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.email?.message?.toString()}</span>}
-              </div>
-            </div>
-
-            <div className="flex sm:flex-row flex-col items-center">
-              <label className="mb-0 sm:w-1/4 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="country">{t.country}</label>
-              <div className="relative flex-1">
-                <input type='text' readOnly={!isEdit} autoComplete='OFF' {...registerShipping("country", { required: { value: true, message: t.required_field } })} aria-invalid={errors.country ? "true" : "false"} placeholder={t.enter_country} className="form-input placeholder: read-only:border-none read-only:cursor-default" />
-                {errors.country && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.country?.message?.toString()}</span>}
-              </div>
-            </div>
-
-            <div className="flex sm:flex-row flex-col items-center">
-              <label className="mb-0 sm:w-1/4 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="address">{t.address}</label>
-              <div className="relative flex-1">
-                <input type='text' readOnly={!isEdit} autoComplete='OFF' {...registerShipping("address", { required: { value: true, message: t.required_field } })} aria-invalid={errors.address ? "true" : "false"} placeholder={t.enter_address} className="form-input placeholder: read-only:border-none read-only:cursor-default" />
-                {errors.address && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.address?.message?.toString()}</span>}
-              </div>
-            </div>
-
-            <div className="flex sm:flex-row flex-col items-center">
-              <label className="mb-0 sm:w-1/4 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="city">{t.city}</label>
-              <div className="relative flex-1">
-                <input type='text' readOnly={!isEdit} autoComplete='OFF' {...registerShipping("city", { required: { value: true, message: t.required_field } })} aria-invalid={errors.city ? "true" : "false"} placeholder={t.enter_city} className="form-input placeholder: read-only:border-none read-only:cursor-default" />
-                {errors.city && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.city?.message?.toString()}</span>}
-              </div>
-            </div>
-
-            <div className="flex sm:flex-row flex-col items-center">
-              <label className="mb-0 sm:w-1/4 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="state">{t.state}</label>
-              <div className="relative flex-1">
-                <input type='text' readOnly={!isEdit} autoComplete='OFF' {...registerShipping("state", { required: { value: true, message: t.required_field } })} aria-invalid={errors.state ? "true" : "false"} placeholder={t.enter_state} className="form-input placeholder: read-only:border-none read-only:cursor-default" />
-                {errors.state && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.state?.message?.toString()}</span>}
-              </div>
-            </div>
-
-            <div className="flex sm:flex-row flex-col items-center">
-              <label className="mb-0 sm:w-1/4 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="zip">{t.zip}</label>
-              <div className="relative flex-1">
-                <input type='text' readOnly={!isEdit} autoComplete='OFF' {...registerShipping("zip", { required: { value: true, message: t.required_field } })} aria-invalid={errors.zip ? "true" : "false"} placeholder={t.enter_zip} className="form-input placeholder: read-only:border-none read-only:cursor-default" />
-                {errors.zip && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.zip?.message?.toString()}</span>}
-              </div>
-            </div>
-
-            <div className="flex sm:flex-row flex-col items-center">
-              <label className="mb-0 sm:w-1/4 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="note">{ t.delivery_instructions }</label>
-              <div className="relative flex-1">
-                <textarea rows="4" {...registerShipping("note", { required: false })} className="form-input placeholder:"></textarea>
-              </div>
-            </div>
+            )}
           </div>
 
+          {/* ── Instrucción de entrega ───────────────────────────────────── */}
+          <div className="flex items-start gap-3">
+            <label className="w-28 shrink-0 text-xs font-medium text-gray-400 text-right pt-2">
+              {t.delivery_instructions ?? 'Instrucción Entrega'}
+            </label>
+            <textarea
+              rows={3}
+              {...registerShipping('note')}
+              className="form-input text-sm flex-1 resize-none"
+            />
+          </div>
+
+          {/* Campos ocultos leídos por getValues en el padre */}
+          {['codDireccion','_transporteLabel','_direccionLabel','codPais','company','contact','phone','email','country','address','city','state','zip'].map(f => (
+            <input key={f} type="hidden" {...registerShipping(f)} />
+          ))}
 
         </div>
       </div>
-      <Modal closeModal={() => setShowModal(false)} openModal={() => setShowModal(true)} showModal={show_modal} title={modal_title} content={modal_content}></Modal>
 
+      {/* ── Modal agregar / editar dirección ─────────────────────────────── */}
+      <Modal
+        size="w-full max-w-2xl"
+        showModal={showModal}
+        closeModal={() => setShowModal(false)}
+        title={modalTitle}
+      >
+        <ShippingForm
+          dir={editDir}
+          cliente={clienteNorm}
+          isNew={!editDir}
+          urlGuardar={URL_GUARDAR(clienteNorm.codCliente)}
+          onCancel={() => setShowModal(false)}
+          onSaved={handleSaved}
+        />
+      </Modal>
     </>
   );
 };

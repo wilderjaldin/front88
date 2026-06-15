@@ -23,9 +23,11 @@
 
 .ql-toolbar.ql-snow {
   box-sizing: border-box;
+  background-color: #f8fafc;
   border-top-left-radius: 6px;
   border-top-right-radius: 6px;
   border-width: 1px;
+  border-style: solid;
   border-color: #e0e6ed !important;
   padding: 8px;
   font-family: Nunito, sans-serif;
@@ -37,9 +39,11 @@
 }
 
 .ql-container.ql-snow {
+  background-color: #fff;
   border-bottom-right-radius: 6px;
   border-bottom-left-radius: 6px;
   border-width: 1px;
+  border-style: solid;
   border-top: 0px !important;
   border-color: #e0e6ed !important;
 }

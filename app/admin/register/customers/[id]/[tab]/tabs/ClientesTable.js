@@ -108,7 +108,7 @@ export default function ClientesTable({ data, total, page, pageSize, loading, on
             ),
           },
         ]}
-        rowClassName="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+        rowClassName="hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
         classNames={{
           root: 'text-sm',
           header: 'bg-gray-50 dark:bg-gray-800 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider',

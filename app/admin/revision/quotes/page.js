@@ -1,159 +1,245 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useTranslation } from "@/app/locales";
-import axios from 'axios'
+import axios from 'axios';
+import axiosClient from '@/app/lib/axiosClient';
 import { useSelector } from 'react-redux';
 import { selectToken } from '@/store/authSlice';
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import QuoteForm from '@/components/forms/quote-form';
 import ConfirmedQuoteForm from '@/components/forms/confirmed-quote-form';
 import QuoteBatchForm from '@/components/forms/quote-batch-form';
 import StepsToBuy from '@/app/admin/revision/quotes/steps_buy';
-import QuoteWithoutCodeForm from '@/components/forms/quote-whithout-code-form'
+import QuoteWithoutCodeForm from '@/components/forms/quote-whithout-code-form';
 import Link from "next/link";
-import Swal from 'sweetalert2'
+import Swal from 'sweetalert2';
 import { getLocale } from '@/store/localeSlice';
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
+import IconArrowBackward from '@/components/icon/icon-arrow-backward';
+import { usePermissions } from '@/app/hooks/usePermissions';
+import { PERMISSIONS } from '@/constants/permissions';
+import AccessDenied from '@/components/AccessDenied';
 
-const url = process.env.NEXT_PUBLIC_API_URL + 'revision/ListaClientes';
-const url_order = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/MostrarDetalleCotizacion';
-const url_order_without_code = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/MostrarDetalleCotSinCod';
 const url_order_confirmed = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetallemod/MostrarDetalleOrden';
 
 export default function Quotes() {
 
   const searchParams = useSearchParams();
-  const token = useSelector(selectToken);
-  const t = useTranslation();
+  const router = useRouter();
+  const token               = useSelector(selectToken);
+  const t                   = useTranslation();
+  const locale              = useSelector(getLocale);
+  const { hasPermission }   = usePermissions();
 
-  const locale = useSelector(getLocale);
-
-
-  const [order, setOrder] = useState([])
-  const [items, setItems] = useState([])
-  const option = searchParams.get("option");
+  const option      = searchParams.get("option");
   const customer_id = searchParams.get("customer");
-  const order_id = searchParams.get("id") || null;
-  const [tracking, setTracking] = useState([]);
-  const [options_share, setOptionsShare] = useState([]);
-  const [customer, setCustomer] = useState({ CodCliente: customer_id, NomCliente: "---" })
+  const order_id    = searchParams.get("id") || null;
+
+  const [order,         setOrder]        = useState([]);
+  const [items,         setItems]        = useState([]);
+  const [tracking,      setTracking]     = useState([]);
+  const [customer,      setCustomer]     = useState({ CodCliente: customer_id, NomCliente: '---' });
 
   useEffect(() => {
-    async function fetchData() {
-
-      if (order_id > 0) {
-        Swal.fire({
-          html: t.load_quote_info,
-          timerProgressBar: true,
-          allowOutsideClick: false,
-          allowEscapeKey: false,
-          didOpen: () => {
-            Swal.showLoading();
-          }
-        });
-        await getOrder(order_id);
-
-      }
-      await getCustomer(customer_id);
-    }
-    fetchData();
-
+    getCustomer(customer_id);
   }, []);
 
-  const getCustomer = async (customer_id) => {
-    try {
-      const rs = await axios.post(url, { ValToken: token });
-      if (rs.data.estado == 'Ok') {
-        rs.data.dato.map(u => {
-          if (u.CodCliente == customer_id) {
-            setCustomer(u);
-          }
-        })
-      }
-    } catch (error) {
-
+  useEffect(() => {
+    if (order_id > 0 && option !== 'quotes-without-code' && option !== 'buy') {
+      Swal.fire({
+        html: t.load_quote_info,
+        timerProgressBar: true,
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        didOpen: () => Swal.showLoading(),
+      });
+      getOrder(order_id);
     }
-  }
+  }, [order_id, option]);
+
+  const getCustomer = async (id) => {
+    try {
+      const rs = await axiosClient.get(`clientes/ficha/${id}`);
+      const c  = rs.data.cliente;
+      if (c) {
+        setCustomer({
+          CodCliente: c.codCliente ?? c.CodCliente,
+          NomCliente: c.nomCliente ?? c.NomCliente,
+          CodPais:    c.codPais    ?? c.CodPais    ?? '',
+          NomPais:    c.nomPais    ?? c.NomPais    ?? '',
+        });
+      }
+    } catch {}
+  };
+
   const getOrder = async (order_id) => {
     try {
-      var rs = [];
-      if (option == "quotes" || option == "batch" || option == "buy") {
-        rs = await axios.post(url_order, { Idioma: locale, NroOrden: order_id, CodCliente: customer_id, TipoCot: 'NR', ValToken: token });
-      } else if (option == "quotes-without-code") {
-        rs = await axios.post(url_order_without_code, { Idioma: locale, NroOrden: order_id, CodCliente: customer_id, TipoCot: 'NR', ValToken: token });
-      } else if (option == "confirmed-quote") {
-        rs = await axios.post(url_order_confirmed, { Idioma: locale, NroOrden: order_id, CodCliente: customer_id, ValToken: token });
+      if (option === 'quotes' || option === 'batch' || option === 'buy') {
+        const rs = await axiosClient.get(`cotizaciondetalle/detalle/${order_id}`, { params: { codCliente: customer_id } });
+        const { cotizacion, detalle, seguimiento } = rs.data;
+
+        setOrder({
+          NroOrden:       cotizacion.nroCotizacion,
+          NroItems:       cotizacion.nroItems,
+          NroPedido:      cotizacion.nroPedido      ?? '',
+          MarcaEquipo:    cotizacion.marcaEquipo     ?? '',
+          MarcaMotor:     cotizacion.marcaMotor      ?? '',
+          ModeloEquipo:   cotizacion.modeloEquipo    ?? '',
+          NroSerieEquipo: cotizacion.nroSerieEquipo  ?? '',
+          AnioEquipo:     cotizacion.anioEquipo      ?? '',
+          ModeloMotor:    cotizacion.modeloMotor     ?? '',
+          NroSerieMotor:  cotizacion.nroSerieMotor   ?? '',
+          FleteInterno:   cotizacion.mtoFlete        ?? 0,
+          MostrarCodigo:  cotizacion.mostrarCodigo   ?? 0,
+          TotalPeso:      cotizacion.totPeso         ?? 0,
+          Total:          cotizacion.totalSus        ?? 0,
+          TipoCambio:     cotizacion.tipCambio       ?? 0,
+          TipMoneda:      cotizacion.tipMoneda       ?? '',
+          NotaCliente:    cotizacion.notCliente      ?? '',
+          NotaUsuario:    cotizacion.notUsuario      ?? '',
+          TotRepuestos:   cotizacion.totRepuestos    ?? 0,
+          Descuento:      cotizacion.mtoDescuento    ?? 0,
+          MtoIva:         cotizacion.mtoIva          ?? 0,
+        });
+
+        setItems((detalle ?? []).map(d => ({
+          CodItem:     d.codItem,
+          CodRepuesto: d.codRepuesto,
+          NroParte:    d.nroParte      ?? '',
+          Cantidad:    d.cant          ?? 0,
+          DesRepuesto: d.descripcion   ?? '',
+          Marca:       d.marca         ?? '',
+          Aplicacion:  d.aplicacion    ?? '',
+          TipoRepuesto: d.tipoRepuesto ?? '',
+          DiasVigencia: d.diasVigencia ?? '',
+          Precio:      d.preUniSus     ?? 0,
+          Total:       d.totSus        ?? 0,
+          Peso:        d.peso          ?? 0,
+          TiEntrega:   d.desTieEntrega ?? '',
+          Indicador:   d.indicador     ?? '',
+          Estado:      d.estado        ?? '',
+          ParPrecio:   d.parPrecio     ?? false,
+        })));
+
+        setTracking(seguimiento ?? {});
+        Swal.close();
+        return;
       }
 
-      if (rs.data.estado == 'OK') {
-        
-
-        if (option == 'confirmed-quote') {
+      if (option === 'confirmed-quote') {
+        const rs = await axios.post(url_order_confirmed, { Idioma: locale, NroOrden: order_id, CodCliente: customer_id, ValToken: token });
+        if (rs?.data?.estado === 'OK') {
           setOrder(rs.data.dato1[0]);
           setItems(rs.data.dato2);
           Swal.close();
-          return;
         }
-
-        setOrder(rs.data.dato1[0]);
-        setItems(rs.data.dato2);
-        setTracking(rs.data.dato3[0]);
-        setCustomer(rs.data.dato5[0]);
-
-        let _options_share = [];
-        rs.data.dato4.map(s => {
-          if (s.CodUsuario != 0) {
-            _options_share.push({ value: s.CodUsuario, label: s.NomUsuario })
-          }
-        });
-
-        setOptionsShare(_options_share);
-
-        Swal.close();
       }
     } catch (error) {
-
+      if (error?.response?.status === 404) {
+        Swal.fire({
+          html: `<div style="padding:12px 0 6px">
+            <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#fca5a5,#ef4444);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 8px 24px rgba(239,68,68,0.3)">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg>
+            </div>
+            <h2 style="color:#1e293b;font-size:17px;font-weight:700;margin:0 0 8px;line-height:1.3">${t.quote_not_found ?? 'Cotización no encontrada'}</h2>
+            <p style="color:#64748b;font-size:13px;margin:0">#${order_id}</p>
+          </div>`,
+          showConfirmButton: true,
+          confirmButtonText: t.close ?? 'Cerrar',
+          confirmButtonColor: '#ef4444',
+          allowOutsideClick: false,
+        }).then(() => {
+          router.push(`/admin/revision/orders-process?customer=${customer_id}&option=quotes`);
+        });
+      }
     }
+  };
 
+  const optionLabel = {
+    'quotes':              t.quotes,
+    'quotes-without-code': t.quotes,
+    'batch':               t.quotes,
+    'buy':                 t.quotes,
+    'confirmed-quote':     t.quotes,
+  }[option] ?? t.quotes;
+
+  useDynamicTitle(`${t.quote} | ${customer?.NomCliente ?? ''}`);
+
+  if (option === 'quotes-without-code' && !hasPermission(PERMISSIONS.CREAR_COTIZACION)) {
+    return <AccessDenied />;
   }
-
-  useDynamicTitle(`${t.quote} | ${(customer) ? customer.NomCliente : ""}`);
 
   return (
     <>
+      {/* ── BREADCRUMB + VOLVER ─────────────────────────────────────────── */}
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
 
+        <ul className="flex items-center gap-1 text-sm text-gray-500 flex-wrap">
+          <li>{t.revision}</li>
+          <li className="before:content-['/'] before:mx-2">
+            <Link href="/admin/revision/orders-process" className="text-primary hover:underline">
+              {t.orders_in_process}
+            </Link>
+          </li>
+          <li className="before:content-['/'] before:mx-2">
+            <Link
+              href={`/admin/revision/orders-process?customer=${customer_id}&option=quotes`}
+              className="text-primary hover:underline"
+            >
+              {optionLabel}
+            </Link>
+          </li>
+          {customer.NomCliente !== '---' && (
+            <li className="before:content-['/'] before:mx-2">
+              <span
+                title={customer.NomPais || undefined}
+                className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-0.5
+                  text-xs font-semibold text-primary"
+              >
+                {customer.CodPais && (
+                  <img
+                    src={`/assets/flags/${customer.CodPais.toLowerCase()}.svg`}
+                    alt={customer.NomPais}
+                    className="h-3.5 w-5 rounded-sm object-cover shrink-0"
+                  />
+                )}
+                {customer.NomCliente}
+              </span>
+            </li>
+          )}
+        </ul>
 
-      <div className="mb-4.5 flex flex-col gap-5 px-5 md:flex-row md:items-center">
-        <div className="flex items-center gap-2">
-          <ul className="flex space-x-2 rtl:space-x-reverse">
-            <li>
-              { t.revision }
-            </li>
-            <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
-              {(customer) ? <Link href={`/admin/revision/orders-process`} className="text-blue-600 hover:underline">{t.orders_in_process}</Link> : <span>{t.orders_in_process}</span>}
-            </li>
-            <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
-              {(customer) ? <Link href={`/admin/revision/orders-process?customer=${customer_id}&option=quotes`} className="text-blue-600 hover:underline">{t.quotes}</Link> : <span>{ t.quotes }</span>}
-            </li>
-            {(customer) &&
-              <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
-                <span className="bg-blue-600 p-2 text-white rounded"> {customer.NomCliente} </span>
-              </li>
-            }
-          </ul>
-        </div>
-        <div className="ltr:ml-auto rtl:mr-auto">
-          <Link href={`/admin/revision/orders-process?customer=${customer_id}&option=quotes`} className="btn btn-outline-dark">{ t.back }</Link>
-        </div>
+        <Link
+          href={`/admin/revision/orders-process?customer=${customer_id}&option=quotes`}
+          className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3
+            text-sm text-gray-600 hover:bg-gray-50 transition
+            dark:border-gray-600 dark:bg-transparent dark:text-gray-300 dark:hover:bg-gray-800"
+        >
+          <IconArrowBackward className="h-4 w-4" />
+          {t.back}
+        </Link>
+
       </div>
-      {(option == 'quotes') && <QuoteForm getOrder={getOrder} token={token} _customer_={customer} _tracking_={tracking} t={t} _order_={order} _items_={items} options_share={options_share}></QuoteForm>}
-      {(option == 'buy') && <StepsToBuy token={token} _customer_={customer} t={t} _order_={order} _items_={items}></StepsToBuy>}
-      {(option == 'quotes-without-code') && <QuoteWithoutCodeForm _customer_={customer} _order_={order} _items_={items} t={t} token={token} ></QuoteWithoutCodeForm>}
-      {(option == 'batch' && !order_id) && <QuoteBatchForm token={token} _customer_={customer} _tracking_={tracking} t={t} _order_={order} _items_={items}></QuoteBatchForm>}
-      {(option == 'batch' && order_id) && <QuoteForm token={token} _customer_={customer} _tracking_={tracking} t={t} _order_={order} _items_={items}></QuoteForm>}
 
-      {(option == 'confirmed-quote' && order_id) && <ConfirmedQuoteForm token={token} _customer_={customer} _tracking_={tracking} t={t} _order_={order} _items_={items}></ConfirmedQuoteForm>}
-
+      {/* ── CONTENIDO ───────────────────────────────────────────────────── */}
+      {option === 'quotes' && (
+        <QuoteForm key={order_id} getOrder={getOrder} token={token} _customer_={customer} _tracking_={tracking} t={t} _order_={order} _items_={items} />
+      )}
+      {option === 'buy' && (
+        <StepsToBuy token={token} _customer_={customer} t={t} _order_={order} _items_={items} />
+      )}
+      {option === 'quotes-without-code' && (
+        <QuoteWithoutCodeForm _customer_={customer} _order_={order} _items_={items} t={t} />
+      )}
+      {option === 'batch' && !order_id && (
+        <QuoteBatchForm token={token} _customer_={customer} _tracking_={tracking} t={t} _order_={order} _items_={items} />
+      )}
+      {option === 'batch' && order_id && (
+        <QuoteForm key={order_id} token={token} _customer_={customer} _tracking_={tracking} t={t} _order_={order} _items_={items} />
+      )}
+      {option === 'confirmed-quote' && order_id && (
+        <ConfirmedQuoteForm token={token} _customer_={customer} _tracking_={tracking} t={t} _order_={order} _items_={items} />
+      )}
     </>
   );
 }

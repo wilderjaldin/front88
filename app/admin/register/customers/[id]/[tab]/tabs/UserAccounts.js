@@ -263,7 +263,7 @@ export default function UserAccounts({
         {view === 'list' && filtered.length > 0 && (
           <div className="panel overflow-hidden border-0 p-0">
             <div className="table-responsive">
-              <table className="table-striped table-hover w-full">
+              <table className="table-striped table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 w-full">
                 <thead>
                   <tr>
                     <th>{t.name ?? 'Nombre'}</th>

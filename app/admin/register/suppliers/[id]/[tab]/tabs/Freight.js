@@ -187,7 +187,7 @@ export default function Freight() {
                 </thead>
                 <tbody className="divide-y divide-primary/10">
                   {selectedZona.detalles.map((d, i) => (
-                    <tr key={i} className="hover:bg-primary/5">
+                    <tr key={i} className="hover:bg-gray-100 dark:hover:bg-gray-700">
                       <td className="px-3 py-1.5 text-right text-gray-600 dark:text-gray-300">{d.pesoInicial}</td>
                       <td className="px-3 py-1.5 text-right text-gray-600 dark:text-gray-300">{d.pesoFinal}</td>
                       <td className="px-3 py-1.5 text-right text-gray-600 dark:text-gray-300">{d.costoLibra}</td>
@@ -252,7 +252,7 @@ export default function Freight() {
                       <button
                         type="button"
                         onClick={() => toggleItem(a.codFlete)}
-                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/60 transition text-left"
+                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700/60 transition text-left"
                       >
                         <div className="flex flex-col gap-0.5 min-w-0">
                           <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">
@@ -288,7 +288,7 @@ export default function Freight() {
                               </thead>
                               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                                 {a.detalles.map((d) => (
-                                  <tr key={d.numCor} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
+                                  <tr key={d.numCor} className="hover:bg-gray-100 dark:hover:bg-gray-700/60">
                                     <td className="px-3 py-1.5 text-center text-gray-400">{d.numCor}</td>
                                     <td className="px-3 py-1.5 text-right text-gray-600 dark:text-gray-300">{d.pesoInicial}</td>
                                     <td className="px-3 py-1.5 text-right text-gray-600 dark:text-gray-300">{d.pesoFinal}</td>

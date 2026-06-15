@@ -54,6 +54,7 @@ export default function Users() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [term,         setTerm]         = useState('');
   const [formMode,     setFormMode]     = useState("create");
+  const [forbidden,    setForbidden]    = useState(false);
 
   const active = searchParams.get("active") || 0;
 
@@ -103,7 +104,11 @@ export default function Users() {
       setTotal(rs.data.total ?? 0);
       setUsers(data.map((o, index) => ({ ...o, id: index })));
     } catch (error) {
-      console.error("Error cargando usuarios", error);
+      if (error?.response?.status === 403) {
+        setForbidden(true);
+      } else {
+        console.error("Error cargando usuarios", error);
+      }
     }
   };
 
@@ -200,7 +205,7 @@ export default function Users() {
 
   useDynamicTitle(`${t.register} | ${t.users}`);
 
-  if (!hasPermission(PERMISSIONS.J8EM1O6F)) {
+  if (forbidden || !hasPermission(PERMISSIONS.VER_USUARIOS)) {
     return <AccessDenied />;
   }
 

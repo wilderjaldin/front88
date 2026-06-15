@@ -1,463 +1,387 @@
 'use client';
-import React, { useEffect, useState } from 'react';
-
-import ComponentsDatatablesOrdersPlaced from "@/components/datatables/components-datatables-orders-placed"
-import IconBackSpace from "@/components/icon/icon-backspace";
-import IconArrowUp from "@/components/icon/icon-arrow-up";
-import sortBy from 'lodash/sortBy';
-import { Checkbox } from '@mantine/core';
-import { DataTable, DataTableSortStatus } from 'mantine-datatable';
-import { useForm } from "react-hook-form"
-import Swal from 'sweetalert2'
-import DeleteForm from '@/app/admin/queries/spare-parts-quotation/delete-form'
-import ShowAssignmentsForm from '@/app/admin/queries/spare-parts-quotation/show-assignments-form'
+import { useEffect, useMemo, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { Pagination } from '@mantine/core';
+import Swal from 'sweetalert2';
+import axios from 'axios';
 import Modal from '@/components/modal';
-import MailToCustomerForm from "@/app/admin/queries/spare-parts-quotation/mail-to-customer-form"
-import MailToSupplierForm from "@/app/admin/queries/spare-parts-quotation/mail-to-supplier-form"
+import DeleteForm from './delete-form';
+import ShowAssignmentsForm from './show-assignments-form';
+import MailToCustomerForm from './mail-to-customer-form';
+import MailToSupplierForm from './mail-to-supplier-form';
+import IconBackSpace from '@/components/icon/icon-backspace';
 
-import axios from 'axios'
-const url_filter = process.env.NEXT_PUBLIC_API_URL + 'repporcotizar/MostrarDatosPFiltro';
-const url_export = process.env.NEXT_PUBLIC_API_URL + 'repporcotizar/ExportarListaEx';
-const url_save_note = process.env.NEXT_PUBLIC_API_URL + 'repporcotizar/GuardarNota';
+const url_export      = process.env.NEXT_PUBLIC_API_URL + 'repporcotizar/ExportarListaEx';
+const url_save_note   = process.env.NEXT_PUBLIC_API_URL + 'repporcotizar/GuardarNota';
 const url_save_status = process.env.NEXT_PUBLIC_API_URL + 'repporcotizar/CodigoInvalidoDescontinuado';
 
+const PAGE_SIZE = 20;
+
+const thClass = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap select-none";
+const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-3 py-2";
+
+const SortIcon = ({ active, dir }) => {
+  if (!active)
+    return (
+      <svg width="7" height="11" viewBox="0 0 7 11" fill="currentColor" className="shrink-0 text-gray-300">
+        <path d="M3.5 0L7 4.5H0L3.5 0Z"/><path d="M3.5 11L0 6.5H7L3.5 11Z"/>
+      </svg>
+    );
+  return (
+    <svg width="7" height="7" viewBox="0 0 7 7" fill="currentColor" className="shrink-0 text-primary">
+      {dir === 'asc' ? <path d="M3.5 0L7 7H0L3.5 0Z"/> : <path d="M3.5 7L0 0H7L3.5 7Z"/>}
+    </svg>
+  );
+};
+
+const SortableHeader = ({ col, label, sortCol, sortDir, onSort, className = '' }) => (
+  <th onClick={() => onSort(col)} className={`${thClass} cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${className}`}>
+    <span className="inline-flex items-center gap-1.5">
+      {label}<SortIcon active={sortCol === col} dir={sortDir} />
+    </span>
+  </th>
+);
+
 const ItemsAssigned = ({ token, t, data, unassignOrder, setOrdersAssigned }) => {
+  const [selected,  setSelected]  = useState([]);
+  const [filter,    setFilter]    = useState('');
+  const [sortCol,   setSortCol]   = useState('');
+  const [sortDir,   setSortDir]   = useState('asc');
+  const [page,      setPage]      = useState(1);
 
-  const [show_modal, setShowModal] = useState(false);
-  const [modal_title, setModalTitle] = useState('');
+  const [show_modal,    setShowModal]    = useState(false);
+  const [modal_title,   setModalTitle]   = useState('');
   const [modal_content, setModalContent] = useState(null);
-  const [modal_size, setModalSize] = useState('w-full max-w-xl')
-  //
-  const [selected_orders, setSelectedOrders] = useState([]);
-  const [isSelectAssigned, setIsSelectAssigned] = useState(false);
-  //
-  const [users, setUsers] = useState([]);
-  const [loadUsers, setLoadUsers] = useState(true);
-  const [suppliers, setSuppliers] = useState([]);
-  const [loadSuppliers, setLoadSuppliers] = useState(true)
-  //
+  const [modal_size,    setModalSize]    = useState('w-full max-w-xl');
 
-  const [page, setPage] = useState(1);
-  const PAGE_SIZES = [10, 20, 30, 50, 100];
-  const [pageSize, setPageSize] = useState(PAGE_SIZES[0]);
-  const [initialRecords, setInitialRecords] = useState(sortBy(data, 'id'));
-  const [recordsData, setRecordsData] = useState(initialRecords);
+  const [users,        setUsers]        = useState([]);
+  const [loadUsers,    setLoadUsers]    = useState(true);
 
+  const { register, getValues, setValue } = useForm();
 
-  const [filter, setFilter] = useState('');
-  const [sortStatus, setSortStatus] = useState({
-    columnAccessor: 'id',
-    direction: 'asc',
-  });
-
-  const {
-    register,
-    getValues,
-    setValue,
-    handleSubmit
-  } = useForm()
+  useEffect(() => { setSelected([]); setPage(1); }, [data]);
 
   useEffect(() => {
-    setInitialRecords(data);
+    data.forEach(o => setValue(`note.${o.codRegistro}`, o.nota ?? ''));
   }, [data]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [pageSize]);
-
-  useEffect(() => {
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize;
-    setRecordsData([...initialRecords.slice(from, to)]);
-    setSelectedOrders([])
-
-    initialRecords.map((o, index) => (setValue(`orders.${o.CodRegistro}.note`, o.Nota)));
-
-  }, [page, pageSize, initialRecords]);
-
-  useEffect(() => {
-    const data = sortBy(initialRecords, sortStatus.columnAccessor);
-    setInitialRecords(sortStatus.direction === 'desc' ? data.reverse() : data);
-  }, [sortStatus]);
-
-  //
-
-  //
-  const toggleAll = () => {
-    if (selected_orders.length === recordsData.length) {
-      setSelectedOrders([]);
-    } else {
-      setSelectedOrders(recordsData.map((r) => r));
+  const filteredData = useMemo(() => {
+    let result = [...data];
+    if (filter.trim()) {
+      const f = filter.trim().toLowerCase();
+      result = result.filter(item =>
+        (item.nomCliente      ?? '').toLowerCase().includes(f) ||
+        (item.nroCotizacion?.toString() ?? '').includes(f) ||
+        (item.nroParte        ?? '').toLowerCase().includes(f) ||
+        (item.nomMarca        ?? '').toLowerCase().includes(f)
+      );
     }
-  };
-
-  const toggleRow = (row) => {
-    setSelectedOrders((prev) =>
-      prev.includes(row) ? prev.filter((x) => x !== row) : [...prev, row]
-    );
-  };
-  useEffect(() => {
-    if (selected_orders.length > 0) {
-      setIsSelectAssigned(false)
-    } else {
-      setIsSelectAssigned(true);
-    }
-  }, [selected_orders]);
-  //
-
-  useEffect(() => {
-    setPage(1);
-    setInitialRecords(() => {
-      return data.filter((item) => {
-        return (
-          item.NomCliente.toLowerCase().includes(filter.toLowerCase()) ||
-          item.NroOrden.toString().includes(filter.toLowerCase()) ||
-          item.NroParte.toString().includes(filter.toLowerCase()) ||
-          item.Aplicacion.toLowerCase().includes(filter.toLowerCase())
-        );
+    if (sortCol) {
+      result.sort((a, b) => {
+        const va = a[sortCol] ?? '', vb = b[sortCol] ?? '';
+        const cmp = typeof va === 'number' && typeof vb === 'number'
+          ? va - vb
+          : String(va).localeCompare(String(vb));
+        return sortDir === 'asc' ? cmp : -cmp;
       });
-    });
-  }, [filter]);
-
-  const handleDeleteOrders = async () => {
-    if (selected_orders.length > 0) {
-      setModalSize('w-full max-w-xl');
-      setModalTitle('');
-      setModalContent(
-        <DeleteForm
-          t={t}
-          token={token}
-          action_cancel={() => setShowModal(false)}
-          users={users}
-          setUsers={setUsers}
-          loadUsers={loadUsers}
-          setLoadUsers={setLoadUsers}
-          selected_orders={selected_orders}
-          setOrdersAssigned={setOrdersAssigned}
-        //suppliers={suppliers}
-        //setSuppliers={setSuppliers}
-        //loadSuppliers={loadSuppliers}
-        //setLoadSuppliers={setLoadSuppliers}
-        ></DeleteForm>);
-      setShowModal(true);
     }
-  }
+    return result;
+  }, [data, filter, sortCol, sortDir]);
+
+  const totalPages = Math.ceil(filteredData.length / PAGE_SIZE);
+  const pageData   = filteredData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const handleSort = (col) => {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortCol(col); setSortDir('asc'); }
+    setPage(1);
+  };
+
+  const toggleAll = () =>
+    setSelected(selected.length === pageData.length ? [] : [...pageData]);
+  const toggleRow = (row) =>
+    setSelected(prev => prev.includes(row) ? prev.filter(x => x !== row) : [...prev, row]);
+
+  // ── Acciones ────────────────────────────────────────────────────────────
+
+  const handleSaveNote = async () => {
+    const payload = pageData.map(o => ({
+      CodRegistro: o.codRegistro,
+      Nota:        getValues(`note.${o.codRegistro}`),
+      ValToken:    token,
+    }));
+    try {
+      const rs = await axios.post(url_save_note, payload);
+      if (rs.data.estado === 'OK') {
+        Swal.fire({ position: 'top-end', icon: 'success', title: t.save_note_quote_success, showConfirmButton: false, timer: 1500 });
+      } else {
+        Swal.fire({ position: 'top-end', icon: 'error', title: t.save_note_quote_error, showConfirmButton: false, timer: 1500 });
+      }
+    } catch {
+      Swal.fire({ position: 'top-end', icon: 'error', title: t.save_note_quote_error_server, showConfirmButton: false, timer: 1500 });
+    }
+  };
+
+  const handleSaveStatus = (option) => {
+    const label = option === 'IV' ? t.question_change_status_invalid
+      : option === 'DE'           ? t.question_change_status_discontinued
+      : t.question_change_status_no_option;
+    Swal.fire({
+      title: label, icon: 'question', showCancelButton: true,
+      confirmButtonColor: '#15803d', confirmButtonText: t.yes,
+      cancelButtonText: t.btn_cancel, reverseButtons: true,
+    }).then(async (result) => {
+      if (!result.isConfirmed) return;
+      try {
+        const payload = selected.map(o => ({
+          EstadoCodigo: option, CodRegistro: o.codRegistro,
+          NroOrden: o.nroCotizacion, NroParte: o.nroParte, ValToken: token,
+        }));
+        const rs = await axios.post(url_save_status, payload);
+        if (rs.data.estado === 'OK') {
+          Swal.fire({ position: 'top-end', icon: 'success', title: t.save_change_status_order_success, showConfirmButton: false, timer: 1500 }).then(() => {
+            setOrdersAssigned((rs.data.dato ?? []).map((o, i) => ({ ...o, id: i })));
+          });
+        } else {
+          Swal.fire({ position: 'top-end', icon: 'error', title: t.save_change_status_order_error, showConfirmButton: false, timer: 1500 });
+        }
+      } catch {
+        Swal.fire({ position: 'top-end', icon: 'error', title: t.save_change_status_order_error_server, showConfirmButton: false, timer: 1500 });
+      }
+    });
+  };
 
   const handleExportOrders = async () => {
+    if (selected.length === 0) return;
     try {
-      if (selected_orders.length > 0) {
-        let CadCodRegistro = []
-        selected_orders.map(o => {
-          CadCodRegistro.push(o.CodRegistro);
-        });
-
-        let data_send = {
-          CadCodRegistro: CadCodRegistro.join(","),
-          ValToken: token
-        };
-
-        const response = await axios.post(url_export, data_send, {
-          responseType: "blob",
-        });
-
-
-        const contentDisposition = response.headers["content-disposition"];
-        let filename = "archivo.csv";
-        if (contentDisposition) {
-          const match = contentDisposition.match(/filename="?([^"]+)"?/);
-          if (match && match[1]) {
-            filename = match[1];
-          }
-        }
-
-        // Crear un blob
-        const blob = new Blob([response.data], { type: "text/csv;charset=utf-8;" });
-        const url = window.URL.createObjectURL(blob);
-
-        // Crear un link oculto y simular click
-        const link = document.createElement("a");
-        link.href = url;
-        link.className ="no-load";
-        link.setAttribute("download", filename);
-        document.body.appendChild(link);
-        link.click();
-
-        // Limpiar
-        link.remove();
-        window.URL.revokeObjectURL(url);
+      const CadCodRegistro = selected.map(o => o.codRegistro).join(',');
+      const response = await axios.post(url_export, { CadCodRegistro, ValToken: token }, { responseType: 'blob' });
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = 'archivo.csv';
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="?([^"]+)"?/);
+        if (match?.[1]) filename = match[1];
       }
-
-    } catch (error) {
-      console.error("Error al descargar:", error);
-    }
-  }
-  const handleSaveStatus = async (option) => {
-    Swal.fire({
-      title: `${(option == 'IV') ? t.question_change_status_invalid : ((option == 'DE') ? t.question_change_status_discontinued : t.question_change_status_no_option)}`,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#15803d',
-      confirmButtonText: t.yes,
-      cancelButtonText: t.btn_cancel,
-      reverseButtons: true
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          let data = [];
-          if (selected_orders.length > 0) {
-            selected_orders.map(o => {
-              data.push({ EstadoCodigo: option, CodRegistro: o.CodRegistro, NroOrden: o.NroOrden, NroParte: o.NroParte, ValToken: token });
-            })
-          }
-
-          const rs = await axios.post(url_save_status, data);
-
-          if (rs.data.estado == 'OK') {
-            Swal.fire({
-              position: "top-end",
-              icon: "success",
-              title: t.save_change_status_order_success,
-              showConfirmButton: false,
-              timer: 1500
-            }).then(r => {
-              let orders_assigned = rs.data.dato.map((o, index) => {
-                o.id = index;
-                return o;
-              });
-              setOrdersAssigned(orders_assigned);
-            });
-          } else {
-            Swal.fire({
-              position: "top-end",
-              icon: "error",
-              title: t.save_change_status_order_error,
-              showConfirmButton: false,
-              timer: 1500
-            });
-          }
-        } catch (error) {
-          Swal.fire({
-            position: "top-end",
-            icon: "error",
-            title: t.save_change_status_order_error_server,
-            showConfirmButton: false,
-            timer: 1500
-          });
-        }
-      }
-    });
-  }
-  const handleSaveNote = async () => {
-
-    let data = [];
-    recordsData.map(o => {
-      data.push({ CodRegistro: o.CodRegistro, Nota: getValues(`orders.${o.CodRegistro}.note`), ValToken: token });
-    });
-
-    try {
-      const rs = await axios.post(url_save_note, data);
-      if (rs.data.estado == 'OK') {
-        Swal.fire({
-          position: "top-end",
-          icon: "success",
-          title: t.save_note_quote_success,
-          showConfirmButton: false,
-          timer: 1500
-        });
-      } else {
-        Swal.fire({
-          position: "top-end",
-          icon: "error",
-          title: t.save_note_quote_error,
-          showConfirmButton: false,
-          timer: 1500
-        });
-      }
-    } catch (error) {
-      Swal.fire({
-        position: "top-end",
-        icon: "error",
-        title: t.save_note_quote_error_server,
-        showConfirmButton: false,
-        timer: 1500
-      });
-    }
-  }
-
-  const handleShowAssignments = () => {
-    setModalTitle('Items Asignados a otros Usuarios');
-    setModalSize('w-full max-w-5xl');
-    setModalContent(
-      <ShowAssignmentsForm
-        t={t}
-        token={token}
-        action_cancel={() => setShowModal(false)}
-        users={users}
-        setUsers={setUsers}
-        loadUsers={loadUsers}
-        setLoadUsers={setLoadUsers}
-        selected_orders={selected_orders}
-        setOrdersAssigned={setOrdersAssigned}
-      //suppliers={suppliers}
-      //setSuppliers={setSuppliers}
-      //loadSuppliers={loadSuppliers}
-      //setLoadSuppliers={setLoadSuppliers}
-      ></ShowAssignmentsForm>);
-    setShowModal(true);
-  }
+      const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
+      const url  = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url; link.className = 'no-load';
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click(); link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {}
+  };
 
   const handleMailToCustomer = () => {
-
-    let customers_names = [];
-    selected_orders.map(o => {
-      customers_names.push(o.NomCliente);
-    });
-    //
-    if (customers_names.length > 1) {
-      let s = new Set(customers_names);
-      let a1 = [...s]
-      if (a1.length > 1) {
-        Swal.fire({
-          title: t.error,
-          text: t.different_customers_send_email_error,
-          icon: 'error',
-          confirmButtonColor: '#dc2626',
-          confirmButtonText: t.close
-        });
-        return;
-      }
-
+    const names = [...new Set(selected.map(o => o.nomCliente))];
+    if (names.length > 1) {
+      Swal.fire({ title: t.error, text: t.different_customers_send_email_error, icon: 'error', confirmButtonColor: '#dc2626', confirmButtonText: t.close });
+      return;
     }
-
-
-    setModalTitle('');
     setModalSize('w-full max-w-3xl');
-    setModalContent(<MailToCustomerForm selected={selected_orders} close={() => setShowModal(false)} print={print} t={t} token={token}></MailToCustomerForm>);
+    setModalTitle('');
+    setModalContent(<MailToCustomerForm selected={selected} close={() => setShowModal(false)} t={t} token={token} />);
     setShowModal(true);
-  }
+  };
 
   const handleMailToSupplier = () => {
-    setModalTitle('');
     setModalSize('w-full max-w-3xl');
-    setModalContent(<MailToSupplierForm selected={selected_orders} close={() => setShowModal(false)} print={print} t={t} token={token}></MailToSupplierForm>);
+    setModalTitle('');
+    setModalContent(<MailToSupplierForm selected={selected} close={() => setShowModal(false)} t={t} token={token} />);
     setShowModal(true);
-  }
+  };
 
+  const handleDeleteOrders = () => {
+    if (selected.length === 0) return;
+    setModalSize('w-full max-w-xl');
+    setModalTitle('');
+    setModalContent(
+      <DeleteForm
+        t={t} token={token}
+        action_cancel={() => setShowModal(false)}
+        users={users} setUsers={setUsers}
+        loadUsers={loadUsers} setLoadUsers={setLoadUsers}
+        selected_orders={selected}
+        setOrdersAssigned={setOrdersAssigned}
+      />
+    );
+    setShowModal(true);
+  };
 
+  const handleShowAssignments = () => {
+    setModalSize('w-full max-w-5xl');
+    setModalTitle('Items Asignados a otros Usuarios');
+    setModalContent(
+      <ShowAssignmentsForm
+        t={t} token={token}
+        action_cancel={() => setShowModal(false)}
+        users={users} setUsers={setUsers}
+        loadUsers={loadUsers} setLoadUsers={setLoadUsers}
+        selected_orders={selected}
+        setOrdersAssigned={setOrdersAssigned}
+      />
+    );
+    setShowModal(true);
+  };
+
+  const btnDanger = (disabled) =>
+    `h-9 px-3 rounded-lg text-sm font-medium transition ${
+      disabled
+        ? 'border border-gray-200 text-gray-300 cursor-not-allowed dark:border-gray-700 dark:text-gray-600'
+        : 'bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400'
+    }`;
+  const btnSecondary = (disabled) =>
+    `h-9 px-3 rounded-lg border text-sm font-medium transition ${
+      disabled
+        ? 'border-gray-200 text-gray-300 cursor-not-allowed dark:border-gray-700 dark:text-gray-600'
+        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-transparent dark:text-gray-300'
+    }`;
+
+  const noSel = selected.length === 0;
 
   return (
-    <div className="table-responsive mt-5 shadow-lg border border-gray-400 border-1">
-      <h2 className="text-xl font-bold text-blue-600 px-4 py-2 mb-4">{ t.items_to_be_quoted_assigned }</h2>
-
-
-      <div className="ml-4 mb-2">
-        <div className="flex flex-wrap items-center justify-start gap-2">
-          <button disabled={isSelectAssigned} onClick={() => unassignOrder(selected_orders)} type="button" className="btn enabled:btn-dark disabled:btn-outline-dark hover:disabled:bg-transparent hover:disabled:text-dark">
-            { t.remove_assignment } <IconArrowUp className='-rotate-90 ml-2'></IconArrowUp>
-          </button>
-
-          <button disabled={isSelectAssigned} onClick={() => handleDeleteOrders()} type="button" className="btn enabled:btn-dark disabled:btn-outline-dark hover:disabled:bg-transparent hover:disabled:text-dark">
-            { t.delete }
-          </button>
-          <button disabled={isSelectAssigned} onClick={() => handleExportOrders()} type="button" className="btn enabled:btn-dark disabled:btn-outline-dark hover:disabled:bg-transparent hover:disabled:text-dark">
-            { t.export }
-          </button>
-          <button disabled={isSelectAssigned} onClick={() => handleMailToCustomer()} type="button" className="btn enabled:btn-dark disabled:btn-outline-dark hover:disabled:bg-transparent hover:disabled:text-dark">
-            { t.mail_to_customer }
-          </button>
-          <button disabled={isSelectAssigned} type="button" onClick={() => handleMailToSupplier()} className="btn enabled:btn-dark disabled:btn-outline-dark hover:disabled:bg-transparent hover:disabled:text-dark">
-            { t.mail_to_supplier }
-          </button>
-          <button disabled={isSelectAssigned} onClick={() => handleSaveStatus('IV')} type="button" className="btn enabled:btn-dark disabled:btn-outline-dark hover:disabled:bg-transparent hover:disabled:text-dark">
-            { t.invalid }
-          </button>
-          <button disabled={isSelectAssigned} onClick={() => handleSaveStatus('DE')} type="button" className="btn enabled:btn-dark disabled:btn-outline-dark hover:disabled:bg-transparent hover:disabled:text-dark">
-            { t.discontinued }
-          </button>
-          <button disabled={isSelectAssigned} onClick={() => handleSaveStatus('SO')} type="button" className="btn enabled:btn-dark disabled:btn-outline-dark hover:disabled:bg-transparent hover:disabled:text-dark">
-            { t.no_option }
-          </button>
-          <button onClick={() => handleShowAssignments()} type="button" className="btn enabled:btn-dark disabled:btn-outline-dark hover:disabled:bg-transparent hover:disabled:text-dark">
-            { t.view_assignments }
-          </button>
-          <button onClick={() => handleSaveNote()} type="button" className="btn enabled:btn-dark disabled:btn-outline-dark hover:disabled:bg-transparent hover:disabled:text-dark">
-            { t.btn_save }
-          </button>
-
-          <div>
-            <div className="relative ltr:ml-auto rtl:mr-auto">
-              <input type="text" className="form-input w-full border border-dark border-1 pe-10" placeholder={t.filter} value={filter} onChange={(e) => setFilter(e.target.value)} />
-              <div className="absolute inset-y-0 end-0 flex items-center pe-3 cursor-pointer" onClick={() => setFilter('')}>
-                <IconBackSpace className="fill-dark z-10"></IconBackSpace>
-              </div>
-            </div>
-          </div>
+    <div>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+        <div className="flex-1">
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+            {t.items_to_be_quoted_assigned}
+            <span className="ml-2 text-sm font-normal text-gray-400">({filteredData.length})</span>
+          </h2>
+          <div className="mt-1 h-0.5 w-10 rounded bg-primary/60" />
         </div>
 
+        {/* Filtro local */}
+        <div className="relative">
+          <input
+            type="text"
+            value={filter}
+            onChange={e => { setFilter(e.target.value); setPage(1); }}
+            placeholder={t.filter}
+            className="h-10 w-52 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 pe-8 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+          />
+          {filter && (
+            <button onClick={() => setFilter('')} className="absolute inset-y-0 end-2 flex items-center text-gray-400 hover:text-gray-600">
+              <IconBackSpace className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
-      <DataTable
-        className="table-hover table-compact whitespace-nowrap"
-        records={recordsData}
-        columns={[
-          {
-            accessor: 'select',
-            title: (
-              <Checkbox
-                checked={selected_orders.length === recordsData.length && recordsData.length != 0}
-                indeterminate={
-                  selected_orders.length > 0 &&
-                  selected_orders.length < recordsData.length
-                }
-                onChange={toggleAll}
-              />
-            ),
-            render: (record) => (
 
-              <Checkbox
-                className='cursor-pointer'
-                checked={selected_orders.includes(record)}
-                onChange={() => toggleRow(record)}
-              />
+      {/* Barra de acciones */}
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <button
+          onClick={() => unassignOrder(selected)}
+          disabled={noSel}
+          className="h-9 px-4 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition"
+        >
+          ← {t.remove_assignment}
+        </button>
 
+        <button onClick={handleDeleteOrders}     disabled={noSel} className={btnDanger(noSel)}>{t.delete}</button>
+        <button onClick={handleExportOrders}     disabled={noSel} className={btnSecondary(noSel)}>{t.export}</button>
+        <button onClick={handleMailToCustomer}   disabled={noSel} className={btnSecondary(noSel)}>{t.mail_to_customer}</button>
+        <button onClick={handleMailToSupplier}   disabled={noSel} className={btnSecondary(noSel)}>{t.mail_to_supplier}</button>
+        <button onClick={() => handleSaveStatus('IV')} disabled={noSel} className={btnDanger(noSel)}>{t.invalid}</button>
+        <button onClick={() => handleSaveStatus('DE')} disabled={noSel} className={btnDanger(noSel)}>{t.discontinued}</button>
+        <button onClick={() => handleSaveStatus('SO')} disabled={noSel} className={btnDanger(noSel)}>{t.no_option}</button>
+        <button onClick={handleShowAssignments} className={btnSecondary(false)}>{t.view_assignments}</button>
+        <button onClick={handleSaveNote}         className={btnSecondary(false)}>{t.btn_save}</button>
 
-            ),
-            textAlign: 'center',
-            width: 50,
-          },
-          { accessor: 'NroOrden', title: t.nro_order, sortable: true },
-          { accessor: 'NroParte', title: t.nro_part, sortable: true },
-          { accessor: 'Cantidad', title: t.amount , sortable: true },
-          { accessor: 'NomCliente', title: t.customer, sortable: true },
-          { accessor: 'Aplicacion', title: t.application, sortable: true },
-          { accessor: 'SugerenciaPrv', title: t.supplier_suggestion, sortable: true },
-          {
-            accessor: 'Nota', title: 'Nota', sortable: true,
-            render: (record) => (
-              <>
-                <input
-                  type="text"
-                  {...register(`orders.${record.CodRegistro}.note`)}
-                  className="form-input form-input-sm w-full border border-dark border-1"
-                />
-              </>
-            )
-          },
-          { accessor: 'Dias', title: 'Días', sortable: true },
-          { accessor: 'FecCotizacion', title: 'Fecha Cot.', sortable: true }
-        ]}
-        highlightOnHover
-        totalRecords={initialRecords.length}
-        recordsPerPage={pageSize}
-        page={page}
-        onPageChange={(p) => setPage(p)}
-        recordsPerPageOptions={PAGE_SIZES}
-        onRecordsPerPageChange={setPageSize}
-        sortStatus={sortStatus}
-        onSortStatusChange={setSortStatus}
-        minHeight={200}
-        paginationText={({ from, to, totalRecords }) => `${t.showing}  ${from} ${t.to} ${to} ${t.of} ${totalRecords} ${t.entries}`}
+        {selected.length > 0 && (
+          <span className="text-xs font-medium text-primary ml-1">
+            {selected.length} {t.selected ?? 'seleccionado(s)'}
+          </span>
+        )}
+      </div>
+
+      {/* Tabla */}
+      <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse bg-white dark:bg-gray-900">
+            <thead>
+              <tr>
+                <th className={`${thClass} w-10`}>
+                  <input
+                    type="checkbox"
+                    className="form-checkbox"
+                    checked={pageData.length > 0 && selected.length === pageData.length}
+                    onChange={toggleAll}
+                  />
+                </th>
+                <SortableHeader col="nroCotizacion" label={t.nro_order}           sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
+                <SortableHeader col="nroParte"      label={t.nro_part}            sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
+                <SortableHeader col="cantidad"      label={t.amount}              sortCol={sortCol} sortDir={sortDir} onSort={handleSort} className="text-center" />
+                <SortableHeader col="nomCliente"    label={t.customer}            sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
+                <SortableHeader col="nomMarca"      label={t.application}         sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
+                <th className={thClass}>Nota</th>
+                <SortableHeader col="dias"          label="Días"                  sortCol={sortCol} sortDir={sortDir} onSort={handleSort} className="text-center" />
+                <SortableHeader col="fecCotizacion" label="Fecha Cot."            sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+              {pageData.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="py-10 text-center text-sm text-gray-400">{t.empty_results}</td>
+                </tr>
+              ) : pageData.map((o, i) => (
+                <tr
+                  key={i}
+                  className={`transition-colors ${
+                    selected.includes(o)
+                      ? 'bg-primary/5 dark:bg-primary/10'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                  }`}
+                >
+                  <td className={`${tdClass} text-center`}>
+                    <input type="checkbox" className="form-checkbox" checked={selected.includes(o)} onChange={() => toggleRow(o)} />
+                  </td>
+                  <td className={`${tdClass} font-semibold text-primary`}>{o.nroCotizacion}</td>
+                  <td className={`${tdClass} font-medium`}>{o.nroParte}</td>
+                  <td className={`${tdClass} text-center`}>{o.cantidad}</td>
+                  <td className={tdClass}>{o.nomCliente}</td>
+                  <td className={`${tdClass} text-gray-500`}>{o.nomMarca}</td>
+                  <td className={tdClass}>
+                    <input
+                      type="text"
+                      {...register(`note.${o.codRegistro}`)}
+                      className="h-7 w-full rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
+                    />
+                  </td>
+                  <td className={`${tdClass} text-center`}>
+                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                      (o.dias ?? 0) < 7
+                        ? 'bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400'
+                        : (o.dias ?? 0) < 30
+                        ? 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'
+                        : 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+                    }`}>
+                      {o.dias ?? 0}
+                    </span>
+                  </td>
+                  <td className={`${tdClass} text-gray-400`}>{o.fecCotizacion}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {totalPages > 1 && (
+        <div className="flex justify-center mt-4">
+          <Pagination total={totalPages} value={page} onChange={setPage} size="sm" radius="xl" />
+        </div>
+      )}
+
+      <Modal
+        size={modal_size}
+        closeModal={() => setShowModal(false)}
+        openModal={() => setShowModal(true)}
+        showModal={show_modal}
+        title={modal_title}
+        content={modal_content}
       />
-      <Modal size={modal_size} closeModal={() => setShowModal(false)} openModal={() => setShowModal(true)} showModal={show_modal} title={modal_title} content={modal_content}></Modal>
     </div>
   );
 };

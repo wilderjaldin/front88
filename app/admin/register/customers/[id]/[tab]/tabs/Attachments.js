@@ -193,7 +193,7 @@ export default function Attachments({
               <p className="text-sm text-gray-400 text-center py-8">No hay equipos registrados</p>
             ) : (
               <div className="table-responsive">
-                <table className="table-striped table-hover w-full text-sm">
+                <table className="table-striped table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 w-full text-sm">
                   <thead>
                     <tr>
                       <th colSpan={4}

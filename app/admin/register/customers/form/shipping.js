@@ -61,9 +61,13 @@ const ShippingForm = ({
       return;
     }
 
-    const paisObj = paises.find(p => p.value?.toUpperCase() === dir.codPais?.toUpperCase()) ?? null;
+    const paisObj = paises.find(p => p.value?.toUpperCase() === dir.codPais?.toUpperCase())
+      ?? paises.find(p => p.label?.toUpperCase() === dir.nomPais?.toUpperCase())
+      ?? null;
 
-    setIsUsa(dir.codPais?.toUpperCase() === 'US');
+    const codPaisResuelto = paisObj?.value ?? dir.codPais ?? null;
+
+    setIsUsa(codPaisResuelto?.toUpperCase() === 'US');
 
     reset({
       company: dir.nomEmpresa   ?? '',
@@ -77,9 +81,8 @@ const ShippingForm = ({
       zip:     dir.codPostal    ?? '',
     });
 
-    // Cargar ciudades y preseleccionar por nomCiudad (label)
-    if (dir.codPais) {
-      cargarCiudades(dir.codPais, dir.nomCiudad ?? null);
+    if (codPaisResuelto) {
+      cargarCiudades(codPaisResuelto, dir.nomCiudad ?? null);
     }
   }, [dir, loadingPaises]);
 

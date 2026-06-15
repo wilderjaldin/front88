@@ -341,7 +341,7 @@
   "terms_of_payment": "Condiciones de pago",
   "assigned_seller": "Vendedor asignado",
   "seller" : "Vendedor",
-  "utility": "Margen",
+  "utility": "Utilidad",
   "delete_customer_success": "El cliente fué eliminado correctamente",
   "delete_customer_error": "Ocurrio un error al eliminar los datos del cliente. Por favor, inténtalo de nuevo",
   "delete_customer_error_server": "Ocurrio un error en el servidor al eliminar los datos del cliente. Por favor, contáctate con soporte",
@@ -764,7 +764,7 @@
   "total_spare_parts" : "Total Repuestos",
   "freight": "Flete Interno",
   "tax" : "Impuesto",
-  "discount" : "descuento",
+  "discount" : "Descuento",
   "see_more" : "Ver más",
   "modify": "Modificar",
   "web_site" : "Sitio Web",
@@ -884,5 +884,8 @@
   "admin": "Administración",
   "roles" : "Roles",
   "spare_parts_in_lot_supplier" : "Repuestos en lote Proveedor",
-  "spare_parts_site" : "Repuestos Site"
+  "spare_parts_site" : "Repuestos Site",
+  "representative" : "Representante",
+  "representatives" : "Representantes",
+  "categorization" : "Categorización"
 }

@@ -2,6 +2,7 @@
 'use client';
 import { useParams } from 'next/navigation';
 import { useDynamicTitle } from '@/app/hooks/useDynamicTitle';
+import { usePermissions } from '@/app/hooks/usePermissions';
 import General    from './tabs/General';
 import Contacts   from './tabs/Contacts';
 import Conditions from './tabs/Conditions';
@@ -29,7 +30,8 @@ const TAB_TITLES = {
 
 export default function SupplierTabPage() {
   const { tab } = useParams();
+  const { hasPermission } = usePermissions();
   useDynamicTitle(TAB_TITLES[tab] ?? 'Proveedores');
   const Component = TAB_MAP[tab] ?? General;
-  return <Component />;
+  return <Component hasPermission={hasPermission} />;
 }

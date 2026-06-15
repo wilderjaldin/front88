@@ -149,7 +149,7 @@ const MailForm = ({ close, t, item, token, order, order_id, print }) => {
     <>
       <div className="table-responsive">
         {(filteredItems.length > 0) &&
-          <table className="table-striped table-hover table-compact whitespace-nowrap mb-2">
+          <table className="table-striped table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 table-compact whitespace-nowrap mb-2">
             <thead>
               <tr>
                 <th className='w-1'></th>

@@ -59,7 +59,7 @@ const OptionsFilter = ({ t, token, customers, cancel, setOrders }) => {
 
     <>
       <div className="table-responsive">
-        <table className="bg-white table-hover">
+        <table className="bg-white table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700">
           <thead>
             <tr className="relative !bg-gray-400 text-center uppercase">
               <th>

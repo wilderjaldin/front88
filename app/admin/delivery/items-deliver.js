@@ -246,7 +246,7 @@ const ItemsToDelivery = ({ token, t, customer, users, currencies, transports, pa
             </button>
             <BtnPrintDelivery disabled={(items.length > 0) ? false : true} token={token} t={t} items={items}></BtnPrintDelivery>
           </div>
-          <table className="table-hover">
+          <table className="table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700">
             <thead>
               <tr>
                 <th>{ t.nro_order }</th>

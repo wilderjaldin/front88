@@ -141,7 +141,7 @@ const ChangeSupplier = ({ CadNroOrden, close, t, token, item, items, setItems, s
 
   return (
     <>
-      <table className="bg-white table-hover text-sm">
+      <table className="bg-white table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 text-sm">
         <thead>
           <tr className="relative !bg-gray-400 text-center text-sm">
             <th>{ t.nro_part_customer }</th>
@@ -163,7 +163,7 @@ const ChangeSupplier = ({ CadNroOrden, close, t, token, item, items, setItems, s
           </tr>
         </tbody>
       </table>
-      <table className="bg-white table-hover text-sm">
+      <table className="bg-white table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 text-sm">
         <thead>
           <tr className="relative !bg-gray-400 text-center text-sm">
             <th></th>

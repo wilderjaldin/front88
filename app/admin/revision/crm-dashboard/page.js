@@ -169,7 +169,7 @@ export default function CRMDashboard() {
 
           <div className="table-responsive mt-5">
             <h2 className="text-xl font-bold text-blue-600">{ t.pending_quote }</h2>
-            <table className="bg-white table-hover text-sm">
+            <table className="bg-white table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 text-sm">
               <thead>
                 <tr className="relative !bg-gray-400 text-center text-sm">
                   <th className="w-1 !p-0">
@@ -215,7 +215,7 @@ export default function CRMDashboard() {
 
           <div className="table-responsive mt-10">
             <h2 className="text-xl font-bold text-blue-600">{ t.pending_follow_up }</h2>
-            <table className="bg-white table-hover">
+            <table className="bg-white table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700">
               <thead>
                 <tr className="relative !bg-gray-400 text-center !text-sm">
                   <th className="w-1 !p-0"></th>
@@ -275,7 +275,7 @@ export default function CRMDashboard() {
               <div className="border-t border-1 border-gray-400 h-1 w-full my-4"></div>
               <div className="">
                 <h2 className="text-xl font-bold text-blue-600 mb-4 updercase">{ t.inbox }</h2>
-                <table className="bg-white table-hover text-sm">
+                <table className="bg-white table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 text-sm">
                   <thead>
                     <tr className="relative !bg-gray-400 text-center text-sm">
                       <th>{ t.started_by }</th>

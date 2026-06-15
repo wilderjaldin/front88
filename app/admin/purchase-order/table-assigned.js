@@ -53,7 +53,7 @@ const TableAssigned = ({ t, orders_assigned, assignOrder, unassignOrder, createP
           </button>
         </div>
       </div>
-      <table className="bg-white table-hover text-sm">
+      <table className="bg-white table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 text-sm">
         <thead>
           <tr className="relative !bg-gray-400 hover:!bg-gray-400  text-center text-sm">
             <th className="w-1">

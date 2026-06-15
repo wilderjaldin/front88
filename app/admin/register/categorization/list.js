@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { DataTable } from "mantine-datatable";
@@ -156,16 +156,24 @@ export default function CategorizationList() {
   const { codEstado: activeCodEstado } = parseTerm(term);
 
   return (
-    <div className="p-6 space-y-6">
+    <>
+      <ul className="flex space-x-2 rtl:space-x-reverse">
+        <li>Registrar</li>
+        <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
+          <span>Categorización</span>
+        </li>
+      </ul>
+
+      <div className="pt-5 space-y-4">
 
       {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
             Categorización{' '}
-            <span className="text-base font-normal text-gray-400">({total})</span>
-          </h1>
-          <div className="h-1 w-12 rounded bg-primary/70 mt-2" />
+            <span className="text-sm font-normal text-gray-400">({total})</span>
+          </h2>
+          <div className="h-0.5 w-10 rounded bg-primary/60 mt-1" />
         </div>
 
         <div className="flex flex-wrap items-start gap-3">
@@ -252,7 +260,7 @@ export default function CategorizationList() {
         <div className="panel mt-5 overflow-hidden border-0 p-0">
           <div className="datatables">
             <DataTable
-              className="table-hover whitespace-nowrap"
+              className="table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 whitespace-nowrap"
               idAccessor="codRegistro"
               records={data}
               fetching={loading}
@@ -362,5 +370,6 @@ export default function CategorizationList() {
         />
       </Modal>
     </div>
+    </>
   );
 }

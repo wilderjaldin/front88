@@ -274,9 +274,11 @@ const Header = () => {
 
               </div>
               <div className='flex'>
-                <div className="dropdown shrink-0 mr-4">
-                  <BtnNewQuote token={token} t={t} classNameBtn='block p-2 rounded-full bg-gray-300 dark:bg-dark/40 hover:text-primary hover:bg-white-light/90 dark:hover:bg-dark/60' classNameIcon='drop-shadow-xl mx-auto h-4.5 w-4.5 dark:text-[#d0d2d6]'></BtnNewQuote>
-                </div>
+                {hasPermission(PERMISSIONS.CREAR_COTIZACION) && (
+                  <div className="dropdown shrink-0 mr-4">
+                    <BtnNewQuote token={token} t={t} classNameBtn='block p-2 rounded-full bg-gray-300 dark:bg-dark/40 hover:text-primary hover:bg-white-light/90 dark:hover:bg-dark/60' classNameIcon='drop-shadow-xl mx-auto h-4.5 w-4.5 dark:text-[#d0d2d6]'></BtnNewQuote>
+                  </div>
+                )}
 
                 <div className="dropdown shrink-0 mr-4">
                   <button onClick={() => showFormMessage()} className="block p-2 rounded-full bg-white-light/40 dark:bg-dark/40 hover:text-primary hover:bg-white-light/90 dark:hover:bg-dark/60">
@@ -416,6 +418,13 @@ const Header = () => {
                           >
                             {user_redux?.rol}
                           </span>
+
+                          {/* Email */}
+                          {(user_redux?.Email || user_redux?.email) && (
+                            <p className="mt-1.5 text-[11px] text-gray-400 dark:text-gray-500 truncate">
+                              {user_redux.Email ?? user_redux.email}
+                            </p>
+                          )}
 
                         </div>
                       </div>

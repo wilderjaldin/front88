@@ -592,7 +592,7 @@ export default function QuoteIdentify() {
         <DataTable
           noRecordsText="No results match your search query"
           highlightOnHover
-          className="table-hover table-compact whitespace-nowrap"
+          className="table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 table-compact whitespace-nowrap"
           records={items}
           columns={[
             {

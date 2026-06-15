@@ -1,150 +1,152 @@
 'use client';
 
-import React, { useEffect} from 'react';
-import axios from 'axios'
-
+import React, { useEffect } from 'react';
+import axiosClient from '@/app/lib/axiosClient';
 import IconInfoCircle from '@/components/icon/icon-info-circle';
 
-const url = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/ComprarCotizacionFrmPago';
+const URL_FORMA_PAGO = 'cotizaciondetalle/forma-pago';
 
-const MethodPaymentQuote = ({ info_payment, setInfoPayment, load_payment, info_contact, setInfoContact, token, t, order_id, option_payment, setOptionPayment, errorsContact, registerContact }) => {
-
-  
+const MethodPaymentQuote = ({
+  info_payment, setInfoPayment,
+  info_contact, setInfoContact,
+  option_payment, setOptionPayment,
+  savedContact, resetContact,
+  registerContact, errorsContact,
+  t, order_id,
+}) => {
 
   useEffect(() => {
-    if (load_payment) {
-      getInfoPayment();
+    axiosClient
+      .get(`${URL_FORMA_PAGO}/${order_id}`)
+      .then(rs => {
+        setInfoPayment(rs.data.bancos  ?? []);
+        setInfoContact(rs.data.contacto ?? {});
+      })
+      .catch(() => {});
+  }, [order_id]);
+
+  useEffect(() => {
+    if (savedContact?.name || savedContact?.email || savedContact?.phone) {
+      resetContact({ name: savedContact.name ?? '', email: savedContact.email ?? '', phone: savedContact.phone ?? '' });
     }
   }, []);
 
-  const getInfoPayment = async () => {
-    try {
-      const rs = await axios.post(url, { NroOrden: order_id, ValToken: token });
-      if (rs.data.estado == 'Ok') {
-        setInfoPayment(rs.data.dato1);
-        setInfoContact(rs.data.dato2);
-        //setLoadPayment(false);
-      }
-    } catch (error) {
-    }
-  }
+  const PaymentCard = ({ id, title, subtitle, selected, onSelect }) => (
+    <label
+      htmlFor={id}
+      className={`relative flex flex-col gap-1 p-5 rounded-xl border-2 cursor-pointer transition-all duration-150
+        ${selected
+          ? 'border-primary bg-primary/5 shadow-sm'
+          : 'border-gray-200 bg-white hover:border-gray-300'}`}
+    >
+      <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{title}</span>
+      <span className="text-lg font-bold text-gray-800 uppercase">{subtitle}</span>
+      {selected && (
+        <span className="absolute top-3 right-3 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+            <path d="M20 6L9 17l-5-5" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+      )}
+      <input
+        type="radio"
+        id={id}
+        name="payment"
+        value={id}
+        checked={selected}
+        onChange={() => onSelect(id)}
+        className="sr-only"
+      />
+    </label>
+  );
 
-  const handelChangePayment = (e) => {
-    setOptionPayment(e.target.value)
-  }
+  const InfoLine = ({ label, value, bold }) => (
+    <div className="flex items-center justify-between py-2.5 border-b border-dashed border-gray-200 last:border-0">
+      <span className="text-sm text-gray-600">{label}</span>
+      <span className={`text-sm ltr:ml-auto rtl:mr-auto ${bold ? 'font-semibold text-primary' : 'text-gray-800'}`}>{value}</span>
+    </div>
+  );
+
   return (
-    <>
-      <div className="mb-5 flex items-center justify-center">
-        <div className="px-8 w-1/2 bg-white shadow-[4px_6px_10px_-3px_#bfc9d4] rounded border border-white-light dark:border-[#1b2e4b] dark:bg-[#191e3a] dark:shadow-none">
+    <div className="flex justify-center">
+      <div className="w-full max-w-lg bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
 
-          <form action="">
-            <fieldset className="space-y-6 mb-8">
-              <div className="flex items-center justify-between py-4 border-b border-gray-300">
-                <legend className="text-2xl text-gray-700 mr-4">{ t.select_payment_method }</legend>
-              </div>
-              <div className="grid sm:grid-cols-2 gap-6">
-                <label htmlFor="transfer" className="relative flex flex-col bg-white border p-5 rounded-lg shadow-md cursor-pointer">
-                  <span className="font-semibold text-gray-500 leading-tight uppercase mb-3">{ t.transfer }</span>
-                  <span className="font-bold text-gray-900">
-                    <span className="text-2xl uppercase">{ t.banking }</span>
-                  </span>
+        <h2 className="text-base font-semibold text-gray-700 mb-5">{t.select_payment_method}</h2>
 
-                  <input checked={(option_payment == 'transfer')} type="radio" onChange={handelChangePayment} name="payment" id="transfer" value="transfer" className="absolute h-0 w-0 appearance-none" />
-                  <span aria-hidden="true" className="hidden absolute inset-0 border-2 border-green-500 bg-green-200 bg-opacity-10 rounded-lg">
-                    <span className="absolute top-4 right-4 h-6 w-6 inline-flex items-center justify-center rounded-full bg-green-200">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5 text-green-600">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    </span>
-                  </span>
-                </label>
-                <label htmlFor="contact" className="relative flex flex-col bg-white border p-5 rounded-lg shadow-md cursor-pointer">
-                  <span className="font-semibold text-gray-500 leading-tight uppercase mb-3">{ t.form }</span>
-                  <span className="font-bold text-gray-900">
-                    <span className="text-2xl uppercase">{ t.contact }</span>
-                  </span>
-
-                  <input checked={(option_payment == 'contact')} type="radio" onChange={handelChangePayment} name="payment" id="contact" value="contact" className="absolute h-0 w-0 appearance-none" />
-                  <span aria-hidden="true" className="hidden absolute inset-0 border-2 border-green-500 bg-green-200 bg-opacity-10 rounded-lg">
-                    <span className="absolute top-4 right-4 h-6 w-6 inline-flex items-center justify-center rounded-full bg-green-200">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5 text-green-600">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    </span>
-                  </span>
-                </label>
-              </div>
-            </fieldset>
-            {(option_payment == 'transfer') &&
-              <>
-                <h2 className='text-black text-lg font-bold'>{ t.make_the_deposit }</h2>
-                {info_payment.map((p, index) => {
-                  return (
-                    <div key={index} className="relative flex items-center p-2">
-                      <div className="h-1.5 w-1.5 rounded-full bg-primary ltr:mr-1 rtl:ml-1.5"></div>
-                      <div className="flex-1">{p.NomBanco}</div>
-                    </div>
-                  )
-                })}
-                <div className='border-dotted border-b-2 border-gray-300 my-4'></div>
-                <h2 className='text-black text-lg font-bold'>{ t.send_the_receipt }</h2>
-                {info_contact.map((c, index) => {
-                  return (
-                    <div key={index}>
-                      <div className="relative flex items-center p-2 border-dotted border-b-2 border-gray-200 my-4">
-                        <div className="h-1.5 w-1.5 rounded-full bg-primary ltr:mr-1 rtl:ml-1.5"></div>
-                        <div className="flex-1">{t.email}</div>
-                        <div className="text-blue-600 font-bold ltr:ml-auto rtl:mr-auto">{c.CtoMail}</div>
-                      </div>
-
-                      <div className="relative flex items-center p-2 border-dotted border-b-2 border-gray-200 my-4">
-                        <div className="h-1.5 w-1.5 rounded-full bg-primary ltr:mr-1 rtl:ml-1.5"></div>
-                        <div className="flex-1">WhatsApp</div>
-                        <div className="text-blue-600 font-bold ltr:ml-auto rtl:mr-auto">{c.NumCel}</div>
-                      </div>
-                    </div>
-                  )
-                })}
-                <blockquote className="flex my-8 rounded-br-md rounded-tr-md border border-l-2 border-white-light !border-l-secondary bg-white p-5 text-black shadow-md ltr:pl-3.5 rtl:pr-3.5 dark:border-[#060818] dark:bg-[#060818]">
-                  <IconInfoCircle className='text-secondary'></IconInfoCircle> <span className='ml-4'>{ t.order_will_be_processed }</span>
-                </blockquote>
-              </>
-            }
-            {(option_payment == 'contact') &&
-              <div className='space-y-4 mb-8'>
-
-                <div className="flex sm:flex-row flex-col items-center">
-                  <label className="mb-0 sm:w-1/4 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="name">{t.name}</label>
-                  <div className="relative flex-1">
-                    <input type='text' autoComplete='OFF' {...registerContact("name", { required: { value: true, message: t.required_field } })} aria-invalid={errorsContact.name ? "true" : "false"} placeholder={t.enter_name} className="form-input placeholder:" />
-                    {errorsContact.name && <span className='text-red-400 error block text-xs mt-1' role="alert">{errorsContact.name?.message?.toString()}</span>}
-                  </div>
-                </div>
-                <div className="flex sm:flex-row flex-col items-center">
-                  <label className="mb-0 sm:w-1/4 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="email">{t.email}</label>
-                  <div className="relative flex-1">
-                    <input type='text' autoComplete='OFF' {...registerContact("email", { required: { value: true, message: t.required_field } })} aria-invalid={errorsContact.email ? "true" : "false"} placeholder={t.enter_email} className="form-input placeholder:" />
-                    {errorsContact.email && <span className='text-red-400 error block text-xs mt-1' role="alert">{errorsContact.email?.message?.toString()}</span>}
-                  </div>
-                </div>
-                <div className="flex sm:flex-row flex-col items-center">
-                  <label className="mb-0 sm:w-1/4 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="phone">{t.phone}</label>
-                  <div className="relative flex-1">
-                    <input type='text' autoComplete='OFF' {...registerContact("phone", { required: { value: true, message: t.required_field } })} aria-invalid={errorsContact.phone ? "true" : "false"} placeholder={t.enter_phone} className="form-input placeholder:" />
-                    {errorsContact.phone && <span className='text-red-400 error block text-xs mt-1' role="alert">{errorsContact.phone?.message?.toString()}</span>}
-                  </div>
-                </div>
-
-                
-
-              </div>
-            }
-          </form>
-
+        {/* Tarjetas de selección */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <PaymentCard
+            id="TB"
+            title={t.transfer}
+            subtitle={t.banking}
+            selected={option_payment === 'TB'}
+            onSelect={setOptionPayment}
+          />
+          <PaymentCard
+            id="CT"
+            title={t.form}
+            subtitle={t.contact}
+            selected={option_payment === 'CT'}
+            onSelect={setOptionPayment}
+          />
         </div>
-      </div>
 
-    </>
+        {/* Transferencia bancaria */}
+        {option_payment === 'TB' && (
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">{t.make_the_deposit}</h3>
+              {info_payment.map((banco, i) => (
+                <div key={i} className="flex items-center gap-2 py-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                  <span className="text-sm text-gray-700">{banco}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="border-t border-gray-100 pt-4">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">{t.send_the_receipt}</h3>
+              {info_contact.corEle  && <InfoLine label={t.email}    value={info_contact.corEle}  bold />}
+              {info_contact.numCelWp && <InfoLine label="WhatsApp"  value={info_contact.numCelWp} bold />}
+            </div>
+
+            <div className="flex items-start gap-3 rounded-xl bg-secondary/5 border border-secondary/20 p-4">
+              <IconInfoCircle className="text-secondary shrink-0 mt-0.5 h-5 w-5" />
+              <p className="text-sm text-gray-600">{t.order_will_be_processed}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Formulario de contacto */}
+        {option_payment === 'CT' && (
+          <div className="space-y-3">
+            {[
+              { name: 'name',  label: t.name,  placeholder: t.enter_name,  required: true  },
+              { name: 'email', label: t.email, placeholder: t.enter_email, required: false },
+              { name: 'phone', label: t.phone, placeholder: t.enter_phone, required: true  },
+            ].map(f => (
+              <div key={f.name} className="flex items-center gap-3">
+                <label className={`w-28 shrink-0 text-sm font-medium text-gray-500 text-right${f.required ? ' required' : ''}`}>{f.label}</label>
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    autoComplete="off"
+                    {...registerContact(f.name, f.required ? { required: { value: true, message: t.required_field } } : {})}
+                    aria-invalid={errorsContact[f.name] ? "true" : "false"}
+                    placeholder={f.placeholder}
+                    className="form-input h-9 text-sm w-full"
+                  />
+                  {errorsContact[f.name] && (
+                    <span className="text-red-400 text-xs mt-0.5 block pl-0">{errorsContact[f.name]?.message?.toString()}</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+      </div>
+    </div>
   );
 };
 

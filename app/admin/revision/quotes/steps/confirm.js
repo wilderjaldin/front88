@@ -1,289 +1,230 @@
 'use client';
 
-import React, { useEffect } from 'react';
-import axios from 'axios'
-import Swal from 'sweetalert2'
-const url = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/ComprarCotizacion';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import React from 'react';
+import axiosClient from '@/app/lib/axiosClient';
+import Swal from 'sweetalert2';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useDispatch } from 'react-redux';
+import { clearBuyWizard } from '@/store/buyWizardSlice';
+import { customFormat } from '@/app/lib/format';
 
-const url_buy_quote = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/ConfirmarCotizacion';
+const URL_CONFIRM = 'cotizaciondetalle/confirmarcot';
 
-const ConfirmQuote = ({ quote_detail, setQuoteDetail, load_detail, setLoadDetail, token, t, order_id, shipping_info, goTo, option_payment, info_contact, info_payment, contact }) => {
+const ICON_CHECK    = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const ICON_X        = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg>`;
+const ICON_QUESTION = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
-  const router = useRouter();
-  const pathname = usePathname();
+const swalSuccess = (title, msg = '') => Swal.fire({
+  html: `<div style="padding:12px 0 6px">
+    <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#86efac,#16a34a);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 8px 24px rgba(22,163,74,0.3)">${ICON_CHECK}</div>
+    ${msg ? `<p style="color:#94a3b8;font-size:11px;margin:0 0 6px;text-transform:uppercase;letter-spacing:.08em">${msg}</p>` : ''}
+    <h2 style="color:#1e293b;font-size:17px;font-weight:700;margin:0;line-height:1.3">${title}</h2>
+  </div>`,
+  position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true,
+});
+
+const swalError = (title, msg = '', confirmText = 'Cerrar') => Swal.fire({
+  html: `<div style="padding:12px 0 6px">
+    <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#fca5a5,#ef4444);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 8px 24px rgba(239,68,68,0.3)">${ICON_X}</div>
+    <h2 style="color:#1e293b;font-size:17px;font-weight:700;margin:0 0 10px;line-height:1.3">${title}</h2>
+    ${msg ? `<p style="color:#64748b;font-size:13px;margin:0">${msg}</p>` : ''}
+  </div>`,
+  showConfirmButton: true, confirmButtonText: confirmText, confirmButtonColor: '#ef4444',
+});
+
+const swalConfirm = (title, msg = '', { confirmText = 'Sí', cancelText = 'Cancelar', confirmColor = '#4f46e5' } = {}) => Swal.fire({
+  html: `<div style="padding:12px 0 6px">
+    <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#a5b4fc,#4f46e5);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 8px 24px rgba(79,70,229,0.3)">${ICON_QUESTION}</div>
+    <h2 style="color:#1e293b;font-size:17px;font-weight:700;margin:0 0 10px;line-height:1.3">${title}</h2>
+    ${msg ? `<p style="color:#64748b;font-size:13px;margin:0">${msg}</p>` : ''}
+  </div>`,
+  showCancelButton: true, reverseButtons: true,
+  confirmButtonText: confirmText, cancelButtonText: cancelText, confirmButtonColor: confirmColor,
+});
+
+const ConfirmQuote = ({
+  summary, shipping_info, contact, option_payment,
+  info_payment, info_contact, token, t, order_id, goTo,
+}) => {
+  const router      = useRouter();
   const searchParams = useSearchParams();
-
-  useEffect(() => {
-
-    if (load_detail) {
-
-      getDetail();
-    }
-  }, []);
-
-  const getDetail = async () => {
-    try {
-      const rs = await axios.post(url, { NroOrden: order_id, ValToken: token });
-
-      if (rs.data.estado == 'OK') {
-        setQuoteDetail(rs.data.dato[0]);
-        setLoadDetail(false);
-      }
-    } catch (error) {
-
-    }
-  }
+  const dispatch    = useDispatch();
 
   const goToQuote = () => {
-    const nextSearchParams = new URLSearchParams(searchParams.toString());
-    nextSearchParams.delete("step");
-    nextSearchParams.set('option', 'quotes')
-    router.replace(`${pathname}?${nextSearchParams}`);
-  }
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('step');
+    params.set('option', 'quotes');
+    router.replace(`/admin/revision/quotes?${params.toString()}`);
+  };
 
   const confirmQuote = () => {
-    Swal.fire({
-      title: t.question_buy_quote,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#22c55e',
-      confirmButtonText: t.yes_confirm,
-      cancelButtonText: t.btn_cancel,
-      reverseButtons: true
+    swalConfirm(t.question_buy_quote, '', {
+      confirmText: t.yes_confirm,
+      cancelText: t.btn_cancel,
+      confirmColor: '#15803d',
     }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          const data = {
-            NroOrden: order_id,
-            FrmPago: (option_payment === 'transfer') ? t.transfer : "CONTACTAR",
-            DirEntNomPais: shipping_info.country,
-            DirEntNomCiudad: shipping_info.city,
-            DirEntDireccion: shipping_info.address,
-            DirEntNomEmpresa: shipping_info.company,
-            DirEntNomContacto: shipping_info.contact,
-            DirEntNumTelefono: shipping_info.phone,
-            DirEntMail: shipping_info.email,
-            DirEntNomEstado: shipping_info.state,
-            DirEntCodPostal: shipping_info.zip,
-            CtoNomContacto: contact.name,
-            CtoNumTelefono: contact.phone,
-            CtoMail: contact.email,
-            InsEntrega: shipping_info.note,
-            ValToken: token
+      if (!result.isConfirmed) return;
+      try {
+        const rs = await axiosClient.put(URL_CONFIRM, {
+          NroCotizacion:     order_id,
+          FrmPago:           option_payment,
+          DirEntNomPais:     shipping_info.country      ?? '',
+          DirEntNomCiudad:   shipping_info.city         ?? '',
+          DirEntDireccion:   shipping_info.address      ?? '',
+          DirEntNomEmpresa:  shipping_info.company      ?? '',
+          DirEntNomContacto: shipping_info.contact      ?? '',
+          DirEntNumTelefono: shipping_info.phone        ?? '',
+          DirEntMail:        shipping_info.email        ?? '',
+          DirEntNomEstado:   shipping_info.state        ?? '',
+          DirEntCodPostal:   shipping_info.zip          ?? '',
+          CtoNomContacto:    contact.name               ?? '',
+          CtoNumTelefono:    contact.phone              ?? '',
+          CtoMail:           contact.email              ?? '',
+          InsEntrega:        shipping_info.note         ?? '',
+          NomTransporte:     shipping_info._transporteLabel ?? '',
+          NumCtaTransporte:  shipping_info._cuentaTransporte ?? '',
+        });
 
-          }
-
-
-
-          let rs = await axios.post(url_buy_quote, data);
-
-          if (rs.data.estado == "Ok") {
-            Swal.fire({
-              position: "top-end",
-              icon: "success",
-              title: t.quote_buy_success,
-              showConfirmButton: false,
-              timer: 1500
-            }).then(r => {
-              const customer_id = searchParams.get("customer");
-              router.push(`/admin/revision/orders-process?customer=${customer_id}&option=open`);
-              return;
-            });
-
-          } else {
-            Swal.fire({
-              position: "top-end",
-              icon: "error",
-              title: t.quote_buy_error,
-              showConfirmButton: false,
-              timer: 1500
-            });
-          }
-
-
-        } catch (error) {
-
-          Swal.fire({
-            title: t.error,
-            text: t.quote_buy_success_server,
-            icon: 'error',
-            confirmButtonColor: '#dc2626',
-            confirmButtonText: t.close
+        if (rs.data.resultado === 'ok') {
+          dispatch(clearBuyWizard());
+          swalSuccess(rs.data.mensaje ?? t.quote_buy_success).then(() => {
+            const customer_id = searchParams.get("customer");
+            router.push(`/admin/revision/orders-process?customer=${customer_id}&option=open`);
           });
+        }
+      } catch (error) {
+        const status = error?.response?.status;
+        const apiMsg = error?.response?.data?.mensaje;
+        if (status === 400) {
+          swalError(t.error ?? 'Error', apiMsg ?? t.quote_buy_error, t.close ?? 'Cerrar');
+        } else {
+          console.error('[confirmarcot 500]', error?.response?.data?.detalle);
+          swalError(t.error ?? 'Error', t.quote_buy_success_server ?? 'Error en el servidor, intenta nuevamente.', t.close ?? 'Cerrar');
         }
       }
     });
-  }
+  };
+
+  const total = summary?.total != null
+    ? `${summary.moneda ?? 'USD'} ${customFormat(summary.total)}`
+    : '-';
+
+  const SummaryLine = ({ label, value, accent }) => (
+    <div className="flex items-center justify-between py-2.5 border-b border-dashed border-gray-100 last:border-0">
+      <span className="text-sm text-gray-500">{label}</span>
+      <span className={`text-sm font-semibold ${accent ? 'text-primary' : 'text-gray-800'}`}>{value ?? '-'}</span>
+    </div>
+  );
 
   return (
-    <div className="mb-5 flex items-center justify-center">
-      <div className="mb-5 w-3/4">
-        <div className='flex flex-row gap-8'>
-          <div className="basis-3/5">
+    <div className="flex justify-center">
+      <div className="w-full max-w-4xl">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
 
-            <div className="px-8 w-full bg-white shadow-[4px_6px_10px_-3px_#bfc9d4] rounded border border-white-light dark:border-[#1b2e4b] dark:bg-[#191e3a] dark:shadow-none">
-              <h2 className='text-lg text-black font-bold mt-4'>{t.shipment}/{t.delivery_place}</h2>
+          {/* Columna izquierda — Envío + Pago */}
+          <div className="lg:col-span-3 space-y-4">
 
-              <div className="relative flex items-center p-2 border-dotted border-b-2 border-gray-300">
-                <div className="flex-1">{t.country}/{t.city}</div>
-                <div className="text-blue-600 ltr:ml-auto rtl:mr-auto">{shipping_info.country} / {shipping_info.city}</div>
-              </div>
-
-              <div className="relative flex items-center p-2 border-dotted border-b-2 border-gray-300">
-                <div className="flex-1">{t.address}</div>
-                <div className="text-blue-600 ltr:ml-auto rtl:mr-auto">{shipping_info.address}</div>
-              </div>
-              <div className="relative flex items-center p-2 border-dotted border-b-2 border-gray-300">
-                <div className="flex-1">{t.company}</div>
-                <div className="text-blue-600 ltr:ml-auto rtl:mr-auto">{shipping_info.company}</div>
-              </div>
-              {(shipping_info.country == 'USA') &&
-                <div className="relative flex items-center p-2 border-dotted border-b-2 border-gray-300">
-                  <div className="flex-1">{t.state}</div>
-                  <div className="text-blue-600 ltr:ml-auto rtl:mr-auto">{shipping_info.state}</div>
-                </div>
-              }
-              <div className="relative flex items-center p-2 border-dotted border-b-2 border-gray-300">
-                <div className="flex-1">{t.contact}</div>
-                <div className="text-blue-600 ltr:ml-auto rtl:mr-auto">{shipping_info.contact}</div>
-              </div>
-              {(shipping_info.country == 'USA') &&
-                <div className="relative flex items-center p-2 border-dotted border-b-2 border-gray-300">
-                  <div className="flex-1">{t.zip}</div>
-                  <div className="text-blue-600 ltr:ml-auto rtl:mr-auto">{shipping_info.zip}</div>
-                </div>
-              }
-              <div className="relative flex items-center p-2 border-dotted border-b-2 border-gray-300">
-                <div className="flex-1">{t.phone}</div>
-                <div className="text-blue-600 ltr:ml-auto rtl:mr-auto">{shipping_info.phone}</div>
-              </div>
-              <div className="relative flex items-center p-2 border-dotted border-b-2 border-gray-300">
-                <div className="flex-1">{t.email}</div>
-                <div className="text-blue-600 ltr:ml-auto rtl:mr-auto">{shipping_info.email}</div>
-              </div>
-              <div className="relative flex items-center p-2">
-                <div className="flex-1">{t.delivery_instruction}</div>
-                <div className="text-blue-600 ltr:ml-auto rtl:mr-auto pl-4">{shipping_info.note}</div>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
-                <button type="button" className="btn btn-dark" onClick={() => goTo(2)}>
+            {/* Tarjeta Envío */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-gray-700">{t.shipment} / {t.delivery_place ?? t.delivery_location}</h3>
+                <button
+                  type="button"
+                  onClick={() => goTo(2)}
+                  className="text-xs text-primary hover:underline font-medium"
+                >
                   {t.change_delivery_location}
                 </button>
-
               </div>
-
+              <div className="space-y-0.5">
+                <SummaryLine label={`${t.country} / ${t.city}`}    value={`${shipping_info.country ?? '-'} / ${shipping_info.city ?? '-'}`} />
+                <SummaryLine label={t.address}   value={shipping_info.address} />
+                <SummaryLine label={t.company}   value={shipping_info.company} />
+                <SummaryLine label={t.contact}   value={shipping_info.contact} />
+                <SummaryLine label={t.phone}     value={shipping_info.phone}   />
+                <SummaryLine label={t.email}     value={shipping_info.email}   />
+                {shipping_info.state && <SummaryLine label={t.state} value={shipping_info.state} />}
+                {shipping_info.zip   && <SummaryLine label={t.zip}   value={shipping_info.zip}   />}
+                {shipping_info.note  && <SummaryLine label={t.delivery_instruction ?? t.delivery_instructions} value={shipping_info.note} />}
+              </div>
             </div>
 
-            <div className="mt-8 px-8 w-full bg-white shadow-[4px_6px_10px_-3px_#bfc9d4] rounded border border-white-light dark:border-[#1b2e4b] dark:bg-[#191e3a] dark:shadow-none">
-              <h2 className='text-lg text-black font-bold mt-4'>{t.method_of_payment}</h2>
-
-              {(option_payment === 'transfer') ?
-                <div>
-                  <h2 className='text-lg'>{t.by_bank_transfer}:</h2>
-
-                  {info_payment.map((p, index) => {
-                    return (
-                      <div key={index} className="relative flex items-center p-2">
-                        <div className="h-1.5 w-1.5 rounded-full bg-primary ltr:mr-1 rtl:ml-1.5"></div>
-                        <div className="flex-1">{p.NomBanco}</div>
-                      </div>
-                    )
-                  })}
-
-                  <div className='border-dotted border-b-2 border-gray-300 my-4'></div>
-                  <h2 className='text-black text-lg font-bold'>{t.send_the_receipt}</h2>
-
-                  {info_contact.map((c, index) => {
-                    return (
-                      <div key={index}>
-                        <div className="relative flex items-center p-2 border-dotted border-b-2 border-gray-200 my-4">
-                          <div className="flex-1">{t.email}</div>
-                          <div className="text-blue-600 font-bold ltr:ml-auto rtl:mr-auto">{c.CtoMail}</div>
-                        </div>
-
-                        <div className="relative flex items-center p-2 border-dotted border-b-2 border-gray-200 my-4">
-                          <div className="flex-1">WhatsApp</div>
-                          <div className="text-blue-600 font-bold ltr:ml-auto rtl:mr-auto">{c.NumCel}</div>
-                        </div>
-                      </div>
-                    )
-                  })}
-
-                </div>
-                :
-                <div>
-                  <h2 className='text-lg'>{t.we_will_contact}:</h2>
-
-                  <div className="relative flex items-center p-2 border-dotted border-b-2 border-gray-300">
-                    <div className="flex-1">{t.name}</div>
-                    <div className="text-blue-600 ltr:ml-auto rtl:mr-auto">{contact.name}</div>
-                  </div>
-                  <div className="relative flex items-center p-2 border-dotted border-b-2 border-gray-300">
-                    <div className="flex-1">{t.email}</div>
-                    <div className="text-blue-600 ltr:ml-auto rtl:mr-auto">{contact.email}</div>
-                  </div>
-                  <div className="relative flex items-center p-2">
-                    <div className="flex-1">{t.phone}</div>
-                    <div className="text-blue-600 ltr:ml-auto rtl:mr-auto pl-4">{contact.phone}</div>
-                  </div>
-
-                </div>
-              }
-
-              <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
-                <button type="button" className="btn btn-dark" onClick={() => goTo(3)}>
+            {/* Tarjeta Forma de Pago */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-gray-700">{t.method_of_payment}</h3>
+                <button
+                  type="button"
+                  onClick={() => goTo(3)}
+                  className="text-xs text-primary hover:underline font-medium"
+                >
                   {t.modify_payment_method}
                 </button>
-
               </div>
 
+              {option_payment === 'TB' ? (
+                <div className="space-y-0.5">
+                  <p className="text-sm text-gray-500 mb-2">{t.by_bank_transfer}:</p>
+                  {info_payment.map((banco, i) => (
+                    <div key={i} className="flex items-center gap-2 py-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                      <span className="text-sm text-gray-700">{banco}</span>
+                    </div>
+                  ))}
+                  <div className="border-t border-gray-100 mt-3 pt-3">
+                    <p className="text-sm font-semibold text-gray-700 mb-2">{t.send_the_receipt}</p>
+                    {info_contact.corEle   && <SummaryLine label={t.email}   value={info_contact.corEle}   accent />}
+                    {info_contact.numCelWp && <SummaryLine label="WhatsApp"  value={info_contact.numCelWp} accent />}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-0.5">
+                  <p className="text-sm text-gray-500 mb-2">{t.we_will_contact}:</p>
+                  <SummaryLine label={t.name}  value={contact.name}  />
+                  <SummaryLine label={t.email} value={contact.email} />
+                  <SummaryLine label={t.phone} value={contact.phone} />
+                </div>
+              )}
             </div>
-
           </div>
-          <div className="basis-2/5">
-            <div className="px-8 w-full bg-white shadow-[4px_6px_10px_-3px_#bfc9d4] rounded border border-white-light dark:border-[#1b2e4b] dark:bg-[#191e3a] dark:shadow-none">
 
-              <div className="relative flex items-center p-2 border-dotted border-b-2 border-gray-300">
-                <div className="h-1.5 w-1.5 rounded-full bg-primary ltr:mr-1 rtl:ml-1.5"></div>
-                <div className="flex-1">{t.nro_order}</div>
-                <div className="text-xl text-blue-600 font-bold ltr:ml-auto rtl:mr-auto">{quote_detail?.NroOrden}</div>
+          {/* Columna derecha — Resumen + Confirmar */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 sticky top-20">
+              <h3 className="text-sm font-semibold text-gray-700 mb-4">{t.verify}</h3>
+              <div className="space-y-0.5 mb-5">
+                <SummaryLine label={t.nro_order ?? t.order_number}   value={summary?.nroCotizacion} />
+                <SummaryLine label={t.nro_pedido ?? t.pedido_number} value={summary?.pedido || '-'} />
+                <SummaryLine label="Items"                           value={summary?.items} />
+              </div>
+              <div className="border-t border-gray-100 pt-4 mb-5">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">Total</span>
+                  <span className="text-2xl font-bold text-green-600">{total}</span>
+                </div>
               </div>
 
-              <div className="relative flex items-center p-2 border-dotted border-b-2 border-gray-300">
-                <div className="h-1.5 w-1.5 rounded-full bg-primary ltr:mr-1 rtl:ml-1.5"></div>
-                <div className="flex-1">{t.nro_pedido}</div>
-                <div className="text-xl text-blue-600 font-bold ltr:ml-auto rtl:mr-auto">{quote_detail?.NroPedido}</div>
-              </div>
-              <div className="relative flex items-center p-2 border-dotted border-b-2 border-gray-300">
-                <div className="h-1.5 w-1.5 rounded-full bg-primary ltr:mr-1 rtl:ml-1.5"></div>
-                <div className="flex-1">Items</div>
-                <div className="text-xl text-blue-600 font-bold ltr:ml-auto rtl:mr-auto">{quote_detail?.NroItems}</div>
-              </div>
-              <div className="relative flex items-center p-2">
-                <div className="h-1.5 w-1.5 rounded-full bg-primary ltr:mr-1 rtl:ml-1.5"></div>
-                <div className="flex-1">Total</div>
-                <div className="text-xl text-blue-600 font-bold ltr:ml-auto rtl:mr-auto">{quote_detail?.TotResumen}</div>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
-                <button type="button" className="btn btn-dark" onClick={() => goToQuote()}>
-                  {t.modify}
-                </button>
-
-                <button type="button" onClick={() => confirmQuote()} className="btn btn-success">
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={confirmQuote}
+                  className="w-full inline-flex items-center justify-center gap-2 h-10 px-5 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition shadow-sm"
+                >
                   {t.confirm}
                 </button>
-
+                <button
+                  type="button"
+                  onClick={goToQuote}
+                  className="w-full inline-flex items-center justify-center gap-2 h-9 px-4 rounded-xl border border-gray-300 text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 transition"
+                >
+                  {t.modify}
+                </button>
               </div>
-
             </div>
           </div>
+
         </div>
-
       </div>
-
     </div>
   );
 };

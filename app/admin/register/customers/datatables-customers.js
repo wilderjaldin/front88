@@ -5,13 +5,14 @@ import { DataTable } from 'mantine-datatable';
 import { Pagination } from '@mantine/core';
 import IconPencil from '@/components/icon/icon-pencil';
 import IconToggleOn from '@/components/icon/icon-toggle-on';
-import IconToggleOff from '@/components/icon/icon-toggle-off';
+import IconTrash from '@/components/icon/icon-trash';
 import IconSettings from '@/components/icon/icon-settings';
 import IconListCheck from '@/components/icon/icon-list-check';
 import IconLayoutGrid from '@/components/icon/icon-layout-grid';
 import { useDevice } from '@/context/device-context';
 import Swal from 'sweetalert2';
 import axiosClient from '@/app/lib/axiosClient';
+import { PERMISSIONS } from '@/constants/permissions';
 
 const URL_STATUS = '/clientes/status';
 
@@ -23,7 +24,7 @@ const Toast = Swal.mixin({
 const IDIOMA_LABEL = { ES: 'Español', US: 'Inglés' };
 
 // ── Tarjeta grid ──────────────────────────────────────────────────────────────
-const ClienteCard = ({ c, onEdit, onStatus, onSettings }) => (
+const ClienteCard = ({ c, onEdit, onStatus, onSettings, t, hasPermission }) => (
   <div className="group relative rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 overflow-hidden">
 
     <div className="flex items-start justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
@@ -36,8 +37,8 @@ const ClienteCard = ({ c, onEdit, onStatus, onSettings }) => (
         </p>
       </div>
       <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${c.codEstado === 'AC'
-          ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
-          : 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300'
+        ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+        : 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300'
         }`}>
         {c.codEstado === 'AC' ? t.active : t.inactive}
       </span>
@@ -51,8 +52,10 @@ const ClienteCard = ({ c, onEdit, onStatus, onSettings }) => (
         </div>
       )}
       <div className="flex gap-2">
-        <span className="text-gray-400 shrink-0">País</span>
-        <span className="text-gray-700 dark:text-gray-300">{c.nomPais || '—'}</span>
+        <span className="text-gray-400 shrink-0">Ubicación</span>
+        <span className="text-gray-700 dark:text-gray-300">
+          {[c.nomPais, c.nomCiudad].filter(Boolean).join(' · ') || '—'}
+        </span>
       </div>
       {c.sitWeb && (
         <div className="flex gap-2">
@@ -64,21 +67,25 @@ const ClienteCard = ({ c, onEdit, onStatus, onSettings }) => (
     </div>
 
     <div className="flex items-center justify-end gap-1 px-4 py-2 border-t border-gray-100 dark:border-gray-700">
-      <button onClick={() => onEdit(c)} title="Editar"
-        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition">
-        <IconPencil className="w-4 h-4 text-blue-500" />
-      </button>
-      <button onClick={() => onStatus(c)} title={c.codEstado === 'AC' ? 'Desactivar' : 'Activar'}
+      {(hasPermission(PERMISSIONS.EDITAR_CLIENTE)) &&
+        <button onClick={() => onEdit(c)} title="Editar"
+          className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+          <IconPencil className="w-4 h-4 text-blue-500" />
+        </button>
+      }
+      <button onClick={() => onStatus(c)} title={c.codEstado === 'AC' ? 'Eliminar' : 'Activar'}
         className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition">
         {c.codEstado === 'AC'
-          ? <IconToggleOn className="w-6 h-6 fill-green-500" />
-          : <IconToggleOff className="w-6 h-6 text-gray-400" />
+          ? <IconTrash className="w-4 h-4 text-red-500" />
+          : <IconToggleOn className="w-6 h-6 text-gray-400" />
         }
       </button>
-      <button onClick={() => onSettings(c)} title="Configuraciones"
-        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition">
-        <IconSettings className="w-4 h-4 text-gray-500" />
-      </button>
+      {(hasPermission(PERMISSIONS.ELIMINAR_CLIENTE)) &&
+        <button onClick={() => onSettings(c)} title="Configuraciones"
+          className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+          <IconSettings className="w-4 h-4 text-gray-500" />
+        </button>
+      }
     </div>
   </div>
 );
@@ -92,8 +99,8 @@ const DatatablesCustomers = ({
   onPageChange,
   onEdit,
   setData,
-  setTotal,
-  t
+  t,
+  hasPermission = () => false,
 }) => {
   const router = useRouter();
   const { isMobile } = useDevice();
@@ -105,7 +112,7 @@ const DatatablesCustomers = ({
 
   const handleStatus = async (c) => {
     const nuevoEstado = c.codEstado === 'AC' ? 'IN' : 'AC';
-    const accion = nuevoEstado === 'IN' ? 'desactivar' : 'activar';
+    const accion = nuevoEstado === 'IN' ? 'eliminar' : 'activar';
 
     const result = await Swal.fire({
       title: `¿Deseas ${accion} este cliente?`,
@@ -121,13 +128,14 @@ const DatatablesCustomers = ({
     if (!result.isConfirmed) return;
 
     try {
-      const res = await axiosClient.post(URL_STATUS, {
+      await axiosClient.post(URL_STATUS, {
         codCliente: c.codCliente,
         codEstado: nuevoEstado,
       });
-      setData(res.data.data);
-      setTotal(res.data.total);
-      Toast.fire({ icon: 'success', title: `Cliente ${nuevoEstado === 'AC' ? 'activado' : 'desactivado'}` });
+      setData(prev => prev.map(item =>
+        item.codCliente === c.codCliente ? { ...item, codEstado: nuevoEstado } : item
+      ));
+      Toast.fire({ icon: 'success', title: nuevoEstado === 'AC' ? 'Cliente activado' : 'Cliente eliminado' });
     } catch {
       Toast.fire({ icon: 'error', title: 'Error al cambiar estado' });
     }
@@ -161,7 +169,14 @@ const DatatablesCustomers = ({
         <div className="panel mt-5 overflow-hidden border-0 p-0">
           <div className="datatables">
             <DataTable
-              className="table-hover whitespace-nowrap"
+              className="
+                whitespace-nowrap text-xs
+                [&_thead]:bg-gray-50 [&_thead]:dark:bg-gray-800
+                [&_thead_th]:text-[11px] [&_thead_th]:font-semibold [&_thead_th]:uppercase [&_thead_th]:tracking-wide
+                [&_thead_th]:text-gray-500 [&_thead_th]:dark:text-gray-400
+                [&_tbody_td]:text-xs [&_tbody_td]:text-gray-700 [&_tbody_td]:dark:text-gray-300
+                [&_tbody_tr]:transition [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700
+              "
               idAccessor="codCliente"
               records={data}
               columns={[
@@ -170,13 +185,15 @@ const DatatablesCustomers = ({
                   accessor: 'codCliente',
                   render: (c) => (
                     <div className="flex gap-1">
-                      <button
-                        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                        onClick={() => onEdit(c)}
-                        title="Editar"
-                      >
-                        <IconPencil className="w-4 h-4 text-blue-500" />
-                      </button>
+                      {(hasPermission(PERMISSIONS.EDITAR_CLIENTE)) &&
+                        <button
+                          className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                          onClick={() => onEdit(c)}
+                          title="Editar"
+                        >
+                          <IconPencil className="w-4 h-4 text-blue-500" />
+                        </button>
+                      }
                       <button
                         className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
                         onClick={() => onSettings(c)}
@@ -184,16 +201,18 @@ const DatatablesCustomers = ({
                       >
                         <IconSettings className="w-4 h-4 text-gray-500" />
                       </button>
-                      <button
-                        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                        onClick={() => handleStatus(c)}
-                        title={c.codEstado === 'AC' ? 'Desactivar' : 'Activar'}
-                      >
-                        {c.codEstado === 'AC'
-                          ? <IconToggleOn className="w-8 h-8 fill-green-500" />
-                          : <IconToggleOff className="w-8 h-8 text-gray-400" />
-                        }
-                      </button>
+                      {(hasPermission(PERMISSIONS.ELIMINAR_CLIENTE)) &&
+                        <button
+                          className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                          onClick={() => handleStatus(c)}
+                          title={c.codEstado === 'AC' ? 'Eliminar' : 'Activar'}
+                        >
+                          {c.codEstado === 'AC'
+                            ? <IconTrash className="w-4 h-4 text-red-500" />
+                            : <IconToggleOn className="w-8 h-8 text-gray-400" />
+                          }
+                        </button>
+                      }
                     </div>
                   ),
                 },
@@ -214,24 +233,17 @@ const DatatablesCustomers = ({
                 },
                 {
                   accessor: 'nomPais',
-                  title: 'País',
-                  sortable: false,
-                  render: (c) => <span className="text-gray-500">{c.nomPais || '—'}</span>,
-                },
-                {
-                  accessor: 'codCiudad',
-                  title: 'Ciudad',
-                  sortable: false,
-                  render: (c) => <span className="text-gray-500">{c.codCiudad || '—'}</span>,
-                },
-                {
-                  accessor: 'dirCliente',
-                  title: 'Dirección',
+                  title: 'Ubicación',
                   sortable: false,
                   render: (c) => (
-                    <span className="text-gray-500 max-w-[200px] truncate block">
-                      {c.dirCliente || '—'}
-                    </span>
+                    <div className="text-xs space-y-0.5">
+                      <div className="text-gray-700 dark:text-gray-300 font-medium">
+                        {[c.nomPais || c.codPais, c.nomCiudad].filter(Boolean).join(' · ')}
+                      </div>
+                      {c.dirCliente && (
+                        <div className="text-gray-400 max-w-[220px] truncate">{c.dirCliente}</div>
+                      )}
+                    </div>
                   ),
                 },
                 {
@@ -248,8 +260,8 @@ const DatatablesCustomers = ({
                   sortable: false,
                   render: (c) => (
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${c.codEstado === 'AC'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-red-100 text-red-600'
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-red-100 text-red-600'
                       }`}>
                       {c.codEstado === 'AC' ? t.active : t.inactive}
                     </span>
@@ -306,6 +318,8 @@ const DatatablesCustomers = ({
                 onEdit={onEdit}
                 onStatus={handleStatus}
                 onSettings={onSettings}
+                t={t}
+                hasPermission={hasPermission}
               />
             ))}
           </div>

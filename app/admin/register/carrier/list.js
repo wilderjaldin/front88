@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { selectToken } from "@/store/authSlice";
@@ -147,11 +147,11 @@ export default function CarrierList() {
       {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
+          <h1 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
             Transportistas{' '}
             <span className="text-base font-normal text-gray-400">({filtered.length})</span>
           </h1>
-          <div className="h-1 w-12 rounded bg-primary/70 mt-2" />
+          <div className="h-0.5 w-10 rounded bg-primary/60 mt-1" />
         </div>
 
         <div className="flex flex-wrap items-start gap-3">
@@ -235,7 +235,7 @@ export default function CarrierList() {
         <div className="panel mt-5 overflow-hidden border-0 p-0">
           <div className="datatables">
             <DataTable
-              className="table-hover whitespace-nowrap"
+              className="table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 whitespace-nowrap"
               idAccessor="CodTransportista"
               records={paginated}
               columns={[

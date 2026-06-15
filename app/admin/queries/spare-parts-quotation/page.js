@@ -1,219 +1,126 @@
 "use client";
-import { useEffect, Fragment, useState } from "react";
-import { useForm, SubmitHandler } from "react-hook-form"
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "@/app/locales";
-
-import { useRouter } from 'next/navigation';
-import axios from 'axios'
-import { Tab } from '@headlessui/react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import axios from 'axios';
+import axiosClient from '@/app/lib/axiosClient';
 import { useSelector } from 'react-redux';
 import { selectToken } from '@/store/authSlice';
-import { useSearchParams } from "next/navigation";
-import sortBy from 'lodash/sortBy';
-import ItemsUnassigned from '@/app/admin/queries/spare-parts-quotation/items-unassigned'
-import ItemsAssigned from '@/app/admin/queries/spare-parts-quotation/items-assigned'
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
-const url_orders = process.env.NEXT_PUBLIC_API_URL + 'repporcotizar/ListaRepCotizar';
-const url_assign_order = process.env.NEXT_PUBLIC_API_URL + 'repporcotizar/AsignarAUsuario';
+import ItemsUnassigned from './items-unassigned';
+import ItemsAssigned from './items-assigned';
+
+const URL_ORDERS         = 'repuestos/por-cotizar';
+const url_assign_order   = process.env.NEXT_PUBLIC_API_URL + 'repporcotizar/AsignarAUsuario';
 const url_unassign_order = process.env.NEXT_PUBLIC_API_URL + 'repporcotizar/QuitarAsignacionUsuario';
 
-const tabs = { '0': 'unassigned', '1': 'assigned'}
+const TAB_KEYS = ['unassigned', 'assigned'];
 
 export default function SparePartsQuotation() {
-
-  const router = useRouter();
+  const router       = useRouter();
   const searchParams = useSearchParams();
-  const token = useSelector(selectToken);
-  const t = useTranslation();
+  const token        = useSelector(selectToken);
+  const t            = useTranslation();
 
-  let option = searchParams.get("option");
-  const current_tab = Object.keys(tabs).find((key) => tabs[key] === option) || 0;
+  const option     = searchParams.get("option");
+  const activeTab  = Math.max(0, TAB_KEYS.indexOf(option));
 
-  const [orders_unassigned, setOrdersUnassigned] = useState([])
-  const [orders_assigned, setOrdersAssigned] = useState([])
+  const [orders_unassigned, setOrdersUnassigned] = useState([]);
+  const [orders_assigned,   setOrdersAssigned]   = useState([]);
 
-
-  const [page, setPage] = useState(1);
-  const PAGE_SIZES = [10, 20, 30, 50, 100];
-  const [pageSize, setPageSize] = useState(PAGE_SIZES[0]);
-  const [initialRecords, setInitialRecords] = useState(sortBy([], 'id'));
-  const [recordsData, setRecordsData] = useState(initialRecords);
-
-  const [sortStatus, setSortStatus] = useState({
-    columnAccessor: 'id',
-    direction: 'asc',
-  });
+  const [glider,  setGlider]  = useState({ left: 0, width: 0 });
+  const tabRefs = useRef([]);
 
   useEffect(() => {
-    setPage(1);
-  }, [pageSize]);
+    const el = tabRefs.current[activeTab];
+    if (el) setGlider({ left: el.offsetLeft, width: el.offsetWidth });
+  }, [activeTab]);
 
-  useEffect(() => {
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize;
-    setRecordsData([...initialRecords.slice(from, to)]);
-  }, [page, pageSize, initialRecords]);
-
-  useEffect(() => {
-    const data = sortBy(initialRecords, sortStatus.columnAccessor);
-    setInitialRecords(sortStatus.direction === 'desc' ? data.reverse() : data);
-  }, [sortStatus]);
-
-  //
-
-  const {
-    register,
-    handleSubmit, reset, getValues, setValue, setError,
-    formState: { errors },
-  } = useForm();
-
-  useEffect(() => {
-    
-    async function fetchData() {
-      let res = await getLists();
-      //let search = await onSearch();
-    }
-    fetchData();
-
-  }, []);
+  useEffect(() => { getLists(); }, []);
 
   const getLists = async () => {
-    let array = [];
     try {
-      const rs = await axios.post(url_orders, { IndiceFiltro: 0, ValToken: token });
-      
-      if (rs.data.estado == 'OK') {
+      const rs         = await axiosClient.get(URL_ORDERS);
+      const unassigned = (rs.data.noAsignados ?? []).map((o, i) => ({ ...o, id: i }));
+      const assigned   = (rs.data.asignados   ?? []).map((o, i) => ({ ...o, id: i }));
+      setOrdersUnassigned(unassigned);
+      setOrdersAssigned(assigned);
+    } catch {}
+  };
 
-        let orders_unassigned = rs.data.dato1.map((o, index) => {
-          o.id = index;
-          return o;
-        });
-        let orders_assigned = rs.data.dato2.map((o, index) => {
-          o.id = index;
-          return o;
-        });
-
-        setOrdersUnassigned(orders_unassigned);
-        setOrdersAssigned(orders_assigned);
-        setInitialRecords(orders_unassigned);
-      }
-      return array;
-
-    } catch (error) {
-      
-      return [];
-    }
-  }
-
-
-  const assignOrder = async (selected_pending) => {
+  const assignOrder = async (selected) => {
     try {
-      let data = [];
-      selected_pending.map(o => {
-        data.push({ CodRegistro: o.CodRegistro, ValToken: token });
-      });
-      
-      const rs = await axios.post(url_assign_order, data);
-      
-      if (rs.data.estado == 'OK') {
-        let orders_unassigned = rs.data.dato1.map((o, index) => {
-          o.id = index;
-          return o;
-        });
-        let orders_assigned = rs.data.dato2.map((o, index) => {
-          o.id = index;
-          return o;
-        });
-
-        setOrdersUnassigned(orders_unassigned);
-        setOrdersAssigned(orders_assigned);
+      const data = selected.map(o => ({ CodRegistro: o.codRegistro, ValToken: token }));
+      const rs   = await axios.post(url_assign_order, data);
+      if (rs.data.estado === 'OK') {
+        setOrdersUnassigned((rs.data.dato1 ?? []).map((o, i) => ({ ...o, id: i })));
+        setOrdersAssigned((rs.data.dato2   ?? []).map((o, i) => ({ ...o, id: i })));
       }
-    } catch (error) {
-      
-    }
-  }
+    } catch {}
+  };
 
-  const unassignOrder = async (selected_assigned) => {
+  const unassignOrder = async (selected) => {
     try {
-      let data = [];
-      selected_assigned.map(o => {
-        data.push({ CodRegistro: o.CodRegistro, ValToken: token });
-      });
-
-      const rs = await axios.post(url_unassign_order, data);
-      
-      if (rs.data.estado == 'OK') {
-
-
-        let orders_unassigned = rs.data.dato1.map((o, index) => {
-          o.id = index;
-          return o;
-        });
-        let orders_assigned = rs.data.dato2.map((o, index) => {
-          o.id = index;
-          return o;
-        });
-
-        setOrdersUnassigned(orders_unassigned);
-        setOrdersAssigned(orders_assigned);
+      const data = selected.map(o => ({ CodRegistro: o.codRegistro, ValToken: token }));
+      const rs   = await axios.post(url_unassign_order, data);
+      if (rs.data.estado === 'OK') {
+        setOrdersUnassigned((rs.data.dato1 ?? []).map((o, i) => ({ ...o, id: i })));
+        setOrdersAssigned((rs.data.dato2   ?? []).map((o, i) => ({ ...o, id: i })));
       }
-    } catch (error) {
-      
-    }
-  }
-  useDynamicTitle(`${ t.query } | ${t.spare_parts_to_be_quoted}` );
+    } catch {}
+  };
+
+  const handleTabChange = (index) => {
+    router.push(`?option=${TAB_KEYS[index]}`);
+  };
+
+  const tabLabels = [t.unassigned_quote_items, t.items_to_be_quoted_assigned];
+
+  useDynamicTitle(`${t.query} | ${t.spare_parts_to_be_quoted}`);
+
   return (
     <>
-      <div>
-        <ul className="flex space-x-2 rtl:space-x-reverse">
-          <li>
-            { t.query }
-          </li>
-          <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
-            <span className="font-bold">{ t.spare_parts_to_be_quoted }</span>
-          </li>
-        </ul>
+      <ul className="flex space-x-2 rtl:space-x-reverse mb-4 text-sm text-gray-500">
+        <li>{t.query}</li>
+        <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2 text-gray-800 dark:text-gray-100">
+          {t.spare_parts_to_be_quoted}
+        </li>
+      </ul>
+
+      {/* Tabs con glider */}
+      <div className="flex justify-center mb-5">
+        <div className="relative flex rounded-xl bg-gray-100 dark:bg-gray-800 p-1">
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1 bottom-1 rounded-lg bg-slate-700 dark:bg-slate-500 shadow-sm transition-all duration-200 ease-out"
+            style={{ left: glider.left, width: glider.width }}
+          />
+          {tabLabels.map((label, index) => (
+            <button
+              key={label}
+              ref={el => { tabRefs.current[index] = el; }}
+              type="button"
+              onClick={() => handleTabChange(index)}
+              className={`relative z-10 px-5 py-2 text-sm font-medium rounded-lg transition-colors duration-150 outline-none whitespace-nowrap
+                ${activeTab === index
+                  ? 'text-white'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <Tab.Group defaultIndex={current_tab} onChange={(index) => {
-        router.push(`?option=${tabs[index]}`)
-      }}>
-        <Tab.List className="mb-5 mt-3 grid grid-cols-4 gap-2 rtl:space-x-reverse sm:flex sm:flex-wrap sm:justify-center sm:space-x-3">
-
-          <Tab as={Fragment}>
-            {({ selected }) => (
-              <button
-                className={`${selected ? '!bg-success text-white !outline-none' : ''}
-                                                          flex flex-col items-center justify-center rounded-lg bg-[#f1f2f3] p-7 py-3 hover:!bg-success hover:text-white hover:shadow-[0_5px_15px_0_rgba(0,0,0,0.30)] dark:bg-[#191e3a]`}
-              >
-                { t.unassigned_quote_items }
-              </button>
-            )}
-          </Tab>
-          <Tab as={Fragment}>
-            {({ selected }) => (
-              <button
-                className={`${selected ? '!bg-success text-white !outline-none' : ''}
-                                                          flex flex-col items-center justify-center rounded-lg bg-[#f1f2f3] p-7 py-3 hover:!bg-success hover:text-white hover:shadow-[0_5px_15px_0_rgba(0,0,0,0.30)] dark:bg-[#191e3a]`}
-              >
-                { t.items_to_be_quoted_assigned }
-              </button>
-            )}
-          </Tab>
-        </Tab.List>
-        <Tab.Panels className="shadow-lg bg-gray-200 ">
-
-          <Tab.Panel>
-            <ItemsUnassigned t={t} token={token} data={orders_unassigned} assignOrder={assignOrder}></ItemsUnassigned>
-          </Tab.Panel>
-          <Tab.Panel>
-           <ItemsAssigned t={t} token={token} data={orders_assigned} unassignOrder={unassignOrder} setOrdersAssigned={setOrdersAssigned}></ItemsAssigned>
-          </Tab.Panel>
-        </Tab.Panels>
-
-      </Tab.Group>
-
-
+      <div className="animate__animated animate__faster animate__fadeIn">
+        {activeTab === 0 && (
+          <ItemsUnassigned t={t} token={token} data={orders_unassigned} assignOrder={assignOrder} />
+        )}
+        {activeTab === 1 && (
+          <ItemsAssigned t={t} token={token} data={orders_assigned} unassignOrder={unassignOrder} setOrdersAssigned={setOrdersAssigned} />
+        )}
+      </div>
     </>
   );
 }

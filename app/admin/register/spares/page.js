@@ -7,6 +7,7 @@ import axiosClient from "@/app/lib/axiosClient";
 import Swal from 'sweetalert2';
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 import { useTranslation } from "@/app/locales";
+import { usePermissions } from '@/app/hooks/usePermissions';
 import DatatablesSpares from './components-datatables-spares';
 
 const URL_LIST     = 'repuestos/listar';
@@ -18,6 +19,7 @@ export default function SparesPage() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const t            = useTranslation();
+  const { hasPermission } = usePermissions();
 
   const [spares,    setSpares]    = useState([]);
   const [pageSize]                = useState(20);
@@ -209,6 +211,7 @@ export default function SparesPage() {
       <DatatablesSpares
         data={spares}
         t={t}
+        hasPermission={hasPermission}
         page={currentPage}
         pageSize={pageSize}
         total={total}

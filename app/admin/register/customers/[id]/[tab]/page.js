@@ -11,12 +11,14 @@ import UserAccounts from './tabs/UserAccounts';
 import MeetingCustomer from './tabs/MeetingCustomer';
 import { useTranslation } from "@/app/locales";
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
+import { usePermissions } from '@/app/hooks/usePermissions';
 
 export default function CustomerTabPage() {
   const { tab }  = useParams();
   const ctx      = useCustomer();
 
-  const t            = useTranslation();
+  const t                  = useTranslation();
+  const { hasPermission }  = usePermissions();
 
   const TAB_TITLES = {
     general:     'Clientes | Información General',
@@ -32,6 +34,7 @@ export default function CustomerTabPage() {
   if (!ctx) return null;
 
   const { cliente, onEdit,
+    general, setGeneral, loadGeneral, setLoadGeneral,
     contacts, setContacts, loadContacts, setLoadContacts,
     shipping, setShipping, loadShipping, setLoadShipping,
     conditions, setConditions, loadConditions, setLoadConditions,
@@ -42,44 +45,50 @@ export default function CustomerTabPage() {
 
   switch (tab) {
     case 'general':
-      return <GeneralInformation t={t} cliente={cliente} onEdit={onEdit} />;
+      return <GeneralInformation t={t} cliente={cliente} onEdit={onEdit}
+        general={general} setGeneral={setGeneral}
+        loadGeneral={loadGeneral} setLoadGeneral={setLoadGeneral}
+      />;
     case 'contacts':
       return <ContactsCustomer
-        t={t} cliente={cliente}
+        t={t} hasPermission={hasPermission} cliente={cliente}
         contacts={contacts}         setContacts={setContacts}
         loadContacts={loadContacts} setLoadContacts={setLoadContacts}
       />;
     case 'shipping':
       return <ShippingAddress
-        t={t} cliente={cliente}
+        t={t} hasPermission={hasPermission} cliente={cliente}
         shipping={shipping}         setShipping={setShipping}
         loadShipping={loadShipping} setLoadShipping={setLoadShipping}
       />;
     case 'conditions':
       return <TradingConditions
-        t={t} cliente={cliente}
+        t={t} hasPermission={hasPermission} cliente={cliente}
         conditions={conditions}           setConditions={setConditions}
         loadConditions={loadConditions}   setLoadConditions={setLoadConditions}
       />;
     case 'attachments':
       return <Attachments
-        t={t} cliente={cliente}
+        t={t} hasPermission={hasPermission} cliente={cliente}
         attachments={attachments}           setAttachments={setAttachments}
         loadAttachments={loadAttachments}   setLoadAttachments={setLoadAttachments}
       />;
     case 'accounts':
       return <UserAccounts
-        t={t} cliente={cliente}
+        t={t} hasPermission={hasPermission} cliente={cliente}
         accounts={accounts}         setAccounts={setAccounts}
         loadAccounts={loadAccounts} setLoadAccounts={setLoadAccounts}
       />;
     case 'meetings':
       return <MeetingCustomer
-        t={t} cliente={cliente}
+        t={t} hasPermission={hasPermission} cliente={cliente}
         meetings={meetings}         setMeetings={setMeetings}
         loadMeetings={loadMeetings} setLoadMeetings={setLoadMeetings}
       />;
     default:
-      return <GeneralInformation t={t} cliente={cliente} onEdit={onEdit} />;
+      return <GeneralInformation t={t} cliente={cliente} onEdit={onEdit}
+        general={general} setGeneral={setGeneral}
+        loadGeneral={loadGeneral} setLoadGeneral={setLoadGeneral}
+      />;
   }
 }

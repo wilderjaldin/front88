@@ -22,4 +22,9 @@ axiosClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+axiosClient.interceptors.response.use(
+  (response) => response,
+  (error) => Promise.reject(error)
+);
+
 export default axiosClient;

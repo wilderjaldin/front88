@@ -14,12 +14,46 @@ import IconSearch from '@/components/icon/icon-search';
 import IconUser from '@/components/icon/icon-user';
 import IconX from '@/components/icon/icon-x';
 import IconToggleOff from '@/components/icon/icon-toggle-off';
+import { PERMISSIONS } from '@/constants/permissions';
 
 // ── URLs ──────────────────────────────────────────────────────────────────────
 const URL_CONTACTOS              = (codCliente) => `/clientes/${codCliente}/contactos`;
 const URL_ELIMINAR_CONTACTO      = (codCliente) => `/clientes/${codCliente}/contactos/eliminar`;
 const URL_ACTIVAR_CONTACTO       = (codCliente) => `/clientes/${codCliente}/contactos/activar`;
 const URL_PREDETERMINADO_CONTACTO = (codCliente) => `/clientes/${codCliente}/contactos/predeterminado`;
+
+// ── Helpers para valores separados por ";" ────────────────────────────────────
+const splitValues = (val) => (val ?? '').split(';').map(s => s.trim()).filter(Boolean);
+
+const PhoneBadges = ({ value }) => {
+  const items = splitValues(value);
+  if (!items.length) return <span className="text-gray-300 dark:text-gray-600">—</span>;
+  return (
+    <div className="flex flex-wrap gap-0.5">
+      {items.map((item, i) => (
+        <span key={i} className="inline-block rounded px-1.5 py-0.5 text-[11px] font-mono
+                                  bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+          {item}
+        </span>
+      ))}
+    </div>
+  );
+};
+
+const EmailBadges = ({ value }) => {
+  const items = splitValues(value);
+  if (!items.length) return <span className="text-gray-300 dark:text-gray-600">—</span>;
+  return (
+    <div className="flex flex-wrap gap-0.5">
+      {items.map((item, i) => (
+        <span key={i} className="inline-block rounded px-1.5 py-0.5 text-[11px]
+                                  bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400">
+          {item}
+        </span>
+      ))}
+    </div>
+  );
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 const Toast = Swal.mixin({
@@ -95,17 +129,17 @@ const ContactCard = ({ contact, onEdit, onDelete, onActivate, onSetDefault, sett
         )}
       </div>
 
-      <div className="px-4 py-3 space-y-1.5 text-xs">
+      <div className="px-4 py-3 space-y-2.5 text-xs min-h-[60px]">
         {contact.telefonos && (
-          <div className="flex gap-2">
-            <span className="text-gray-400 shrink-0 w-16">Teléfonos</span>
-            <span className="text-gray-700 dark:text-gray-300 truncate">{contact.telefonos}</span>
+          <div className="space-y-1">
+            <span className="text-gray-400">Teléfonos</span>
+            <PhoneBadges value={contact.telefonos} />
           </div>
         )}
         {contact.correos && (
-          <div className="flex gap-2">
-            <span className="text-gray-400 shrink-0 w-16">Correos</span>
-            <span className="text-gray-700 dark:text-gray-300 truncate">{contact.correos}</span>
+          <div className="space-y-1">
+            <span className="text-gray-400">Correos</span>
+            <EmailBadges value={contact.correos} />
           </div>
         )}
       </div>
@@ -149,7 +183,7 @@ const ContactCard = ({ contact, onEdit, onDelete, onActivate, onSetDefault, sett
 export default function ContactsCustomer({
   cliente,
   contacts, setContacts,
-  loadContacts, setLoadContacts, t
+  loadContacts, setLoadContacts, t, hasPermission
 }) {
   const [view,           setView]           = useState('list');
   const [showModal,      setShowModal]      = useState(false);
@@ -418,7 +452,7 @@ export default function ContactsCustomer({
         {view === 'list' && filtered.length > 0 && (
           <div className={`panel overflow-hidden border-0 p-0 transition-opacity duration-150 ${fetching ? 'opacity-50' : 'opacity-100'}`}>
             <div className="table-responsive">
-              <table className="table-striped table-hover w-full">
+              <table className="table-striped table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 w-full [&_th]:!py-2 [&_th]:!text-xs [&_td]:!py-1.5 [&_td]:!text-xs">
                 <thead>
                   <tr>
                     <th>Nombre</th>
@@ -440,10 +474,8 @@ export default function ContactsCustomer({
                           </div>
                         </td>
                         <td className="text-gray-500">{contact.nomCargo || '—'}</td>
-                        <td className="text-gray-500">{contact.telefonos || '—'}</td>
-                        <td className="text-gray-500 max-w-[220px] truncate">
-                          {contact.correos || '—'}
-                        </td>
+                        <td><PhoneBadges value={contact.telefonos} /></td>
+                        <td className="max-w-[280px]"><EmailBadges value={contact.correos} /></td>
                         <td>
                           <div className="flex items-center justify-center gap-1">
                             {isActive ? (
@@ -460,10 +492,12 @@ export default function ContactsCustomer({
                                 >
                                   <IconStar filled={isDefault} className="w-4 h-4" />
                                 </button>
+                                {(hasPermission(PERMISSIONS.EDITAR_CONTACTO_CLIENTE)) &&
                                 <button title="Editar" onClick={() => handleEdit(contact)}
                                   className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-800 transition">
                                   <IconPencil className="w-4 h-4 text-blue-500" />
                                 </button>
+                                }
                                 <button title="Eliminar" onClick={() => handleDelete(contact)}
                                   className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-gray-800 transition">
                                   <IconTrashLines className="w-4 h-4 text-red-500" />

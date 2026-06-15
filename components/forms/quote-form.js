@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Controller, useForm, useWatch } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
 import IconFile from '../icon/icon-file';
 import IconX from '../icon/icon-x';
@@ -10,17 +10,15 @@ import IconAttachment from '../icon/icon-attachment';
 import IconDiscount from '../icon/icon-discount';
 import Modal from '@/components/modal';
 import OptionsItemsQuote from '@/components/forms/options-items-quote'
-import OptionsItemsQuoteEmpty from '@/components/forms/options-items-quote-empty'
 import DiscountForm from "@/components/forms/discount-form"
 import AttachQuoteForm from "@/components/forms/attach-quote-form"
 import MessageQuoteForm from "@/components/forms/message-quote"
 import PriceParametersForm from "@/components/forms/price-parameters-form"
+import NotFoundPartForm from "@/components/forms/not-found-part-form"
 import CostSummary from "@/components/cost-summary"
 import { customFormat } from '@/app/lib/format';
-import { useDebounce } from 'use-debounce';
 import { useSelector } from 'react-redux';
 import { getLocale } from '@/store/localeSlice';
-import axios from 'axios'
 import Swal from 'sweetalert2'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import IconTrashLines from '../icon/icon-trash-lines';
@@ -30,27 +28,119 @@ import TableReference from "@/app/admin/revision/quotes/table-reference"
 //import PdfViewer from "@/app/admin/revision/quotes/PdfViewer"
 import BtnPrintQuote from "@/components/BtnPrintQuote"
 import IconDirection from '../icon/icon-direction';
-import { useOptionsSelect } from '@/app/options'
-import IconPosition from '../icon/icon-position';
+import axiosClient from '@/app/lib/axiosClient';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
-const url_search = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/BuscarItem';
-const url_update_quantity = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/ModificarCantidad';
-const url_update_note = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/GuardarNotas';
-const url_update_quote = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/ActualizarDatosCotizacion';
-const url_delete_item_quote = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/EliminarItem';
-const url_update_preference = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/CambiarPreferencia';
-const url_save_freight = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/ModificarFleteInterno';
-const url_delete_freight = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/EliminarFleteInterno';
-const url_more_quote = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/VerOpciones';
-const url_clone_quote = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/DuplicarCotizacion';
-const url_validate_quote = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/ValidarNroParte';
-const url_price_parameters = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/MostrarParamPrecio';
-const url_save_tracking = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/GuardarSeguimiento';
-const url_update_item = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/ActualizarItem';
-const url_search_reference = process.env.NEXT_PUBLIC_API_URL + 'referencia/MostrarReferencia';
-const url_change_report = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/MostrarNroParte';
+const URL_SEARCH = 'cotizaciondetalle/buscar-parte';
+const URL_UPDATE_QUANTITY = 'cotizaciondetalle/modificar-cantidad';
+const URL_UPDATE_NOTE = 'cotizaciondetalle/guardar-notas';
+const URL_UPDATE_QUOTE = 'cotizaciondetalle/actualizar-datos';
+const URL_DELETE_ITEM_QUOTE = 'cotizaciondetalle/eliminar-item';
+const URL_UPDATE_PREFERENCE = 'cotizaciondetalle/cambiar-preferencia';
+const URL_SAVE_FREIGHT = 'cotizaciondetalle/modificar-flete-interno';
+const URL_DELETE_FREIGHT = 'cotizaciondetalle/distribuir-flete-interno';
+const URL_MORE_QUOTE = 'cotizaciondetalle/veropciones';
+const URL_CLONE_QUOTE = 'cotizaciondetalle/dupcotizacion';
+const URL_VALIDATE_QUOTE = 'cotizaciondetalle/valnroparte';
+const URL_PRICE_PARAMETERS = 'cotizaciondetalle/mostrar-parametro-precio';
+const URL_UPDATE_ITEM = 'cotizaciondetalle/actualizar-item';
+const URL_SEARCH_REFERENCE = 'referenciasCruzadas/buscar';
+const URL_CHANGE_REPORT = 'cotizaciondetalle/mostrar-codigo';
+const URL_MARCAS           = 'cotizacion/marcas';
+const URL_GET_SEGUIMIENTO  = 'usuarios/seguimiento';
+const URL_SAVE_SEGUIMIENTO = 'cotizaciondetalle/registrar-seguimiento';
+const URL_REORDER          = 'cotizaciondetalle/ordenar-detalle';
 
-const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, options_share, getOrder }) => {
+const ICON_CHECK     = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const ICON_X         = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg>`;
+const ICON_QUESTION  = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+const swalSuccess = (title, msg = '') => Swal.fire({
+  html: `<div style="padding:12px 0 6px">
+    <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#86efac,#16a34a);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 8px 24px rgba(22,163,74,0.3)">${ICON_CHECK}</div>
+    ${msg ? `<p style="color:#94a3b8;font-size:11px;margin:0 0 6px;text-transform:uppercase;letter-spacing:.08em">${msg}</p>` : ''}
+    <h2 style="color:#1e293b;font-size:17px;font-weight:700;margin:0;line-height:1.3">${title}</h2>
+  </div>`,
+  position: 'top-end',
+  showConfirmButton: false,
+  timer: 2000,
+  timerProgressBar: true,
+});
+
+const swalConfirm = (title, msg = '', { confirmText = 'Sí', cancelText = 'Cancelar', confirmColor = '#4f46e5' } = {}) => Swal.fire({
+  html: `<div style="padding:12px 0 6px">
+    <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#a5b4fc,#4f46e5);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 8px 24px rgba(79,70,229,0.3)">${ICON_QUESTION}</div>
+    <h2 style="color:#1e293b;font-size:17px;font-weight:700;margin:0 0 ${msg ? '10px' : '0'};line-height:1.3">${title}</h2>
+    ${msg ? `<p style="color:#64748b;font-size:13px;margin:0">${msg}</p>` : ''}
+  </div>`,
+  showCancelButton: true,
+  confirmButtonText: confirmText,
+  cancelButtonText: cancelText,
+  confirmButtonColor: confirmColor,
+  reverseButtons: true,
+});
+
+const ICON_INFO = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#fff" stroke-width="2.5"/><path d="M12 8h.01M12 12v4" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg>`;
+const swalInfo = (title, msg = '', confirmText = 'Entendido') => Swal.fire({
+  html: `<div style="padding:12px 0 6px">
+    <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#fde68a,#f59e0b);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 8px 24px rgba(245,158,11,0.3)">${ICON_INFO}</div>
+    <h2 style="color:#1e293b;font-size:17px;font-weight:700;margin:0 0 10px;line-height:1.3">${title}</h2>
+    ${msg ? `<p style="color:#64748b;font-size:13px;margin:0">${msg}</p>` : ''}
+  </div>`,
+  showConfirmButton: true, confirmButtonText: confirmText, confirmButtonColor: '#f59e0b',
+});
+
+const swalError = (title, msg = '', confirmText = 'Cerrar') => Swal.fire({
+  html: `<div style="padding:12px 0 6px">
+    <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#fca5a5,#ef4444);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 8px 24px rgba(239,68,68,0.3)">${ICON_X}</div>
+    <h2 style="color:#1e293b;font-size:17px;font-weight:700;margin:0 0 10px;line-height:1.3">${title}</h2>
+    ${msg ? `<p style="color:#64748b;font-size:13px;margin:0">${msg}</p>` : ''}
+  </div>`,
+  showConfirmButton: true,
+  confirmButtonText: confirmText,
+  confirmButtonColor: '#ef4444',
+});
+
+function SortableRow({ id, index, children, className }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  return (
+    <tr
+      ref={setNodeRef}
+      className={className}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+        background: isDragging ? 'var(--color-primary-light, #eff6ff)' : undefined,
+      }}
+    >
+      <td className="px-1.5 py-2 w-9 text-center">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing touch-none group/drag"
+          tabIndex={-1}
+          title="Arrastrar para reordenar"
+        >
+          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full
+            bg-slate-100 dark:bg-slate-700
+            text-[10px] font-bold text-slate-400 dark:text-slate-400
+            group-hover/drag:bg-primary/15 group-hover/drag:text-primary
+            group-active/drag:scale-95
+            transition-all select-none">
+            {index}
+          </span>
+        </button>
+      </td>
+      {children}
+    </tr>
+  );
+}
+
+const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) => {
 
 
   const router = useRouter();
@@ -64,14 +154,15 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, op
   const [items, setItems] = useState(_items_)
   const [order, setOrder] = useState(_order_)
   const [isSelectItems, setIsSelectItems] = useState(false);
-  const [disabledTracking, setDisabledTracking] = useState(true);
-  const [quote_or_tracking_option, setQuoteORTrackingOption] = useState();
-  const [tracking_option, setTrackingOption] = useState('');
   const [all_disabled_tracking, setAllDisabledTracking] = useState(false);
-  const [customer, setCustomer] = useState(_customer_);
-  const brands = useOptionsSelect("brands") || [];
-  const [optionSelected, setOptionSelected] = useState("");
-  const [showPosition, setShowPosition] = useState(false);
+  const [seguimientoNombre,     setSeguimientoNombre]   = useState(null);
+  const [options_share,         setOptionsShare]        = useState([]);
+  const [select_share,          setSelectShare]         = useState(null);
+  const [customer,  setCustomer]  = useState(_customer_);
+  const [brands,    setBrands]    = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const hasItemsWithoutPrice = items.some(item => !item.Precio || item.Precio === 0);
 
   const tablaRef = useRef(null);
   const locale = useSelector(getLocale);
@@ -97,7 +188,6 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, op
     register,
     getValues,
     setValue,
-    control: controlDefault,
     formState: { errors },
   } = useForm({ defaultValues: { freight: customFormat(_order_.FleteInterno) } });
 
@@ -111,6 +201,8 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, op
     handleSubmit: handleSearchQuoteFormSubmit
   } = useForm({
     defaultValues: {
+      nro_part: "01643-32780",
+      quantity: 3,
       items: items.map(p => ({ Cantidad: 1 }))
     }
   })
@@ -144,10 +236,9 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, op
   }, [_customer_]);
 
   useEffect(() => {
-    if (_tracking_?.Cotizar || _tracking_?.Seguimiento) {
+    if (_tracking_?.nomUsuario) {
+      setSeguimientoNombre(_tracking_.nomUsuario);
       setAllDisabledTracking(true);
-      setValue('share_with_customer', options_share.find(opt => opt.value === (_tracking_?.CodUsuarioCompartido ?? null)) || null)
-      setOptionSelected((_tracking_?.Cotizar == 1 ? "quote" : (_tracking_?.Seguimiento == 1 ? "tracking" : '')))
     }
   }, [_tracking_]);
 
@@ -164,6 +255,13 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, op
     }
   }, [seleccionados]);
 
+  useEffect(() => {
+    axiosClient.get(URL_MARCAS).then(rs => {
+      const raw = Array.isArray(rs.data) ? rs.data : (rs.data.marcas ?? rs.data.dato1 ?? rs.data.data ?? []);
+      setBrands(raw.filter(m => m != null).map(m => ({ value: m.value ?? m.CodMarca ?? m.codMarca, label: m.label ?? m.NomMarca ?? m.nomMarca })).filter(m => m.value != null && m.label != null));
+    }).catch(() => {});
+  }, []);
+
   const updateInputs = (items) => {
 
     items.map((p, index) => {
@@ -171,37 +269,31 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, op
     });
   }
 
-  const watchedItems = useWatch({ control, name: 'items' });
-  const [debouncedItems] = useDebounce(watchedItems, 800);
-
-  useEffect(() => {
-    // Solo enviar si hay cambios reales
-    debouncedItems.forEach(async (item, index) => {
-      const original = items[index - 1];
-
-      if ((original) && item.Cantidad !== original.Cantidad) {
-        try {
-          const data = {
-            Idioma: locale,
-            NroOrden: order.NroOrden,
-            CodItem: original.CodItem,
-            Cantidad: item.Cantidad,
-            ValToken: token
-          }
-
-          const rs = await axios.post(url_update_quantity, data);
-          if (rs.data.estado == 'OK') {
-            setOrder(rs.data.dato1[0]);
-            setItems(rs.data.dato2);
-            updateInputs(rs.data.dato2);
-          }
-
-        } catch (error) {
-
-        }
-      }
-    });
-  }, [debouncedItems]);
+  const handleQuantityBlur = async (item, newQty) => {
+    if (isNaN(newQty) || newQty <= 0 || newQty === item.Cantidad) return;
+    try {
+      const rs = await axiosClient.put(URL_UPDATE_QUANTITY, {
+        NroCotizacion: order.NroOrden,
+        CodItem:       item.CodItem,
+        Cantidad:      newQty,
+      });
+      const { cotizacion, detalle } = rs.data;
+      setOrder(prev => ({
+        ...prev,
+        Total:        cotizacion.totalSus      ?? 0,
+        TotRepuestos: cotizacion.totRepuestos  ?? 0,
+        TotalPeso:    cotizacion.totPeso       ?? 0,
+        Descuento:    cotizacion.mtoDescuento  ?? 0,
+        MtoIva:       cotizacion.mtoIva        ?? 0,
+        FleteInterno: cotizacion.mtoFlete      ?? 0,
+        TipoCambio:   cotizacion.tipCambio     ?? 0,
+        NroItems:     cotizacion.nroItems,
+      }));
+      const newItems = mapDetalle(detalle);
+      setItems(newItems);
+      updateInputs(newItems);
+    } catch {}
+  };
 
   useEffect(() => {
     if (!order) return;
@@ -219,162 +311,203 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, op
     setValueQuote('equipment_brand', equipmentBrand);
     setValueQuote('engine_brand', engineBrand);
 
-    console.log('estableciendo valores');
-    console.log('equipo', equipmentBrand);
-    console.log('motor', engineBrand);
-
   }, [order, brands]);
 
 
   const onSaveNote = async (data) => {
     try {
-      const rs = await axios.post(url_update_note, { NroOrden: order.NroOrden, NotaUsuario: data.note_user, NotaCliente: data.note_customer, ValToken: token });
-      if (rs.data.estado == 'OK') {
-        Swal.fire({
-          position: "top-end",
-          icon: "success",
-          title: t.save_note_quote_success,
-          showConfirmButton: false,
-          timer: 1500
-        }).then(async (r) => {
-
-        });
-      }
+      await axiosClient.post(URL_UPDATE_NOTE, { NroCotizacion: order.NroOrden, NotaUsuario: data.note_user, NotaCliente: data.note_customer });
+      swalSuccess(t.save_note_quote_success);
     } catch (error) {
-      Swal.fire({
-        title: t.error,
-        text: t.save_note_quote_error,
-        icon: 'error',
-        confirmButtonColor: '#dc2626',
-        confirmButtonText: t.close
-      });
+      swalError(t.error, t.save_note_quote_error, t.close);
     }
   }
+
+  const run = (fn) => async (...args) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try { await fn(...args); }
+    finally { setIsSubmitting(false); }
+  };
 
   const handleKeyDown = async (event) => {
     if (event.key === 'Enter') {
       event.preventDefault();
-      await handleSearchQuoteFormSubmit(onSearch)();
+      await run(handleSearchQuoteFormSubmit(onSearch))();
     }
+  };
+
+  const mapCotizacion = (cotizacion) => ({
+    NroOrden:       cotizacion.nroCotizacion,
+    NroItems:       cotizacion.nroItems,
+    NroPedido:      cotizacion.nroPedido                        ?? '',
+    MarcaEquipo:    cotizacion.marcaEquipo  ?? cotizacion.marca  ?? '',
+    MarcaMotor:     cotizacion.marcaMotor   ?? cotizacion.marcaMo  ?? '',
+    ModeloEquipo:   cotizacion.modeloEquipo ?? cotizacion.modelo ?? '',
+    NroSerieEquipo: cotizacion.nroSerieEquipo ?? cotizacion.nroSerie ?? '',
+    AnioEquipo:     cotizacion.anioEquipo   ?? cotizacion.anio   ?? '',
+    ModeloMotor:    cotizacion.modeloMotor  ?? cotizacion.modeloMo ?? '',
+    NroSerieMotor:  cotizacion.nroSerieMotor ?? cotizacion.nroSerieMo ?? '',
+    FleteInterno:   cotizacion.mtoFlete        ?? 0,
+    MostrarCodigo:  cotizacion.mostrarCodigo   ?? 0,
+    TotalPeso:      cotizacion.totPeso         ?? 0,
+    Total:          cotizacion.totalSus        ?? 0,
+    TipoCambio:     cotizacion.tipCambio       ?? 0,
+    TipMoneda:      cotizacion.tipMoneda       ?? '',
+    NotaCliente:    cotizacion.notCliente      ?? '',
+    NotaUsuario:    cotizacion.notUsuario      ?? '',
+    TotRepuestos:   cotizacion.totRepuestos    ?? 0,
+    Descuento:      cotizacion.mtoDescuento    ?? 0,
+    MtoIva:         cotizacion.mtoIva          ?? 0,
+  });
+
+  const mapDetalle = (detalle) => (detalle ?? []).map(d => ({
+    CodItem:     d.codItem,
+    CodRepuesto: d.codRepuesto,
+    NroParte:    d.nroParte      ?? '',
+    Cantidad:    d.cant          ?? 0,
+    DesRepuesto: d.descripcion   ?? '',
+    Marca:       d.marca         ?? '',
+    Aplicacion:  d.aplicacion    ?? '',
+    TipoRepuesto: d.tipoRepuesto ?? '',
+    DiasVigencia: d.diasVigencia ?? '',
+    Precio:      d.preUniSus     ?? 0,
+    Total:       d.totSus        ?? 0,
+    Peso:        d.peso          ?? 0,
+    TiEntrega:   d.desTieEntrega ?? '',
+    Indicador:   d.indicador     ?? '',
+    Estado:      d.estado        ?? '',
+    ParPrecio:   d.parPrecio     ?? false,
+  }));
+
+  const mapOpcion = (o) => ({
+    CodRepuesto:   o.codRepuesto,
+    NroParte:      o.nroParte,
+    TipRepuesto:   o.nomTipRepuesto,
+    Aplicacion:    o.nomAplicacion,
+    Marca:         o.nomMarca,
+    Proveedor:     o.nomPrv,
+    Estado:        o.nomEstado,
+    Precio:        o.precioUnitario,
+    DesTieEntrega: o.desTiempoEntrega,
+    DiasVigencia:  o.diasVigencia,
+    esLocal:       o.esLocal,
+  });
+
+  const showOptions = (opciones, data) => {
+    setModalTitle('');
+    setModalSize('w-full max-w-5xl');
+    setModalContent(
+      <OptionsItemsQuote
+        close={() => setShowModal(false)}
+        updateInputs={updateInputs}
+        setItems={setItems}
+        setOrder={setOrder}
+        options={opciones}
+        customer={customer}
+        order={order}
+        token={token}
+        t={t}
+        data={data}
+      />
+    );
+    setShowModal(true);
   };
 
   const onSearch = async (data) => {
 
     const data_search = {
-      NroOrden: (order.NroOrden) ? order.NroOrden : 0,
-      CodCliente: customer.CodCliente,
-      NroParte: data.nro_part,
-      Cantidad: data.quantity,
-      Posicion: (data.position != '') ? data.position : 0,
-      NroPedido: data.nro_order,
-      MarcaEquipo: (data.equipment_brand?.label) ?? "",
-      ModeloEquipo: data.equipment_model,
-      AnioEquipo: data.equipment_year,
-      NroSerieEquipo: data.equipment_serie,
-      MarcaMotor: (data.engine_brand?.label) ?? "",
-      ModeloMotor: data.engine_model,
-      NroSerieMotor: data.engine_serie,
-      ValToken: token
-    }
+      NroParte:      data.nro_part,
+      CodCliente:    customer.CodCliente,
+      NroCotizacion: order.NroOrden || 0,
+      Cantidad:      data.quantity,
+      NroPedido:     data.nro_order     ?? '',
+      Marca:         (data.equipment_brand?.label) ?? '',
+      Modelo:        data.equipment_model ?? '',
+      NroSerie:      data.equipment_serie ?? '',
+      Anio:          data.equipment_year  ?? '',
+      MarcaMo:       (data.engine_brand?.label) ?? '',
+      ModeloMo:      data.engine_model    ?? '',
+      NroSerieMo:    data.engine_serie    ?? '',
+      NotCliente:    order.NotaCliente    ?? '',
+      NotUsuario:    order.NotaUsuario    ?? '',
+    };
 
     try {
-      const rs = await axios.post(url_search, data_search);
+      const rs = await axiosClient.post(URL_SEARCH, data_search);
+      const { resultado: _res, cotizacion, detalle, opcionesLocales, opcionesImportacion } = rs.data;
+      const resultado = String(_res ?? '').replace(/"/g, '').trim().toLowerCase();
 
-      if (rs.data.estado == 'OP') {
-        showOptions(rs.data.dato3, data);
-      } else if (rs.data.estado == 'OK') {
-
-        if (rs.data.dato3.length == 1) {
-          //addItem(data, rs.data.dato3[0], rs.data.dato2[0]);
-
-          Swal.fire({
-            position: "top-end",
-            icon: "success",
-            title: t.add_item_to_quote_success,
-            showConfirmButton: false,
-            timer: 1500
-          }).then(r => {
-            setOrder(rs.data.dato2[0]);
-            setItems(rs.data.dato3);
-            if (rs.data.dato2[0].NroOrden) {
-              router.push(`/admin/revision/quotes?customer=${customer.CodCliente}&option=quotes&id=${rs.data.dato2[0].NroOrden}`);
-            }
-            setValueQuote('nro_part', '');
-            setValueQuote('quantity', '');
-            updateInputs(rs.data.dato3);
-            setFocus("nro_part");
-          });
-
-
-
-
-          return;
-        } else {
-          Swal.fire({
-            position: "top-end",
-            icon: "success",
-            title: t.add_item_to_quote_success,
-            showConfirmButton: false,
-            timer: 1500
-          }).then(r => {
-            setOrder(rs.data.dato2[0]);
-            setItems(rs.data.dato3);
-            updateInputs(rs.data.dato3);
-            setFocus("nro_part");
-          });
+      if (resultado === 'no_encontrado') {
+        const updatedOrder = mapCotizacion(cotizacion);
+        const updatedItems = mapDetalle(detalle);
+        setOrder(updatedOrder);
+        setItems(updatedItems);
+        updateInputs(updatedItems);
+        setValueQuote('nro_part', '');
+        setValueQuote('quantity', '');
+        if (updatedOrder.NroOrden) {
+          router.push(`/admin/revision/quotes?customer=${customer.CodCliente}&option=quotes&id=${updatedOrder.NroOrden}`);
         }
-
-      } else if (rs.data.estado == "NC") {
-
-        setOrder(rs.data.dato2[0]);
-        setItems(rs.data.dato3);
-        updateInputs(rs.data.dato3);
-
-        setModalTitle('');
-        setModalSize('w-full max-w-2xl');
-        setModalContent(<OptionsItemsQuoteEmpty code={rs.data.dato1} close={() => setShowModal(false)} customer={customer} order={order} token={token} t={t} data={data} updateInputs={updateInputs} setItems={setItems} setOrder={setOrder}></OptionsItemsQuoteEmpty>);
+        setModalTitle(t?.part_not_found ?? 'Parte no encontrada');
+        setModalSize('w-full max-w-md');
+        setModalContent(
+          <NotFoundPartForm
+            close={() => setShowModal(false)}
+            nroParte={data.nro_part}
+            codRegistro={rs.data.codRegistroSC}
+            brands={brands}
+            t={t}
+            onSaved={() => setShowModal(false)}
+          />
+        );
         setShowModal(true);
-        if (rs.data.dato2[0].NroOrden) {
-          router.push(`/admin/revision/quotes?customer=${customer.CodCliente}&option=quotes&id=${rs.data.dato2[0].NroOrden}`);
-        }
-        getOrder(rs.data.dato2[0].NroOrden)
+        return;
       }
-      setValueQuote('nro_part', '');
-      setValueQuote('quantity', '');
-      setFocus("nro_part");
+
+      if (resultado === 'multiples') {
+        const opciones = [
+          ...(opcionesLocales ?? []),
+          ...(opcionesImportacion ?? []),
+        ].map(mapOpcion);
+        showOptions(opciones, data);
+        return;
+      }
+
+      // resultado === 'encontrado'
+      const updatedOrder = mapCotizacion(cotizacion);
+      const updatedItems = mapDetalle(detalle);
+
+      swalSuccess(t.add_item_to_quote_success).then(() => {
+        setOrder(updatedOrder);
+        setItems(updatedItems);
+        if (updatedOrder.NroOrden) {
+          router.push(`/admin/revision/quotes?customer=${customer.CodCliente}&option=quotes&id=${updatedOrder.NroOrden}`);
+        }
+        setValueQuote('nro_part', '');
+        setValueQuote('quantity', '');
+        updateInputs(updatedItems);
+        setFocus("nro_part");
+      });
+
     } catch (error) {
 
     }
   }
 
-  const showOptions = (options, data) => {
-    setModalTitle('');
-    setModalSize('w-full max-w-5xl')
-    setModalContent(<OptionsItemsQuote close={() => setShowModal(false)} updateInputs={updateInputs} setItems={setItems} setOrder={setOrder} options={options} customer={customer} order={order} token={token} t={t} data={data}></OptionsItemsQuote>);
-    setShowModal(true);
-  }
   const updateItem = async () => {
     try {
-      let data = [];
-      seleccionados.map(i => {
-        data.push({ Idioma: locale, NroOrden: order.NroOrden, CodItem: i.CodItem, Cantidad: i.Cantidad, ValToken: token });
+      const rs = await axiosClient.put(URL_UPDATE_ITEM, {
+        NroCotizacion: order.NroOrden,
+        Items: seleccionados.map(i => ({ CodItem: i.CodItem, Cantidad: i.Cantidad })),
       });
-      const rs = await axios.post(url_update_item, data);
-
-      if (rs.data.estado == 'OK') {
-        Swal.fire({
-          position: "top-end",
-          icon: "success",
-          title: t.update_item_success,
-          showConfirmButton: false,
-          timer: 1500
-        }).then(r => {
-          setSeleccionados([]);
-        });
-
-        setOrder(rs.data.dato1[0]);
-        setItems(rs.data.dato2);
-      }
+      const { cotizacion, detalle } = rs.data;
+      const updatedOrder = mapCotizacion(cotizacion);
+      const updatedItems = mapDetalle(detalle);
+      swalSuccess(t.update_item_success).then(() => setSeleccionados([]));
+      setOrder(updatedOrder);
+      setItems(updatedItems);
+      updateInputs(updatedItems);
     } catch (error) {
 
     }
@@ -387,7 +520,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, op
   }
 
   const discount = () => {
-    setModalTitle('');
+    setModalTitle(t.add_discount ?? 'Agregar Descuento');
     setModalSize('w-full max-w-lg');
     setModalContent(<DiscountForm close={() => setShowModal(false)} updateInputs={updateInputs} setItems={setItems} setOrder={setOrder} customer={customer} order={order} token={token} t={t}></DiscountForm>);
     setShowModal(true);
@@ -402,61 +535,25 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, op
   const updateQuote = async () => {
     const data = getValuesQuote();
     try {
-      const data_quote = {
-        NroOrden: order.NroOrden,
-        NroPedido: data.nro_order,
-        MarcaEquipo: (data.equipment_brand?.label) ?? "",
-        ModeloEquipo: data.equipment_model,
-        AnioEquipo: data.equipment_year,
-        NroSerieEquipo: data.equipment_serie,
-        MarcaMotor: (data.engine_brand?.label) ?? "",
-        ModeloMotor: data.engine_model,
-        NroSerieMotor: data.engine_serie,
-        ValToken: token
-      }
-      const rs = await axios.post(url_update_quote, data_quote);
-      if (rs.data.estado == 'OK') {
-        Swal.fire({
-          position: "top-end",
-          icon: "success",
-          title: t.update_quote_success,
-          showConfirmButton: false,
-          timer: 1500
-        }).then(async (r) => {
-
-        });
-      } else {
-        Swal.fire({
-          title: t.error,
-          text: t.update_quote_error,
-          icon: 'error',
-          confirmButtonColor: '#dc2626',
-          confirmButtonText: t.close
-        });
-      }
-
-    } catch (error) {
-
-      Swal.fire({
-        title: t.error,
-        text: t.update_quote_error_server,
-        icon: 'error',
-        confirmButtonColor: '#dc2626',
-        confirmButtonText: t.close
+      await axiosClient.put(URL_UPDATE_QUOTE, {
+        NroCotizacion:  order.NroOrden,
+        NroPedido:      data.nro_order        ?? '',
+        MarcaEquipo:    (data.equipment_brand?.label) ?? '',
+        ModeloEquipo:   data.equipment_model  ?? '',
+        AnioEquipo:     data.equipment_year   ?? '',
+        NroSerieEquipo: data.equipment_serie  ?? '',
+        MarcaMotor:     (data.engine_brand?.label)    ?? '',
+        ModeloMotor:    data.engine_model     ?? '',
+        NroSerieMotor:  data.engine_serie     ?? '',
       });
+      swalSuccess(t.update_quote_success);
+    } catch (error) {
+      swalError(t.error, t.update_quote_error_server, t.close);
     }
   }
 
   const newQuote = () => {
-    Swal.fire({
-      title: t.question_create_new_quote,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#15803d',
-      confirmButtonText: t.yes,
-      cancelButtonText: t.btn_cancel,
-      reverseButtons: true
-    }).then(async (result) => {
+    swalConfirm(t.question_create_new_quote, '', { confirmText: t.yes, cancelText: t.btn_cancel, confirmColor: '#15803d' }).then(async (result) => {
       if (result.isConfirmed) {
         const nextSearchParams = new URLSearchParams(searchParams.toString());
         nextSearchParams.delete("id");
@@ -469,16 +566,15 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, op
 
   }
 
-  const handleChangeOption = (option) => {
-    const value = option.target.value;
-    setQuoteORTrackingOption(value);
-    setOptionSelected(value);
-    if (option.target.value == 'quote') {
-      setDisabledTracking(true);
-    } else {
-      setDisabledTracking(false);
-    }
-  }
+  useEffect(() => {
+    if (!order.NroOrden || all_disabled_tracking) return;
+    axiosClient.get(URL_GET_SEGUIMIENTO)
+      .then(rs => {
+        const raw = Array.isArray(rs.data) ? rs.data : (rs.data.data ?? rs.data.usuarios ?? []);
+        setOptionsShare(raw.map(u => ({ value: u.codUsuario ?? u.CodUsuario, label: u.nomUsuario ?? u.NomUsuario })));
+      })
+      .catch(() => {});
+  }, [order.NroOrden, all_disabled_tracking]);
 
 
   const handleChangePreference = async (select) => {
@@ -491,179 +587,139 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, op
         didOpen: () => {
           Swal.showLoading();
         },
-      }).then(async (r) => {
-        const rs = await axios.post(url_update_preference, { Idioma: locale, NroOrden: order.NroOrden, CodCliente: customer.CodCliente, TipoPreferencia: select.value, ValToken: token });
-        if (rs.data.estado == 'OK') {
-          Swal.fire({
-            position: "top-end",
-            icon: "success",
-            title: t.update_preference_success,
-            showConfirmButton: false,
-            timer: 1500
-          }).then(async (r) => {
-            setOrder(rs.data.dato1[0]);
-            setItems(rs.data.dato2);
-          });
-        } else {
-          Swal.fire({
-            title: t.error,
-            text: t.update_preference_error,
-            icon: 'error',
-            confirmButtonColor: '#dc2626',
-            confirmButtonText: t.close
-          });
-        }
-
+      }).then(async () => {
+        const rs = await axiosClient.put(URL_UPDATE_PREFERENCE, {
+          NroCotizacion:  order.NroOrden,
+          TipoPreferencia: select.value,
+        });
+        const { cotizacion, detalle } = rs.data;
+        const updatedOrder = mapCotizacion(cotizacion);
+        const updatedItems = mapDetalle(detalle);
+        swalSuccess(t.update_preference_success).then(() => {
+          setOrder(updatedOrder);
+          setItems(updatedItems);
+        });
       });
     } catch (error) {
-
-      Swal.fire({
-        title: t.error,
-        text: t.update_preference_error_server,
-        icon: 'error',
-        confirmButtonColor: '#dc2626',
-        confirmButtonText: t.close
-      });
+      swalError(t.error, t.update_preference_error_server, t.close);
 
     }
   }
 
-  const saveFreight = async () => {
-    Swal.fire({
-      title: t.updating,
-      allowOutsideClick: false,
-      allowEscapeKey: false,
-      showConfirmButton: false,
-      didOpen: () => {
-        Swal.showLoading();
-      },
-    });
-    const freight = getValues('freight');
+  const applyFreight = async (mtoFlete, confirmado) => {
     try {
-      const rs = await axios.post(url_save_freight, { Idioma: locale, NroOrden: order.NroOrden, FleteInterno: freight, ValToken: token });
-      Swal.close();
-      if (rs.data.estado == 'OK') {
-        Swal.fire({
-          position: "top-end",
-          icon: "success",
-          title: t.save_freight_success,
-          showConfirmButton: false,
-          timer: 1500
-        }).then(async (r) => {
-          //setValue('freight', freight.toFixed(2));
-
-          setOrder(rs.data.dato1[0]);
-          setItems(rs.data.dato2);
-
-        });
-      } else if (rs.data.estado == 'Error') {
-        Swal.fire({
-          title: t.error,
-          text: rs.data.mensaje,
-          icon: 'error',
-          confirmButtonColor: '#dc2626',
-          confirmButtonText: t.close
-        });
-      } else {
-        Swal.fire({
-          title: t.error,
-          text: t.save_freight_error,
-          icon: 'error',
-          confirmButtonColor: '#dc2626',
-          confirmButtonText: t.close
-        });
-      }
-    } catch (error) {
-      Swal.fire({
-        title: t.error,
-        text: t.save_freight_error_server,
-        icon: 'error',
-        confirmButtonColor: '#dc2626',
-        confirmButtonText: t.close
+      const rs = await axiosClient.put(URL_SAVE_FREIGHT, {
+        NroCotizacion:   order.NroOrden,
+        MtoFleteInterno: mtoFlete,
+        Confirmado:      confirmado,
       });
+      const { resultado, cotizacion, detalle, mensaje } = rs.data;
+
+      if (resultado === 'requiere_confirmacion') {
+        swalConfirm(
+          mensaje ?? t.question_freight_distributed ?? '¿Deseas restablecer el flete interno?',
+          '',
+          { confirmText: t.yes ?? 'Sí', cancelText: t.no ?? 'No', confirmColor: '#4f46e5' }
+        ).then(async (r) => {
+          if (r.isConfirmed) {
+            await applyFreight(mtoFlete, true);
+          } else {
+            setValue('freight', '0');
+          }
+        });
+        return;
+      }
+
+      swalSuccess(t.save_freight_success).then(() => {
+        setOrder(mapCotizacion(cotizacion));
+        setItems(mapDetalle(detalle));
+      });
+    } catch (error) {
+      swalError(t.error, t.save_freight_error_server, t.close);
     }
+  };
+
+  const saveFreight = async () => {
+    const freight = parseFloat(getValues('freight')) || 0;
+    await applyFreight(freight, false);
   }
 
   const deleteFreight = async () => {
-    Swal.fire({
-      title: t.question_delete_freight,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#dc2626',
-      confirmButtonText: t.yes_distribute,
-      cancelButtonText: t.btn_cancel,
-      reverseButtons: true
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          const rs = await axios.post(url_delete_freight, { Idioma: locale, NroOrden: order.NroOrden, CodCliente: customer.CodCliente, ValToken: token });
-
-          if (rs.data.estado == 'OK') {
-            Swal.fire({
-              position: "top-end",
-              icon: "success",
-              title: t.delete_freight_success,
-              showConfirmButton: false,
-              timer: 1500
-            }).then(async (r) => {
-              setOrder(rs.data.dato1[0]);
-              setItems(rs.data.dato2);
-            });
-          } else {
-            Swal.fire({
-              title: t.error,
-              text: t.delete_freight_error,
-              icon: 'error',
-              confirmButtonColor: '#dc2626',
-              confirmButtonText: t.close
-            });
-          }
-        } catch (error) {
-
-          Swal.fire({
-            title: t.error,
-            text: t.delete_freight_error_server,
-            icon: 'error',
-            confirmButtonColor: '#dc2626',
-            confirmButtonText: t.close
-          });
-        }
+    swalConfirm(t.question_delete_freight, '', { confirmText: t.yes_distribute, cancelText: t.btn_cancel, confirmColor: '#dc2626' }).then(async (result) => {
+      if (!result.isConfirmed) return;
+      try {
+        const rs = await axiosClient.put(URL_DELETE_FREIGHT, { NroCotizacion: order.NroOrden });
+        const { cotizacion, detalle } = rs.data;
+        swalSuccess(t.delete_freight_success).then(() => {
+          setOrder(mapCotizacion(cotizacion));
+          setItems(mapDetalle(detalle));
+        });
+      } catch (error) {
+        swalError(t.error, t.delete_freight_error_server, t.close);
       }
     });
   }
 
   const showMore = async (item) => {
-
-
+    console.log('INI', item)
     try {
-      const rs = await axios.post(url_more_quote, { NroOrden: order.NroOrden, CodCliente: customer.CodCliente, NroParte: item.NroParte, Cantidad: item.Cantidad, ValToken: token });
-      if (rs.data.estado == 'OK') {
-        let data = getValuesQuote();
-        data.nro_part = item.NroParte.replace(/\s+/g, "").replace(/\*/g, "");
-        data.quantity = getValuesQuote(`items.${item.CodItem}.Cantidad`)
-        data.position = item.CodItem;
+      const rs = await axiosClient.post(URL_MORE_QUOTE, {
+        NroCotizacion: order.NroOrden,
+        CodCliente:    customer.CodCliente,
+        NroParte:      item.NroParte,
+        Cantidad:      item.Cantidad,
+      });
 
+      const { resultado: _res2, opcionesLocales, opcionesImportacion, mensaje } = rs.data;
+      const resultado = String(_res2 ?? '').replace(/"/g, '').trim().toLowerCase();
 
-        setModalTitle('');
-        setModalSize('w-full max-w-5xl')
-        setModalContent(<OptionsItemsQuote
-          close={() => setShowModal(false)}
-          updateInputs={updateInputs}
-          setItems={setItems}
-          setOrder={setOrder}
-          options={rs.data.dato2}
-          customer={customer}
-          order={order}
-          token={token}
-          item_select={item}
-          t={t}
-          data={data}
-        ></OptionsItemsQuote>);
-        setShowModal(true);
+      if (resultado === 'no_encontrado') {
+        swalInfo(t.spare_part_not_found ?? 'Repuesto no encontrado', mensaje ?? '', t.close ?? 'Cerrar');
+        return;
       }
-    } catch (error) {
 
-    }
+      const mapOpt = (o) => ({
+        CodRepuesto:   o.codRepuesto,
+        NroParte:      o.nroParte,
+        TipRepuesto:   o.nomTipRepuesto,
+        Aplicacion:    o.nomAplicacion,
+        Marca:         o.nomMarca,
+        Proveedor:     o.nomPrv,
+        Estado:        o.nomEstado,
+        Precio:        o.precioUnitario,
+        DesTieEntrega: o.desTiempoEntrega,
+        DiasVigencia:  o.diasVigencia,
+        esLocal:       o.esLocal,
+      });
+
+      const options = [
+        ...(opcionesLocales   ?? []).map(mapOpt),
+        ...(opcionesImportacion ?? []).map(mapOpt),
+      ];
+      if (!options.length) return;
+
+      let data = getValuesQuote();
+      data.nro_part = item.NroParte.replace(/\s+/g, '').replace(/\*/g, '');
+      data.quantity = getValuesQuote(`items.${item.CodItem}.Cantidad`);
+      data.position = item.CodItem;
+
+      setModalTitle('');
+      setModalSize('w-full max-w-5xl');
+      setModalContent(<OptionsItemsQuote
+        close={() => setShowModal(false)}
+        updateInputs={updateInputs}
+        setItems={setItems}
+        setOrder={setOrder}
+        options={options}
+        customer={customer}
+        order={order}
+        token={token}
+        item_select={item}
+        t={t}
+        data={data}
+      />);
+      setShowModal(true);
+    } catch (error) {}
   }
 
   /*
@@ -683,67 +739,60 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, op
   */
 
   const deleteItems = async () => {
+    const count = seleccionados.length;
+    if (!count) return;
+
+    const title = count === 1
+      ? t.question_delete_item   ?? '¿Desea eliminar el item seleccionado?'
+      : t.question_delete_items  ?? `¿Desea eliminar los ${count} items seleccionados?`;
+
+    const result = await swalConfirm(title, '', {
+      confirmText: t.yes ?? 'Sí',
+      cancelText:  t.btn_cancel ?? 'Cancelar',
+      confirmColor: '#ef4444',
+    });
+    if (!result.isConfirmed) return;
+
     try {
-      let data = [];
-      seleccionados.map(i => {
-        data.push({ Idioma: locale, NroOrden: order.NroOrden, CodItem: i.CodItem, ValToken: token });
+      const rs = await axiosClient.delete(URL_DELETE_ITEM_QUOTE, {
+        data: {
+          NroCotizacion: order.NroOrden,
+          Items: seleccionados.map(i => ({ CodItem: i.CodItem })),
+        }
       });
-      const rs = await axios.post(url_delete_item_quote, data);
-      if (rs.data.estado == 'OK') {
-        Swal.fire({
-          position: "top-end",
-          icon: "success",
-          title: t.delete_item_success,
-          showConfirmButton: false,
-          timer: 1500
-        }).then(r => {
-          setSeleccionados([]);
-        });
-
-        setOrder(rs.data.dato1[0]);
-        setItems(rs.data.dato2);
-        updateInputs(rs.data.dato2);
-      }
-
-
-    } catch (error) {
-
-    }
+      const { cotizacion, detalle } = rs.data;
+      const updatedOrder = mapCotizacion(cotizacion);
+      const updatedItems = mapDetalle(detalle);
+      swalSuccess(t.delete_item_success).then(() => setSeleccionados([]));
+      setOrder(updatedOrder);
+      setItems(updatedItems);
+      updateInputs(updatedItems);
+    } catch (error) {}
   }
 
   const priceParameters = async () => {
     try {
-      const rs = await axios.post(url_price_parameters, { NroOrden: order.NroOrden, ValToken: token });
-
-      if (rs.data.estado == 'OK') {
-        setModalSize('w-full max-w-lg');
-        setModalTitle('');
-        setModalContent(<PriceParametersForm
-          close={() => setShowModal(false)}
-          updateInputs={updateInputs}
-          setItems={setItems}
-          setOrder={setOrder}
-          customer={customer}
-          order={order}
-          token={token}
-          default_value={rs.data.dato}
-          t={t}
-          data={[]}
-        ></PriceParametersForm>);
-        setShowModal(true);
-      } else {
-        Swal.fire({
-          title: t.error,
-          text: rs.data.mensaje,
-          icon: 'error',
-          confirmButtonColor: '#dc2626',
-          confirmButtonText: t.close
-        });
-      }
+      const rs = await axiosClient.get(`${URL_PRICE_PARAMETERS}/${order.NroOrden}`);
+      setModalSize('w-full max-w-lg');
+      setModalTitle(t.price_parameters ?? 'Parámetro Precio');
+      setModalContent(<PriceParametersForm
+        close={() => setShowModal(false)}
+        updateInputs={updateInputs}
+        setItems={setItems}
+        setOrder={setOrder}
+        customer={customer}
+        order={order}
+        token={token}
+        default_value={rs.data.porUtilidad}
+        items={items}
+        seleccionados={seleccionados}
+        t={t}
+        data={[]}
+      />);
+      setShowModal(true);
     } catch (error) {
-
+      swalError(t.error, t.price_parameters_error ?? 'No se pudo cargar los parámetros', t.close);
     }
-
   }
 
   const costSummary = () => {
@@ -760,121 +809,98 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, op
   }
 
   const cloneQuote = () => {
-    Swal.fire({
-      title: t.clone_quote,
-      text: t.question_clone_quote,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#15803d',
-      confirmButtonText: t.yes,
-      cancelButtonText: t.btn_cancel,
-      reverseButtons: true
-    }).then(async (result) => {
+    swalConfirm(t.clone_quote, t.question_clone_quote, { confirmText: t.yes, cancelText: t.btn_cancel, confirmColor: '#15803d' }).then(async (result) => {
       if (result.isConfirmed) {
-        const rs = await axios.post(url_clone_quote, { Idioma: locale, NroOrden: order.NroOrden, ValToken: token });
-        if (rs.data.dato1[0].NroOrden) {
-          router.push(`/admin/revision/quotes?customer=${customer.CodCliente}&option=quotes&id=${rs.data.dato1[0].NroOrden}`);
+        Swal.fire({
+          html: `<div style="padding:16px 0 8px">
+            <p style="color:#475569;font-size:14px;font-weight:500;margin:0">${t.duplicating_quote ?? 'Duplicando cotización...'}</p>
+          </div>`,
+          allowOutsideClick: false,
+          showConfirmButton: false,
+          didOpen: () => Swal.showLoading(),
+        });
+        try {
+          const rs = await axiosClient.post(URL_CLONE_QUOTE, { NroCotizacion: order.NroOrden, Idioma: locale });
+          const nuevaCotizacion = rs.data?.cotizacion ?? rs.data;
+          const nroNuevo = nuevaCotizacion?.nroCotizacion;
+          if (nroNuevo) {
+            swalSuccess(t.clone_quote_success ?? 'Cotización duplicada').then(() => {
+              router.push(`/admin/revision/quotes?customer=${customer.CodCliente}&option=quotes&id=${nroNuevo}`);
+            });
+          }
+        } catch {
+          swalError(t.error, t.clone_quote_error ?? 'No se pudo duplicar la cotización', t.close);
         }
       }
     });
   }
-  const validateQuote = async () => {
-    if (seleccionados.length == 0) {
-      Swal.fire({
-        title: t.error,
-        text: t.validate_quote_empty_error,
-        icon: 'error',
-        confirmButtonColor: '#dc2626',
-        confirmButtonText: t.close
-      });
+  const validateQuote = async (cadNroParte = null, blnForzar = false) => {
+    if (!blnForzar && seleccionados.length === 0) {
+      swalError(t.error, t.validate_quote_empty_error, t.close);
       return;
     }
-    let data = [];
-    seleccionados.map((i) => {
-      data.push({
-        NroOrden: order.NroOrden,
-        NroParte: i.NroParte,
-        Cantidad: i.Cantidad,
-        Marca: i.Marca,
-        ValToken: token
-      });
-    });
+
+    const cadParte = cadNroParte ?? [...new Set(seleccionados.map(i => i.NroParte))].join(',');
 
     try {
-      const rs = await axios.post(url_validate_quote, data);
-      if (rs.data.estado == 'Ok') {
-        Swal.fire({
-          position: "top-end",
-          icon: "success",
-          title: t.validate_quote_success,
-          showConfirmButton: false,
-          timer: 1500
-        });
-      } else {
-        Swal.fire({
-          position: "top-end",
-          icon: "error",
-          title: t.validate_quote_error,
-          showConfirmButton: false,
-          timer: 1500
-        });
+      const rs = await axiosClient.post(URL_VALIDATE_QUOTE, {
+        NroCotizacion: order.NroOrden,
+        CadNroParte:   cadParte,
+        BlnReg:        true,
+        BlnForzar:     blnForzar,
+      });
+
+      const { resultado, mensaje, cadNroParte: repetidos, esDuplicado } = rs.data;
+
+      if (resultado === 'ok') {
+        if (esDuplicado) {
+          swalConfirm(mensaje, '', { confirmText: t.yes ?? 'Sí', cancelText: t.no ?? 'No', confirmColor: '#4f46e5' })
+            .then(async (r) => {
+              if (r.isConfirmed) await validateQuote(repetidos, true);
+            });
+        } else {
+          swalSuccess(mensaje || (t.validate_quote_success ?? 'Enviado a Repuestos por Cotizar'));
+          setSeleccionados([]);
+        }
       }
     } catch (error) {
-
-      Swal.fire({
-        title: t.error,
-        text: t.validate_quote_error_server,
-        icon: 'error',
-        confirmButtonColor: '#dc2626',
-        confirmButtonText: t.close
-      });
+      swalError(t.error, t.validate_quote_error_server ?? 'Error al validar', t.close);
     }
-
   }
 
   const apply = async () => {
-
-    let customer_id = getValues('share_with_customer') || null;
-    if (!quote_or_tracking_option) {
-      Swal.fire({
-        title: t.error,
-        text: t.quote_or_tracking_option_empty,
-        icon: 'error',
-        confirmButtonColor: '#dc2626',
-        confirmButtonText: t.close
+    try {
+      await axiosClient.post(URL_SAVE_SEGUIMIENTO, {
+        NroCotizacion:        order.NroOrden,
+        codUsuarioCompartido: select_share?.value ?? 0,
+        notaUsuario:          getValuesNoteQuote('note_user') ?? '',
       });
-      return;
-    } else {
-      try {
-        const data = {
-          NroOrden: order.NroOrden,
-          CodUsuarioCompartido: (customer_id?.value) ? customer_id.value : 0,
-          Cotizar: (quote_or_tracking_option == "quote") ? 1 : 0,
-          Seguimiento: (quote_or_tracking_option == "tracking") ? 1 : 0,
-          WhatsAp: 0,
-          Mail: 0,
-          Asignado: (all_disabled_tracking) ? 1 : 0,
-          NotaUsuario: getValuesNoteQuote('note_user'),
-          ValToken: token
-
-        }
-
-        const rs = await axios.post(url_save_tracking, data);
-        if (rs.data.estado == 'Ok') {
-          Swal.fire({
-            position: "top-end",
-            icon: "success",
-            title: t.tracking_option_success,
-            showConfirmButton: false,
-            timer: 1500
-          });
-          setAllDisabledTracking(true);
-        }
-      } catch (error) {
-
-      }
+      setSeguimientoNombre(select_share?.label ?? null);
+      setAllDisabledTracking(true);
+      swalSuccess(t.tracking_option_success ?? 'Seguimiento registrado');
+    } catch (error) {
+      const msg = error.response?.status === 404
+        ? (t.quote_not_found ?? 'Cotización no encontrada')
+        : (error.response?.data?.message ?? t.error);
+      swalError(t.error, msg, t.close);
     }
   }
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  const onDragEnd = async ({ active, over }) => {
+    if (!over || active.id === over.id) return;
+    const oldIndex = items.findIndex(i => i.CodItem === active.id);
+    const newIndex = items.findIndex(i => i.CodItem === over.id);
+    const reordered = arrayMove(items, oldIndex, newIndex);
+    setItems(reordered);
+    try {
+      await axiosClient.post(URL_REORDER, {
+        nroCotizacion: order.NroOrden,
+        items: reordered.map((item, idx) => ({ codItem: item.CodItem, orden: idx + 1 })),
+      });
+    } catch {}
+  };
 
   const buyQuote = () => {
 
@@ -917,19 +943,31 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, op
 
     try {
       const NroParte = (item.NroParte.replace(/\s+/g, "").replace(/\*/g, ""));
-      const rs = await axios.post(url_search_reference, { NroParte: NroParte, CodMarca: 0, ValToken: token });
+      const rs = await axiosClient.get(URL_SEARCH_REFERENCE, { params: { nroParte: NroParte, codDax: '' } });
 
-      if (rs.data.estado == "OK") {
-        setShowModal(true);
-        setModalSize('w-full max-w-6xl');
-        setModalTitle(t.reference_part_change);
-        let references = rs.data.dato1;
-        let options = rs.data.dato2;
-        setModalContent(<TableReference brands={brands} NroParte={NroParte} t={t} items={references} options={options} token={token} close={() => setShowModal(false)} quote_id={order.NroOrden}></TableReference>)
-        Swal.close();
-      }
+      const references = (rs.data.referencias ?? []).map(r => ({
+        CodRegistro:   r.codRegistro,
+        NroParte:      r.nroParte,
+        NomAplicacion: r.aplicacion,
+        FecRegistra:   r.fecRegistra,
+      }));
+      const options = (rs.data.repuestos ?? []).map(r => ({
+        NroParte:    r.nroParte,
+        DesRepuesto: r.descripcion,
+        NomPrv:      r.proveedor,
+        NomMarca:    r.marca,
+        Peso:        r.peso,
+        Costo:       r.costo,
+        Estado:      '',
+      }));
+
+      setShowModal(true);
+      setModalSize('w-full max-w-6xl');
+      setModalTitle(t.reference_part_change);
+      setModalContent(<TableReference brands={brands} NroParte={NroParte} t={t} items={references} options={options} token={token} close={() => setShowModal(false)} quote_id={order.NroOrden} />);
+      Swal.close();
     } catch (error) {
-
+      Swal.close();
     }
   }
 
@@ -949,482 +987,517 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, op
     });
 
     try {
-      const rs = await axios.post(url_change_report, { NroOrden: order.NroOrden, MostrarCodigo: isChecked ? 1 : 0, ValToken: token });
+      await axiosClient.post(URL_CHANGE_REPORT, { NroOrden: order.NroOrden, MostrarCodigo: isChecked ? 1 : 0 });
       Swal.close();
-      if (rs.data.estado == 'OK') {
-        Swal.fire({
-          position: "top-end",
-          icon: "success",
-          title: t.record_updated,
-          showConfirmButton: false,
-          timer: 1500
-        }).then(() => {
-          setOrder((prevOrder) => ({
-            ...prevOrder,
-            MostrarCodigo: isChecked ? 1 : 0
-          }));
-        })
-      }
+      setOrder(prev => ({ ...prev, MostrarCodigo: isChecked ? 1 : 0 }));
+      swalSuccess(t.record_updated);
     } catch (error) {
-
+      Swal.close();
     }
   }
 
+  const labelClass = "text-xs font-medium text-gray-500 dark:text-gray-400 w-28 shrink-0 text-right pr-3";
+  const inputClass  = "h-9 flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30";
+  const thClass     = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap";
+  const tdClass     = "text-xs text-gray-700 dark:text-gray-300 px-3 py-1.5";
+
   return (
     <>
-      <div className='panel border mt-8 bg-[#F2F2F2]'>
-        <div className="grid grid-cols-2 gap-4">
-          <form action="" onSubmit={handleSearchQuoteFormSubmit(onSearch)}>
-            <fieldset>
-              <legend className='space-y-1'>{t.search}</legend>
-              <div className="grid grid-cols-2 gap-4">
-                <div className='space-y-1'>
-                  <div className="flex sm:flex-row flex-col">
-                    <label className="mb-0 sm:w-2/5 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="nro_part">{t.nro_part}</label>
-                    <div className="relative flex-1">
-                      <input onKeyDown={handleKeyDown} type='text' autoComplete='OFF' {...registerSearchQuote("nro_part", { required: { value: true, message: t.required_field } })} aria-invalid={errorsSearchQuote.nro_part ? "true" : "false"} placeholder={t.enter_nro_part} className="form-input form-input-sm placeholder:" />
-                      {errorsSearchQuote.nro_part && <span className='text-red-400 error block text-xs mt-1' role="alert">{errorsSearchQuote.nro_part?.message?.toString()}</span>}
-                    </div>
+      {/* ── TOP: Search + Summary ────────────────────────────────── */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+
+        {/* ── LEFT: Search + Quote Data + Report ── */}
+        <div className="space-y-4">
+
+          {/* Buscar repuesto */}
+          <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
+            <form onSubmit={run(handleSearchQuoteFormSubmit(onSearch))}>
+              <div className="px-4 pt-4 pb-4 space-y-2.5 bg-white dark:bg-gray-900">
+
+                {/* Nro. Parte + Cantidad + Buscar */}
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 relative">
+                    <input onKeyDown={handleKeyDown} type="text" autoComplete="off"
+                      {...registerSearchQuote("nro_part", { required: true })}
+                      placeholder={t.enter_nro_part}
+                      className={`h-9 w-full rounded-lg border px-3 text-sm focus:outline-none focus:ring-2 bg-white dark:bg-gray-900 transition ${errorsSearchQuote.nro_part ? 'border-red-400 dark:border-red-500 focus:ring-red-300/30' : 'border-gray-300 dark:border-gray-700 focus:ring-primary/30'}`} />
+                    {errorsSearchQuote.nro_part && (
+                      <p className="absolute top-full left-0 mt-0.5 text-[10px] text-red-500 whitespace-nowrap">{t.field_required ?? 'Campo requerido'}</p>
+                    )}
                   </div>
-
-                  <div className="flex sm:flex-row flex-col">
-                    <label className="mb-0 sm:w-2/5 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="quantity">{t.amount}</label>
-                    <div className="relative flex-1">
-                      <input onKeyDown={handleKeyDown} type='text' autoComplete='OFF' {...registerSearchQuote("quantity", { required: { value: true, message: t.required_field } })} aria-invalid={errorsSearchQuote.quantity ? "true" : "false"} placeholder={t.enter_quantity} className="form-input form-input-sm placeholder:" />
-                      {errorsSearchQuote.quantity && <span className='text-red-400 error block text-xs mt-1' role="alert">{errorsSearchQuote.quantity?.message?.toString()}</span>}
-                    </div>
+                  <div className="relative w-40">
+                    <input onKeyDown={handleKeyDown} type="number" min="1" step="1" autoComplete="off"
+                      {...registerSearchQuote("quantity", { required: true, min: 1, valueAsNumber: true })}
+                      placeholder={t.enter_quantity}
+                      className={`h-9 w-full rounded-lg border px-3 text-sm focus:outline-none focus:ring-2 bg-white dark:bg-gray-900 transition ${errorsSearchQuote.quantity ? 'border-red-400 dark:border-red-500 focus:ring-red-300/30' : 'border-gray-300 dark:border-gray-700 focus:ring-primary/30'}`} />
+                    {errorsSearchQuote.quantity && (
+                      <p className="absolute top-full left-0 mt-0.5 text-[10px] text-red-500 whitespace-nowrap">{t.field_required ?? 'Campo requerido'}</p>
+                    )}
                   </div>
-
-                </div>
-
-                <div className='space-y-1'>
-                  {(showPosition) &&
-                    <div className="flex sm:flex-row flex-col mb-2">
-                      <label className="mb-0 sm:w-2/5 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="position">{t.position}</label>
-                      <div className="relative flex-1">
-                        <input onKeyDown={handleKeyDown} type='text' autoComplete='OFF' {...registerSearchQuote("position", { required: false })} aria-invalid={errors.position ? "true" : "false"} className="form-input form-input-sm placeholder:" />
-                        {errors.position && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.position?.message?.toString()}</span>}
-                      </div>
-                    </div>
-                  }
-
-                  <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
-                    {(order.NroOrden) &&
-                      <button type='button' onClick={() => setShowPosition(!showPosition)} className={`btn btn-sm  p-0 ${(showPosition) ? 'bg-gray-900' : 'bg-gray-400'} `}><IconPosition className='fill-white'></IconPosition></button>
-                    }
-                    <button type="button" onClick={handleSearchQuoteFormSubmit(onSearch)} className='btn btn-primary'>{t.btn_search}</button>
-                  </div>
-
+                  <button type="submit" disabled={isSubmitting}
+                    className="h-9 shrink-0 rounded-lg bg-primary px-5 text-white text-sm font-medium hover:bg-primary/90 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                    {t.btn_search}
+                  </button>
                 </div>
 
               </div>
+            </form>
+          </div>
 
+          {/* Datos de la cotización */}
+          <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
+            <div className="px-4 py-2.5 border-b border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800">
+              <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t.quote_data ?? 'Datos de la Cotización'}</p>
+              <div className="h-0.5 w-8 rounded bg-primary/60 mt-0.5" />
+            </div>
+            <div className="bg-white dark:bg-gray-900">
 
-              <div className='bg-black h-0.5 my-4'></div>
-              <div className='bg-gray-300 p-4 mb-4'>
-                <div className="flex sm:flex-row flex-col items-center">
-                  <label className="mb-0 sm:w-1/5 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="nro_order">{t.nro_pedido}</label>
-                  <div className="sm:w-2/5">
-                    <input type='text' autoComplete='OFF' {...registerSearchQuote("nro_order", { required: false })} aria-invalid={errors.nro_order ? "true" : "false"} placeholder={t.enter_nro_order} className="form-input form-input-sm placeholder:" />
-                    {errors.nro_order && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.nro_order?.message?.toString()}</span>}
-                  </div>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className='space-y-1'>
-
-                  <div className="flex sm:flex-row flex-col">
-                    <label className="mb-0 sm:w-2/5 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="equipment_brand">{t.equipment_brand}</label>
-                    <div className="relative flex-1">
-                      <Controller
-                        name="equipment_brand"
-                        control={control}
-                        rules={{ required: false }}
-                        render={({ field }) => (
-                          <Select
-                            {...field}
-                            isClearable
-                            options={brands}
-                            placeholder={t.select}
-                            instanceId="equipment_brand"
-                            menuPosition={'fixed'}
-                            menuShouldScrollIntoView={false}
-                            className="w-full"
-                          />
-                        )}
-                      />
-
-                      {errors.equipment_brand && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.equipment_brand?.message?.toString()}</span>}
-                    </div>
-                  </div>
-                  <div className="flex sm:flex-row flex-col">
-                    <label className="mb-0 sm:w-2/5 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="equipment_model">{t.equipment_model}</label>
-                    <div className="relative flex-1">
-                      <input type='text' autoComplete='OFF' {...registerSearchQuote("equipment_model", { required: false })} aria-invalid={errors.equipment_model ? "true" : "false"} placeholder={t.enter_equipment_model} className="form-input form-input-sm placeholder:" />
-                      {errors.equipment_model && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.equipment_model?.message?.toString()}</span>}
-                    </div>
-                  </div>
-                  <div className="flex sm:flex-row flex-col">
-                    <label className="mb-0 sm:w-2/5 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="equipment_serie">{t.equipment_serie}</label>
-                    <div className="relative flex-1">
-                      <input type='text' autoComplete='OFF' {...registerSearchQuote("equipment_serie", { required: false })} aria-invalid={errors.equipment_serie ? "true" : "false"} placeholder={t.enter_equipment_serie} className="form-input form-input-sm placeholder:" />
-                      {errors.equipment_serie && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.equipment_serie?.message?.toString()}</span>}
-                    </div>
-                  </div>
-                  <div className="flex sm:flex-row flex-col">
-                    <label className="mb-0 sm:w-2/5 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="equipment_year">{t.year}</label>
-                    <div className="relative flex-1">
-                      <input type='text' autoComplete='OFF' {...registerSearchQuote("equipment_year", { required: false })} aria-invalid={errors.equipment_year ? "true" : "false"} placeholder={t.enter_equipment_year} className="form-input form-input-sm placeholder:" />
-                      {errors.equipment_year && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.equipment_year?.message?.toString()}</span>}
-                    </div>
-                  </div>
-
-                </div>
-                <div className='space-y-1'>
-                  <div className="flex sm:flex-row flex-col">
-                    <label className="mb-0 sm:w-2/5 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="engine_brand">{t.engine_brand}</label>
-                    <div className="relative flex-1">
-                      <Controller
-                        name="engine_brand"
-                        control={control}
-                        rules={{ required: false }}
-                        render={({ field }) => (
-                          <Select
-                            {...field}
-                            isClearable
-                            options={brands}
-                            placeholder={t.select}
-                            instanceId="engine_brand"
-                            menuPosition={'fixed'}
-                            menuShouldScrollIntoView={false}
-                            className="w-full"
-                          />
-                        )}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex sm:flex-row flex-col">
-                    <label className="mb-0 sm:w-2/5 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="engine_model">{t.engine_model}</label>
-                    <div className="relative flex-1">
-                      <input type='text' autoComplete='OFF' {...registerSearchQuote("engine_model", { required: false })} aria-invalid={errors.engine_model ? "true" : "false"} placeholder={t.enter_engine_model} className="form-input form-input-sm placeholder:" />
-                      {errors.engine_model && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.engine_model?.message?.toString()}</span>}
-                    </div>
-                  </div>
-                  <div className="flex sm:flex-row flex-col">
-                    <label className="mb-0 sm:w-2/5 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="engine_serie">{t.engine_serie}</label>
-                    <div className="relative flex-1">
-                      <input type='text' autoComplete='OFF' {...registerSearchQuote("engine_serie", { required: false })} aria-invalid={errors.engine_serie ? "true" : "false"} placeholder={t.enter_engine_serie} className="form-input form-input-sm placeholder:" />
-                      {errors.engine_serie && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.engine_serie?.message?.toString()}</span>}
-                    </div>
-                  </div>
-                  {(order.NroOrden) &&
-                    <div className="flex flex-wrap items-center justify-center gap-2">
-                      <button type="button" onClick={() => updateQuote()} className='btn btn-primary'>{t.btn_update}</button>
-                    </div>
-                  }
-                </div>
+              {/* Nro. Pedido */}
+              <div className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
+                <label className={labelClass}>{t.nro_pedido}</label>
+                <input type="text" autoComplete="off" {...registerSearchQuote("nro_order")} placeholder={t.enter_nro_order} className={`${inputClass} uppercase`}
+                  onInput={e => { e.target.value = e.target.value.toUpperCase(); }} />
               </div>
 
-            </fieldset>
-            <div className='bg-black h-0.5 my-4'></div>
+              {/* Equipo + Motor en 2 columnas inline */}
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 p-4">
 
-            {(order.NroOrden) &&
-              <blockquote className="rounded-br-md rounded-tr-md border border-l-2 border-white-light !border-l-primary bg-white p-5 text-black shadow-md ltr:pl-3.5 rtl:pr-3.5 dark:border-[#060818] dark:bg-[#060818]">
-                <div className="flex items-start">
+                {/* Cabeceras */}
+                <div className="flex items-center gap-1.5">
+                  <div className="h-px flex-1 bg-blue-200 dark:bg-blue-800 rounded" />
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400 px-1">{t.equipment_data}</span>
+                  <div className="h-px flex-1 bg-blue-200 dark:bg-blue-800 rounded" />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="h-px flex-1 bg-violet-200 dark:bg-violet-800 rounded" />
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-400 px-1">{t.engine_data}</span>
+                  <div className="h-px flex-1 bg-violet-200 dark:bg-violet-800 rounded" />
+                </div>
 
-                  <p className="m-0 text-sm not-italic text-[#515365] dark:text-white-light">{t.question_show_nro_part}</p>
-
-                  <label className="mb-0 sm:w-2/5 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="show_nro_part">{t.show} {t.nro_part}</label>
-                  <div className="relative flex-1">
-
-                    <div className="mb-5">
-                      <label className="relative h-6 w-12">
-                        <input checked={order.MostrarCodigo === 1} {...register("show_nro_part")} onChange={handelChangeShowPart} type="checkbox" value={1} className="custom_switch peer absolute z-10 h-full w-full cursor-pointer opacity-0" id="nro_part" />
-                        <span className="outline_checkbox bg-white block h-full rounded-full border-2 border-gray-400 before:absolute before:bottom-1 before:left-1 before:h-4 before:w-4 before:rounded-full before:bg-gray-400 before:bg-[url(/assets/images/close.svg)] before:bg-center before:bg-no-repeat before:transition-all before:duration-300 peer-checked:border-primary peer-checked:before:left-7 peer-checked:before:bg-primary peer-checked:before:bg-[url(/assets/images/checked.svg)] dark:border-white-dark dark:before:bg-white-dark"></span>
-                      </label>
-                    </div>
-
-
+                {/* Marca */}
+                <div className="flex items-center gap-2">
+                  <label className="text-[11px] text-gray-400 dark:text-gray-500 w-16 shrink-0 text-right">{t.brand}</label>
+                  <div className="flex-1">
+                    <Controller name="equipment_brand" control={control} rules={{ required: false }}
+                      render={({ field }) => (
+                        <Select {...field} isClearable options={brands} placeholder={t.select} instanceId="equipment_brand" menuPosition="fixed" menuShouldScrollIntoView={false}
+                          filterOption={(opt, input) => input.length >= 2 && opt.label.toLowerCase().includes(input.toLowerCase())}
+                          noOptionsMessage={({ inputValue }) => inputValue.length < 2 ? (t.type_to_search ?? 'Escribe al menos 2 caracteres') : (t.no_options ?? 'Sin opciones')}
+                          styles={{ control: b => ({ ...b, minHeight: '32px', height: '32px', fontSize: '12px' }), valueContainer: b => ({ ...b, padding: '0 8px' }), indicatorsContainer: b => ({ ...b, height: '32px' }) }}
+                        />
+                      )}
+                    />
                   </div>
                 </div>
-              </blockquote>
-            }
-
-
-
-
-          </form>
-
-          <form action="">
-            <fieldset>
-              <legend></legend>
-              <div className="relative overflow-hidden rounded-md bg-white text-center shadow dark:bg-[#1c232f]">
-                <div className="relative mt-10 px-6 mb-8">
-                  <div className="mt-6 grid grid-cols-1 gap-4 ltr:text-left rtl:text-right">
-                    <div className="flex sm:flex-row flex-col border-b pb-2">
-                      <div className="flex-none ltr:mr-2 rtl:ml-2">{t.nro_quote}</div>
-                      <div className="text-end ml-8 font-bold flex-1"><span className='bg-secondary px-4 py-1 text-xl rounded text-white'>{order.NroOrden}</span></div>
-                    </div>
-                    <div className="flex sm:flex-row flex-col border-b pb-2">
-                      <div className="flex-none ltr:mr-2 rtl:ml-2">{t.total_weight_lb}</div>
-                      <div className="text-end ml-8 font-bold flex-1">{customFormat(order.TotalPeso)}</div>
-                    </div>
-                    <div className="flex sm:flex-row flex-col border-b pb-2">
-                      <div className="flex-none ltr:mr-2 rtl:ml-2">{t.quote_total}</div>
-                      <div className="text-end ml-8 font-bold flex-1">{customFormat(order.Total)}</div>
-                    </div>
-                    <div className="flex sm:flex-row flex-col border-b pb-2">
-                      <div className="flex-none ltr:mr-2 rtl:ml-2">{t.nro_items}</div>
-                      <div className="text-end ml-8 font-bold flex-1">{order.NroItems}</div>
-                    </div>
-                    <div className="flex sm:flex-row flex-col">
-                      <div className="flex-none ltr:mr-2 rtl:ml-2">{t.exchange_rate}</div>
-                      <div className="text-end ml-8 font-bold flex-1">{order.TipoCambio}</div>
-                    </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-[11px] text-gray-400 dark:text-gray-500 w-16 shrink-0 text-right">{t.brand}</label>
+                  <div className="flex-1">
+                    <Controller name="engine_brand" control={control} rules={{ required: false }}
+                      render={({ field }) => (
+                        <Select {...field} isClearable options={brands} placeholder={t.select} instanceId="engine_brand" menuPosition="fixed" menuShouldScrollIntoView={false}
+                          filterOption={(opt, input) => input.length >= 2 && opt.label.toLowerCase().includes(input.toLowerCase())}
+                          noOptionsMessage={({ inputValue }) => inputValue.length < 2 ? (t.type_to_search ?? 'Escribe al menos 2 caracteres') : (t.no_options ?? 'Sin opciones')}
+                          styles={{ control: b => ({ ...b, minHeight: '32px', height: '32px', fontSize: '12px' }), valueContainer: b => ({ ...b, padding: '0 8px' }), indicatorsContainer: b => ({ ...b, height: '32px' }) }}
+                        />
+                      )}
+                    />
                   </div>
-
                 </div>
+
+                {/* Modelo */}
+                <div className="flex items-center gap-2">
+                  <label className="text-[11px] text-gray-400 dark:text-gray-500 w-16 shrink-0 text-right">{t.model}</label>
+                  <input type="text" autoComplete="off" {...registerSearchQuote("equipment_model")} placeholder={t.enter_equipment_model}
+                    onInput={e => { e.target.value = e.target.value.toUpperCase(); }}
+                    className="h-8 flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-xs uppercase focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-[11px] text-gray-400 dark:text-gray-500 w-16 shrink-0 text-right">{t.model}</label>
+                  <input type="text" autoComplete="off" {...registerSearchQuote("engine_model")} placeholder={t.enter_engine_model}
+                    onInput={e => { e.target.value = e.target.value.toUpperCase(); }}
+                    className="h-8 flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-xs uppercase focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                </div>
+
+                {/* Serie */}
+                <div className="flex items-center gap-2">
+                  <label className="text-[11px] text-gray-400 dark:text-gray-500 w-16 shrink-0 text-right">{t.equipment_serie ?? 'Serie'}</label>
+                  <input type="text" autoComplete="off" {...registerSearchQuote("equipment_serie")} placeholder={t.enter_equipment_serie}
+                    onInput={e => { e.target.value = e.target.value.toUpperCase(); }}
+                    className="h-8 flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-xs uppercase focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-[11px] text-gray-400 dark:text-gray-500 w-16 shrink-0 text-right">{t.engine_serie ?? 'Serie'}</label>
+                  <input type="text" autoComplete="off" {...registerSearchQuote("engine_serie")} placeholder={t.enter_engine_serie}
+                    onInput={e => { e.target.value = e.target.value.toUpperCase(); }}
+                    className="h-8 flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-xs uppercase focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                </div>
+
+                {/* Año / Actualizar */}
+                <div className="flex items-center gap-2">
+                  <label className="text-[11px] text-gray-400 dark:text-gray-500 w-16 shrink-0 text-right">{t.year}</label>
+                  <input type="text" autoComplete="off" {...registerSearchQuote("equipment_year")} placeholder={t.enter_equipment_year}
+                    onInput={e => { e.target.value = e.target.value.toUpperCase(); }}
+                    className="h-8 flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-xs uppercase focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-16 shrink-0" />
+                  <div className="flex flex-1 items-center gap-2">
+                    {order.NroOrden && customer?.CodPais?.toUpperCase() === 'AR' && (
+                      <button type="button"
+                        className="h-8 shrink-0 rounded-lg border border-indigo-300 bg-indigo-50 px-3 text-indigo-700 text-xs font-medium hover:bg-indigo-100 transition shadow-sm dark:border-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-300 dark:hover:bg-indigo-900/40">
+                        {t.btn_view_copy ?? 'Ver / Generar Copia'}
+                      </button>
+                    )}
+                    {order.NroOrden && (
+                      <button type="button" onClick={run(updateQuote)} disabled={isSubmitting}
+                        className="h-8 flex-1 rounded-lg bg-slate-300 px-4 text-gray-600 text-xs font-medium hover:bg-slate-500 hover:text-white transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                        {t.btn_update}
+                      </button>
+                    )}                    
+                  </div>
+                </div>
+
               </div>
+            </div>
+          </div>
 
-              <div className="relative overflow-hidden rounded-md bg-white text-center shadow dark:bg-[#1c232f] mt-4 pb-4">
-                <div className="flex w-full gap-4 my-6 items-center justify-center">
-                  <div>
-                    <label className="inline-flex">
-                      <input onChange={handleChangeOption} type="radio" checked={optionSelected === "quote"} name="option" value={'quote'} className="form-radio text-blue-600 focus:ring-blue-500 disabled:checked:bg-blue-600" />
-                      <span className={`${(_tracking_?.Cotizar == 1) ? 'text-blue-600 font-bold' : ''}`}>{t.btn_quote}</span>
-                    </label>
-                  </div>
-                  <div>
-                    <label className="inline-flex">
-                      <input onChange={handleChangeOption} type="radio" checked={optionSelected === "tracking"} name="option" value={'tracking'} className="form-radio text-blue-600 focus:ring-blue-500 disabled:checked:bg-blue-600" />
-                      <span className={`${(_tracking_?.Seguimiento == 1) ? 'text-blue-600 font-bold' : ''}`}>{t.follow}</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="flex sm:flex-row flex-col">
-                  <label className="mb-0 sm:w-2/5 sm:ltr:mr-2 rtl:ml-2 text-end">{t.share_with}</label>
-                  <div className="flex">
-                    <div>
-                      <Controller
-                        name="share_with_customer"
-                        control={controlDefault}
-                        rules={{ required: false }}
-                        render={({ field }) => (
-                          <Select
-                            {...field}
-                            isClearable
-                            options={options_share}
-                            placeholder={t.select_option}
-                            instanceId="share_with_customer"
-                            menuPosition={'fixed'}
-                            menuShouldScrollIntoView={false}
-                            className="w-full text-left"
-                          />
-                        )}
-                      />
-                    </div>
-
-                    <button onClick={() => apply()} type="button" className="btn btn-outline-primary ltr:rounded-l-none rtl:rounded-r-none">
-                      {t.apply}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-            </fieldset>
-          </form>
         </div>
 
+        {/* ── RIGHT: Summary + Tracking ── */}
+        <div className="space-y-4">
 
+          {/* Resumen cotización */}
+          <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
+            <div className="p-4">
+              {order.NroOrden ? (
+                <div className="space-y-0">
+                  {[
+                    [t.nro_quote,       <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-0.5 text-sm font-bold text-primary">{order.NroOrden}</span>],
+                    [t.nro_items,       order.NroItems],
+                    [t.total_weight_lb, customFormat(order.TotalPeso)],
+                    [t.quote_total,     customFormat(order.Total)],
+                    [t.exchange_rate,   order.TipoCambio],
+                  ].map(([label, val], i) => (
+                    <div key={i} className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                      <span className="text-sm text-gray-500">{label}</span>
+                      <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">{val}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400 text-center py-6">{t.no_order ?? 'Sin cotización activa'}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Seguimiento */}
+          <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
+            <div className="flex items-center gap-2 px-4 py-3">
+              <span className="text-xs text-gray-500 shrink-0">{t.share_with}</span>
+              {all_disabled_tracking ? (
+                <span className="h-9 flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 text-sm font-medium text-primary dark:border-primary/40 dark:bg-primary/10 truncate">
+                  {seguimientoNombre ?? '—'}
+                </span>
+              ) : (
+                <div className="flex min-w-0 flex-1 gap-0">
+                  <div className="flex-1 sm:flex-none sm:w-[280px]">
+                    <Select
+                      options={options_share}
+                      value={select_share}
+                      isClearable
+                      isSearchable
+                      instanceId="share-select-quote"
+                      menuPosition="fixed"
+                      menuShouldScrollIntoView={false}
+                      placeholder={t.select_option}
+                      onChange={(sel) => setSelectShare(sel ?? null)}
+                      styles={{
+                        control:             b => ({ ...b, minHeight: '36px', height: '36px', fontSize: '14px', borderRadius: '0.5rem 0 0 0.5rem', borderRight: 'none' }),
+                        valueContainer:      b => ({ ...b, padding: '0 8px' }),
+                        indicatorsContainer: b => ({ ...b, height: '36px' }),
+                        menu:                b => ({ ...b, minWidth: '280px' }),
+                      }}
+                    />
+                  </div>
+                  <button onClick={run(apply)} type="button" disabled={isSubmitting}
+                    className="h-9 shrink-0 px-4 rounded-r-lg border border-l-0 border-gray-300 bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                    {t.apply}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Mostrar Nro. Parte */}
+          {order.NroOrden && (
+            <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
+              <div className="flex items-center justify-between px-4 py-2.5">
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  {t.show_nro_part_in_report ?? '¿Deseas mostrar la columna de Nro. Parte en el reporte?'}
+                </span>
+                <div className="flex items-center gap-2 shrink-0 ml-4">
+                  <span className="text-xs text-gray-400 whitespace-nowrap">{t.show} {t.nro_part}</span>
+                  <label className="relative h-5 w-10 cursor-pointer">
+                    <input checked={order.MostrarCodigo === 1} {...register("show_nro_part")} onChange={handelChangeShowPart} type="checkbox" className="custom_switch peer absolute z-10 h-full w-full cursor-pointer opacity-0" />
+                    <span className="outline_checkbox bg-white block h-full rounded-full border-2 border-gray-400 before:absolute before:bottom-0.5 before:left-0.5 before:h-4 before:w-4 before:rounded-full before:bg-gray-400 before:bg-[url(/assets/images/close.svg)] before:bg-center before:bg-no-repeat before:transition-all before:duration-300 peer-checked:border-primary peer-checked:before:left-5 peer-checked:before:bg-primary peer-checked:before:bg-[url(/assets/images/checked.svg)] dark:border-white-dark dark:before:bg-white-dark"></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
       </div>
-      {(order.NroOrden) &&
-        <div>
-          <div className="bg-gray-300 py-4 mt-4">
-            <div className="px-4 grid grid-cols-12 gap-2">
 
-              <div className="flex flex-wrap gap-2 col-span-4">
-                <button onClick={() => newQuote()} title={t.btn_new} className='btn bg-yellow-500 btn-sm hover:btn-dark disabled:bg-gray-400 border-0'><IconFile></IconFile></button>
-                <button onClick={() => updateItem()} title={t.update} className='btn bg-yellow-500 btn-sm hover:btn-dark disabled:bg-gray-400 border-0' disabled={isSelectItems}><IconRefresh></IconRefresh></button>
-                <BtnPrintQuote order={order} token={token} className={`btn bg-yellow-500 btn-sm hover:btn-dark disabled:bg-gray-400 border-0`}></BtnPrintQuote>
-                <button onClick={() => deleteItems()} title={t.delete} className='btn bg-yellow-500 btn-sm hover:btn-dark disabled:bg-gray-400 border-0' disabled={isSelectItems}><IconTrashLines></IconTrashLines></button>
-                <button onClick={() => message()} title={t.send_by_message} className='btn bg-yellow-500 btn-sm hover:btn-dark disabled:bg-gray-400 border-0'><IconMail></IconMail></button>
-                <button onClick={() => discount()} title={t.add_discount} className='btn bg-yellow-500 btn-sm hover:btn-dark disabled:bg-gray-400 border-0'><IconDiscount></IconDiscount></button>
-                <button onClick={() => attach()} title={t.attach} className='btn bg-yellow-500 btn-sm hover:btn-dark disabled:bg-gray-400 border-0'><IconAttachment></IconAttachment></button>
+      {/* ── TOOLBAR + TABLE + NOTAS (solo cuando hay orden) ─────── */}
+      {order.NroOrden && (
+        <>
+          {/* Toolbar + Table */}
+          <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0 mt-4">
+            <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+
+              {/* Acciones sobre ítems */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button onClick={run(newQuote)} title={t.btn_new} type="button" disabled={isSubmitting}
+                  className="h-8 w-8 flex items-center justify-center rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                  <IconFile className="h-4 w-4" />
+                </button>
+                <button onClick={run(updateItem)} title={t.update} type="button" disabled={isSubmitting || isSelectItems}
+                  className="h-8 w-8 flex items-center justify-center rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition disabled:opacity-40 disabled:cursor-not-allowed group">
+                  <IconRefresh className="h-4 w-4 group-hover:rotate-180 transition-transform duration-300" />
+                </button>
+                <BtnPrintQuote order={order} token={token}
+                  className="h-8 w-8 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700" />
+                <button onClick={run(deleteItems)} title={t.delete} type="button" disabled={isSubmitting || isSelectItems}
+                  className="h-8 w-8 flex items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition disabled:opacity-40 disabled:cursor-not-allowed">
+                  <IconTrashLines className="h-4 w-4" />
+                </button>
+                <button onClick={run(message)} title={t.send_by_message} type="button" disabled={isSubmitting}
+                  className="h-8 w-8 flex items-center justify-center rounded-lg bg-sky-50 text-sky-600 hover:bg-sky-100 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                  <IconMail className="h-4 w-4" />
+                </button>
+                <button onClick={run(discount)} title={t.add_discount} type="button" disabled={isSubmitting || hasItemsWithoutPrice}
+                  className="h-8 w-8 flex items-center justify-center rounded-lg bg-violet-50 text-violet-600 hover:bg-violet-100 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                  <IconDiscount className="h-4 w-4" />
+                </button>
+                <button onClick={run(attach)} title={t.attach} type="button" disabled={isSubmitting}
+                  className="h-8 w-8 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                  <IconAttachment className="h-4 w-4" />
+                </button>
               </div>
 
-              <div className="flex flex-wrap gap-2 col-span-4">
-                <label className="mb-0 sm:w-2/5 sm:ltr:mr-2 rtl:ml-2 text-end" >{t.preference}</label>
-                <div className="relative flex-1">
+              <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1" />
 
+              {/* Preferencia */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 shrink-0">{t.preference}</span>
+                <div className="w-40">
                   <Select
                     options={[{ value: "RE", label: "MAS ECONOMICO" }, { value: "OR", label: "ORIGINAL" }]}
-                    isClearable={false}
-                    isSearchable={false}
-                    //{...register('country', { required: { value: true, message: t.required_field } })}
-                    id="preference-select"
+                    isClearable={false} isSearchable={false}
                     instanceId="preference-select"
                     onChange={handleChangePreference}
                     placeholder={t.select_option}
-                  ></Select>
+                    styles={{
+                      control: b => ({ ...b, minHeight: '32px', height: '32px', fontSize: '12px' }),
+                      valueContainer: b => ({ ...b, padding: '0 8px' }),
+                      indicatorsContainer: b => ({ ...b, height: '32px' }),
+                    }}
+                  />
                 </div>
               </div>
-              <div className="flex flex-wrap items-center justify-end gap-2 col-span-4">
-                <button onClick={() => priceParameters()} className='btn btn-sm btn-dark' type='button'>{t.price_parameter}</button>
-                <button onClick={() => costSummary()} className='btn btn-sm btn-dark' type='button'>{t.cost_summary}</button>
-                <button onClick={() => cloneQuote()} className='btn btn-sm btn-dark' type='button'>{t.duplicate}</button>
-                <button onClick={() => validateQuote()} className='btn btn-sm btn-dark' type='button'>{t.validate}</button>
-                <button onClick={() => buyQuote()} className='btn btn-sm btn-success' type='button'>{t.buy}</button>
+
+              <div className="flex-1" />
+
+              {/* Opciones de cotización */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button onClick={run(priceParameters)} type="button" disabled={isSubmitting}
+                  className="h-8 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-[11px] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                  {t.price_parameter}
+                </button>
+                <button onClick={run(costSummary)} type="button" disabled={isSubmitting}
+                  className="h-8 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-[11px] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                  {t.cost_summary}
+                </button>
+                <button onClick={run(cloneQuote)} type="button" disabled={isSubmitting}
+                  className="h-8 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-[11px] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                  {t.duplicate}
+                </button>
+                <button onClick={run(() => validateQuote())} type="button" disabled={isSubmitting || isSelectItems}
+                  className="h-8 rounded-lg border border-primary/30 bg-primary/5 px-3 text-[11px] text-primary hover:bg-primary/10 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                  {t.validate}
+                </button>
+                <button onClick={run(buyQuote)} type="button" disabled={isSubmitting || hasItemsWithoutPrice}
+                  className="h-8 rounded-lg bg-green-600 px-4 text-white text-[11px] font-bold hover:bg-green-700 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                  {t.buy}
+                </button>
               </div>
+
             </div>
-          </div>
-          <div className="border-0 p-0">
-            <div className="table-responsive">
-              <table className="bg-white table-hover table-compact" ref={tablaRef}>
-                <thead>
-                  <tr className="relative !bg-gray-400 text-center uppercase">
-                    <th className='w-1 !p-2'>
-                      <label className="flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          className="border border-dark border-1 bg-white form-checkbox !mr-0"
-                          checked={seleccionados.length === items.length}
-                          onChange={toggleTodos}
-                        />
-                      </label>
-                    </th>
-                    <th className='w-1 !p-0'>Item</th>
-                    <th className='w-1'>{t.qty}</th>
-                    <th className='whitespace-nowrap'>{t.nro_part}</th>
-                    <th>{t.description}</th>
-                    <th>{t.weight_unit}</th>
-                    <th>{t.spare_part_type}</th>
-                    <th>{t.application}</th>
-                    <th>{t.brand}</th>
-                    <th>{t.price_unit}</th>
-                    <th>Total</th>
-                    <th>{t.indicator}</th>
-                    <th>{t.t_delivery}</th>
-                    <th>{t.days_of_validity}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item, index) => {
-                    return (
-                      <tr key={index}>
-                        <td className='!p-2'>
-                          <label className="flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              className="border border-dark border-1 form-checkbox !mr-0"
-                              checked={seleccionados.includes(item)}
-                              onChange={() => toggleSeleccion(item)}
+
+            <div className="overflow-x-auto">
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+                <table className="w-full border-collapse bg-white dark:bg-gray-900" ref={tablaRef}>
+                  <thead>
+                    <tr>
+                      <th className={`${thClass} w-8`}></th>
+                      <th className={`${thClass} w-10 text-center`}>
+                        <input type="checkbox" className="form-checkbox border-gray-400 rounded"
+                          checked={seleccionados.length === items.length && items.length > 0}
+                          onChange={toggleTodos} />
+                      </th>
+                      <th className={`${thClass} w-24`}>{t.qty}</th>
+                      <th className={thClass}>{t.nro_part}</th>
+                      <th className={thClass}>{t.description}</th>
+                      <th className={`${thClass} text-right`}>{t.weight_unit}</th>
+                      <th className={thClass}>{t.spare_part_type}</th>
+                      <th className={thClass}>{t.application}</th>
+                      <th className={thClass}>{t.brand}</th>
+                      <th className={`${thClass} text-right`}>{t.price_unit}</th>
+                      <th className={`${thClass} text-right`}>Total</th>
+                      <th className={thClass}>{t.indicator}</th>
+                      <th className={thClass}>{t.t_delivery}</th>
+                      <th className={`${thClass} text-right`}>{t.days_of_validity}</th>
+                    </tr>
+                  </thead>
+                  <SortableContext items={items.map(i => i.CodItem)} strategy={verticalListSortingStrategy}>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                      {items.map((item, index) => (
+                        <SortableRow key={item.CodItem} id={item.CodItem} index={index + 1} className={`transition ${item.ParPrecio ? 'bg-amber-50 dark:bg-amber-900/15 hover:bg-amber-100/70 dark:hover:bg-amber-900/25' : 'hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
+                          <td className={`${tdClass} text-center`}>
+                            <input type="checkbox" className="form-checkbox border-gray-400 rounded"
+                              checked={seleccionados.includes(item)} onChange={() => toggleSeleccion(item)} />
+                          </td>
+                          <td className={tdClass}>
+                            <input step="any" type="number"
+                              {...registerSearchQuote(`items.${item.CodItem}.Cantidad`, { valueAsNumber: true })}
+                              onBlur={(e) => handleQuantityBlur(item, +e.target.value)}
+                              className="h-8 w-20 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-2 text-xs text-center focus:outline-none focus:ring-1 focus:ring-primary/40"
                             />
-                          </label>
-                        </td>
-                        <td className='!p-0 text-center'>{item.CodItem}</td>
-                        <td>
-
-                          <input
-                            step="any" type="number"
-                            {...registerSearchQuote(`items.${item.CodItem}.Cantidad`, {
-                              valueAsNumber: true
-                            })}
-                            className="border text-center rounded form-input w-20 border-dark border-2 !p-1 text-xl"
-                          />
-
-                        </td>
-                        <td className='whitespace-nowrap'>{(item.NroParte.includes("*")) ? <button onClick={() => showReference(item)} className="btn btn-sm btn-outline-info font-bold">{item.NroParte}</button> : item.NroParte}</td>
-                        <td>{item.DesRepuesto}</td>
-                        <td className='text-end'>{customFormat(item.Peso)}</td>
-                        <td>{item.TipoRepuesto}</td>
-                        <td>{item.Aplicacion}</td>
-                        <td>{item.Marca}</td>
-                        <td className='text-end'>{customFormat(item.Precio)}</td>
-                        <td className='text-end'>{customFormat(item.Total)}</td>
-                        <td>
-                          {(item.VerMas) &&
-                            <button onClick={() => showMore(item)} className='btn btn-sm btn-secondary' type="button">{t.see_more}</button>
-                          }
-                        </td>
-                        <td>{item.TiEntrega}</td>
-                        <td>{item.Dias}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+                          </td>
+                          <td className={`${tdClass} whitespace-nowrap`}>
+                            {item.NroParte.includes("*") ? (
+                              <button onClick={run(() => showReference(item))} type="button" disabled={isSubmitting}
+                                className="text-primary text-xs font-semibold border border-primary/30 rounded px-2 py-0.5 hover:bg-primary/5 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                                {item.NroParte}
+                              </button>
+                            ) : (
+                              <span className="text-xs font-medium">{item.NroParte}</span>
+                            )}
+                          </td>
+                          <td className={tdClass}>{item.DesRepuesto}</td>
+                          <td className={`${tdClass} text-right`}>{customFormat(item.Peso)}</td>
+                          <td className={tdClass}>{item.TipoRepuesto}</td>
+                          <td className={tdClass}>{item.Aplicacion}</td>
+                          <td className={tdClass}>{item.Marca}</td>
+                          <td className={`${tdClass} text-right`}>{customFormat(item.Precio)}</td>
+                          <td className={`${tdClass} text-right font-medium`}>{customFormat(item.Total)}</td>
+                          <td className={tdClass}>
+                            {item.Indicador && (
+                              <button onClick={run(() => showMore(item))} type="button" disabled={isSubmitting}
+                                className="text-xs text-primary border border-primary/30 rounded px-2 py-0.5 hover:bg-primary/5 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                                {t.see_more}
+                              </button>
+                            )}
+                          </td>
+                          <td className={tdClass}>{item.TiEntrega}</td>
+                          <td className={`${tdClass} text-right`}>{item.DiasVigencia}</td>
+                        </SortableRow>
+                      ))}
+                    </tbody>
+                  </SortableContext>
+                </table>
+              </DndContext>
             </div>
+
+            {/* Leyenda */}
+            {items.some(i => i.ParPrecio) && (
+              <div className="flex items-center gap-2 px-1 pt-2">
+                <span className="inline-block h-3 w-5 rounded-sm bg-amber-200 dark:bg-amber-700/50 border border-amber-300 dark:border-amber-600 shrink-0" />
+                <span className="text-[11px] text-gray-400 dark:text-gray-500">
+                  {t.par_precio_legend ?? 'Con parámetro de precio'}
+                </span>
+              </div>
+            )}
           </div>
-          <div className="grid grid-cols-2 gap-4 bg-[#F2F2F2] p-5 border shadow-lg">
-            <div>
-              <div>
-                <label htmlFor="Email">{t.note_to_customer}</label>
-                <div className="relative text-white-dark">
-                  <textarea defaultValue={order.NotaCliente} className='form-input' {...registerNoteQuote(`note_customer`, { required: { value: true, message: t.required_field } })} rows="4">
-                  </textarea>
-                  {errorsNoteQuote.note_customer && <span className='text-red-400 error block text-xs mt-1' role="alert">{errorsNoteQuote.note_customer?.message?.toString()}</span>}
+
+          {/* Notas + Resumen financiero */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mt-4">
+
+            {/* Notas */}
+            <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800">
+                <div>
+                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t.notes ?? 'Notas'}</p>
+                  <div className="h-0.5 w-8 rounded bg-primary/60 mt-0.5" />
                 </div>
+                <button type="button" onClick={run(handleSaveNoteQuoteFormSubmit(onSaveNote))} disabled={isSubmitting}
+                  className="h-9 rounded-lg bg-slate-300 px-4 text-gray-600 text-xs font-medium hover:bg-slate-500 hover:text-white transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                  {t.btn_save}
+                </button>
               </div>
-              <div>
-                <label htmlFor="Email">{t.note_to_user}</label>
-                <div className="relative text-white-dark">
-                  <div className="relative text-white-dark">
-                    <textarea defaultValue={order.NotaUsuario} className='form-input' {...registerNoteQuote(`note_user`, { required: { value: true, message: t.required_field } })} rows="4">
-                    </textarea>
-                    {errorsNoteQuote.note_user && <span className='text-red-400 error block text-xs mt-1' role="alert">{errorsNoteQuote.note_user?.message?.toString()}</span>}
-                  </div>
+              <div className="p-4 space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{t.note_to_customer}</label>
+                  <textarea defaultValue={order.NotaCliente} {...registerNoteQuote("note_customer")} rows={3}
+                    className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
                 </div>
-              </div>
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                <button className='btn btn-sm btn-dark' type="button" onClick={handleSaveNoteQuoteFormSubmit(onSaveNote)}>{t.btn_save}</button>
+                <div>
+                  <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{t.note_to_user}</label>
+                  <textarea defaultValue={order.NotaUsuario} {...registerNoteQuote("note_user")} rows={3}
+                    className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
+                </div>
               </div>
             </div>
 
-            <div className="relative overflow-hidden rounded-md bg-white text-center shadow-lg dark:bg-[#1c232f]">
-              <div className="mt-6 p-5 grid grid-cols-1 gap-4 ltr:text-left rtl:text-right">
-                <div className="flex sm:flex-row flex-col border-b pb-2">
-                  <div className="flex-none ltr:mr-2 rtl:ml-2">{t.total_spare_parts}:</div>
-                  <div className="text-end ml-8 font-bold flex-1">{customFormat(order.TotRepuestos)}</div>
+            {/* Resumen financiero */}
+            <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
+              <div className="px-4 py-2.5 border-b border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800">
+                <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t.summary ?? 'Resumen'}</p>
+                <div className="h-0.5 w-8 rounded bg-primary/60 mt-0.5" />
+              </div>
+              <div className="p-4 space-y-0">
+                <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+                  <span className="text-sm text-gray-500">{t.total_spare_parts}</span>
+                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">{customFormat(order.TotRepuestos)}</span>
                 </div>
-                <div className="flex sm:flex-row flex-col border-b pb-2">
-                  <div className="flex-none ltr:mr-2 rtl:ml-2">{t.freight}</div>
-
-                  <div className='text-end ml-8 font-bold flex-1'>
-                    <div className="flex justify-items-end justify-end">
-                      <button type="button" onClick={() => saveFreight()} className={`btn btn-sm btn-outline-dark ${(order.FleteInterno > 0) ? 'ltr:rounded-r-none rtl:rounded-l-none' : 'ltr:rounded-r-none'}  group/item`}>
-                        <IconCheck className='fill-success group-hover/item:fill-white'></IconCheck>
+                <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+                  <span className="text-sm text-gray-500">{t.freight}</span>
+                  <div className="flex items-center gap-1.5">
+                    <input {...register("freight")} type="text"
+                      className="h-8 w-24 text-right text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-2 focus:outline-none focus:ring-1 focus:ring-primary/30" />
+                    <button type="button" onClick={run(saveFreight)} disabled={isSubmitting} title={t.save ?? 'Guardar flete'}
+                      className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition group disabled:opacity-50 disabled:cursor-not-allowed">
+                      <IconCheck className="h-3.5 w-3.5 fill-gray-400 group-hover:fill-green-600 transition" />
+                    </button>
+                    {order.FleteInterno > 0 && (
+                      <button type="button" onClick={run(deleteFreight)} disabled={isSubmitting} title={t.distribute ?? 'Distribuir flete'}
+                        className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 hover:border-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/20 transition group disabled:opacity-50 disabled:cursor-not-allowed">
+                        <IconDirection className="h-3.5 w-3.5 fill-gray-400 group-hover:fill-sky-600 transition" />
                       </button>
-                      {(order.FleteInterno > 0) &&
-                        <button title='Distribuir' type="button" onClick={() => deleteFreight()} className="btn btn-sm btn-outline-dark rounded-none ltr:border-l-0 rtl:border-r-0 group/item">
-                          <IconDirection className='fill-black group-hover/item:fill-white'></IconDirection>
-                        </button>
-                      }
-                      <input {...register(`freight`, { required: { value: true, message: t.required_field } })} type="text" placeholder="" className="text-end text-sm form-input ltr:rounded-l-none rtl:rounded-r-none w-24" />
-                    </div>
+                    )}
                   </div>
                 </div>
-                <div className="flex sm:flex-row flex-col border-b pb-2">
-                  <div className="flex-none ltr:mr-2 rtl:ml-2">{t.discount}</div>
-                  <div className="text-end ml-8 font-bold flex-1">{(order.Descuento) ? (`- ${customFormat(order.Descuento)}`) : '0.00'}</div>
+                <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+                  <span className="text-sm text-gray-500">{t.discount}</span>
+                  <span className="text-sm font-semibold text-red-500">{order.Descuento ? `- ${customFormat(order.Descuento)}` : '0.00'}</span>
                 </div>
-                <div className="flex sm:flex-row flex-col border-b pb-2">
-                  <div className="flex-none ltr:mr-2 rtl:ml-2">{t.tax}</div>
-                  <div className="text-end ml-8 font-bold flex-1">{customFormat(order.MtoIva)}</div>
+                <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+                  <span className="text-sm text-gray-500">{t.tax}</span>
+                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">{customFormat(order.MtoIva)}</span>
                 </div>
-                <div className="flex sm:flex-row flex-col border-b pb-2">
-                  <div className="flex-none ltr:mr-2 rtl:ml-2">Total $us</div>
-                  <div className="text-end ml-8 font-bold flex-1">{customFormat(order.Total)}</div>
+                <div className="flex items-center justify-between py-3">
+                  <span className="text-sm font-bold text-gray-800 dark:text-gray-100">Total $us</span>
+                  <span className="text-base font-bold text-primary">{customFormat(order.Total)}</span>
                 </div>
               </div>
             </div>
 
           </div>
+        </>
+      )}
 
-        </div>
-      }
-      <Modal size={modal_size} closeModal={() => setShowModal(false)} openModal={() => setShowModal(true)} showModal={show_modal} title={modal_title} content={modal_content}></Modal>
+      <Modal size={modal_size} closeModal={() => setShowModal(false)} openModal={() => setShowModal(true)} showModal={show_modal} title={modal_title} content={modal_content} />
     </>
   );
 };

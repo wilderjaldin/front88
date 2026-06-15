@@ -1,11 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import axios from 'axios'
 import Swal from 'sweetalert2'
 import { useForm, useWatch, SubmitHandler } from "react-hook-form"
 
-const url = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/MostrarResumenCostos';
 import { customFormat } from '@/app/lib/format';
 import Link from 'next/link';
 import IconTrash from '@/components/icon/icon-trash';
@@ -130,7 +128,7 @@ const DivideQuantity = ({ close, t, item, items, setItems }) => {
           </div>
         </div>
       </div>
-      <table className="bg-white table-hover text-sm">
+      <table className="bg-white table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 text-sm">
         <thead>
           <tr className="relative !bg-gray-400 text-center text-sm">
             <th>{ t.nro_part_customer }</th>

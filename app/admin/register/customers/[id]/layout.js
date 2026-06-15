@@ -9,6 +9,7 @@ import Link from 'next/link';
 import axiosClient from '@/app/lib/axiosClient';
 import Modal from '@/components/modal';
 import CustomerForm from '../form/page';
+import AccessDenied from '@/components/AccessDenied';
 
 const URL_BASE = '/clientes';
 
@@ -26,13 +27,15 @@ export default function CustomerLayout({ children }) {
   const { id, tab } = useParams();
   const router      = useRouter();
 
-  // ── Cliente ──────────────────────────────────────────────────────────────
+  // ── Cliente (ficha: breadcrumb) ───────────────────────────────────────────
   const [cliente,       setCliente]       = useState(null);
   const [loadingClient, setLoadingClient] = useState(true);
+  const [forbidden,     setForbidden]     = useState(false);
 
-  // ── Controles lazy ───────────────────────────────────────────────────────
+  // ── Modal editar ─────────────────────────────────────────────────────────
   const [controles,        setControles]        = useState(null);
-  const [loadingControles, setLoadingControles] = useState(false);
+  const [editCliente,      setEditCliente]      = useState(null);
+  const [loadingEditData,  setLoadingEditData]  = useState(false);
   const [showModal,        setShowModal]        = useState(false);
 
   // ── Estado de cada tab — persiste aquí mientras el layout vive ───────────
@@ -54,32 +57,46 @@ export default function CustomerLayout({ children }) {
   const [meetings,        setMeetings]        = useState([]);
   const [loadMeetings,    setLoadMeetings]    = useState(true);
 
-  // ── Carga del cliente (una sola vez) ─────────────────────────────────────
+  const [general,         setGeneral]         = useState(null);
+  const [loadGeneral,     setLoadGeneral]     = useState(true);
+
+  // ── Carga ficha (breadcrumb: nombre + bandera) ───────────────────────────
   useEffect(() => {
-    axiosClient.get(`${URL_BASE}/${id}`)
-      .then(res => setCliente(res.data))
-      .catch(() => router.push('/admin/register/customers'))
+    axiosClient.get(`${URL_BASE}/ficha/${id}`)
+      .then(res => setCliente(res.data.cliente ?? res.data))
+      .catch((err) => {
+        if (err?.response?.status === 403) {
+          setForbidden(true);
+        } else {
+          router.push('/admin/register/customers');
+        }
+      })
       .finally(() => setLoadingClient(false));
   }, [id]);
 
-  // ── Abrir modal: controles lazy ──────────────────────────────────────────
+  // ── Abrir modal: carga datos completos + controles en paralelo ────────────
   const handleOpenEdit = async () => {
     setShowModal(true);
-    if (controles) return;
-    setLoadingControles(true);
+    setEditCliente(null);
+    setLoadingEditData(true);
     try {
-      const res = await axiosClient.get(`${URL_BASE}/controles`);
-      setControles(res.data);
+      const promises = [axiosClient.get(`${URL_BASE}/${id}`)];
+      if (!controles) promises.push(axiosClient.get(`${URL_BASE}/controles`));
+      const results = await Promise.all(promises);
+      setEditCliente(results[0].data);
+      if (!controles) setControles(results[1].data);
     } catch {}
-    finally { setLoadingControles(false); }
+    finally { setLoadingEditData(false); }
   };
 
-  const handleSaved = (res) => {
-    const updated = Array.isArray(res.data)
-      ? res.data.find(c => c.codCliente === parseInt(id))
-      : null;
-    if (updated) setCliente(updated);
+  const handleSaved = async () => {
     setShowModal(false);
+    setEditCliente(null);
+    setLoadGeneral(true);
+    try {
+      const res = await axiosClient.get(`${URL_BASE}/ficha/${id}`);
+      setCliente(res.data.cliente ?? res.data);
+    } catch {}
   };
 
   if (loadingClient) {
@@ -90,6 +107,7 @@ export default function CustomerLayout({ children }) {
     );
   }
 
+  if (forbidden) return <AccessDenied />;
   if (!cliente) return null;
 
   const currentTab = TABS.find(t => t.key === tab) ?? TABS[0];
@@ -104,11 +122,12 @@ export default function CustomerLayout({ children }) {
     attachments, setAttachments, loadAttachments, setLoadAttachments,
     accounts,    setAccounts,    loadAccounts,    setLoadAccounts,
     meetings,    setMeetings,    loadMeetings,    setLoadMeetings,
+    general,     setGeneral,     loadGeneral,     setLoadGeneral,
   };
 
   return (
     <CustomerContext.Provider value={contextValue}>
-      <div className="p-6 space-y-6">
+      <div className="space-y-6">
 
         {/* ── BREADCRUMB ─────────────────────────────────────────────────── */}
         <ul className="flex items-center gap-1 text-sm text-gray-500 flex-wrap">
@@ -119,8 +138,19 @@ export default function CustomerLayout({ children }) {
             </Link>
           </li>
           <li className="before:content-['/'] before:mx-2">
-            <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-0.5
-                             text-xs font-semibold text-primary truncate max-w-[200px]">
+            <span
+              title={cliente.nomPais || undefined}
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-0.5
+                         text-xs font-semibold text-primary truncate max-w-[200px]"
+            >
+              {cliente.codPais && (
+                <img
+                  src={`/assets/flags/${cliente.codPais.toLowerCase()}.svg`}
+                  alt={cliente.nomPais || cliente.codPais}
+                  className="h-3.5 w-5 rounded-sm object-cover shrink-0"
+                  onError={e => { e.currentTarget.style.display = 'none'; }}
+                />
+              )}
               {cliente.nomCliente}
             </span>
           </li>
@@ -173,13 +203,13 @@ export default function CustomerLayout({ children }) {
         closeModal={() => setShowModal(false)}
         title="Editar Cliente"
       >
-        {loadingControles ? (
+        {(loadingEditData || !editCliente) ? (
           <div className="flex items-center justify-center py-12">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </div>
         ) : (
           <CustomerForm
-            cliente={cliente}
+            cliente={editCliente}
             controles={controles ?? { paises: [], docTypes: [] }}
             onCancel={() => setShowModal(false)}
             onSaved={handleSaved}

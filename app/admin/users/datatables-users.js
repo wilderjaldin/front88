@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import IconSearch from '@/components/icon/icon-search';
 import Tippy from '@tippyjs/react';
 import { DataTable } from 'mantine-datatable';
@@ -85,16 +85,16 @@ const DatatablesUser = ({ data = [], t, total, page, handlePageChange, currentUs
 
   return (
     <>
-      <div className="flex flex-col gap-6 p-6 space-y-6">
+      <div className="pt-5 space-y-4">
 
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 
           <div>
-            <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
+            <h1 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
               {t.users ?? "Usuarios"}{" "}
               <span className="text-base font-normal text-gray-400">({total})</span>
             </h1>
-            <div className="h-1 w-12 rounded bg-primary/70 mt-2" />
+            <div className="h-0.5 w-10 rounded bg-primary/60 mt-1" />
           </div>
 
 
@@ -191,18 +191,12 @@ const DatatablesUser = ({ data = [], t, total, page, handlePageChange, currentUs
                   <DataTable
                     style={{ overflow: 'visible' }}
                     className="
-                              min-w-[1200px] text-sm
-                              [&_thead]:bg-gray-50 
+                              min-w-[1200px]
+                              [&_thead]:bg-gray-50
                               [&_thead]:dark:bg-gray-800
-                              [&_thead_th]:text-xs 
-                              [&_thead_th]:font-semibold 
-                              [&_thead_th]:uppercase 
-                              [&_thead_th]:tracking-wider
-                              [&_thead_th]:text-gray-500
-                              [&_thead_th]:dark:text-gray-400
                               [&_tbody_tr]:transition
-                              [&_tbody_tr]:hover:bg-gray-50
-                              [&_tbody_tr]:dark:hover:bg-gray-800
+                              [&_tbody_tr:hover]:bg-gray-100
+                              [&_tbody_tr:hover]:dark:bg-gray-700
                               [&_.mantine-datatable-pagination]:justify-center
                             "
                     highlightOnHover
@@ -212,7 +206,8 @@ const DatatablesUser = ({ data = [], t, total, page, handlePageChange, currentUs
                     shadow="sm"
                     records={data}
                     page={page}
-                    verticalSpacing="md"
+                    verticalSpacing="xs"
+                    horizontalSpacing="sm"
                     rowClassName="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                     columns={[
                       {
@@ -260,14 +255,29 @@ const DatatablesUser = ({ data = [], t, total, page, handlePageChange, currentUs
                         sortable: false,
                       },
                       {
+                        accessor: 'blnSeguimiento',
+                        title: 'Notificaciones',
+                        sortable: false,
+                        render: (row) => (
+                          <div className="flex items-center gap-2">
+                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${row.blnSeguimiento ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-gray-100 text-gray-400 dark:bg-gray-800'}`}>
+                              Seg
+                            </span>
+                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${row.blnMensaje ? 'bg-violet-50 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400' : 'bg-gray-100 text-gray-400 dark:bg-gray-800'}`}>
+                              Msg
+                            </span>
+                          </div>
+                        )
+                      },
+                      {
                         accessor: 'codEstado',
                         title: t.status,
                         sortable: false,
                         render: (row) => (
                           <span
-                            className={`px-3 py-1 rounded-full text-xs font-semibold ${row.codEstado === 'AC'
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-red-100 text-red-600'
+                            className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${row.codEstado === 'AC'
+                              ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                              : 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300'
                               }`}
                           >
                             {row.codEstado === 'AC' ? t.active : t.inactive}
@@ -294,31 +304,16 @@ const DatatablesUser = ({ data = [], t, total, page, handlePageChange, currentUs
                             text?.toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
 
                           return (
-                            <div className="text-xs space-y-1 leading-tight">
-                              <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-2 border border-gray-100 dark:border-gray-700">
-
-                                <div className="flex justify-between">
-                                  <span className="text-gray-400">Registrado</span>
-                                  <span className="text-gray-500">
-                                    {formatDate(row.fecRegistra)}
-                                  </span>
-                                </div>
-                                <div className="font-medium text-gray-700 dark:text-gray-200">
-                                  {formatText(row.usuarioRegistra)}
-                                </div>
-
-                                <div className="border-t border-gray-200 dark:border-gray-600 my-1"></div>
-
-                                <div className="flex justify-between">
-                                  <span className="text-gray-400">Modificado</span>
-                                  <span className="text-gray-500">
-                                    {formatDate(row.fecModifica)}
-                                  </span>
-                                </div>
-                                <div className="font-medium text-gray-700 dark:text-gray-200">
-                                  {formatText(row.usuarioModifica)}
-                                </div>
-
+                            <div className="text-[11px] leading-tight space-y-0.5 text-gray-500 dark:text-gray-400">
+                              <div className="flex gap-1">
+                                <span className="text-gray-400 shrink-0">Reg:</span>
+                                <span>{formatText(row.usuarioRegistra) || '-'}</span>
+                                <span className="ml-auto text-gray-400">{formatDate(row.fecRegistra)}</span>
+                              </div>
+                              <div className="flex gap-1">
+                                <span className="text-gray-400 shrink-0">Mod:</span>
+                                <span>{formatText(row.usuarioModifica) || '-'}</span>
+                                <span className="ml-auto text-gray-400">{formatDate(row.fecModifica)}</span>
                               </div>
                             </div>
                           );
@@ -410,6 +405,14 @@ const DatatablesUser = ({ data = [], t, total, page, handlePageChange, currentUs
                             <span className="text-gray-700 dark:text-gray-200 text-xs font-medium">
                               {user.usuIdioma}
                             </span>
+                          </div>
+
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-400 text-xs">Notificaciones</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${user.blnSeguimiento ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>Seg</span>
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${user.blnMensaje ? 'bg-violet-50 text-violet-600' : 'bg-gray-100 text-gray-400'}`}>Msg</span>
+                            </div>
                           </div>
 
                           <div className="flex justify-between items-center pt-2 border-t border-gray-100 dark:border-gray-700">

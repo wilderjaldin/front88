@@ -1,161 +1,181 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useForm, SubmitHandler } from "react-hook-form"
-import axios from 'axios'
+import { Pagination } from '@mantine/core';
+import IconSearch from "@/components/icon/icon-search";
 import IconLayoutGrid from "@/components/icon/icon-layout-grid";
 import IconListCheck from "@/components/icon/icon-list-check";
-import IconSearch from "@/components/icon/icon-search";
-const url = process.env.NEXT_PUBLIC_API_URL + "ordenes/MostrarCotizacionesCompletadas"
+import { customFormat } from '@/app/lib/format';
 
-export default function CompleteOrders({ token, customer_id, t, setLoadCompletedOrders, loadCompletedOrders, setCompletedOrders, completed_orders }) {
+const thClass = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap";
+const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-3 py-2";
 
-
-  const [value, setValue] = useState('list');
-  const [filteredItems, setFilteredItems] = useState(completed_orders);
-  const [search, setSearch] = useState('');
-
-  useEffect(() => {
-    if (loadCompletedOrders) {
-      getOrders();
-    }
-  }, []);
-
-  const getOrders = async () => {
-    try {
-      const rs = await axios.post(url,
-        {
-          CodCliente: customer_id,
-          ValToken: token
-        }
-      );
-      if (rs.data.estado == 'OK') {
-        setCompletedOrders(rs.data.dato);
-        setFilteredItems(rs.data.dato);
-        setLoadCompletedOrders(false)
+const SortIcon = ({ active, dir }) => {
+  if (!active)
+    return (
+      <svg width="7" height="11" viewBox="0 0 7 11" fill="currentColor" className="shrink-0 text-gray-300">
+        <path d="M3.5 0L7 4.5H0L3.5 0Z"/>
+        <path d="M3.5 11L0 6.5H7L3.5 11Z"/>
+      </svg>
+    );
+  return (
+    <svg width="7" height="7" viewBox="0 0 7 7" fill="currentColor" className="shrink-0 text-primary">
+      {dir === 'asc'
+        ? <path d="M3.5 0L7 7H0L3.5 0Z"/>
+        : <path d="M3.5 7L0 0H7L3.5 7Z"/>
       }
-    } catch (error) {
+    </svg>
+  );
+};
 
-    }
-  }
+const SortableHeader = ({ col, label, sort, dir, onSort, className = '' }) => (
+  <th
+    onClick={() => onSort(col)}
+    className={`${thClass} cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${className}`}
+  >
+    <span className="inline-flex items-center gap-1.5">
+      {label}
+      <SortIcon active={sort === col} dir={dir} />
+    </span>
+  </th>
+);
 
-  const searchQuotes = () => {
-    setFilteredItems(() => {
-      return completed_orders.filter((item) => {
-        return (item.NroOrden).toString().toLowerCase().includes(search.toLowerCase());
-      });
-    });
-  };
+export default function CompletedOrders({
+  t, items = [], loading = false,
+  page = 1, total = 0, pageSize = 20, onPageChange,
+  sort = '', dir = 'asc', onSort,
+  search = '', onSearch,
+}) {
+  const [view,     setView]     = useState('list');
+  const [inputVal, setInputVal] = useState(search);
 
-  useEffect(() => {
-    searchQuotes();
-  }, [search]);
+  useEffect(() => { setInputVal(search); }, [search]);
+
+  const submitSearch = () => onSearch?.(inputVal);
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-        <h2 className="text-xl">{t.quotes}</h2>
-        <div className="flex w-full flex-col gap-4 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
-          <div className="flex gap-3">
-
-            <div>
-              <button type="button" className={`btn btn-outline-primary p-2 ${value === 'list' && 'bg-primary text-white'}`} onClick={() => setValue('list')}>
-                <IconListCheck />
-              </button>
-            </div>
-            <div>
-              <button type="button" className={`btn btn-outline-primary p-2 ${value === 'grid' && 'bg-primary text-white'}`} onClick={() => setValue('grid')}>
-                <IconLayoutGrid />
-              </button>
-            </div>
-
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-4 pb-3 pr-4">
+        <div>
+          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+            {t.completed_orders}{' '}
+            <span className="font-normal text-gray-400">({total})</span>
+          </p>
+          <div className="h-0.5 w-8 rounded bg-primary/60 mt-0.5" />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex items-center">
+            <input
+              type="text"
+              value={inputVal}
+              placeholder={t.search}
+              onChange={e => setInputVal(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && submitSearch()}
+              className="h-9 w-44 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            <button
+              type="button"
+              onClick={submitSearch}
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 flex items-center justify-center rounded-md bg-gray-100 hover:bg-primary/10 hover:text-primary text-gray-400 transition dark:bg-gray-700 dark:hover:bg-primary/20"
+            >
+              <IconSearch className="h-3.5 w-3.5" />
+            </button>
           </div>
-          <div className="relative">
-            <input type="text" placeholder={t.search} className="peer form-input py-2 ltr:pr-11 rtl:pl-11" onChange={(e) => setSearch(e.target.value)} />
-            <button type="button" className="absolute top-1/2 -translate-y-1/2 peer-focus:text-primary ltr:right-[11px] rtl:left-[11px]">
-              <IconSearch className="mx-auto" />
+          <div className="flex items-center rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden">
+            <button type="button" onClick={() => setView('list')}
+              className={`p-2 transition ${view === 'list' ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 dark:text-gray-400'}`}>
+              <IconListCheck className="h-4 w-4" />
+            </button>
+            <button type="button" onClick={() => setView('grid')}
+              className={`p-2 transition ${view === 'grid' ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 dark:text-gray-400'}`}>
+              <IconLayoutGrid className="h-4 w-4" />
             </button>
           </div>
         </div>
       </div>
-      {!(filteredItems.length) && <h2 className="rounded-br-md rounded-tr-md border border-l-2 border-white-light !border-l-primary bg-white mt-6 p-5 text-black shadow-md ltr:pl-3.5 rtl:pr-3.5 dark:border-[#060818] dark:bg-[#060818]">{t.quotes_empty}</h2>}
 
-      {value === 'list' && (
-        <div className="panel mt-5 overflow-hidden border-0 p-0">
-          <div className="table-responsive">
-            {(filteredItems.length > 0) &&
-
-              <table className="bg-white table-hover">
-                <thead>
-                  <tr className="relative !bg-gray-400 text-center uppercase">
-
-                    <th>{t.nro_quote}</th>
-                    <th>Items</th>
-                    <th>Total</th>
-                    <th>{ t.nro_pedido }</th>
-                    <th>{ t.quote_date }</th>
-                    <th>{ t.date_order }</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {completed_orders.map((o, index) => {
-                    return (
-                      <tr key={index}>
-                        <td>{o.NroOrden}</td>
-                        <td>{o.NroItems}</td>
-                        <td>{o.Total}</td>
-                        <td>{o.NroPedido}</td>
-                        <td>{o.FecCotizacion}</td>
-                        <td>{o.FecOrden}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            }
-          </div>
-        </div>)}
-
-      {value === 'grid' && (
-        <div className="mt-5 grid w-full grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-          {filteredItems.map((q, index) => {
-            return (
-              <div className="relative overflow-hidden rounded-md bg-white text-center shadow dark:bg-[#1c232f]" key={index}>
-                <div className="relative my-10 px-6">
-                  <div className="mt-6 grid grid-cols-1 gap-4 ltr:text-left rtl:text-right">
-                    <div className="flex items-center">
-                      <div className="flex-none ltr:mr-2 rtl:ml-2">{t.nro_quote}</div>
-                      <div className="text-white-dark">{q.NroOrden}</div>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="flex-none ltr:mr-2 rtl:ml-2">Items</div>
-                      <div className="text-white-dark">{q.NroItems}</div>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="flex-none ltr:mr-2 rtl:ml-2">Total</div>
-                      <div className="text-white-dark">{q.Total}</div>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="flex-none ltr:mr-2 rtl:ml-2">{ t.nro_pedido }</div>
-                      <div className="text-white-dark">{q.NroPedido}</div>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="flex-none ltr:mr-2 rtl:ml-2">{ t.quote_date }</div>
-                      <div className="text-white-dark">{q.FecCotizacion}</div>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="flex-none ltr:mr-2 rtl:ml-2">{ t.date_order }</div>
-                      <div className="text-white-dark">{q.FecOrden}</div>
-                    </div>
-                  </div>
-
-
-                </div>
-              </div>
-            );
-          })}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <span className="text-sm text-gray-400 animate-pulse">{t.searching}</span>
         </div>
       )}
 
+      {!loading && items.length === 0 && (
+        <div className="flex items-center justify-center py-10">
+          <p className="text-sm text-gray-400">{t.quotes_empty}</p>
+        </div>
+      )}
+
+      {!loading && view === 'list' && items.length > 0 && (
+        <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0 mt-3">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse bg-white dark:bg-gray-900">
+              <thead>
+                <tr>
+                  <SortableHeader col="quote"     label={t.nro_quote}  sort={sort} dir={dir} onSort={onSort} />
+                  <SortableHeader col="item"      label="Items"         sort={sort} dir={dir} onSort={onSort} className="text-center" />
+                  <SortableHeader col="total"     label="Total $us"     sort={sort} dir={dir} onSort={onSort} className="text-right" />
+                  <SortableHeader col="order"     label={t.nro_pedido}  sort={sort} dir={dir} onSort={onSort} />
+                  <SortableHeader col="quotedate" label={t.quote_date}  sort={sort} dir={dir} onSort={onSort} />
+                  <SortableHeader col="orderdate" label={t.date_order}  sort={sort} dir={dir} onSort={onSort} />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                {items.map((o, i) => (
+                  <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                    <td className={`${tdClass} font-semibold text-primary`}>{o.nroCotizacion}</td>
+                    <td className={`${tdClass} text-center`}>{o.nroItems}</td>
+                    <td className={`${tdClass} text-right font-medium`}>{customFormat(o.totalSus)}</td>
+                    <td className={tdClass}>{o.nroPedido || '—'}</td>
+                    <td className={`${tdClass} text-gray-400`}>{o.fecCotizacion ?? '—'}</td>
+                    <td className={`${tdClass} text-gray-400`}>{o.fecOrden ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {!loading && view === 'grid' && items.length > 0 && (
+        <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {items.map((o, i) => (
+            <div key={i} className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 dark:border-gray-700">
+                <span className="text-sm font-bold text-primary">#{o.nroCotizacion}</span>
+                <span className="text-[10px] font-semibold text-green-600 bg-green-50 dark:bg-green-900/30 dark:text-green-400 rounded-full px-2 py-0.5">
+                  {t.completed ?? 'Completado'}
+                </span>
+              </div>
+              <div className="p-4 space-y-1.5">
+                {[
+                  ['Items',         o.nroItems],
+                  ['Total $us',     customFormat(o.totalSus)],
+                  [t.nro_pedido,    o.nroPedido || '—'],
+                  [t.quote_date,    o.fecCotizacion ?? '—'],
+                  [t.date_order,    o.fecOrden ?? '—'],
+                ].map(([label, val]) => (
+                  <div key={label} className="flex items-center justify-between text-xs">
+                    <span className="text-gray-400">{label}</span>
+                    <span className="text-gray-700 dark:text-gray-300 font-medium">{val}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!loading && total > pageSize && (
+        <div className="flex justify-center mt-4">
+          <Pagination
+            total={Math.ceil(total / pageSize)}
+            value={page}
+            onChange={onPageChange}
+            size="sm"
+            radius="xl"
+          />
+        </div>
+      )}
     </>
   );
 }

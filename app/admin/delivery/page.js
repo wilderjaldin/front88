@@ -269,7 +269,7 @@ export default function Delivery() {
                   </button>
                 </div>
               </div>
-              <table className="table-hover table-compact">
+              <table className="table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 table-compact">
                 <thead>
                   <tr className="relative !bg-gray-400 text-center uppercase">
                     <th>

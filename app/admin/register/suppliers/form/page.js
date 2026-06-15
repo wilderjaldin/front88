@@ -9,8 +9,7 @@ import Swal from 'sweetalert2';
 import Select from 'react-select';
 import IconSave from '@/components/icon/icon-save';
 
-const URL_PAISES   = '/clientes/paises';
-const URL_CIUDADES = (codPais) => `/clientes/ciudades?codPais=${codPais}`;
+const URL_CIUDADES = '/ciudades';
 const URL_GUARDAR  = '/proveedores/guardar';
 
 const IDIOMA_OPTIONS = [
@@ -27,9 +26,8 @@ const SupplierForm = ({
   const t      = useTranslation();
   const isEdit = !!proveedor?.codPrv;
 
-  const [paises,          setPaises]          = useState([]);
+  const [paises,          setPaises]          = useState(controles.paises ?? []);
   const [ciudades,        setCiudades]        = useState([]);
-  const [loadingPaises,   setLoadingPaises]   = useState(true);
   const [loadingCiudades, setLoadingCiudades] = useState(false);
 
   const {
@@ -58,15 +56,10 @@ const SupplierForm = ({
   const selectedCountry = watch('country');
 
   useEffect(() => {
-    axiosClient.get(URL_PAISES)
-      .then(res => setPaises(res.data ?? []))
-      .catch(() => setPaises([]))
-      .finally(() => setLoadingPaises(false));
-  }, []);
+    setPaises(controles.paises ?? []);
+  }, [controles.paises]);
 
   useEffect(() => {
-    if (loadingPaises) return;
-
     if (!proveedor) {
       reset({
         nomPrv: '', razSoc: '', dirPrv: '', sitWeb: '', nomChe: '',
@@ -103,14 +96,14 @@ const SupplierForm = ({
     if (proveedor.codPais) {
       cargarCiudades(proveedor.codPais, proveedor.codCiudad ?? null);
     }
-  }, [proveedor, loadingPaises]);
+  }, [proveedor]);
 
   const cargarCiudades = async (codPais, preselectCodCiudad = null) => {
     setLoadingCiudades(true);
     setCiudades([]);
     setValue('city', null);
     try {
-      const res   = await axiosClient.get(URL_CIUDADES(codPais));
+      const res   = await axiosClient.get(URL_CIUDADES, { params: { codPais } });
       const lista = res.data ?? [];
       setCiudades(lista);
       if (preselectCodCiudad && lista.length > 0) {
@@ -196,7 +189,7 @@ const SupplierForm = ({
             errors={errors}
             setValue={setValue}
             current={proveedor?.codPais ?? ''}
-            isLoading={loadingPaises}
+            isLoading={false}
             onChange={handleCountryChange}
             instanceId="select-country-supplier"
             onCountryAdded={({ paises: nuevaLista }) => setPaises(nuevaLista)}

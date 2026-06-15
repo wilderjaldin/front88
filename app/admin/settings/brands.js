@@ -203,7 +203,7 @@ export default function Brands({ t, token }) {
           />
 
           <div className="overflow-x-auto">
-            <table className="bg-white table-hover text-sm">
+            <table className="bg-white table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 text-sm">
               <thead>
                 <tr className="relative !bg-gray-400 hover:!bg-gray-400  text-center text-sm">
                   <th className="text-black font-semibold uppercase">{t.brand}</th>

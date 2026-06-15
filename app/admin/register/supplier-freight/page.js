@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useState, useMemo } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useTranslation } from "@/app/locales";
@@ -191,15 +191,15 @@ export default function SupplierFreight() {
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="p-6 space-y-6">
-
-      {/* Breadcrumb */}
-      <ul className="flex items-center gap-1 text-sm text-gray-500 flex-wrap">
+    <>
+      <ul className="flex space-x-2 rtl:space-x-reverse">
         <li>{t.register}</li>
-        <li className="before:content-['/'] before:mx-2 font-semibold text-gray-700 dark:text-gray-300">
-          {t.supplier_freight}
+        <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
+          <span>{t.freight_supplier}</span>
         </li>
       </ul>
+
+      <div className="pt-5 space-y-4">
 
       {showForm ? (
         /* ── FORMULARIO ─────────────────────────────────────────────────── */
@@ -322,7 +322,7 @@ export default function SupplierFreight() {
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                   {rows.map((r, index) => (
-                    <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
+                    <tr key={r.id} className="hover:bg-gray-100 dark:hover:bg-gray-700/60 transition">
                       <td className="px-2 py-1.5">
                         <input
                           type="text"
@@ -419,11 +419,11 @@ export default function SupplierFreight() {
 
           {/* Título estilo Usuarios */}
           <div>
-            <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
+            <h1 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
               {t.zone_cost}{' '}
-              <span className="text-base font-normal text-gray-400">({zones.length})</span>
+              <span className="text-sm font-normal text-gray-400">({zones.length})</span>
             </h1>
-            <div className="h-1 w-12 rounded bg-primary/70 mt-2" />
+            <div className="h-0.5 w-10 rounded bg-primary/60 mt-1" />
           </div>
 
           {/* Filtro + botón agregar */}
@@ -484,7 +484,7 @@ export default function SupplierFreight() {
                               key={z.codFlete}
                               className={`transition ${isSelected
                                 ? 'bg-primary/5 dark:bg-primary/10'
-                                : 'hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+                                : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
                             >
                               <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">{z.nomPais}</td>
                               <td className="px-4 py-2.5">
@@ -587,7 +587,7 @@ export default function SupplierFreight() {
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                           {selectedZone.detalles.map((d) => (
-                            <tr key={d.numCor} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                            <tr key={d.numCor} className="hover:bg-gray-100 dark:hover:bg-gray-700/60">
                               <td className="px-3 py-2 text-center text-gray-400 text-xs">{d.numCor}</td>
                               <td className="px-3 py-2 text-right text-gray-600 dark:text-gray-400">{d.pesoInicial?.toFixed(2)}</td>
                               <td className="px-3 py-2 text-right text-gray-600 dark:text-gray-400">{d.pesoFinal?.toFixed(2)}</td>
@@ -606,5 +606,6 @@ export default function SupplierFreight() {
         </div>
       )}
     </div>
+    </>
   );
 }

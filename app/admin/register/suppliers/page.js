@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useRef, useState } from 'react';
 import axiosClient from '@/app/lib/axiosClient';
 import Swal from 'sweetalert2';
@@ -11,6 +11,7 @@ import Modal from '@/components/modal';
 import DatatablesSuppliers from './datatables-suppliers';
 import SupplierForm from './form/page';
 import { useTranslation } from '@/app/locales';
+import { usePermissions } from '@/app/hooks/usePermissions';
 
 const URL_BASE  = '/proveedores';
 const PAGE_SIZE = 20;
@@ -31,7 +32,8 @@ const parseTerm = (raw) => {
 export default function SuppliersPage() {
   useDynamicTitle('Proveedores');
 
-  const t = useTranslation();
+  const t                 = useTranslation();
+  const { hasPermission } = usePermissions();
 
   const [suppliers,    setSuppliers]    = useState([]);
   const [total,        setTotal]        = useState(0);
@@ -120,15 +122,22 @@ export default function SuppliersPage() {
 
   return (
     <>
-      <div className="p-6 space-y-6">
+      <ul className="flex space-x-2 rtl:space-x-reverse">
+        <li>{t.register}</li>
+        <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
+          <span>{t.suppliers}</span>
+        </li>
+      </ul>
+
+      <div className="pt-5 space-y-4">
 
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
+            <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
               {t.suppliers}{' '}
-              <span className="text-base font-normal text-gray-400">({total})</span>
-            </h1>
-            <div className="h-1 w-12 rounded bg-primary/70 mt-2" />
+              <span className="text-sm font-normal text-gray-400">({total})</span>
+            </h2>
+            <div className="h-0.5 w-10 rounded bg-primary/60 mt-1" />
           </div>
 
           <div className="flex flex-wrap items-start gap-3">
@@ -183,7 +192,19 @@ export default function SuppliersPage() {
           </div>
         </div>
 
-        {paises.length > 0 && (
+        {paises.length === 1 && (
+          <div className="flex items-center gap-2">
+            <img
+              src={`/assets/flags/${paises[0].codPais.toLowerCase()}.svg`}
+              alt={paises[0].codPais}
+              className="h-4 w-6 rounded-sm object-cover border border-gray-200 dark:border-gray-600"
+              onError={e => { e.currentTarget.style.display = 'none'; }}
+            />
+            <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{paises[0].nomPais}</span>
+          </div>
+        )}
+
+        {paises.length > 1 && (
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -233,6 +254,7 @@ export default function SuppliersPage() {
           setData={setSuppliers}
           setTotal={setTotal}
           t={t}
+          hasPermission={hasPermission}
         />
       </div>
 

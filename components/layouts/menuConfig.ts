@@ -10,6 +10,7 @@ export type MenuItemChild = {
   labelKey: string;       // clave del objeto de traducción (t.xxx)
   href: string;
   permission?: string;    // undefined = visible para todos
+  rol?: string;           // si se define, solo visible para ese rol exacto
 };
 
 export type MenuItem =
@@ -35,9 +36,9 @@ export const MENU_CONFIG: MenuItem[] = [
     labelKey: 'admin',
     icon: 'invoice',
     children: [
-      { labelKey: 'users', href: '/admin/users', permission: PERMISSIONS.J8EM1O6F },
-      { labelKey: 'roles', href: '/admin/roles' },
-      { labelKey: 'permissions', href: '/admin/permissions', permission: PERMISSIONS.J8EM1O6F },
+      { labelKey: 'users', href: '/admin/users', permission: PERMISSIONS.VER_USUARIOS },
+      { labelKey: 'roles', href: '/admin/roles', permission: PERMISSIONS.VER_ROLES },
+      { labelKey: 'permissions', href: '/admin/permissions', permission: PERMISSIONS.VER_PERMISOS },
     ],
   },
   // ── REGISTROS ────────────────────────────────────────────────────────────
@@ -55,11 +56,10 @@ export const MENU_CONFIG: MenuItem[] = [
       { labelKey: 'customers', href: '/admin/register/customers' },
       { labelKey: 'suppliers', href: '/admin/register/suppliers' },
       { labelKey: 'freight_supplier', href: '/admin/register/supplier-freight' },
-      { labelKey: 'company', href: '/admin/register/company' },
+      { labelKey: 'representatives', href: '/admin/register/representatives', permission: PERMISSIONS.LISTAR_REPRESENTANTES },
+      { labelKey: 'representative',  href: '/admin/register/representative',  rol: 'Representante' },
       { labelKey: 'utility', href: '/admin/register/utility' },
-      { labelKey: 'carrier', href: '/admin/register/carrier' },
       { labelKey: 'categorization', href: '/admin/register/categorization' },
-      { labelKey: 'availability', href: '/admin/register/availability' },
       { labelKey: 'exchange_rate', href: '/admin/register/exchange-rate' },
     ],
   },

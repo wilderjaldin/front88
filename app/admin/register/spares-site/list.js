@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useState } from 'react';
 import { DataTable } from 'mantine-datatable';
 import { Pagination } from '@mantine/core';
@@ -45,10 +45,10 @@ const DatatablesSparesSite = ({
 
         {/* Título */}
         <div>
-          <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
+          <h1 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
             Repuestos Site <span>({total})</span>
           </h1>
-          <div className="h-1 w-12 rounded bg-primary/70 mt-2" />
+          <div className="h-0.5 w-10 rounded bg-primary/60 mt-1" />
         </div>
 
         {/* Controles */}
@@ -132,7 +132,7 @@ const DatatablesSparesSite = ({
         <div className="panel mt-5 overflow-hidden border-0 p-0">
           <div className="datatables">
             <DataTable
-              className="table-hover whitespace-nowrap"
+              className="table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 whitespace-nowrap"
               records={data}
               columns={[
                 {

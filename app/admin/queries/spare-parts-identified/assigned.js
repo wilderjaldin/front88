@@ -36,7 +36,7 @@ const Assigned = ({ t, token }) => {
   return (
     <div className="table-responsive">
       {(items.length > 0) ?
-        <table className='table-hover'>
+        <table className='table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700'>
         <thead>
           <tr>
             <th>{ t.nro_order }</th>

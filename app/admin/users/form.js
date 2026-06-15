@@ -40,7 +40,7 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
     handleSubmit, setValue, control, watch,
     formState: { errors },
   } = useForm({
-    defaultValues: { name: '', email: '', rol: null, report: 'ES', status: 'AC' }
+    defaultValues: { name: '', email: '', rol: null, report: 'ES', status: 'AC', blnSeguimiento: false, blnMensaje: false }
   });
 
   // ── Carga ciudades desde la API dado un codPais ───────────────────────────
@@ -81,8 +81,10 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
       emailUser:       user?.correo   ?? '',
       country:         user?.pais     ?? '',
       city:            null,
-      report:          user?.idioma   ?? 'ES',
-      status:          user?.estado   ?? 'AC',
+      report:          user?.idioma          ?? 'ES',
+      status:          user?.estado          ?? 'AC',
+      blnSeguimiento:  user?.blnSeguimiento  ?? false,
+      blnMensaje:      user?.blnMensaje      ?? false,
       password_system: '',
       password_smtp:   '',
     });
@@ -114,6 +116,8 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
         codPais:        (data.country?.value ?? data.country).toString(),
         codCiudad:      (data.city?.value    ?? data.city   ).toString(),
         codEstado:      data.status,
+        blnSeguimiento: data.blnSeguimiento ?? false,
+        blnMensaje:     data.blnMensaje     ?? false,
       };
 
       let rs;
@@ -330,9 +334,7 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
           {/* 🔹 FILA 2 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-            {/* 🌎 UBICACIÓN */}
             <div className="space-y-3 bg-gray-50 p-4 rounded-xl border">
-              <h3 className="text-sm font-semibold text-gray-700 border-b pb-1">🌎 Ubicación</h3>
 
               <div>
                 <label className="form-label required">{t.country}</label>
@@ -383,6 +385,27 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
                     />
                   )}
                 />
+              </div>
+              <div className="pt-1">
+                <label className="form-label mb-2">Notificaciones</label>
+                <div className="flex items-center gap-6">
+                  <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      {...register("blnSeguimiento")}
+                      className="form-checkbox h-4 w-4 rounded text-primary"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Seguimiento</span>
+                  </label>
+                  <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      {...register("blnMensaje")}
+                      className="form-checkbox h-4 w-4 rounded text-primary"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Mensaje</span>
+                  </label>
+                </div>
               </div>
             </div>
 

@@ -430,7 +430,7 @@ export default function ShippingAddress({
         {view === 'list' && filtered.length > 0 && (
           <div className={`panel overflow-hidden border-0 p-0 transition-opacity duration-150 ${fetching ? 'opacity-50' : 'opacity-100'}`}>
             <div className="table-responsive">
-              <table className="table-striped table-hover w-full">
+              <table className="table-striped table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 w-full">
                 <thead>
                   <tr>
                     <th>Lugar</th>

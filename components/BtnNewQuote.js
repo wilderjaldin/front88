@@ -24,7 +24,7 @@ const BtnNewQuote = ({ token, t, show_title = false, classNameBtn="", classNameI
         <IconNewQuote className={classNameIcon}></IconNewQuote>
       </button>
       { (show_title) && <span className="block mt-2 rounded-full bg-[#1b2e4b] px-4 py-1.5 text-xs text-white before:inline-block before:h-1.5 before:w-1.5 before:rounded-full before:bg-white ltr:before:mr-2 rtl:before:ml-2">{t.new_quote}</span> }
-      <Modal size={'w-full max-w-xl'} closeModal={() => setShowModal(false)} openModal={() => setShowModal(true)} showModal={show_modal} title={modal_title} content={modal_content}></Modal>
+      <Modal size={'w-full max-w-2xl'} closeModal={() => setShowModal(false)} openModal={() => setShowModal(true)} showModal={show_modal} title={modal_title} content={modal_content}></Modal>
     </>
   );
 };

@@ -176,7 +176,7 @@ const Packaging = ({ token, t, packages, types_packagings, setOrders, setPackagi
     <div className="">
 
       <div className="bg-gray-100 shadow-lg border mb-4 table-responsive mb-5 z-20">
-        <table className="table-hover table-compact whitespace-nowrap w-full">
+        <table className="table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 table-compact whitespace-nowrap w-full">
           <thead>
             <tr>
               <th className="min-w-20">{ t.packaging_type }</th>
@@ -253,7 +253,7 @@ const Packaging = ({ token, t, packages, types_packagings, setOrders, setPackagi
 
         </div>
         <div className="table-responsive mt-4">
-          <table className='table-hover bg-white table-compact'>
+          <table className='table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 bg-white table-compact'>
             <thead>
               <tr>
                 <th>{ t.nro_order }</th>

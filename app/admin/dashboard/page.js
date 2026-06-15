@@ -2,31 +2,15 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "@/app/locales";
 import Link from "next/link";
-import IconCustomer from "@/components/icon/icon-customer";
-import IconQuotes from "@/components/icon/icon-quotes";
-import IconAutorizeOrder from "@/components/icon/icon-autorize-order";
-import IconOrderInProcess from "@/components/icon/icon-orders-in-process";
-import IconSuppliers from "@/components/icon/icon-suppliers";
-import IconSparePartsToBeQuoted from "@/components/icon/icon-spare-parts-to-be-quoted";
-import IconSparePartsToBeIdentified from "@/components/icon/icon-spare-parts-to-be-identified";
-import IconNewSpareParts from "@/components/icon/icon-new-spare-parts";
-import IconGeneratePurchaseOrder from "@/components/icon/icon-generate-purchase-order";
-import IconSearchPurchaseOrder from "@/components/icon/icon-search-purchase-order";
-import IconSearchCircle from "@/components/icon/icon-search-circle";
-import IconChangeQuote from "@/components/icon/icon-change-quote";
-import IconCrossReference from "@/components/icon/icon-cross-reference";
-import IconCRM from "@/components/icon/icon-crm";
-import IconMessages from "@/components/icon/icon-messages";
-import IconReception from "@/components/icon/icon-reception";
-import IconPackaging from "@/components/icon/icon-packaging";
-import IconShipment from "@/components/icon/icon-shipment";
-import IconSetting from "@/components/icon/icon-setting";
 import axios from 'axios';
 import { useSelector } from 'react-redux';
 import { selectToken } from '@/store/authSlice';
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 import BtnNewQuote from "@/components/BtnNewQuote";
 import { useSearchParams } from "next/navigation";
+import { usePermissions } from "@/app/hooks/usePermissions";
+import { DASHBOARD_GROUPS } from "@/constants/dashboard-items";
+import { PERMISSIONS } from "@/constants/permissions";
 
 const url        = process.env.NEXT_PUBLIC_API_URL + "cliente/ListaControlesCli";
 const url_cities = process.env.NEXT_PUBLIC_API_URL + "empresa/ListaCiudad";
@@ -70,9 +54,10 @@ const Group = ({ title, children, className = '' }) => (
 // ─────────────────────────────────────────────────────────────────────────────
 export default function Dashboard() {
 
-  const t            = useTranslation();
-  const searchParams = useSearchParams();
-  const token        = useSelector(selectToken);
+  const t              = useTranslation();
+  const searchParams   = useSearchParams();
+  const token          = useSelector(selectToken);
+  const { hasPermission } = usePermissions();
   const [showAdmin, setShowAdmin] = useState(false);
 
   const sf = searchParams.get("sf") || false;
@@ -138,46 +123,66 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ── CLIENTES ───────────────────────────────────────────────────────── */}
-      <Group title={t.customers}>
-        <Item href="/admin/register/customers"       icon={<IconCustomer />}       label={t.customers}         />
-        <li className="text-center">
-          <BtnNewQuote token={token} t={t} show_title={true} classNameBtn="" classNameIcon="drop-shadow-md" />
-        </li>
-        <Item href="/admin/queries/orders-placed"         icon={<IconQuotes />}         label={t.quotes}            />
-        <Item href="/admin/revision/authorize-purchase"   icon={<IconAutorizeOrder />}  label={t.authorize_order}   />
-        <Item href="/admin/revision/orders-process"       icon={<IconOrderInProcess />} label={t.orders_in_process} />
-      </Group>
+      {/* ── Grupos del panel ─────────────────────────────────────────────── */}
+      {(() => {
+        const regularGroups  = DASHBOARD_GROUPS.filter(g => !g.compact);
+        const compactGroups  = DASHBOARD_GROUPS.filter(g => g.compact);
 
-      {/* ── PROVEEDORES ────────────────────────────────────────────────────── */}
-      <Group title={t.suppliers}>
-        <Item href="/admin/register/suppliers"             icon={<IconSuppliers />}              label={t.suppliers}                  />
-        <Item href="/admin/queries/spare-parts-quotation"  icon={<IconSparePartsToBeQuoted />}   label={t.spare_parts_to_be_quoted}   />
-        <Item href="/admin/queries/spare-parts-identified" icon={<IconSparePartsToBeIdentified />} label={t.spare_parts_to_be_identified} />
-        <Item href="/admin/register/spares?action=new"     icon={<IconNewSpareParts />}          label={t.new_spare_parts}            />
-        <Item href="/admin/purchase-order"                 icon={<IconGeneratePurchaseOrder />}  label={t.generate_purchase_order}    />
-        <Item href="/admin/queries/purchase-orders"        icon={<IconSearchPurchaseOrder />}    label={t.search_purchase_order}      />
-      </Group>
+        const renderItems = (group) =>
+          group.items
+            .filter(item => !item.permission || hasPermission(item.permission))
+            .map(item => {
+              if (item.type === 'btn-new-quote') {
+                if (!hasPermission(PERMISSIONS.CREAR_COTIZACION)) return null;
+                return (
+                  <li key={item.key} className="text-center">
+                    <BtnNewQuote token={token} t={t} show_title={true} classNameBtn="" classNameIcon="drop-shadow-md" />
+                  </li>
+                );
+              }
+              return (
+                <Item
+                  key={item.key}
+                  href={item.href}
+                  icon={<item.Icon />}
+                  label={t[item.labelKey]}
+                />
+              );
+            });
 
-      {/* ── VARIOS + DEPÓSITO ──────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-5">
+        const renderedRegular = regularGroups.map(group => {
+          const items = renderItems(group);
+          if (!items.length) return null;
+          return (
+            <Group key={group.key} title={t[group.titleKey]}>
+              {items}
+            </Group>
+          );
+        });
 
-        <Group title={t.several}>
-          <Item href="/admin/search"                         icon={<IconSearchCircle />}   label={t.search}          />
-          <Item href="/admin/queries/change-quote"           icon={<IconChangeQuote />}    label={t.change_quote}    />
-          <Item href="/admin/register/reference-change-part" icon={<IconCrossReference />} label={t.cross_reference} />
-          <Item href="/admin/revision/crm-dashboard"         icon={<IconCRM />}            label={t.crm}             />
-          <Item href="/admin/inbox"                          icon={<IconMessages />}       label={t.message}         />
-          <Item href="/admin/settings"                       icon={<IconSetting />}        label={t.settings}        />
-        </Group>
+        const lastRegular = renderedRegular.filter(Boolean).at(-1);
+        const compactPairs = compactGroups.map(group => {
+          const items = renderItems(group);
+          if (!items.length) return null;
+          return (
+            <Group key={group.key} title={t[group.titleKey]} className="lg:min-w-[280px]">
+              {items}
+            </Group>
+          );
+        }).filter(Boolean);
 
-        <Group title={t.deposit} className="lg:min-w-[280px]">
-          <Item href="/admin/purchase-reception" icon={<IconReception />} label={t.reception} />
-          <Item href="/admin/packaging"          icon={<IconPackaging />} label={t.packaging} />
-          <Item href="/admin/delivery"           icon={<IconShipment />}  label={t.shipment}  />
-        </Group>
+        if (!compactPairs.length) return renderedRegular;
 
-      </div>
+        return (
+          <>
+            {renderedRegular.slice(0, -1)}
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-5">
+              {lastRegular}
+              {compactPairs}
+            </div>
+          </>
+        );
+      })()}
 
     </div>
   );

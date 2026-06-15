@@ -11,6 +11,7 @@ import Swal from 'sweetalert2';
 import { useDispatch } from 'react-redux';
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 import { setAuth } from '@/store/authSlice';
+import IconMail from '../icon/icon-mail';
 
 const URL_LOGIN = process.env.NEXT_PUBLIC_API_URL + 'usuarios/login';
 
@@ -34,15 +35,15 @@ const ComponentsAuthLoginForm = () => {
   const [isLoading,    setIsLoading]    = useState(false);
 
   const { register, handleSubmit, formState: { errors } } = useForm({
-    defaultValues: { username: '', password: '', rememberme: false },
+    defaultValues: { login: '', password: '', rememberme: false },
   });
 
   const onSubmit = async (data: any) => {
     setIsLoading(true);
     try {
       const res = await axios.post(URL_LOGIN, {
-        LogUsuario: data.username,
-        PwdUsuario: data.password,
+        login: data.login,
+        password: data.password,
         RememberMe: data.rememberme,
       });
 
@@ -73,7 +74,24 @@ const ComponentsAuthLoginForm = () => {
       }).then(() => router.push('/admin/dashboard'));
 
     } catch (error: any) {
-      Swal.fire('Error', error.response?.status === 401 ? t.login_incorrect : t.error_server, 'error');
+      const msg = error.response?.status === 401 ? t.login_incorrect : t.error_server;
+      Swal.fire({
+        html: `
+          <div style="padding:12px 0 6px">
+            <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#fca5a5,#ef4444);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;box-shadow:0 8px 24px rgba(239,68,68,0.3)">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M18 6L6 18M6 6l12 12" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <p style="color:#94a3b8;font-size:11px;margin:0 0 6px;text-transform:uppercase;letter-spacing:.1em">Acceso denegado</p>
+            <h2 style="color:#1e293b;font-size:18px;font-weight:700;margin:0 0 10px;line-height:1.3">Credenciales incorrectas</h2>
+            <p style="color:#64748b;font-size:13px;margin:0">${msg}</p>
+          </div>`,
+        showConfirmButton: true,
+        confirmButtonText: 'Intentar de nuevo',
+        confirmButtonColor: '#d97706',
+        customClass: { popup: 'swal-login-error' },
+      });
       setIsLoading(false);
     }
   };
@@ -86,25 +104,25 @@ const ComponentsAuthLoginForm = () => {
       {/* Usuario */}
       <div>
         <label className="block text-sm font-semibold text-gray-600 mb-1.5">
-          {t.username}
+          {t.email}
         </label>
         <div className="relative">
           <span className="absolute inset-y-0 start-0 flex items-center ps-3 text-gray-400 pointer-events-none">
-            <IconUser fill={true} />
+            <IconMail fill={true} />
           </span>
           <input
             type="text"
             autoComplete="off"
-            placeholder={t.enter_username}
-            {...register("username", { required: { value: true, message: t.required_field } })}
+            placeholder={t.enter_email}
+            {...register("login", { required: { value: true, message: t.required_field } })}
             className={`form-input ps-10 w-full bg-white/70 border-gray-200
               focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-200
               placeholder:text-gray-400 text-gray-800
-              ${errors.username ? 'border-red-400 focus:border-red-400 focus:ring-red-100' : ''}`}
+              ${errors.login ? 'border-red-400 focus:border-red-400 focus:ring-red-100' : ''}`}
           />
         </div>
-        {errors.username && (
-          <span className="text-red-500 text-xs mt-1 block">{errors.username.message?.toString()}</span>
+        {errors.login && (
+          <span className="text-red-500 text-xs mt-1 block">{errors.login.message?.toString()}</span>
         )}
       </div>
 
@@ -152,7 +170,7 @@ const ComponentsAuthLoginForm = () => {
           />
           <span className="text-sm text-gray-500">{t.remember}</span>
         </label>
-        <Link href="/forgot"
+        <Link href="#"
           className="no-load text-sm text-gray-500 hover:text-amber-700 border-b border-transparent hover:border-amber-500 transition">
           {t.forgot}
         </Link>

@@ -14,6 +14,7 @@ import { useDebounce } from 'use-debounce';
 import { useSelector } from 'react-redux';
 import { getLocale } from '@/store/localeSlice';
 import axios from 'axios'
+import axiosClient from '@/app/lib/axiosClient'
 import Swal from 'sweetalert2'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import IconTrashLines from '../icon/icon-trash-lines';
@@ -28,15 +29,25 @@ const url_update_note = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/Guarda
 const url_delete_item_quote = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetallemod/EliminarItem';
 const url_save_freight = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/ModificarFleteInterno';
 const url_delete_freight = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/EliminarFleteInterno';
-const url_more_quote = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/VerOpciones';
+const url_more_quote = 'cotizaciondetalle/veropciones';
 const url_price_parameters = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/MostrarParamPrecio';
 const url_update_item = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/ActualizarItem';
 const url_add_item = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetallemod/ActualizarItem';
-const url_search_reference = process.env.NEXT_PUBLIC_API_URL + 'referencia/MostrarReferencia';
+const url_search_reference = 'referenciasCruzadas/buscar';
 
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import IconDirection from '../icon/icon-direction';
+
+const ICON_INFO = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#fff" stroke-width="2.5"/><path d="M12 8h.01M12 12v4" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg>`;
+const swalInfo = (title, msg = '', confirmText = 'Entendido') => Swal.fire({
+  html: `<div style="padding:12px 0 6px">
+    <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#fde68a,#f59e0b);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 8px 24px rgba(245,158,11,0.3)">${ICON_INFO}</div>
+    <h2 style="color:#1e293b;font-size:17px;font-weight:700;margin:0 0 10px;line-height:1.3">${title}</h2>
+    ${msg ? `<p style="color:#64748b;font-size:13px;margin:0">${msg}</p>` : ''}
+  </div>`,
+  showConfirmButton: true, confirmButtonText: confirmText, confirmButtonColor: '#f59e0b',
+});
 
 const ConfirmedQuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, options_share }) => {
 
@@ -488,39 +499,65 @@ const ConfirmedQuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _trac
   }
 
   const showMore = async (item) => {
-
-
     try {
-      const rs = await axios.post(url_more_quote, { NroOrden: order.NroOrden, CodCliente: customer.CodCliente, NroParte: item.NroParte, Cantidad: item.Cantidad, ValToken: token });
-      if (rs.data.estado == 'OK') {
-        let data = getValuesQuote();
-        data.nro_part = item.NroParte.replace(/\s+/g, "").replace(/\*/g, "");
-        data.quantity = getValuesQuote(`items.${item.CodItem}.Cantidad`)
-        data.position = item.CodItem;
+      const rs = await axiosClient.post(url_more_quote, {
+        NroCotizacion: order.NroOrden,
+        CodCliente:    customer.CodCliente,
+        NroParte:      item.NroParte,
+        Cantidad:      item.Cantidad,
+      });
 
-
-        setModalTitle('');
-        setModalSize('w-full max-w-5xl')
-        setModalContent(<OptionsItemsQuote
-          close={() => setShowModal(false)}
-          updateInputs={updateInputs}
-          setItems={setItems}
-          setOrder={setOrder}
-          options={rs.data.dato2}
-          customer={customer}
-          order={order}
-          token={token}
-          item_select={item}
-          t={t}
-          data={data}
-          confirmed={true}
-          changePrice={true}
-        ></OptionsItemsQuote>);
-        setShowModal(true);
+      const { resultado: _res, opcionesLocales, opcionesImportacion, mensaje } = rs.data;
+      const resultado = String(_res ?? '').replace(/"/g, '').trim().toLowerCase();
+      if (resultado === 'no_encontrado') {
+        swalInfo(t.spare_part_not_found ?? 'Repuesto no encontrado', mensaje ?? '', t.close ?? 'Cerrar');
+        return;
       }
-    } catch (error) {
 
-    }
+      const mapOpt = (o) => ({
+        CodRepuesto:   o.codRepuesto,
+        NroParte:      o.nroParte,
+        TipRepuesto:   o.nomTipRepuesto,
+        Aplicacion:    o.nomAplicacion,
+        Marca:         o.nomMarca,
+        Proveedor:     o.nomPrv,
+        Estado:        o.nomEstado,
+        Precio:        o.precioUnitario,
+        DesTieEntrega: o.desTiempoEntrega,
+        DiasVigencia:  o.diasVigencia,
+        esLocal:       o.esLocal,
+      });
+
+      const options = [
+        ...(opcionesLocales   ?? []).map(mapOpt),
+        ...(opcionesImportacion ?? []).map(mapOpt),
+      ];
+      if (!options.length) return;
+
+      let data = getValuesQuote();
+      data.nro_part = item.NroParte.replace(/\s+/g, '').replace(/\*/g, '');
+      data.quantity = getValuesQuote(`items.${item.CodItem}.Cantidad`);
+      data.position = item.CodItem;
+
+      setModalTitle('');
+      setModalSize('w-full max-w-5xl');
+      setModalContent(<OptionsItemsQuote
+        close={() => setShowModal(false)}
+        updateInputs={updateInputs}
+        setItems={setItems}
+        setOrder={setOrder}
+        options={options}
+        customer={customer}
+        order={order}
+        token={token}
+        item_select={item}
+        t={t}
+        data={data}
+        confirmed={true}
+        changePrice={true}
+      />);
+      setShowModal(true);
+    } catch (error) {}
   }
 
   /*
@@ -629,19 +666,31 @@ const ConfirmedQuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _trac
 
     try {
       const NroParte = (item.NroParte.replace(/\s+/g, "").replace(/\*/g, ""));
-      const rs = await axios.post(url_search_reference, { NroParte: NroParte, CodMarca: 0, ValToken: token });
+      const rs = await axiosClient.get(url_search_reference, { params: { nroParte: NroParte, codDax: '' } });
 
-      if (rs.data.estado == "OK") {
-        setShowModal(true);
-        setModalSize('w-full max-w-6xl');
-        setModalTitle(t.reference_part_change);
-        let references = rs.data.dato1;
-        let options = rs.data.dato2;
-        setModalContent(<TableReference NroParte={NroParte} t={t} items={references} options={options} token={token} close={() => setShowModal(false)} quote_id={order.NroOrden}></TableReference>)
-        Swal.close();
-      }
+      const references = (rs.data.referencias ?? []).map(r => ({
+        CodRegistro:   r.codRegistro,
+        NroParte:      r.nroParte,
+        NomAplicacion: r.aplicacion,
+        FecRegistra:   r.fecRegistra,
+      }));
+      const options = (rs.data.repuestos ?? []).map(r => ({
+        NroParte:    r.nroParte,
+        DesRepuesto: r.descripcion,
+        NomPrv:      r.proveedor,
+        NomMarca:    r.marca,
+        Peso:        r.peso,
+        Costo:       r.costo,
+        Estado:      '',
+      }));
+
+      setShowModal(true);
+      setModalSize('w-full max-w-6xl');
+      setModalTitle(t.reference_part_change);
+      setModalContent(<TableReference NroParte={NroParte} t={t} items={references} options={options} token={token} close={() => setShowModal(false)} quote_id={order.NroOrden} />);
+      Swal.close();
     } catch (error) {
-
+      Swal.close();
     }
   }
 

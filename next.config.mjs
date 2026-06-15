@@ -4,6 +4,11 @@ const nextConfig = {
 
   // Evita el error de Turbopack al detectar config vieja
   turbopack: {},
+
+  webpack: (config) => {
+    config.resolve.alias.canvas = false;
+    return config;
+  },
 };
 
 export default nextConfig;

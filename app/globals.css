@@ -2,4 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+/* SweetAlert2 — login error */
+.swal-login-error.swal2-popup {
+  border-radius: 1.25rem !important;
+  padding: 2rem 2rem 1.75rem !important;
+  box-shadow: 0 20px 60px rgba(100, 116, 139, 0.18), 0 0 0 1px rgba(239, 68, 68, 0.1) !important;
+  max-width: 360px !important;
+}
+.swal-login-error .swal2-html-container {
+  margin: 0 !important;
+}
+.swal-login-error .swal2-confirm {
+  border-radius: 0.625rem !important;
+  font-size: 0.8125rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase !important;
+  padding: 0.625rem 1.75rem !important;
+  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.25) !important;
+}
 

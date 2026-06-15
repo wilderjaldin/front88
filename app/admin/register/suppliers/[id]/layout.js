@@ -7,6 +7,7 @@ import Link from 'next/link';
 import axiosClient from '@/app/lib/axiosClient';
 import Modal from '@/components/modal';
 import SupplierForm from '../form/page';
+import AccessDenied from '@/components/AccessDenied';
 
 const URL_BASE = '/proveedores';
 
@@ -25,9 +26,11 @@ export default function SupplierLayout({ children }) {
 
   const [proveedor,      setProveedor]      = useState(null);
   const [loadingClient,  setLoadingClient]  = useState(true);
+  const [forbidden,      setForbidden]      = useState(false);
 
   const [controles,        setControles]        = useState(null);
-  const [loadingControles, setLoadingControles] = useState(false);
+  const [editProveedor,    setEditProveedor]    = useState(null);
+  const [loadingEditData,  setLoadingEditData]  = useState(false);
   const [showModal,        setShowModal]        = useState(false);
 
   // Estado de cada tab
@@ -50,32 +53,43 @@ export default function SupplierLayout({ children }) {
   const [general,        setGeneral]        = useState(null);
   const [loadGeneral,    setLoadGeneral]    = useState(true);
 
-  // Carga del proveedor
+  // Carga ficha (breadcrumb + control de acceso por país)
   useEffect(() => {
-    axiosClient.get(`${URL_BASE}/${id}`)
+    axiosClient.get(`${URL_BASE}/ficha/${id}`)
       .then(res => setProveedor(res.data))
-      .catch(() => router.push('/admin/register/suppliers'))
+      .catch((err) => {
+        if (err?.response?.status === 403) {
+          setForbidden(true);
+        } else {
+          router.push('/admin/register/suppliers');
+        }
+      })
       .finally(() => setLoadingClient(false));
   }, [id]);
 
-  // Abrir modal editar — controles lazy
+  // Abrir modal: carga datos completos + controles en paralelo
   const handleOpenEdit = async () => {
     setShowModal(true);
-    if (controles) return;
-    setLoadingControles(true);
+    setEditProveedor(null);
+    setLoadingEditData(true);
     try {
-      const res = await axiosClient.get(`${URL_BASE}/controles`);
-      setControles(res.data);
+      const promises = [axiosClient.get(`${URL_BASE}/${id}`)];
+      if (!controles) promises.push(axiosClient.get(`${URL_BASE}/controles`));
+      const results = await Promise.all(promises);
+      setEditProveedor(results[0].data);
+      if (!controles) setControles(results[1].data);
     } catch {}
-    finally { setLoadingControles(false); }
+    finally { setLoadingEditData(false); }
   };
 
-  const handleSaved = (res) => {
-    const updated = Array.isArray(res?.data)
-      ? res.data.find(p => p.codPrv === parseInt(id))
-      : null;
-    if (updated) setProveedor(updated);
+  const handleSaved = async () => {
     setShowModal(false);
+    setEditProveedor(null);
+    setLoadGeneral(true);
+    try {
+      const res = await axiosClient.get(`${URL_BASE}/ficha/${id}`);
+      setProveedor(res.data);
+    } catch {}
   };
 
   if (loadingClient) {
@@ -86,6 +100,7 @@ export default function SupplierLayout({ children }) {
     );
   }
 
+  if (forbidden) return <AccessDenied />;
   if (!proveedor) return null;
 
   const currentTab = TABS.find(t => t.key === tab) ?? TABS[0];
@@ -104,7 +119,7 @@ export default function SupplierLayout({ children }) {
 
   return (
     <SupplierContext.Provider value={contextValue}>
-      <div className="p-6 space-y-6">
+      <div className="space-y-6">
 
         {/* BREADCRUMB */}
         <ul className="flex items-center gap-1 text-sm text-gray-500 flex-wrap">
@@ -115,8 +130,19 @@ export default function SupplierLayout({ children }) {
             </Link>
           </li>
           <li className="before:content-['/'] before:mx-2">
-            <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-0.5
-                             text-xs font-semibold text-primary truncate max-w-[200px]">
+            <span
+              title={proveedor.nomPais || undefined}
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-0.5
+                         text-xs font-semibold text-primary truncate max-w-[200px]"
+            >
+              {proveedor.codPais && (
+                <img
+                  src={`/assets/flags/${proveedor.codPais.toLowerCase()}.svg`}
+                  alt={proveedor.nomPais || proveedor.codPais}
+                  className="h-3.5 w-5 rounded-sm object-cover shrink-0"
+                  onError={e => { e.currentTarget.style.display = 'none'; }}
+                />
+              )}
               {proveedor.nomPrv}
             </span>
           </li>
@@ -169,13 +195,13 @@ export default function SupplierLayout({ children }) {
         closeModal={() => setShowModal(false)}
         title="Editar Proveedor"
       >
-        {loadingControles ? (
+        {(loadingEditData || !editProveedor) ? (
           <div className="flex items-center justify-center py-12">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </div>
         ) : (
           <SupplierForm
-            proveedor={proveedor}
+            proveedor={editProveedor}
             controles={controles ?? { paises: [], docTypes: [] }}
             onCancel={() => setShowModal(false)}
             onSaved={handleSaved}

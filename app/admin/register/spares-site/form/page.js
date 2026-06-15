@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -259,10 +259,10 @@ export default function SparesSiteFormPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
+          <h1 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
             {isEdit ? 'Editar Repuesto' : 'Nuevo Repuesto'}
           </h1>
-          <div className="h-1 w-12 rounded bg-primary/70 mt-2" />
+          <div className="h-0.5 w-10 rounded bg-primary/60 mt-1" />
         </div>
         <button
           type="button"

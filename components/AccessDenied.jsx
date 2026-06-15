@@ -1,6 +1,8 @@
 import IconLockDots from "./icon/icon-lock-dots";
+import { useDynamicTitle } from '@/app/hooks/useDynamicTitle';
 
 export default function AccessDenied({ message }) {
+  useDynamicTitle('Acceso Restringido');
   return (
     <div className="flex items-center justify-center py-20">
       <div className="text-center max-w-md">

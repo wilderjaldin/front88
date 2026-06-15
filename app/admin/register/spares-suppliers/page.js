@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useRef, useState, useMemo } from "react";
 import Swal from "sweetalert2";
 import axiosClient from "@/app/lib/axiosClient";
@@ -254,8 +254,8 @@ export default function SparesSupplierImportPage() {
 
       {/* TÍTULO */}
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">Importar Repuestos por Proveedor</h1>
-        <div className="h-1 w-12 rounded bg-primary/70 mt-2" />
+        <h1 className="text-lg font-semibold text-gray-800 dark:text-gray-100">Importar Repuestos por Proveedor</h1>
+        <div className="h-0.5 w-10 rounded bg-primary/60 mt-1" />
       </div>
 
       {/* STEPPER */}

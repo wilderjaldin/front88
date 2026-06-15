@@ -229,7 +229,7 @@ const Receptions = ({ token, t, data, setReceptions, setOrders, selected_orders 
 
       </div>
       <DataTable
-        className="table-hover table-compact whitespace-nowrap"
+        className="table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 table-compact whitespace-nowrap"
         records={recordsData}
         columns={[
           { accessor: 'NumOrdenCompra', title: t.nro_purchase_order, sortable: true },

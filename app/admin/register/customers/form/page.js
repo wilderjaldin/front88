@@ -84,6 +84,11 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
         setPaises(newPaises);
         setDocTypes(newDocTypes);
 
+        // Si solo hay un país disponible y es formulario nuevo, pre-seleccionarlo
+        if (!isEdit && newPaises.length === 1) {
+          setValue('country', newPaises[0]);
+        }
+
         if (isEdit && cliente) {
           const paisObj = newPaises.find(p => p.value === cliente.codPais) ?? null;
 
@@ -109,7 +114,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
             cliIdioma:     IDIOMA_OPTIONS.find(o => o.value === cliente.cliIdioma) ?? IDIOMA_ES,
             estado:        cliente.estado        ?? '',
             zip:           cliente.zip           ?? '',
-            pctIva:        cliente.pctIva        ?? 0,
+            pctIva:        cliente.porIva         ?? 0,
             noConsiderarIva: cliente.noConsiderarIva ?? false,
             esRevendedor:  cliente.esRevendedor  ?? false,
           });
@@ -178,8 +183,8 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
         estado:        isUS ? (data.estado?.trim() || null) : null,
         zip:           isUS ? (data.zip?.trim()    || null) : null,
         // IVA
-        pctIva:        data.noConsiderarIva ? null : Number(data.pctIva),
-        noConsiderarIva: data.noConsiderarIva,
+        PorIva:          data.noConsiderarIva ? null : Number(data.pctIva),
+        NoConsiderarIva: data.noConsiderarIva,
         // Revendedor
         esRevendedor:  data.esRevendedor,
       };
@@ -260,8 +265,10 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                 current={cliente?.codPais ?? ''}
                 isLoading={loading}
                 onChange={(val) => {
-                  setValue('city', null);
-                  setCiudades([]);
+                  if (val?.value !== watchPais?.value) {
+                    setValue('city', null);
+                    setCiudades([]);
+                  }
                 }}
                 instanceId="select-country-customer"
                 onCountryAdded={({ paises: nuevaLista }) => setPaises(nuevaLista)}

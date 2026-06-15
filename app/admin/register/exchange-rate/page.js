@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from '@/app/locales';
@@ -98,7 +98,7 @@ export default function ExchangeRate() {
       {/* Title */}
       <div>
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">
+          <h1 className="text-lg font-semibold text-gray-800 dark:text-white">
             {t.exchange_rate}
           </h1>
           {!loading && (
@@ -107,7 +107,7 @@ export default function ExchangeRate() {
             </span>
           )}
         </div>
-        <div className="h-1 w-12 rounded bg-primary/70 mt-2" />
+        <div className="h-0.5 w-10 rounded bg-primary/60 mt-1" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">

@@ -1,10 +1,11 @@
-'use client';
+﻿'use client';
 import Tippy from '@tippyjs/react';
 import { DataTable } from 'mantine-datatable';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import IconPencil from '@/components/icon/icon-pencil';
 import IconToggleOff from '@/components/icon/icon-toggle-off';
 import IconToggleOn from '@/components/icon/icon-toggle-on';
+import IconTrash from '@/components/icon/icon-trash';
 import { useTranslation } from "@/app/locales";
 import IconUserPlus from '@/components/icon/icon-user-plus';
 import IconListCheck from '@/components/icon/icon-list-check';
@@ -28,6 +29,8 @@ import IconEye from '@/components/icon/icon-eye';
 
 
 
+import { PERMISSIONS } from '@/constants/permissions';
+
 const url_delete_spare = process.env.NEXT_PUBLIC_API_URL + 'repuesto/EliminarRegistroCliente';
 
 const DatatablesSpares = ({
@@ -46,7 +49,8 @@ const DatatablesSpares = ({
   handleToggleStatus,
   brands = [],
   suppliers = [],
-  typesSpare = []
+  typesSpare = [],
+  hasPermission = () => false,
 }) => {
 
   const { isMobile } = useDevice();
@@ -199,10 +203,10 @@ const DatatablesSpares = ({
 
         {/* IZQUIERDA */}
         <div>
-          <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
+          <h1 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
             {t.spare_parts} <span>({total})</span>
           </h1>
-          <div className="h-1 w-12 rounded bg-primary/70 mt-2"></div>
+          <div className="h-0.5 w-10 rounded bg-primary/60 mt-1"></div>
         </div>
 
         {/* DERECHA */}
@@ -285,19 +289,22 @@ const DatatablesSpares = ({
 
             </form>
 
-            {/* SEPARADOR VERTICAL */}
-            <div className="h-10 w-px bg-gray-300 dark:bg-gray-600 mx-4" />
+            {(hasPermission(PERMISSIONS.REPUESTOS_CREAR)) &&
+              <>
+                <div className="h-10 w-px bg-gray-300 dark:bg-gray-600 mx-4" />
 
-            {/* NUEVO */}
-            <button
-              type="button"
-              onClick={handleNew}
-              className="h-10 rounded-lg bg-primary px-5
+
+                <button
+                  type="button"
+                  onClick={handleNew}
+                  className="h-10 rounded-lg bg-primary px-5
             text-white text-sm font-medium
             shadow-sm hover:bg-primary/90 transition"
-            >
-              {t.btn_add_spare_parts}
-            </button>
+                >
+                  {t.btn_add_spare_parts}
+                </button>
+              </>
+            }
 
           </div>
 
@@ -489,7 +496,26 @@ const DatatablesSpares = ({
             <div className="datatables">
 
               <DataTable
-                className="table-hover whitespace-nowrap"
+                className="
+                  whitespace-nowrap text-xs
+                  [&_thead]:bg-gray-50
+                  [&_thead]:dark:bg-gray-800
+                  [&_thead_th]:text-[11px]
+                  [&_thead_th]:font-semibold
+                  [&_thead_th]:uppercase
+                  [&_thead_th]:tracking-wide
+                  [&_thead_th]:text-gray-500
+                  [&_thead_th]:dark:text-gray-400
+                  [&_tbody_td]:text-xs
+                  [&_tbody_td]:text-gray-700
+                  [&_tbody_td]:dark:text-gray-300
+                  [&_tbody_tr]:transition
+                  [&_tbody_tr:hover]:bg-gray-100
+                  [&_tbody_tr:hover]:dark:bg-gray-700
+                "
+                highlightOnHover
+                verticalSpacing="xs"
+                horizontalSpacing="sm"
                 records={data}
                 columns={[
                   {
@@ -505,25 +531,27 @@ const DatatablesSpares = ({
                         >
                           <IconEye className="w-4 h-4 text-gray-600" />
                         </button>
-
-                        <button
-                          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                          onClick={() => handleEdit(s)}
-                          title="Editar"
-                        >
-                          <IconPencil className="w-4 h-4 text-blue-500" />
-                        </button>
-
-                        <button
-                          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                          onClick={() => handleToggleStatus(s)}
-                          title={s.codEstado === 'AC' ? 'Inactivar' : 'Activar'}
-                        >
-                          {s.codEstado === 'AC'
-                            ? <IconToggleOn className="w-10 h-10  fill-green-500" />
-                            : <IconToggleOff className="w-10 h-10 text-gray-400" />
-                          }
-                        </button>
+                        {(hasPermission(PERMISSIONS.REPUESTOS_MODIFICAR)) &&
+                          <button
+                            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                            onClick={() => handleEdit(s)}
+                            title="Editar"
+                          >
+                            <IconPencil className="w-4 h-4 text-blue-500" />
+                          </button>
+                        }
+                        {(hasPermission(PERMISSIONS.REPUESTOS_ELIMINAR)) &&
+                          <button
+                            className="p-1 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
+                            onClick={() => handleToggleStatus(s)}
+                            title={s.codEstado === 'AC' ? 'Eliminar' : 'Activar'}
+                          >
+                            {s.codEstado === 'AC'
+                              ? <IconTrash className="w-4 h-4 text-red-500" />
+                              : <IconToggleOn className="w-7 h-7 text-gray-400" />
+                            }
+                          </button>
+                        }
 
                       </div>
                     )
@@ -660,31 +688,16 @@ const DatatablesSpares = ({
                     render: (s) => (
 
 
-                      <div className="text-xs space-y-1 leading-tight">
-                        <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-2 border border-gray-100 dark:border-gray-700">
-
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Registrado</span>
-                            <span className="text-gray-500" title={s.fecRegistraCompleto}>
-                              {s.fecRegistra}
-                            </span>
-                          </div>
-                          <div className="font-medium text-gray-700 dark:text-gray-200">
-                            {s.usuarioRegistra}
-                          </div>
-
-                          <div className="border-t border-gray-200 dark:border-gray-600 my-1"></div>
-
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Modificado</span>
-                            <span className="text-gray-500" title={s.fecModificaCompleto}>
-                              {s.fecModifica}
-                            </span>
-                          </div>
-                          <div className="font-medium text-gray-700 dark:text-gray-200">
-                            {s.usuarioModifica}
-                          </div>
-
+                      <div className="text-[11px] leading-tight space-y-0.5 text-gray-500 dark:text-gray-400">
+                        <div className="flex gap-1">
+                          <span className="text-gray-400 shrink-0">Reg:</span>
+                          <span>{s.usuarioRegistra || '-'}</span>
+                          <span className="ml-auto text-gray-400" title={s.fecRegistraCompleto}>{s.fecRegistra}</span>
+                        </div>
+                        <div className="flex gap-1">
+                          <span className="text-gray-400 shrink-0">Mod:</span>
+                          <span>{s.usuarioModifica || '-'}</span>
+                          <span className="ml-auto text-gray-400" title={s.fecModificaCompleto}>{s.fecModifica}</span>
                         </div>
                       </div>
                     )
@@ -705,18 +718,17 @@ const DatatablesSpares = ({
                     hidden: hideCols.includes('codEstado'),
                     render: (row) => (
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-semibold ${row.codEstado === 'AC'
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-red-100 text-red-600'
+                        className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${row.codEstado === 'AC'
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                          : 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300'
                           }`}
                       >
-                        {row.codEstado === 'AC' ? t.active : t.inactive }
+                        {row.codEstado === 'AC' ? t.active : t.inactive}
                       </span>
                     )
                   }
 
                 ]}
-                highlightOnHover
                 page={page}
                 onPageChange={onPageChange}
                 totalRecords={total}
@@ -789,24 +801,27 @@ const DatatablesSpares = ({
                         <IconEye className="w-4 h-4 text-gray-600" />
                       </button>
 
-                      <button
-                        className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                        onClick={() => handleEdit(s)}
-                        title="Editar"
-                      >
-                        <IconPencil className="w-4 h-4 text-blue-500" />
-                      </button>
-
-                      <button
-                        className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                        onClick={() => handleToggleStatus(s)}
-                        title={s.codEstado === 'AC' ? 'Inactivar' : 'Activar'}
-                      >
-                        {s.codEstado === 'AC'
-                          ? <IconToggleOn className="w-5 h-5 text-green-500" />
-                          : <IconToggleOff className="w-5 h-5 text-gray-400" />
-                        }
-                      </button>
+                      {(hasPermission(PERMISSIONS.REPUESTOS_MODIFICAR)) &&
+                        <button
+                          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                          onClick={() => handleEdit(s)}
+                          title="Editar"
+                        >
+                          <IconPencil className="w-4 h-4 text-blue-500" />
+                        </button>
+                      }
+                      {(hasPermission(PERMISSIONS.REPUESTOS_ELIMINAR)) &&
+                        <button
+                          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                          onClick={() => handleToggleStatus(s)}
+                          title={s.codEstado === 'AC' ? 'Eliminar' : 'Activar'}
+                        >
+                          {s.codEstado === 'AC'
+                            ? <IconTrash className="w-4 h-4 text-red-500" />
+                            : <IconToggleOn className="w-5 h-5 text-gray-400" />
+                          }
+                        </button>
+                      }
 
                     </div>
 

@@ -1,10 +1,12 @@
-'use client';
+﻿'use client';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useSelector } from 'react-redux';
 import { useTranslation } from '@/app/locales';
 import { useDynamicTitle } from '@/app/hooks/useDynamicTitle';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/constants/permissions';
+import { selectUser } from '@/store/authSlice';
 import axiosClient from '@/app/lib/axiosClient';
 import { useDebounce } from 'use-debounce';
 import { useDevice } from '@/context/device-context';
@@ -14,7 +16,7 @@ import AccessDenied from '@/components/AccessDenied';
 import IconSearch from '@/components/icon/icon-search';
 import IconPlus from '@/components/icon/icon-plus';
 import IconX from '@/components/icon/icon-x';
-import IconPencil from '@/components/icon/icon-pencil';
+import IconSettings from '@/components/icon/icon-settings';
 import IconTrashLines from '@/components/icon/icon-trash-lines';
 import IconListCheck from '@/components/icon/icon-list-check';
 import IconLayoutGrid from '@/components/icon/icon-layout-grid';
@@ -113,9 +115,9 @@ const RepCard = ({ row, t, onEdit, onDelete }) => (
       </div>
     </div>
     <div className="flex items-center justify-end gap-1 px-4 py-2 border-t border-gray-100 dark:border-gray-700">
-      <button onClick={() => onEdit(row)}
-        className="p-1.5 rounded-lg text-gray-400 hover:bg-warning/10 hover:text-warning transition">
-        <IconPencil className="w-4 h-4" />
+      <button onClick={() => onEdit(row)} title="Configurar"
+        className="p-1.5 rounded-lg text-gray-400 hover:bg-primary/10 hover:text-primary transition">
+        <IconSettings className="w-4 h-4" />
       </button>
       <button onClick={() => onDelete(row)}
         className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 transition">
@@ -128,11 +130,30 @@ const RepCard = ({ row, t, onEdit, onDelete }) => (
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function RepresentativesPage() {
   const { hasPermission } = usePermissions();
+  const user              = useSelector(selectUser);
   const t                 = useTranslation();
   const { isMobile }      = useDevice();
   const router            = useRouter();
   const searchParams      = useSearchParams();
   useDynamicTitle(`${t.register} | Representantes`);
+
+  const isAdmin = hasPermission(PERMISSIONS.LISTAR_REPRESENTANTES);
+  const isRep   = user?.rol === 'Representante';
+
+  // Redirect representante to their own profile
+  useEffect(() => {
+    if (!isRep || !user?.countryCode) return;
+    axiosClient.get(`/representantes/detalle-por-pais/${user.countryCode}`)
+      .then(res => {
+        const codEmp = res.data?.codEmp;
+        router.replace(
+          codEmp
+            ? '/admin/register/representative/general'
+            : '/admin/register/company/me'
+        );
+      })
+      .catch(() => router.replace('/admin/register/company/me'));
+  }, [isRep, user?.countryCode]);
 
   const [rows,    setRows]    = useState([]);
   const [total,   setTotal]   = useState(0);
@@ -179,8 +200,8 @@ export default function RepresentativesPage() {
     router.push(`?${params.toString()}`, { scroll: false });
   };
 
-  const openCreate = () => router.push('/admin/register/company/representatives/form');
-  const openEdit   = (row) => router.push(`/admin/register/company/representatives/form?id=${row.codEmp}`);
+  const openCreate = () => router.push('/admin/register/representatives/form');
+  const openEdit   = (row) => router.push(`/admin/register/representatives/${row.codEmp}/general`);
 
   const handleDelete = (row) => {
     Swal.fire({
@@ -207,7 +228,12 @@ export default function RepresentativesPage() {
   const { codEstado: activeCodEstado } = parseTerm(debouncedTerm);
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
-  if (!hasPermission(PERMISSIONS.WXLPVQFT)) return <AccessDenied />;
+  if (isRep) return (
+    <div className="flex items-center justify-center py-32">
+      <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+    </div>
+  );
+  if (!isAdmin) return <AccessDenied />;
 
   return (
     <div className="space-y-6">
@@ -221,11 +247,11 @@ export default function RepresentativesPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">
+          <h1 className="text-lg font-semibold text-gray-800 dark:text-white">
             Representantes{' '}
             <span className="text-base font-normal text-gray-400">({total})</span>
           </h1>
-          <div className="h-1 w-12 rounded bg-primary/70 mt-2" />
+          <div className="h-0.5 w-10 rounded bg-primary/60 mt-1" />
         </div>
 
         <div className="flex flex-wrap items-start gap-3">
@@ -275,6 +301,18 @@ export default function RepresentativesPage() {
             )}
           </div>
 
+          {/* View toggle */}
+          <div className="flex items-center rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden">
+            <button type="button" onClick={() => setView('list')}
+              className={`p-2 transition ${view === 'list' ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
+              <IconListCheck className="h-4 w-4" />
+            </button>
+            <button type="button" onClick={() => setView('grid')}
+              className={`p-2 transition ${view === 'grid' ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
+              <IconLayoutGrid className="h-4 w-4" />
+            </button>
+          </div>
+
           {/* Add */}
           <button
             type="button"
@@ -283,20 +321,6 @@ export default function RepresentativesPage() {
           >
             <IconPlus className="h-4 w-4 transition-transform duration-200 group-hover:rotate-90" />
             Agregar
-          </button>
-        </div>
-      </div>
-
-      {/* View toggle */}
-      <div className="flex items-center justify-end">
-        <div className="flex items-center rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden">
-          <button type="button" onClick={() => setView('list')}
-            className={`p-2 transition ${view === 'list' ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
-            <IconListCheck className="h-4 w-4" />
-          </button>
-          <button type="button" onClick={() => setView('grid')}
-            className={`p-2 transition ${view === 'grid' ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
-            <IconLayoutGrid className="h-4 w-4" />
           </button>
         </div>
       </div>
@@ -454,9 +478,9 @@ export default function RepresentativesPage() {
                         {/* Acciones */}
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-center gap-1">
-                            <button type="button" onClick={() => openEdit(row)} title="Editar"
+                            <button type="button" onClick={() => openEdit(row)} title="Configurar"
                               className="p-1.5 rounded-md text-gray-400 hover:bg-warning/10 hover:text-warning transition">
-                              <IconPencil className="h-4 w-4" />
+                              <IconSettings className="h-4 w-4" />
                             </button>
                             <button type="button" onClick={() => handleDelete(row)} title="Eliminar"
                               className="p-1.5 rounded-md text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 transition">

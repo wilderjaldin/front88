@@ -5,43 +5,68 @@ import { useForm } from "react-hook-form"
 import Select from 'react-select';
 import IconTrashLines from '../icon/icon-trash-lines';
 import IconPlusCircle from '../icon/icon-plus-circle';
+import IconInfoCircle from '../icon/icon-info-circle';
 import EquipmentForm from '@/components/forms/equipment-form'
 import EngineForm from '@/components/forms/engine-form'
 import Modal from '@/components/modal';
-import { useOptionsSelect } from '@/app/options'
-import { useRouter } from 'next/navigation';
-import axios from 'axios'
+import { useRouter, useSearchParams } from 'next/navigation';
+import axiosClient from '@/app/lib/axiosClient'
 import Swal from 'sweetalert2'
 
-const url_save_quote = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/GuardarCotSinCod';
-const url_get_lists = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/MostrarListasDesplegables';
+const URL_SAVE_QUOTE   = 'cotizacion/registrar-sin-codigo';
+const URL_UPDATE_QUOTE = (id) => `cotizacion/registrar-sin-codigo/${id}`;
+const URL_GET_QUOTE    = (id) => `cotizacion/sin-codigo/${id}`;
+const URL_GET_SEGUIMIENTO  = 'usuarios/seguimiento';
+const URL_SAVE_SEGUIMIENTO = 'cotizacion/registrar-seguimiento';
+const URL_MARCAS     = 'cotizacion/marcas';
 
 
-const QuoteWithoutCodeForm = ({ _customer_, t, token, _order_ = [], _items_ }) => {
+const QuoteWithoutCodeForm = ({ _customer_, t, _order_ = [], _items_ }) => {
 
-  const router = useRouter();
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+  const order_id     = searchParams.get('id');
 
   const [order, setOrder] = useState(_order_)
   const [customer, setCustomer] = useState(_customer_);
-  const brands = useOptionsSelect("brands") || [];
-  const [current_row, setCurrentRow] = useState(1);
-  const [items, setItems] = useState(_items_)
+  const [brands, setBrands] = useState([]);
+  const _initRows = (_items_ && _items_.length > 0)
+    ? _items_
+    : [1,2,3,4,5].map(i => ({ CodItem: i, Cantidad: 1, DesRepuesto: '' }));
+  const [current_row, setCurrentRow] = useState((_items_?.length > 0) ? _items_.length + 1 : 6);
+  const [items, setItems] = useState(_initRows);
   const [disabled, setDisabled] = useState((order.NroOrden) ? false : true);
 
   const [show_modal, setShowModal] = useState(false);
   const [modal_title, setModalTitle] = useState('');
-  const [modal_content, setModalContent] = useState(null);
-  const [modal_size, setModalSize] = useState('w-full max-w-5xl');
+  const [modal_type,  setModalType]  = useState('');
+  const [modal_size,  setModalSize]  = useState('w-full max-w-5xl');
   const [select_equipment, setSelectEquipment] = useState(null);
   const [select_engine, setSelectEngine] = useState(null);
 
-  const [disabledTracking, setDisabledTracking] = useState(true);
-  const [quote_or_tracking_option, setQuoteORTrackingOption] = useState();
-  const [tracking_option, setTrackingOption] = useState('');
+  const [options_share,         setOptionsShare]        = useState([]);
+  const [select_share,          setSelectShare]         = useState(null);
+  const [seguimientoNombre,     setSeguimientoNombre]   = useState(null);
   const [all_disabled_tracking, setAllDisabledTracking] = useState(false);
-  const [options_share, setOptionsShare] = useState([]);
+  const [quoteData,     setQuoteData]    = useState(null);
 
-  let cancelTokenSource = null;
+  useEffect(() => {
+    axiosClient.get(URL_MARCAS)
+      .then(rs => {
+        const raw = Array.isArray(rs.data)
+          ? rs.data
+          : (rs.data.marcas ?? rs.data.dato1 ?? rs.data.data ?? []);
+        const mapped = raw
+          .filter(m => m != null)
+          .map(m => ({
+            value: m.value  ?? m.CodMarca  ?? m.codMarca,
+            label: m.label  ?? m.NomMarca  ?? m.nomMarca,
+          }))
+          .filter(m => m.value != null && m.label != null);
+        setBrands(mapped);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     setOrder(_order_);
@@ -57,6 +82,7 @@ const QuoteWithoutCodeForm = ({ _customer_, t, token, _order_ = [], _items_ }) =
       setValue('nro_order', _order_.NroPedido)
       setValue('equipment_model', _order_.ModeloEquipo);
       setValue('equipment_serie', _order_.NroSerieEquipo);
+      setValue('equipment_year',  _order_.AnioEquipo ?? '');
 
       setSelectEngine(() => {
         return brands.filter((b) => {
@@ -66,7 +92,6 @@ const QuoteWithoutCodeForm = ({ _customer_, t, token, _order_ = [], _items_ }) =
       setValue('engine_model', _order_.ModeloMotor);
       setValue('engine_serie', _order_.NroSerieMotor);
       setValue('note', (_order_.NotaCliente) ?? "");
-      getLists();
 
     }
   }, [_order_]);
@@ -76,38 +101,58 @@ const QuoteWithoutCodeForm = ({ _customer_, t, token, _order_ = [], _items_ }) =
   }, [_customer_]);
 
   useEffect(() => {
-    setItems(_items_);
-    setCurrentRow((_items_.lenght + 1));
+    if (_items_?.length > 0) {
+      setItems(_items_);
+      setCurrentRow(_items_.length + 1);
+    }
   }, [_items_]);
 
-
-  const getLists = async () => {
-    try {
-      if (cancelTokenSource) {
-        cancelTokenSource.cancel('Cancelado por nueva solicitud');
+  // Carga cotización existente cuando la URL trae ?id=...
+  useEffect(() => {
+    if (!order_id) return;
+    axiosClient.get(URL_GET_QUOTE(order_id)).then(rs => {
+      const { cotizacion, detalle, seguimiento } = rs.data;
+      setQuoteData(cotizacion);
+      setOrder({ NroOrden: cotizacion.nroCotizacion, NroItems: cotizacion.nroItems });
+      setDisabled(false);
+      setValue('nro_order',        cotizacion.nroPedido      ?? '');
+      setValue('equipment_model',  cotizacion.modeloEquipo   ?? '');
+      setValue('equipment_serie',  cotizacion.nroSerieEquipo ?? '');
+      setValue('equipment_year',   cotizacion.anioEquipo     ?? '');
+      setValue('engine_model',     cotizacion.modeloMotor    ?? '');
+      setValue('engine_serie',     cotizacion.nroSerieMotor  ?? '');
+      setValue('note',             cotizacion.nota           ?? cotizacion.notaCliente ?? '');
+      const rows = detalle.map((d, i) => ({ CodItem: i + 1, Cantidad: d.cantidad, DesRepuesto: d.descripcion }));
+      setItems(rows);
+      setCurrentRow(rows.length + 1);
+      rows.forEach(r => {
+        setValue(`data[${r.CodItem}][amount]`,       r.Cantidad);
+        setValue(`data[${r.CodItem}][description]`,  r.DesRepuesto);
+      });
+      if (seguimiento?.nomUsuario) {
+        setSeguimientoNombre(seguimiento.nomUsuario);
+        setAllDisabledTracking(true);
       }
-      cancelTokenSource = axios.CancelToken.source();
+    }).catch(() => {});
+  }, [order_id]);
 
-      const rs = await axios.post(url_get_lists, { NroOrden: order.NroOrden, ValToken: token }, { cancelToken: cancelTokenSource.token });
+  // Resuelve los selects de marca una vez que brands y quoteData estén disponibles
+  useEffect(() => {
+    if (!quoteData || brands.length === 0) return;
+    setSelectEquipment(brands.find(b => b.label === quoteData.marcaEquipo) ?? null);
+    setSelectEngine(brands.find(b => b.label === quoteData.marcaMotor)    ?? null);
+  }, [brands, quoteData]);
 
-      if (rs.data.estado == 'OK') {
-        let _options_share = [];
-        rs.data.dato1.map(s => {
-          _options_share.push({ value: s.CodUsuario, label: s.NomUsuario })
-        });
-
-        setOptionsShare(_options_share);
-      }
-    } catch (error) {
-      if (axios.isCancel(error)) {
-
-      } else {
-
-      }
-    }
-  }
-
-
+  // Carga usuarios para "Compartir con" solo cuando no hay seguimiento registrado
+  useEffect(() => {
+    if (!order.NroOrden || all_disabled_tracking) return;
+    axiosClient.get(URL_GET_SEGUIMIENTO)
+      .then(rs => {
+        const raw = Array.isArray(rs.data) ? rs.data : (rs.data.data ?? rs.data.usuarios ?? []);
+        setOptionsShare(raw.map(u => ({ value: u.codUsuario ?? u.CodUsuario, label: u.nomUsuario ?? u.NomUsuario })));
+      })
+      .catch(() => {});
+  }, [order.NroOrden, all_disabled_tracking]);
 
   const {
     register,
@@ -117,8 +162,7 @@ const QuoteWithoutCodeForm = ({ _customer_, t, token, _order_ = [], _items_ }) =
 
   useEffect(() => {
 
-    if (disabled && !order.NroOrden) {
-
+    if (disabled && !order.NroOrden && !order_id) {
       showModal('equipment');
     }
   }, []);
@@ -146,7 +190,6 @@ const QuoteWithoutCodeForm = ({ _customer_, t, token, _order_ = [], _items_ }) =
     setValue('engine_brand', (select_brand?.value) ?? null);
     setSelectEngine(select_brand);
     setDisabled(false);
-    generateInitRows();
   }
   const onChangeSelectEquipmentBrand = (value) => {
     setValue('equipment_brand', (value.value) ?? null);
@@ -158,20 +201,10 @@ const QuoteWithoutCodeForm = ({ _customer_, t, token, _order_ = [], _items_ }) =
   }
 
   const showModal = (type) => {
-
-
-
     setModalSize('w-full max-w-lg');
-    if (type == 'equipment') {
-      setModalTitle(t.equipment_data);
-      setModalContent(<EquipmentForm t={t} brands={brands} setDataEquipment={setDataEquipment} setSelectEquipment={setSelectEquipment} showModal={showModal} ></EquipmentForm>);
-    } else if (type == 'engine') {
-      setModalTitle(t.engine_data);
-      setModalContent(<EngineForm t={t} brands={brands} setDataEngine={setDataEngine} showModal={showModal} close={() => setShowModal(false)} ></EngineForm>);
-    }
-
+    setModalTitle(type === 'equipment' ? t.equipment_data : t.engine_data);
+    setModalType(type);
     setShowModal(true);
-
   }
 
 
@@ -192,398 +225,386 @@ const QuoteWithoutCodeForm = ({ _customer_, t, token, _order_ = [], _items_ }) =
     unregister(`data[${row.CodItem}][description]`);
   }
 
-  const handleChangeOption = (option) => {
-    setQuoteORTrackingOption(option.target.value);
-    if (option.target.value == 'quote') {
-      setDisabledTracking(true);
-    } else {
-      setDisabledTracking(false);
-    }
-  }
 
- 
 
   const handleChangeOptionShare = (select) => {
-    setValue('share_with_customer', (select?.value) ?? 0);
+    setValue('share_with_customer', select?.value ?? 0);
+    setSelectShare(select ?? null);
   }
 
   const apply = async () => {
-    let customer_id = getValues('share_with_customer') || null;
-
-
-    if (!quote_or_tracking_option) {
-      Swal.fire({
-        title: t.error,
-        text: t.quote_or_tracking_option_empty,
-        icon: 'error',
-        confirmButtonColor: '#dc2626',
-        confirmButtonText: t.close
+    const shared_user = getValues('share_with_customer') ?? null;
+    try {
+      await axiosClient.post(URL_SAVE_SEGUIMIENTO, {
+        NroCotizacion:        order.NroOrden,
+        codUsuarioCompartido: shared_user ?? 0,
+        notaUsuario:          getValues('note') ?? '',
       });
-      return;
-    } else {
-      try {
-        const data = {
-          NroOrden: order.NroOrden,
-          CodUsuarioRegistra: customer.CodCliente,
-          CodUsuarioCompartido: (customer_id) ?? 0,
-          Cotizar: (quote_or_tracking_option == "quote") ? 1 : 0,
-          Seguimiento: (quote_or_tracking_option == "tracking") ? 1 : 0,
-          WhatsAp: (tracking_option == 'wp') ? 1 : 0,
-          Mail: (tracking_option == 'email') ? 1 : 0,
-          NotaUsuario: getValuesNoteQuote('note_user'),
-          ValToken: token
-
-        }
-        const rs = await axios.post(url_save_tracking, data);
-
-        if (rs.data.estado == 'Ok') {
-          Swal.fire({
-            position: "top-end",
-            icon: "success",
-            title: t.tracking_option_success,
-            showConfirmButton: false,
-            timer: 1500
-          });
-          setAllDisabledTracking(true);
-        }
-      } catch (error) {
-
-      }
+      Swal.fire({ position: 'top-end', icon: 'success', title: t.tracking_option_success ?? 'Seguimiento registrado', showConfirmButton: false, timer: 1500 });
+      setSeguimientoNombre(select_share?.label ?? null);
+      setAllDisabledTracking(true);
+    } catch (error) {
+      const status = error.response?.status;
+      const msg = status === 404
+        ? (t.quote_not_found ?? 'Cotización no encontrada')
+        : (error.response?.data?.message ?? t.error);
+      Swal.fire({ title: t.error, text: msg, icon: 'error', confirmButtonColor: '#dc2626', confirmButtonText: t.close });
     }
   }
 
   const quote = async () => {
 
-    //
     if (!select_engine?.label && !select_equipment?.label) {
-      Swal.fire({
-        title: t.info,
-        text: t.we_need_more_data_quote,
-        icon: 'info',
-        confirmButtonColor: '#dc2626',
-        confirmButtonText: t.close
-      });
+      Swal.fire({ title: t.info, text: t.we_need_more_data_quote, icon: 'info', confirmButtonColor: '#dc2626', confirmButtonText: t.close });
       return;
     }
 
-    try {
-      let data = getValues();
-      let data_send = [];
+    const data = getValues();
 
-      if (items.length == 0) {
-        Swal.fire({
-          title: t.info,
-          text: t.items_empty_quote,
-          icon: 'info',
-          confirmButtonColor: '#dc2626',
-          confirmButtonText: t.close
-        });
+    if (items.length === 0) {
+      Swal.fire({ title: t.info, text: t.items_empty_quote, icon: 'info', confirmButtonColor: '#dc2626', confirmButtonText: t.close });
+      return;
+    }
+
+    const detalle = [];
+    for (let i = 0; i < items.length; i++) {
+      const pos    = i + 1;
+      const codItem  = items[i].CodItem;
+      const amount   = getValues(`data[${codItem}][amount]`);
+      const description = getValues(`data[${codItem}][description]`);
+      if (amount == undefined || Number(amount) < 1) {
+        Swal.fire({ title: t.info, text: `${t.the_quantity_item} #${pos} ${t.must_be_greater}`, icon: 'info', confirmButtonColor: '#dc2626', confirmButtonText: t.close });
         return;
       }
-
-
-      let pos = 1;
-      data.data.map((d, index) => {
-        if (d.amount == undefined || d.amount < 1) {
-          Swal.fire({
-            title: t.info,
-            text: `${t.the_quantity_item} #${pos} ${t.must_be_greater}`,
-            icon: 'info',
-            confirmButtonColor: '#dc2626',
-            confirmButtonText: t.close
-          });
-          return;
-        }
-
-        if (d.description == undefined || d.description == '') {
-          Swal.fire({
-            title: t.info,
-            text: `${t.the_description_item} #${pos} ${t.cannot_be_empty}`,
-            icon: 'info',
-            confirmButtonColor: '#dc2626',
-            confirmButtonText: t.close
-          });
-          return;
-        }
-        pos++;
-        
-        data_send.push({
-          NroOrden: (order.NroOrden) ?? 0,
-          CodCliente: customer.CodCliente,
-          NroPedido: data.nro_order,
-          MarcaEquipo: (select_equipment?.label) ?? "",
-          ModeloEquipo: data.equipment_model,
-          //AnioEquipo: 2010,
-          NroSerieEquipo: data.equipment_serie,
-          MarcaMotor: (select_engine?.label) ?? "",
-          ModeloMotor: data.engine_model,
-          NroSerieMotor: data.engine_serie,
-          Nota: (data.note) ?? '',
-          Cantidad: d.amount,
-          Descripcion: d.description,
-          ValToken: token
-
-        });
-      });
-
-
-
-      const rs = await axios.post(url_save_quote, data_send);
-
-
-      if (rs.data.estado == 'Ok') {
-        Swal.fire({
-          title: `${t.your_quote_number} #${rs.data.dato}`,
-          html: `<p>${t.we_are_in_the_process_of_identifying}</p>${t.we_will_send_you_a_message}<p></p>`,
-          icon: 'success',
-          confirmButtonColor: '#15803d',
-          confirmButtonText: t.close
-        }).then(async (r) => {
-          router.push(`/admin/revision/orders-process?customer=${customer.CodCliente}&option=quotes`);
-        });
-      } else {
-        Swal.fire({
-          title: t.error,
-          html: `${t.update_quote_error} <br/> <strong>"${rs.data.mensaje}"</strong>`,
-          icon: 'error',
-          confirmButtonColor: '#dc2626',
-          confirmButtonText: t.close
-        });
+      if (!description) {
+        Swal.fire({ title: t.info, text: `${t.the_description_item} #${pos} ${t.cannot_be_empty}`, icon: 'info', confirmButtonColor: '#dc2626', confirmButtonText: t.close });
+        return;
       }
-    } catch (error) {
+      detalle.push({ Cantidad: Number(amount), Descripcion: description });
+    }
 
+    const payload = {
+      NroOrden:       order.NroOrden  ?? 0,
+      CodCliente:     customer.CodCliente,
+      NroPedido:      data.nro_order  ?? '',
+      MarcaEquipo:    select_equipment?.label ?? '',
+      ModeloEquipo:   data.equipment_model    ?? '',
+      NroSerieEquipo: data.equipment_serie    ?? '',
+      AnioEquipo:     data.equipment_year     ?? '',
+      MarcaMotor:     select_engine?.label    ?? '',
+      ModeloMotor:    data.engine_model       ?? '',
+      NroSerieMotor:  data.engine_serie       ?? '',
+      Nota:           data.note               ?? '',
+      Detalle:        detalle,
+    };
+
+    try {
+      const rs = order.NroOrden
+        ? await axiosClient.put(URL_UPDATE_QUOTE(order.NroOrden), payload)
+        : await axiosClient.post(URL_SAVE_QUOTE, payload);
+
+      const isUpdate = !!order.NroOrden;
+      Swal.fire({
+        title: isUpdate
+          ? `${t.quote_updated ?? 'Cotización actualizada'} #${rs.data.nroCotizacion}`
+          : `${t.your_quote_number} #${rs.data.nroCotizacion}`,
+        html: isUpdate
+          ? `<p>${t.quote_updated_success ?? 'Los datos han sido actualizados correctamente.'}</p>`
+          : `<p>${t.we_are_in_the_process_of_identifying}</p>${t.we_will_send_you_a_message}<p></p>`,
+        icon: 'success',
+        confirmButtonColor: '#15803d',
+        confirmButtonText: t.close
+      }).then(() => {
+        router.push(`/admin/revision/orders-process?customer=${customer.CodCliente}&option=quotes`);
+      });
+    } catch (error) {
+      const msg = error.response?.data?.message ?? error.response?.data?.title ?? t.update_quote_error;
+      Swal.fire({
+        title: t.error,
+        html: `<strong>"${msg}"</strong>`,
+        icon: 'error',
+        confirmButtonColor: '#dc2626',
+        confirmButtonText: t.close
+      });
     }
   }
 
+  const labelClass = "text-xs font-medium text-gray-500 dark:text-gray-400 w-32 shrink-0 text-right pr-3";
+  const inputClass = "h-9 flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:bg-gray-50 disabled:text-gray-400 dark:disabled:bg-gray-800";
+  const thClass    = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap";
+  const tdClass    = "text-xs text-gray-700 dark:text-gray-300 px-3 py-1.5";
+
   return (
     <>
-      <h2 className='text-center font-bold text-lg'>{ t.help_with_information }</h2>
-      <form action="">
-        <div className='panel border mt-8 bg-[#F2F2F2]'>
-          <fieldset>
-            <legend></legend>
-            <div className="grid grid-cols-3 gap-4 bg-gray-400">
-              <div className=''>
-                <div className="flex sm:flex-row items-center flex-col pt-3 pb-3">
-                  <label className="mb-0 sm:w-2/5 sm:ltr:mr-2 rtl:ml-2 text-end text-black" htmlFor="nro_order">{ t.nro_pedido }</label>
-                  <div className="relative flex-1">
-                    <input type='text' disabled={disabled} autoComplete='OFF' {...register("nro_order", { required: { value: true, message: t.required_field } })} aria-invalid={errors.nro_order ? "true" : "false"} placeholder={t.enter_nro_order} className="form-input placeholder:" />
-                    {errors.nro_order && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.nro_order?.message?.toString()}</span>}
-                  </div>
+      <form>
+        <div className="space-y-3">
+
+          {/* Banner */}
+          <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-primary dark:bg-primary/10">
+            <IconInfoCircle className="h-3.5 w-3.5 shrink-0" />
+            <span>{t.help_with_information}</span>
+          </div>
+
+          {/* Nro. Pedido + info cotización */}
+          <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
+            <div className="flex items-center gap-4 px-4 py-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400 shrink-0">{t.nro_pedido}</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    disabled={disabled}
+                    autoComplete="off"
+                    {...register("nro_order", { required: { value: true, message: t.required_field } })}
+                    placeholder={t.enter_nro_order}
+                    className={`h-8 w-full sm:w-72 rounded-lg border-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:bg-gray-50 disabled:text-gray-400 dark:disabled:bg-gray-800 bg-white dark:bg-gray-900 ${errors.nro_order ? 'border-red-400' : 'border-gray-400 dark:border-gray-500'}`}
+                  />
+                  {errors.nro_order && (
+                    <span className="absolute top-full left-0 mt-0.5 text-[10px] text-red-500 whitespace-nowrap">{errors.nro_order?.message?.toString()}</span>
+                  )}
                 </div>
               </div>
-              <div className="col-span-2 bg-gray-300 gap-4 p-4">
-                {(order.NroOrden) &&
-                  <div className="grid grid-cols-2">
-                    <div>
-                      <div className="flex sm:flex-row flex-col items-center">
-                        <label className="mb-0 sm:w-2/5 sm:ltr:mr-4 rtl:ml-2 text-end text-blue-800">{t.nro_quote}</label>
-                        <div className="relative flex-1 text-blue-800 font-bold text-lg">
-                          {order.NroOrden}
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex sm:flex-row flex-col items-center">
-                        <label className="mb-0 sm:w-2/5 sm:ltr:mr-4 rtl:ml-2 text-end text-blue-800">{ t.nro_items }</label>
-                        <div className="relative flex-1 text-blue-800 font-bold text-lg">
-                          {order.NroItems}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                }
-              </div>
+              {order.NroOrden && (
+                <div className="flex items-center gap-6 text-sm ml-auto">
+                  <span className="text-gray-500">{t.nro_quote}:
+                    <span className="ml-1.5 font-bold text-primary text-base">{order.NroOrden}</span>
+                  </span>
+                  <span className="text-gray-500">{t.nro_items}:
+                    <span className="ml-1.5 font-bold text-primary text-base">{order.NroItems}</span>
+                  </span>
+                </div>
+              )}
             </div>
+          </div>
 
+          {/* Equipo + Motor */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
-          </fieldset>
-          <fieldset className='mt-4'>
-            <legend></legend>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-4">
-                <h3 className='font-bold text-center'>{ t.equipment_data }</h3>
-
-                <div className="flex items-center sm:flex-row flex-col">
-                  <label className="mb-0 sm:w-2/5 sm:ltr:mr-2 rtl:ml-2 text-end">{t.brand}</label>
-                  <div className="relative flex-1">
-                    <Select options={brands} value={select_equipment} onChange={onChangeSelectEquipmentBrand} isDisabled={disabled} placeholder={t.select_option} className='w-full form-select-sm' />
-                  </div>
-                  <div className='block'>
-                    {errors.equipment_brand && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.equipment_brand?.message?.toString()}</span>}
-                  </div>
-
-                </div>
-
-
-                <div className="flex sm:flex-row flex-col">
-                  <label className="mb-0 sm:w-2/5 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="equipment_model">{ t.model }</label>
-                  <div className="relative flex-1">
-                    <input type='text' disabled={disabled} autoComplete='OFF' {...register("equipment_model", { required: { value: true, message: t.required_field } })} aria-invalid={errors.equipment_model ? "true" : "false"} placeholder={t.enter_equipment_model} className="form-input form-input-sm placeholder:" />
-                    {errors.equipment_model && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.equipment_model?.message?.toString()}</span>}
-                  </div>
-                </div>
-                <div className="flex sm:flex-row flex-col">
-                  <label className="mb-0 sm:w-2/5 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="equipment_serie">{ t.equipment_serie }</label>
-                  <div className="relative flex-1">
-                    <input disabled={disabled} type='text' autoComplete='OFF' {...register("equipment_serie", { required: { value: true, message: t.required_field } })} aria-invalid={errors.equipment_serie ? "true" : "false"} placeholder={t.enter_equipment_serie} className="form-input form-input-sm placeholder:" />
-                    {errors.equipment_serie && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.equipment_serie?.message?.toString()}</span>}
-                  </div>
-                </div>
-
+            {/* Equipo */}
+            <div className="panel overflow-hidden border border-blue-200 dark:border-blue-900 p-0">
+              <div className="px-4 py-2 border-b border-blue-100 dark:border-blue-900/60 bg-blue-50/60 dark:bg-blue-900/20">
+                <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">{t.equipment_data}</p>
               </div>
-              <div className="space-y-4">
-                <h3 className="font-bold text-center">{ t.engine_data }</h3>
-
-                <div className="flex items-center sm:flex-row flex-col">
-                  <label className="mb-0 sm:w-2/5 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="select_brand">{t.brand}</label>
-                  <div className="relative flex-1">
-                    <Select value={select_engine} isDisabled={disabled} tabIndex="2" placeholder={t.select_option} className='w-full form-select-sm' options={brands} onChange={onChangeSelectEngineBrand} />
-                  </div>
-                  <div className='block'>
-                    {errors.engine_brand && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.engine_brand?.message?.toString()}</span>}
-                  </div>
-
-                </div>
-
-
-                <div className="flex sm:flex-row flex-col">
-                  <label className="mb-0 sm:w-2/5 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="engine_model">{ t.model }</label>
-                  <div className="relative flex-1">
-                    <input disabled={disabled} type='text' autoComplete='OFF' {...register("engine_model", { required: { value: true, message: t.required_field } })} aria-invalid={errors.engine_model ? "true" : "false"} placeholder={t.enter_engine_model} className="form-input form-input-sm placeholder:" />
-                    {errors.engine_model && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.engine_model?.message?.toString()}</span>}
+              <div className="p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <label className={labelClass}>{t.brand}</label>
+                  <div className="flex-1">
+                    <Select
+                      options={brands}
+                      value={select_equipment}
+                      onChange={onChangeSelectEquipmentBrand}
+                      isDisabled={disabled}
+                      placeholder={t.select_option}
+                      instanceId="main-equipment-brand"
+                      menuPosition="fixed"
+                      filterOption={(opt, input) => input.length >= 2 && opt.label.toLowerCase().includes(input.toLowerCase())}
+                      noOptionsMessage={({ inputValue }) => inputValue.length < 2 ? (t.type_to_search ?? 'Escribe al menos 2 caracteres') : (t.no_options ?? 'Sin opciones')}
+                      styles={{ control: b => ({ ...b, minHeight: '36px', height: '36px', fontSize: '14px' }), valueContainer: b => ({ ...b, padding: '0 8px' }), indicatorsContainer: b => ({ ...b, height: '36px' }) }}
+                    />
+                    {errors.equipment_brand && <span className="text-red-400 text-xs mt-1 block">{errors.equipment_brand?.message?.toString()}</span>}
                   </div>
                 </div>
-                <div className="flex sm:flex-row flex-col">
-                  <label className="mb-0 sm:w-2/5 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="engine_serie">{ t.engine_serie }</label>
-                  <div className="relative flex-1">
-                    <input disabled={disabled} type='text' autoComplete='OFF' {...register("engine_serie", { required: { value: true, message: t.required_field } })} aria-invalid={errors.engine_serie ? "true" : "false"} placeholder={t.enter_engine_serie} className="form-input form-input-sm placeholder:" />
-                    {errors.engine_serie && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.engine_serie?.message?.toString()}</span>}
-                  </div>
+                <div className="flex items-center gap-2">
+                  <label className={labelClass}>{t.model}</label>
+                  <input type="text" disabled={disabled} autoComplete="off" {...register("equipment_model")} placeholder={t.enter_equipment_model} className={inputClass} />
                 </div>
-
-              </div>
-              {(order.NroOrden) &&
-                <div className="space-y-4 rounded-md bg-white text-center shadow dark:bg-[#1c232f] mt-4 p-4">
-
-                  <div className="flex w-full gap-4 my-6 items-center justify-center">
-                    <div>
-                      <label className="inline-flex">
-                        <input onChange={handleChangeOption} type="radio" name="option" value={'quote'} disabled={all_disabled_tracking} className="form-radio" />
-                        <span>{ t.btn_quote }</span>
-                      </label>
-                    </div>
-                    <div>
-                      <label className="inline-flex">
-                        <input onChange={handleChangeOption} type="radio" name="option" value={'tracking'} disabled={all_disabled_tracking} className="form-radio" />
-                        <span>{ t.follow }</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="flex sm:flex-row flex-col">
-                    <label className="mb-0 sm:w-1/5 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="country">{ t.share_with }</label>
-                    <div className="">
-                      <div className='flex'>
-                        <Select
-                          options={options_share}
-                          isClearable
-                          isDisabled={all_disabled_tracking}
-                          {...register('share_with_customer', { required: false })}
-                          isSearchable
-                          id="city-select"
-                          instanceId="city-select"
-                          menuPosition={'fixed'}
-                          onChange={handleChangeOptionShare}
-                          menuShouldScrollIntoView={false}
-                          placeholder={t.select_option}
-                        ></Select>
-
-                        <button disabled={all_disabled_tracking} onClick={() => apply()} type="button" className="btn btn-outline-primary ltr:rounded-l-none rtl:rounded-r-none">
-                          { t.apply }
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
+                <div className="flex items-center gap-2">
+                  <label className={labelClass}>{t.equipment_serie}</label>
+                  <input type="text" disabled={disabled} autoComplete="off" {...register("equipment_serie")} placeholder={t.enter_equipment_serie} className={inputClass} />
                 </div>
-              }
-            </div>
-
-            <div className="mt-4 text-start">
-              <div className="flex sm:flex-row flex-col items-center">
-                <label className="mb-0 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="note">{t.note}</label>
-                <div className="relative flex-1">
-                  <input type='text' autoComplete='OFF' {...register("note", { required: false })} placeholder={t.enter_note} className="form-input placeholder:" />
+                <div className="flex items-center gap-2">
+                  <label className={labelClass}>{t.year}</label>
+                  <input type="text" disabled={disabled} autoComplete="off" {...register("equipment_year")} placeholder={t.enter_equipment_year} className={inputClass} />
                 </div>
               </div>
             </div>
 
-          </fieldset>
-
-
-        </div>
-        {(items) &&
-          <div>
-
-            <table className="min-w-full border text-sm text-left">
-              <thead>
-                <tr className="relative !bg-gray-400 text-center uppercase">
-                  <th className="w-24">Nro.</th>
-                  <th className="w-24">{  t.amount } </th>
-                  <th className="">{ t.part_description }</th>
-                  <th className="flex items-center w-1">
-                    <button onClick={() => addRow()} type="button" title="Agregar" className="btn btn-sm m-auto btn-primary  p-1 "><IconPlusCircle className='mr-2' />{t.btn_add}</button>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((r, index) => {
-
-                  return (
-
-                    <tr key={index}>
-                      <td className="!p-1">
-                        {index + 1}
-                      </td>
-                      <td className="!p-1">
-                        <input step="any" type='number' defaultValue={r.Cantidad} autoComplete='OFF' {...register(`data[${r.CodItem}][amount]`, { required: false })} className="form-input border border-1 border-black placeholder:" />
-                      </td>
-                      <td className="!p-1">
-                        <input type='text' defaultValue={r.DesRepuesto} autoComplete='OFF' {...register(`data[${r.CodItem}][description]`, { required: false })} className="form-input border border-1 border-black placeholder:" />
-                      </td>
-                      <td>
-                        {(index > 0) &&
-                          <div className="mx-auto flex w-max items-center gap-2">
-                            <ul className='flex items-center gap-2'>
-                              <li onClick={() => deleteRow(r)}>
-                                <button className="btn btn-sm btn-danger" type='button' title={t.delete}>
-                                  <IconTrashLines />
-                                </button>
-                              </li>
-                            </ul>
-                          </div>
-                        }
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-
-            <div className="flex flex-wrap items-center justify-center gap-2">
-
-              <button type="button" onClick={() => quote()} className="btn btn-success" >
-                { t.btn_quote }
-              </button>
-
+            {/* Motor */}
+            <div className="panel overflow-hidden border border-violet-200 dark:border-violet-900 p-0">
+              <div className="px-4 py-2 border-b border-violet-100 dark:border-violet-900/60 bg-violet-50/60 dark:bg-violet-900/20">
+                <p className="text-sm font-semibold text-violet-700 dark:text-violet-300">{t.engine_data}</p>
+              </div>
+              <div className="p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <label className={labelClass}>{t.brand}</label>
+                  <div className="flex-1">
+                    <Select
+                      value={select_engine}
+                      isDisabled={disabled}
+                      placeholder={t.select_option}
+                      options={brands}
+                      onChange={onChangeSelectEngineBrand}
+                      instanceId="main-engine-brand"
+                      menuPosition="fixed"
+                      filterOption={(opt, input) => input.length >= 2 && opt.label.toLowerCase().includes(input.toLowerCase())}
+                      noOptionsMessage={({ inputValue }) => inputValue.length < 2 ? (t.type_to_search ?? 'Escribe al menos 2 caracteres') : (t.no_options ?? 'Sin opciones')}
+                      styles={{ control: b => ({ ...b, minHeight: '36px', height: '36px', fontSize: '14px' }), valueContainer: b => ({ ...b, padding: '0 8px' }), indicatorsContainer: b => ({ ...b, height: '36px' }) }}
+                    />
+                    {errors.engine_brand && <span className="text-red-400 text-xs mt-1 block">{errors.engine_brand?.message?.toString()}</span>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className={labelClass}>{t.model}</label>
+                  <input type="text" disabled={disabled} autoComplete="off" {...register("engine_model")} placeholder={t.enter_engine_model} className={inputClass} />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className={labelClass}>{t.engine_serie}</label>
+                  <input type="text" disabled={disabled} autoComplete="off" {...register("engine_serie")} placeholder={t.enter_engine_serie} className={inputClass} />
+                </div>
+              </div>
             </div>
 
           </div>
-        }
-      </form>
-      <Modal show_close_button={false} size={modal_size} closeModal={() => setShowModal(false)} openModal={() => setShowModal(true)} showModal={show_modal} title={modal_title} content={modal_content}></Modal>
 
+          {/* Nota + Tracking (columnas) */}
+          <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
+            <div className={`grid ${order.NroOrden ? 'grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100 dark:divide-gray-700' : 'grid-cols-1'}`}>
+
+              {/* Nota */}
+              <div className="flex items-center gap-2 px-3 py-3">
+                <label className={labelClass}>{t.note}</label>
+                <input type="text" autoComplete="off" {...register("note")} placeholder={t.enter_note} className={inputClass} />
+              </div>
+
+              {/* Tracking */}
+              {order.NroOrden && (
+                <div className="flex items-center gap-2 px-4 py-3">
+                  <label className="text-xs text-gray-500 shrink-0">{t.share_with}</label>
+                  {all_disabled_tracking ? (
+                    <span className="h-9 flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 text-sm font-medium text-primary dark:border-primary/40 dark:bg-primary/10 truncate">
+                      {seguimientoNombre ?? '—'}
+                    </span>
+                  ) : (
+                    <div className="flex min-w-0 flex-1 gap-0">
+                      <div className="flex-1 sm:flex-none sm:w-[280px]">
+                        <Select
+                          options={options_share}
+                          value={select_share}
+                          isClearable
+                          {...register('share_with_customer', { required: false })}
+                          isSearchable
+                          instanceId="share-select"
+                          menuPosition="fixed"
+                          onChange={handleChangeOptionShare}
+                          menuShouldScrollIntoView={false}
+                          placeholder={t.select_option}
+                          styles={{
+                            control:             b => ({ ...b, minHeight: '36px', height: '36px', fontSize: '14px', borderRadius: '0.5rem 0 0 0.5rem', borderRight: 'none' }),
+                            valueContainer:      b => ({ ...b, padding: '0 8px' }),
+                            indicatorsContainer: b => ({ ...b, height: '36px' }),
+                            menu:                b => ({ ...b, minWidth: '280px' }),
+                          }}
+                        />
+                      </div>
+                      <button
+                        onClick={() => apply()}
+                        type="button"
+                        className="h-9 shrink-0 px-4 rounded-r-lg border border-l-0 border-gray-300 bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition"
+                      >
+                        {t.apply}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+            </div>
+          </div>
+
+          {/* ── TABLA DE ITEMS ─────────────────────────────────────────── */}
+          {items && (
+            <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
+
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900">
+                <div>
+                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t.part_description}</p>
+                  <div className="h-0.5 w-8 rounded bg-primary/60 mt-0.5" />
+                </div>
+                <button
+                  onClick={() => addRow()}
+                  type="button"
+                  className="flex h-8 items-center gap-1.5 rounded-lg border border-primary/40 px-3 text-primary text-xs font-medium hover:bg-primary/5 transition"
+                >
+                  <IconPlusCircle className="h-3.5 w-3.5" />
+                  {t.btn_add}
+                </button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr>
+                      <th className={`${thClass} w-12 text-center`}>Nro.</th>
+                      <th className={`${thClass} w-28`}>{t.amount}</th>
+                      <th className={thClass}>{t.part_description}</th>
+                      <th className={`${thClass} w-10`}></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                    {items.map((r, index) => (
+                      <tr key={index} className="bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                        <td className={`${tdClass} text-center text-gray-400`}>{index + 1}</td>
+                        <td className={tdClass}>
+                          <input
+                            step="any"
+                            type="number"
+                            defaultValue={r.Cantidad}
+                            autoComplete="off"
+                            {...register(`data[${r.CodItem}][amount]`)}
+                            className="h-8 w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
+                          />
+                        </td>
+                        <td className={tdClass}>
+                          <input
+                            type="text"
+                            defaultValue={r.DesRepuesto}
+                            autoComplete="off"
+                            {...register(`data[${r.CodItem}][description]`)}
+                            className="h-8 w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
+                          />
+                        </td>
+                        <td className={tdClass}>
+                          {index > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => deleteRow(r)}
+                              title={t.delete}
+                              className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 transition"
+                            >
+                              <IconTrashLines className="h-3.5 w-3.5 text-red-500" />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex justify-center px-4 py-4 border-t border-gray-100 dark:border-gray-700">
+                <button
+                  type="button"
+                  onClick={() => quote()}
+                  className="flex h-10 items-center gap-2 rounded-lg bg-primary px-8 text-white text-sm font-medium shadow-sm hover:bg-primary/90 transition"
+                >
+                  {order.NroOrden ? (t.update ?? 'Actualizar') : t.btn_quote}
+                </button>
+              </div>
+
+            </div>
+          )}
+
+        </div>
+      </form>
+
+      <Modal show_close_button={false} size={modal_size} closeModal={() => setShowModal(false)} openModal={() => setShowModal(true)} showModal={show_modal} title={modal_title}>
+        {modal_type === 'equipment' && (
+          <EquipmentForm t={t} brands={brands} setDataEquipment={setDataEquipment} setSelectEquipment={setSelectEquipment} showModal={showModal} />
+        )}
+        {modal_type === 'engine' && (
+          <EngineForm t={t} brands={brands} setDataEngine={setDataEngine} showModal={showModal} close={() => setShowModal(false)} />
+        )}
+      </Modal>
     </>
   );
 };

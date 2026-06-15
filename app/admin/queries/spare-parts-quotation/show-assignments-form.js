@@ -316,7 +316,7 @@ const ShowAssignmentsForm = ({ token, t, action_cancel, setOrdersAssigned }) => 
         <DataTable
           noRecordsText={t.empty_results}
           highlightOnHover
-          className="table-hover whitespace-nowrap"
+          className="table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 whitespace-nowrap"
           records={recordsData}
           columns={[
             {

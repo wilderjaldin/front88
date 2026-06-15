@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import axiosClient from "@/app/lib/axiosClient";
@@ -17,6 +17,7 @@ import IconToggleOn from "@/components/icon/icon-toggle-on";
 import IconToggleOff from "@/components/icon/icon-toggle-off";
 import IconPencil from "@/components/icon/icon-pencil";
 import IconX from "@/components/icon/icon-x";
+import AccessDenied from "@/components/AccessDenied";
 
 const URL_BASE = "/permisos";
 const PAGE_SIZE = 50;
@@ -106,11 +107,12 @@ export default function PermisosPage() {
 
   useDynamicTitle(t.permissions ?? "Permisos");
 
-  const [permisos, setPermisos] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [permisos,   setPermisos]   = useState([]);
+  const [total,      setTotal]      = useState(0);
+  const [page,       setPage]       = useState(1);
+  const [loading,    setLoading]    = useState(true);
+  const [saving,     setSaving]     = useState(false);
+  const [forbidden,  setForbidden]  = useState(false);
   const [rawTerm, setRawTerm] = useState("");
   const [debouncedRaw] = useDebounce(rawTerm, 350);
 
@@ -143,8 +145,12 @@ export default function PermisosPage() {
       setPermisos(res.data.data);
       setTotal(res.data.total);
       setPage(p);
-    } catch {
-      Toast.fire({ icon: "error", title: "Error cargando permisos" });
+    } catch (error) {
+      if (error?.response?.status === 403) {
+        setForbidden(true);
+      } else {
+        Toast.fire({ icon: "error", title: "Error cargando permisos" });
+      }
     } finally {
       setLoading(false);
     }
@@ -242,6 +248,8 @@ export default function PermisosPage() {
     fetchPermisos(newPage, parsedFilters);
   };
 
+  if (forbidden) return <AccessDenied />;
+
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <>
@@ -253,17 +261,17 @@ export default function PermisosPage() {
           <span>{t.permissions}</span>
         </li>
       </ul>
-      <div className="p-6 space-y-6">
+      <div className="pt-5 space-y-4">
 
         {/* ── HEADER ── */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 
           <div>
-            <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
+            <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
               {t.permissions ?? "Permisos"}{" "}
-              <span className="text-base font-normal text-gray-400">({total})</span>
-            </h1>
-            <div className="h-1 w-12 rounded bg-primary/70 mt-2" />
+              <span className="text-sm font-normal text-gray-400">({total})</span>
+            </h2>
+            <div className="h-0.5 w-10 rounded bg-primary/60 mt-1" />
           </div>
 
           <div className="flex flex-wrap items-start gap-3">
@@ -333,53 +341,52 @@ export default function PermisosPage() {
             <table className="w-full text-sm">
               <thead className="border-b dark:border-gray-700 text-left bg-gray-50 dark:bg-gray-800">
                 <tr>
-                  <th className="px-4 py-2 w-10" />
-                  <th className="px-4 py-2">Código</th>
-                  <th className="px-4 py-2">Etiqueta</th>
-                  <th className="px-4 py-2">Módulo</th>
-                  <th className="px-4 py-2">Acción</th>
-                  <th className="px-4 py-2">Tipo</th>
-                  <th className="px-4 py-2 text-center">Activo</th>
+                  <th className="px-3 py-1.5 w-16" />
+                  <th className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Código</th>
+                  <th className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Etiqueta</th>
+                  <th className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Módulo</th>
+                  <th className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Acción</th>
+                  <th className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Tipo</th>
                 </tr>
               </thead>
               <tbody>
                 {permisos.map((p) => (
                   <tr
                     key={p.codPermiso}
-                    className="border-b dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+                    className="border-b dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition"
                   >
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => openEditar(p)}
-                        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-                        title="Editar"
-                      >
-                        <IconPencil className="w-4 h-4 text-blue-500" />
-                      </button>
+                    <td className="px-3 py-1">
+                      <div className="flex items-center gap-0.5">
+                        <button
+                          onClick={() => openEditar(p)}
+                          className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition"
+                          title="Editar"
+                        >
+                          <IconPencil className="w-3.5 h-3.5 text-blue-500" />
+                        </button>
+                        <button
+                          onClick={() => toggleActivo(p)}
+                          className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition"
+                          title={p.activo ? "Desactivar" : "Activar"}
+                        >
+                          {p.activo
+                            ? <IconToggleOn className="w-6 h-6 fill-green-500" />
+                            : <IconToggleOff className="w-6 h-6 text-gray-400" />
+                          }
+                        </button>
+                      </div>
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs tracking-widest">{p.codigo}</td>
-                    <td className="px-4 py-3">{p.etiqueta}</td>
-                    <td className="px-4 py-3 text-gray-500">{p.modulo || "—"}</td>
-                    <td className="px-4 py-3 text-gray-500">{p.accion || "—"}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-1 font-mono text-xs tracking-widest">{p.codigo}</td>
+                    <td className="px-3 py-1 text-xs">{p.etiqueta}</td>
+                    <td className="px-3 py-1 text-xs text-gray-500">{p.modulo || "—"}</td>
+                    <td className="px-3 py-1 text-xs text-gray-500">{p.accion || "—"}</td>
+                    <td className="px-3 py-1">
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${p.tipo === "FT"
                           ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
                           : "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
                         }`}>
                         {p.tipo === "FT" ? "FRONTEND" : "BACKEND"}
                       </span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <button
-                        onClick={() => toggleActivo(p)}
-                        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-                        title={p.activo ? "Desactivar" : "Activar"}
-                      >
-                        {p.activo
-                          ? <IconToggleOn className="w-8 h-8 fill-green-500" />
-                          : <IconToggleOff className="w-8 h-8 text-gray-400" />
-                        }
-                      </button>
                     </td>
                   </tr>
                 ))}
