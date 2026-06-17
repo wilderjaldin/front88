@@ -53,7 +53,7 @@ const ConfirmQuote = ({
   const goToQuote = () => {
     const params = new URLSearchParams(searchParams.toString());
     params.delete('step');
-    params.set('option', 'quotes');
+    params.set('option', summary?.categoria === 'MA' ? 'manual' : 'quotes');
     router.replace(`/admin/revision/quotes?${params.toString()}`);
   };
 

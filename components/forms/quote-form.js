@@ -12,6 +12,7 @@ import Modal from '@/components/modal';
 import OptionsItemsQuote from '@/components/forms/options-items-quote'
 import DiscountForm from "@/components/forms/discount-form"
 import AttachQuoteForm from "@/components/forms/attach-quote-form"
+import QuoteBatchFormMini from "@/components/forms/quote-batch-form-mini"
 import MessageQuoteForm from "@/components/forms/message-quote"
 import PriceParametersForm from "@/components/forms/price-parameters-form"
 import NotFoundPartForm from "@/components/forms/not-found-part-form"
@@ -32,6 +33,14 @@ import axiosClient from '@/app/lib/axiosClient';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+
+const IconBatch = ({ className }) => (
+  <svg className={className} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2 2 7l10 5 10-5-10-5Z" />
+    <path d="M2 17l10 5 10-5" />
+    <path d="M2 12l10 5 10-5" />
+  </svg>
+);
 
 const URL_SEARCH = 'cotizaciondetalle/buscar-parte';
 const URL_UPDATE_QUANTITY = 'cotizaciondetalle/modificar-cantidad';
@@ -529,6 +538,13 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
     setModalTitle('');
     setModalSize('w-full max-w-6xl');
     setModalContent(<AttachQuoteForm close={() => setShowModal(false)} updateInputs={updateInputs} setItems={setItems} setOrder={setOrder} customer={customer} order={order} token={token} t={t}></AttachQuoteForm>);
+    setShowModal(true);
+  }
+
+  const addBatch = () => {
+    setModalTitle(t.enter_codes_in_batch ?? 'Añadir en Lote');
+    setModalSize('w-full max-w-2xl');
+    setModalContent(<QuoteBatchFormMini close={() => setShowModal(false)} updateInputs={updateInputs} setItems={setItems} setOrder={setOrder} customer={customer} order={order} t={t}></QuoteBatchFormMini>);
     setShowModal(true);
   }
 
@@ -1037,6 +1053,13 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                   <button type="submit" disabled={isSubmitting}
                     className="h-9 shrink-0 rounded-lg bg-primary px-5 text-white text-sm font-medium hover:bg-primary/90 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
                     {t.btn_search}
+                  </button>
+                  <div className="h-6 w-px bg-gray-200 dark:bg-gray-700 shrink-0" />
+                  <button type="button" onClick={run(addBatch)} disabled={isSubmitting}
+                    title={t.enter_codes_in_batch ?? 'Añadir en Lote'}
+                    className="h-9 shrink-0 flex items-center gap-1.5 rounded-lg border border-primary/40 px-3 text-primary text-sm font-medium hover:bg-primary/5 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                    <IconBatch className="h-3.5 w-3.5" />
+                    {t.enter_codes_in_batch ?? 'Añadir en Lote'}
                   </button>
                 </div>
 

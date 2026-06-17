@@ -11,6 +11,7 @@ import ConfirmedQuoteForm from '@/components/forms/confirmed-quote-form';
 import QuoteBatchForm from '@/components/forms/quote-batch-form';
 import StepsToBuy from '@/app/admin/revision/quotes/steps_buy';
 import QuoteWithoutCodeForm from '@/components/forms/quote-whithout-code-form';
+import QuoteManualForm from '@/components/forms/quote-manual-form';
 import Link from "next/link";
 import Swal from 'sweetalert2';
 import { getLocale } from '@/store/localeSlice';
@@ -21,6 +22,8 @@ import { PERMISSIONS } from '@/constants/permissions';
 import AccessDenied from '@/components/AccessDenied';
 
 const url_order_confirmed = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetallemod/MostrarDetalleOrden';
+
+const CATEGORY_OPTION = { NR: 'quotes', SC: 'quotes-without-code', MA: 'manual' };
 
 export default function Quotes() {
 
@@ -45,7 +48,7 @@ export default function Quotes() {
   }, []);
 
   useEffect(() => {
-    if (order_id > 0 && option !== 'quotes-without-code' && option !== 'buy') {
+    if (order_id > 0 && option !== 'buy') {
       Swal.fire({
         html: t.load_quote_info,
         timerProgressBar: true,
@@ -74,9 +77,16 @@ export default function Quotes() {
 
   const getOrder = async (order_id) => {
     try {
-      if (option === 'quotes' || option === 'batch' || option === 'buy') {
+      if (option === 'quotes' || option === 'quotes-without-code' || option === 'batch' || option === 'buy' || option === 'manual') {
         const rs = await axiosClient.get(`cotizaciondetalle/detalle/${order_id}`, { params: { codCliente: customer_id } });
         const { cotizacion, detalle, seguimiento } = rs.data;
+
+        const expectedOption = CATEGORY_OPTION[cotizacion.categoria];
+        if (expectedOption && expectedOption !== option) {
+          Swal.close();
+          router.replace(`/admin/revision/quotes?customer=${customer_id}&option=${expectedOption}&id=${order_id}`);
+          return;
+        }
 
         setOrder({
           NroOrden:       cotizacion.nroCotizacion,
@@ -159,6 +169,7 @@ export default function Quotes() {
     'quotes':              t.quotes,
     'quotes-without-code': t.quotes,
     'batch':               t.quotes,
+    'manual':              t.quotes,
     'buy':                 t.quotes,
     'confirmed-quote':     t.quotes,
   }[option] ?? t.quotes;
@@ -231,11 +242,11 @@ export default function Quotes() {
       {option === 'quotes-without-code' && (
         <QuoteWithoutCodeForm _customer_={customer} _order_={order} _items_={items} t={t} />
       )}
-      {option === 'batch' && !order_id && (
+      {option === 'batch' && (
         <QuoteBatchForm token={token} _customer_={customer} _tracking_={tracking} t={t} _order_={order} _items_={items} />
       )}
-      {option === 'batch' && order_id && (
-        <QuoteForm key={order_id} token={token} _customer_={customer} _tracking_={tracking} t={t} _order_={order} _items_={items} />
+      {option === 'manual' && (
+        <QuoteManualForm _customer_={customer} _tracking_={tracking} t={t} _order_={order} _items_={items} />
       )}
       {option === 'confirmed-quote' && order_id && (
         <ConfirmedQuoteForm token={token} _customer_={customer} _tracking_={tracking} t={t} _order_={order} _items_={items} />

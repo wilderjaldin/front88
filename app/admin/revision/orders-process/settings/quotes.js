@@ -84,7 +84,28 @@ export default function Quotes({
 
   const batch = () => router.push(`/admin/revision/quotes?customer=${customer_id}&option=batch`);
 
-  const getRoute   = (q) => q.catCotizacion === 'NR' ? 'quotes' : 'quotes-without-code';
+  const getRoute = (q) => {
+    if (q.catCotizacion === 'MA') return 'manual';
+    if (q.catCotizacion === 'NR') return 'quotes';
+    return 'quotes-without-code';
+  };
+
+  const CAT_META = {
+    NR: { label: 'Normal',     dot: 'bg-sky-500',    cls: 'bg-sky-50    text-sky-700    border border-sky-200    dark:bg-sky-900/30   dark:text-sky-400   dark:border-sky-800'    },
+    SC: { label: 'Sin Código', dot: 'bg-amber-500',  cls: 'bg-amber-50  text-amber-700  border border-amber-200  dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'  },
+    MA: { label: 'Manual',     dot: 'bg-violet-500', cls: 'bg-violet-50 text-violet-700 border border-violet-200 dark:bg-violet-900/30 dark:text-violet-400 dark:border-violet-800' },
+  };
+
+  const CatBadge = ({ cat }) => {
+    const m = CAT_META[cat] ?? { label: cat, dot: 'bg-gray-400', cls: 'bg-gray-100 text-gray-500 border border-gray-200' };
+    return (
+      <span className={`inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full leading-none whitespace-nowrap ${m.cls}`}>
+        <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${m.dot}`} />
+        {m.label}
+      </span>
+    );
+  };
+
   const formatDate = (iso) => iso?.split('T')[0] ?? '';
 
   const estadoBadge = (estado) => {
@@ -137,14 +158,14 @@ export default function Quotes({
 
           {hasPermission(PERMISSIONS.CREAR_COTIZACION) && (
             <>
-              <button type="button" onClick={batch}
-                className="h-9 flex items-center gap-1.5 rounded-lg border border-primary/40 px-4 text-primary text-sm font-medium hover:bg-primary/5 transition">
-                {t.enter_codes_in_batch}
-              </button>
               <button type="button" onClick={addQuote}
                 className="h-9 flex items-center gap-1.5 rounded-lg bg-primary px-4 text-white text-sm font-medium hover:bg-primary/90 transition shadow-sm">
                 <IconPlusCircle className="h-4 w-4" />
                 {t.new_quote}
+              </button>
+              <button type="button" onClick={() => router.push(`/admin/revision/quotes?customer=${customer_id}&option=manual`)}
+                className="h-9 flex items-center gap-1.5 rounded-lg border border-primary/40 px-4 text-primary text-sm font-medium hover:bg-primary/5 transition">
+                Cotización Manual
               </button>
             </>
           )}
@@ -181,7 +202,6 @@ export default function Quotes({
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                 {items.map((q, i) => {
-                  const isSC = q.catCotizacion !== 'NR';
                   return (
                     <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                       <td className={tdClass}>
@@ -194,10 +214,7 @@ export default function Quotes({
                             className="font-semibold text-primary hover:underline">
                             {q.nroCotizacion}
                           </Link>
-                          {isSC
-                            ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400 leading-none">SC</span>
-                            : <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary leading-none">NR</span>
-                          }
+                          <CatBadge cat={q.catCotizacion} />
                         </div>
                       </td>
                       <td className={`${tdClass} text-center`}>{q.nroItems}</td>
@@ -224,10 +241,13 @@ export default function Quotes({
           {items.map((q, i) => (
             <div key={i} className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
               <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 dark:border-gray-700">
-                <Link href={`/admin/revision/quotes?customer=${customer_id}&option=${getRoute(q)}&id=${q.nroCotizacion}`}
-                  className="text-sm font-bold text-primary hover:underline">
-                  #{q.nroCotizacion}
-                </Link>
+                <div className="flex items-center gap-1.5">
+                  <Link href={`/admin/revision/quotes?customer=${customer_id}&option=${getRoute(q)}&id=${q.nroCotizacion}`}
+                    className="text-sm font-bold text-primary hover:underline">
+                    #{q.nroCotizacion}
+                  </Link>
+                  <CatBadge cat={q.catCotizacion} />
+                </div>
                 <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${estadoBadge(q.estado)}`}>
                   {q.estado}
                 </span>
@@ -238,7 +258,6 @@ export default function Quotes({
                   ['Total $us',        customFormat(q.totalSus)],
                   [t.nro_pedido,       q.nroPedido || '—'],
                   [t.quote_date,       formatDate(q.fecCotizacion)],
-                  [t.type ?? 'Tipo',   q.catCotizacion],
                 ].map(([label, val]) => (
                   <div key={label} className="flex items-center justify-between text-xs">
                     <span className="text-gray-400">{label}</span>

@@ -83,7 +83,7 @@ const StepsToBuy = ({ token, t, _customer_ }) => {
   const backToQuote = () => {
     const params = new URLSearchParams(searchParams.toString());
     params.delete('step');
-    params.set('option', 'quotes');
+    params.set('option', summary?.categoria === 'MA' ? 'manual' : 'quotes');
     router.push(`${pathname}?${params.toString()}`);
   };
 
