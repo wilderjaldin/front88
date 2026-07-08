@@ -94,3 +94,21 @@
   margin-right: 0px !important;
   margin-left: 15px;
 }
+
+.ql-snow .ql-editor table {
+  width: auto;
+  border-collapse: collapse;
+}
+
+.ql-snow .ql-editor table td,
+.ql-snow .ql-editor table th {
+  border: none !important;
+  padding: 2px 24px 2px 0;
+  white-space: nowrap;
+}
+
+.ql-snow .ql-editor table th strong,
+.ql-snow .ql-editor table td:has(strong) strong {
+  color: #e2a03f;
+  font-weight: 600;
+}

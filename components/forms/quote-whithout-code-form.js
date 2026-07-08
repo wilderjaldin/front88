@@ -12,6 +12,7 @@ import Modal from '@/components/modal';
 import { useRouter, useSearchParams } from 'next/navigation';
 import axiosClient from '@/app/lib/axiosClient'
 import Swal from 'sweetalert2'
+import ContactQuoteSection from '@/components/forms/contact-quote-section'
 
 const URL_SAVE_QUOTE   = 'cotizacion/registrar-sin-codigo';
 const URL_UPDATE_QUOTE = (id) => `cotizacion/registrar-sin-codigo/${id}`;
@@ -113,7 +114,7 @@ const QuoteWithoutCodeForm = ({ _customer_, t, _order_ = [], _items_ }) => {
     axiosClient.get(URL_GET_QUOTE(order_id)).then(rs => {
       const { cotizacion, detalle, seguimiento } = rs.data;
       setQuoteData(cotizacion);
-      setOrder({ NroOrden: cotizacion.nroCotizacion, NroItems: cotizacion.nroItems });
+      setOrder(prev => ({ ...prev, NroOrden: cotizacion.nroCotizacion, NroItems: cotizacion.nroItems }));
       setDisabled(false);
       setValue('nro_order',        cotizacion.nroPedido      ?? '');
       setValue('equipment_model',  cotizacion.modeloEquipo   ?? '');
@@ -456,7 +457,7 @@ const QuoteWithoutCodeForm = ({ _customer_, t, _order_ = [], _items_ }) => {
 
           </div>
 
-          {/* Nota + Tracking (columnas) */}
+          {/* Nota + Tracking + Contacto */}
           <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
             <div className={`grid ${order.NroOrden ? 'grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100 dark:divide-gray-700' : 'grid-cols-1'}`}>
 
@@ -466,45 +467,63 @@ const QuoteWithoutCodeForm = ({ _customer_, t, _order_ = [], _items_ }) => {
                 <input type="text" autoComplete="off" {...register("note")} placeholder={t.enter_note} className={inputClass} />
               </div>
 
-              {/* Tracking */}
+              {/* Tracking + Contacto */}
               {order.NroOrden && (
-                <div className="flex items-center gap-2 px-4 py-3">
-                  <label className="text-xs text-gray-500 shrink-0">{t.share_with}</label>
-                  {all_disabled_tracking ? (
-                    <span className="h-9 flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 text-sm font-medium text-primary dark:border-primary/40 dark:bg-primary/10 truncate">
-                      {seguimientoNombre ?? '—'}
-                    </span>
-                  ) : (
-                    <div className="flex min-w-0 flex-1 gap-0">
-                      <div className="flex-1 sm:flex-none sm:w-[280px]">
-                        <Select
-                          options={options_share}
-                          value={select_share}
-                          isClearable
-                          {...register('share_with_customer', { required: false })}
-                          isSearchable
-                          instanceId="share-select"
-                          menuPosition="fixed"
-                          onChange={handleChangeOptionShare}
-                          menuShouldScrollIntoView={false}
-                          placeholder={t.select_option}
-                          styles={{
-                            control:             b => ({ ...b, minHeight: '36px', height: '36px', fontSize: '14px', borderRadius: '0.5rem 0 0 0.5rem', borderRight: 'none' }),
-                            valueContainer:      b => ({ ...b, padding: '0 8px' }),
-                            indicatorsContainer: b => ({ ...b, height: '36px' }),
-                            menu:                b => ({ ...b, minWidth: '280px' }),
-                          }}
-                        />
+                <div className="divide-y divide-gray-100 dark:divide-gray-700/60">
+
+                  {/* Fila 1: Seguimiento */}
+                  <div className="flex items-center gap-2 px-4 py-2.5">
+                    <label className="text-xs text-gray-500 shrink-0 w-24 text-right pr-1">{t.share_with}</label>
+                    {all_disabled_tracking ? (
+                      <span className="h-9 flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 text-sm font-medium text-primary dark:border-primary/40 dark:bg-primary/10 truncate">
+                        {seguimientoNombre ?? '—'}
+                      </span>
+                    ) : (
+                      <div className="flex min-w-0 flex-1 gap-0">
+                        <div className="flex-1 sm:flex-none sm:w-[240px]">
+                          <Select
+                            options={options_share}
+                            value={select_share}
+                            isClearable
+                            {...register('share_with_customer', { required: false })}
+                            isSearchable
+                            instanceId="share-select"
+                            menuPosition="fixed"
+                            onChange={handleChangeOptionShare}
+                            menuShouldScrollIntoView={false}
+                            placeholder={t.select_option}
+                            styles={{
+                              control:             b => ({ ...b, minHeight: '36px', height: '36px', fontSize: '14px', borderRadius: '0.5rem 0 0 0.5rem', borderRight: 'none' }),
+                              valueContainer:      b => ({ ...b, padding: '0 8px' }),
+                              indicatorsContainer: b => ({ ...b, height: '36px' }),
+                              menu:                b => ({ ...b, minWidth: '240px' }),
+                            }}
+                          />
+                        </div>
+                        <button
+                          onClick={() => apply()}
+                          type="button"
+                          className="h-9 shrink-0 px-4 rounded-r-lg border border-l-0 border-gray-300 bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition"
+                        >
+                          {t.apply}
+                        </button>
                       </div>
-                      <button
-                        onClick={() => apply()}
-                        type="button"
-                        className="h-9 shrink-0 px-4 rounded-r-lg border border-l-0 border-gray-300 bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition"
-                      >
-                        {t.apply}
-                      </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
+
+                  {/* Fila 2: Contacto */}
+                  <div className="flex items-center gap-2 px-4 py-2.5">
+                    <span className="text-xs font-medium text-gray-500 shrink-0 w-24 text-right pr-1">Contacto</span>
+                    <ContactQuoteSection
+                      nroCotizacion={order.NroOrden}
+                      codCliente={customer.CodCliente}
+                      codContacto={order.CodContacto}
+                      vencido={false}
+                      t={t}
+                      onContactChange={(cod) => setOrder(prev => ({ ...prev, CodContacto: cod }))}
+                    />
+                  </div>
+
                 </div>
               )}
 

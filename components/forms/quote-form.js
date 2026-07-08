@@ -4,7 +4,6 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
 import IconFile from '../icon/icon-file';
-import IconX from '../icon/icon-x';
 import IconMail from '../icon/icon-mail';
 import IconAttachment from '../icon/icon-attachment';
 import IconDiscount from '../icon/icon-discount';
@@ -12,6 +11,7 @@ import Modal from '@/components/modal';
 import OptionsItemsQuote from '@/components/forms/options-items-quote'
 import DiscountForm from "@/components/forms/discount-form"
 import AttachQuoteForm from "@/components/forms/attach-quote-form"
+import ContactQuoteSection from '@/components/forms/contact-quote-section'
 import QuoteBatchFormMini from "@/components/forms/quote-batch-form-mini"
 import MessageQuoteForm from "@/components/forms/message-quote"
 import PriceParametersForm from "@/components/forms/price-parameters-form"
@@ -56,23 +56,34 @@ const URL_VALIDATE_QUOTE = 'cotizaciondetalle/valnroparte';
 const URL_PRICE_PARAMETERS = 'cotizaciondetalle/mostrar-parametro-precio';
 const URL_UPDATE_ITEM = 'cotizaciondetalle/actualizar-item';
 const URL_SEARCH_REFERENCE = 'referenciasCruzadas/buscar';
-const URL_CHANGE_REPORT = 'cotizaciondetalle/mostrar-codigo';
-const URL_MARCAS           = 'cotizacion/marcas';
-const URL_GET_SEGUIMIENTO  = 'usuarios/seguimiento';
-const URL_SAVE_SEGUIMIENTO = 'cotizaciondetalle/registrar-seguimiento';
-const URL_REORDER          = 'cotizaciondetalle/ordenar-detalle';
+const URL_CHANGE_REPORT      = 'cotizaciondetalle/mostrar-codigo';
+const URL_CHANGE_REPORT_PESO = 'cotizaciondetalle/mostrar-peso';
+const URL_CONTROLES          = 'cotizaciones/controles';
+const URL_SAVE_SEGUIMIENTO   = 'cotizaciondetalle/registrar-seguimiento';
+const URL_REORDER            = 'cotizaciondetalle/ordenar-detalle';
+const URL_UPDATE_ALL         = 'cotizaciondetalle/actualizar-todo';
+const URL_SAVE_MONEDA        = 'cotizaciondetalle/cambiar-moneda';
+const URL_SAVE_TIPO_ENVIO    = 'cotizaciondetalle/cambiar-tipo-envio';
+const URL_SAVE_ESTADO        = 'cotizaciondetalle/cambiar-estado';
+
+
 
 const ICON_CHECK     = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const ICON_X         = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg>`;
 const ICON_QUESTION  = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 const swalSuccess = (title, msg = '') => Swal.fire({
-  html: `<div style="padding:12px 0 6px">
-    <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#86efac,#16a34a);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 8px 24px rgba(22,163,74,0.3)">${ICON_CHECK}</div>
-    ${msg ? `<p style="color:#94a3b8;font-size:11px;margin:0 0 6px;text-transform:uppercase;letter-spacing:.08em">${msg}</p>` : ''}
-    <h2 style="color:#1e293b;font-size:17px;font-weight:700;margin:0;line-height:1.3">${title}</h2>
+  html: `<div style="display:flex;align-items:center;gap:8px;padding:0">
+    ${ICON_CHECK}
+    <div style="text-align:left">
+      ${msg ? `<p style="color:rgba(255,255,255,0.75);font-size:10px;margin:0 0 2px;text-transform:uppercase;letter-spacing:.08em">${msg}</p>` : ''}
+      <p style="color:#fff;font-size:13px;font-weight:600;margin:0;line-height:1.3">${title}</p>
+    </div>
   </div>`,
+  backdrop: false,
   position: 'top-end',
+  padding: '10px 14px',
+  background: '#16a34a',
   showConfirmButton: false,
   timer: 2000,
   timerProgressBar: true,
@@ -168,10 +179,17 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
   const [options_share,         setOptionsShare]        = useState([]);
   const [select_share,          setSelectShare]         = useState(null);
   const [customer,  setCustomer]  = useState(_customer_);
+  const [selMoneda,         setSelMoneda]         = useState(null);
+  const [selTipoEnvio,      setSelTipoEnvio]      = useState(null);
+  const [selEstado,         setSelEstado]         = useState(null);
+  const [optsMoneda,        setOptsMoneda]        = useState([]);
+  const [optsTipoEnvio,     setOptsTipoEnvio]     = useState([]);
+  const [optsEstado,        setOptsEstado]        = useState([]);
   const [brands,    setBrands]    = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const hasItemsWithoutPrice = items.some(item => !item.Precio || item.Precio === 0);
+  const vencido = order.Vencido === true;
 
   const tablaRef = useRef(null);
   const locale = useSelector(getLocale);
@@ -197,7 +215,6 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
     register,
     getValues,
     setValue,
-    formState: { errors },
   } = useForm({ defaultValues: { freight: customFormat(_order_.FleteInterno) } });
 
   const {
@@ -210,16 +227,15 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
     handleSubmit: handleSearchQuoteFormSubmit
   } = useForm({
     defaultValues: {
-      nro_part: "01643-32780",
-      quantity: 3,
-      items: items.map(p => ({ Cantidad: 1 }))
+      nro_part: "",
+      quantity: 1,
+      items: items.map(() => ({ Cantidad: 1 }))
     }
   })
 
   const {
     register: registerNoteQuote,
     getValues: getValuesNoteQuote,
-    formState: { errors: errorsNoteQuote },
     handleSubmit: handleSaveNoteQuoteFormSubmit
   } = useForm();
 
@@ -240,9 +256,9 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
   }, [order]);
 
   useEffect(() => {
-    setCustomer(_customer_)
-
+    setCustomer(_customer_);
   }, [_customer_]);
+
 
   useEffect(() => {
     if (_tracking_?.nomUsuario) {
@@ -250,6 +266,24 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
       setAllDisabledTracking(true);
     }
   }, [_tracking_]);
+
+  useEffect(() => {
+    if (!order.TipMoneda || optsMoneda.length === 0) return;
+    const found = optsMoneda.find(o => o.value.trim() === order.TipMoneda.trim());
+    setSelMoneda(found ?? { value: order.TipMoneda, label: order.TipMoneda });
+  }, [order.TipMoneda, optsMoneda]);
+
+  useEffect(() => {
+    if (!order.TipEnvio || optsTipoEnvio.length === 0) return;
+    const found = optsTipoEnvio.find(o => o.value.trim() === order.TipEnvio.trim());
+    setSelTipoEnvio(found ?? { value: order.TipEnvio, label: order.TipEnvio });
+  }, [order.TipEnvio, optsTipoEnvio]);
+
+  useEffect(() => {
+    if (!order.CodEstado || optsEstado.length === 0) return;
+    const found = optsEstado.find(o => o.value.trim() === order.CodEstado.trim());
+    setSelEstado(found ?? { value: order.CodEstado, label: order.CodEstado });
+  }, [order.CodEstado, optsEstado]);
 
   useEffect(() => {
     setItems(_items_)
@@ -264,22 +298,16 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
     }
   }, [seleccionados]);
 
-  useEffect(() => {
-    axiosClient.get(URL_MARCAS).then(rs => {
-      const raw = Array.isArray(rs.data) ? rs.data : (rs.data.marcas ?? rs.data.dato1 ?? rs.data.data ?? []);
-      setBrands(raw.filter(m => m != null).map(m => ({ value: m.value ?? m.CodMarca ?? m.codMarca, label: m.label ?? m.NomMarca ?? m.nomMarca })).filter(m => m.value != null && m.label != null));
-    }).catch(() => {});
-  }, []);
 
   const updateInputs = (items) => {
 
-    items.map((p, index) => {
+    items.map((p) => {
       setValueQuote(`items.${p.CodItem}.Cantidad`, p.Cantidad);
     });
   }
 
   const handleQuantityBlur = async (item, newQty) => {
-    if (isNaN(newQty) || newQty <= 0 || newQty === item.Cantidad) return;
+    if (vencido || isNaN(newQty) || newQty <= 0 || newQty === item.Cantidad) return;
     try {
       const rs = await axiosClient.put(URL_UPDATE_QUANTITY, {
         NroCotizacion: order.NroOrden,
@@ -333,7 +361,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
   }
 
   const run = (fn) => async (...args) => {
-    if (isSubmitting) return;
+    if (isSubmitting || vencido) return;
     setIsSubmitting(true);
     try { await fn(...args); }
     finally { setIsSubmitting(false); }
@@ -359,6 +387,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
     NroSerieMotor:  cotizacion.nroSerieMotor ?? cotizacion.nroSerieMo ?? '',
     FleteInterno:   cotizacion.mtoFlete        ?? 0,
     MostrarCodigo:  cotizacion.mostrarCodigo   ?? 0,
+    MostrarPeso:    cotizacion.mostrarPeso     ?? 0,
     TotalPeso:      cotizacion.totPeso         ?? 0,
     Total:          cotizacion.totalSus        ?? 0,
     TipoCambio:     cotizacion.tipCambio       ?? 0,
@@ -368,6 +397,13 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
     TotRepuestos:   cotizacion.totRepuestos    ?? 0,
     Descuento:      cotizacion.mtoDescuento    ?? 0,
     MtoIva:         cotizacion.mtoIva          ?? 0,
+    Vencido:        cotizacion.vencido         ?? false,
+    Categoria:      cotizacion.categoria       ?? '',
+    TipCotizacion:  cotizacion.tipCotizacion   ?? '',
+    FecCotizacion:  cotizacion.fecCotizacion   ?? '',
+    CodEstado:      cotizacion.codEstado       ?? '',
+    TipEnvio:       cotizacion.tipEnvio        ?? '',
+    Vendedor:       cotizacion.vendedor        ?? '',
   });
 
   const mapDetalle = (detalle) => (detalle ?? []).map(d => ({
@@ -450,7 +486,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
       if (resultado === 'no_encontrado') {
         const updatedOrder = mapCotizacion(cotizacion);
         const updatedItems = mapDetalle(detalle);
-        setOrder(updatedOrder);
+        setOrder(prev => ({ ...updatedOrder, CodContacto: prev.CodContacto }));
         setItems(updatedItems);
         updateInputs(updatedItems);
         setValueQuote('nro_part', '');
@@ -488,7 +524,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
       const updatedItems = mapDetalle(detalle);
 
       swalSuccess(t.add_item_to_quote_success).then(() => {
-        setOrder(updatedOrder);
+        setOrder(prev => ({ ...updatedOrder, CodContacto: prev.CodContacto }));
         setItems(updatedItems);
         if (updatedOrder.NroOrden) {
           router.push(`/admin/revision/quotes?customer=${customer.CodCliente}&option=quotes&id=${updatedOrder.NroOrden}`);
@@ -504,6 +540,27 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
     }
   }
 
+  const handleActualizarTodo = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const rs = await axiosClient.put(URL_UPDATE_ALL, order.NroOrden, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const { cotizacion, detalle } = rs.data;
+      const updatedOrder = mapCotizacion(cotizacion);
+      const updatedItems = mapDetalle(detalle);
+      setOrder(prev => ({ ...updatedOrder, CodContacto: prev.CodContacto }));
+      setItems(updatedItems);
+      updateInputs(updatedItems);
+      swalSuccess(t.update_item_success ?? 'Cotización actualizada correctamente');
+    } catch (err) {
+      swalError(t.error ?? 'Error', err?.response?.data?.mensaje ?? 'No se pudo actualizar la cotización');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const updateItem = async () => {
     try {
       const rs = await axiosClient.put(URL_UPDATE_ITEM, {
@@ -514,7 +571,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
       const updatedOrder = mapCotizacion(cotizacion);
       const updatedItems = mapDetalle(detalle);
       swalSuccess(t.update_item_success).then(() => setSeleccionados([]));
-      setOrder(updatedOrder);
+      setOrder(prev => ({ ...updatedOrder, CodContacto: prev.CodContacto }));
       setItems(updatedItems);
       updateInputs(updatedItems);
     } catch (error) {
@@ -537,9 +594,10 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
   const attach = () => {
     setModalTitle('');
     setModalSize('w-full max-w-6xl');
-    setModalContent(<AttachQuoteForm close={() => setShowModal(false)} updateInputs={updateInputs} setItems={setItems} setOrder={setOrder} customer={customer} order={order} token={token} t={t}></AttachQuoteForm>);
+    setModalContent(<AttachQuoteForm close={() => setShowModal(false)} nro={order.NroOrden} t={t} />);
     setShowModal(true);
   }
+
 
   const addBatch = () => {
     setModalTitle(t.enter_codes_in_batch ?? 'Añadir en Lote');
@@ -583,14 +641,18 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
   }
 
   useEffect(() => {
-    if (!order.NroOrden || all_disabled_tracking) return;
-    axiosClient.get(URL_GET_SEGUIMIENTO)
+    if (!order.NroOrden) return;
+    axiosClient.get(URL_CONTROLES, { params: { nroCotizacion: order.NroOrden } })
       .then(rs => {
-        const raw = Array.isArray(rs.data) ? rs.data : (rs.data.data ?? rs.data.usuarios ?? []);
-        setOptionsShare(raw.map(u => ({ value: u.codUsuario ?? u.CodUsuario, label: u.nomUsuario ?? u.NomUsuario })));
+        const { marcas = [], seguimiento = [], monedas = [], tiposEnvio = [], estados = [] } = rs.data;
+        setBrands(marcas);
+        if (!all_disabled_tracking) setOptionsShare(seguimiento);
+        setOptsMoneda(monedas);
+        setOptsTipoEnvio(tiposEnvio);
+        setOptsEstado(estados);
       })
       .catch(() => {});
-  }, [order.NroOrden, all_disabled_tracking]);
+  }, [order.NroOrden]);
 
 
   const handleChangePreference = async (select) => {
@@ -612,7 +674,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
         const updatedOrder = mapCotizacion(cotizacion);
         const updatedItems = mapDetalle(detalle);
         swalSuccess(t.update_preference_success).then(() => {
-          setOrder(updatedOrder);
+          setOrder(prev => ({ ...updatedOrder, CodContacto: prev.CodContacto }));
           setItems(updatedItems);
         });
       });
@@ -647,7 +709,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
       }
 
       swalSuccess(t.save_freight_success).then(() => {
-        setOrder(mapCotizacion(cotizacion));
+        setOrder(prev => ({ ...mapCotizacion(cotizacion), CodContacto: prev.CodContacto }));
         setItems(mapDetalle(detalle));
       });
     } catch (error) {
@@ -667,7 +729,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
         const rs = await axiosClient.put(URL_DELETE_FREIGHT, { NroCotizacion: order.NroOrden });
         const { cotizacion, detalle } = rs.data;
         swalSuccess(t.delete_freight_success).then(() => {
-          setOrder(mapCotizacion(cotizacion));
+          setOrder(prev => ({ ...mapCotizacion(cotizacion), CodContacto: prev.CodContacto }));
           setItems(mapDetalle(detalle));
         });
       } catch (error) {
@@ -780,7 +842,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
       const updatedOrder = mapCotizacion(cotizacion);
       const updatedItems = mapDetalle(detalle);
       swalSuccess(t.delete_item_success).then(() => setSeleccionados([]));
-      setOrder(updatedOrder);
+      setOrder(prev => ({ ...updatedOrder, CodContacto: prev.CodContacto }));
       setItems(updatedItems);
       updateInputs(updatedItems);
     } catch (error) {}
@@ -905,7 +967,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const onDragEnd = async ({ active, over }) => {
-    if (!over || active.id === over.id) return;
+    if (vencido || !over || active.id === over.id) return;
     const oldIndex = items.findIndex(i => i.CodItem === active.id);
     const newIndex = items.findIndex(i => i.CodItem === over.id);
     const reordered = arrayMove(items, oldIndex, newIndex);
@@ -989,28 +1051,26 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
 
 
   const handelChangeShowPart = async (element) => {
-
     const isChecked = element.target.checked;
-
-    Swal.fire({
-      title: t.updating,
-      allowOutsideClick: false,
-      allowEscapeKey: false,
-      showConfirmButton: false,
-      didOpen: () => {
-        Swal.showLoading();
-      },
-    });
-
+    setOrder(o => ({ ...o, MostrarCodigo: isChecked ? 1 : 0 }));
     try {
-      await axiosClient.post(URL_CHANGE_REPORT, { NroOrden: order.NroOrden, MostrarCodigo: isChecked ? 1 : 0 });
-      Swal.close();
-      setOrder(prev => ({ ...prev, MostrarCodigo: isChecked ? 1 : 0 }));
+      await axiosClient.post(URL_CHANGE_REPORT, { nroCotizacion: order.NroOrden, mostrarCodigo: isChecked ? 1 : 0 });
       swalSuccess(t.record_updated);
-    } catch (error) {
-      Swal.close();
+    } catch {
+      setOrder(o => ({ ...o, MostrarCodigo: isChecked ? 0 : 1 }));
     }
-  }
+  };
+
+  const handelChangeShowPeso = async (element) => {
+    const isChecked = element.target.checked;
+    setOrder(o => ({ ...o, MostrarPeso: isChecked ? 1 : 0 }));
+    try {
+      await axiosClient.post(URL_CHANGE_REPORT_PESO, { nroCotizacion: order.NroOrden, mostrarPeso: isChecked ? 1 : 0 });
+      swalSuccess(t.record_updated);
+    } catch {
+      setOrder(o => ({ ...o, MostrarPeso: isChecked ? 0 : 1 }));
+    }
+  };
 
   const labelClass = "text-xs font-medium text-gray-500 dark:text-gray-400 w-28 shrink-0 text-right pr-3";
   const inputClass  = "h-9 flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30";
@@ -1019,6 +1079,35 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
 
   return (
     <>
+      {vencido && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3.5 dark:border-amber-700/50 dark:bg-amber-900/20">
+          <svg className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+          </svg>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Cotización no vigente</p>
+            <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-400">Esta cotización ya no se encuentra vigente. Los precios y disponibilidad pueden haber cambiado en los últimos 7 días. Se requiere actualizar los ítems para continuar.</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleActualizarTodo}
+            disabled={isSubmitting}
+            className="shrink-0 inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-amber-600 text-white text-xs font-semibold hover:bg-amber-700 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? (
+              <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
+            ) : (
+              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+            )}
+            Actualizar Cotización
+          </button>
+        </div>
+      )}
       {/* ── TOP: Search + Summary ────────────────────────────────── */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
 
@@ -1035,6 +1124,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                   <div className="flex-1 relative">
                     <input onKeyDown={handleKeyDown} type="text" autoComplete="off"
                       {...registerSearchQuote("nro_part", { required: true })}
+                      disabled={vencido}
                       placeholder={t.enter_nro_part}
                       className={`h-9 w-full rounded-lg border px-3 text-sm focus:outline-none focus:ring-2 bg-white dark:bg-gray-900 transition ${errorsSearchQuote.nro_part ? 'border-red-400 dark:border-red-500 focus:ring-red-300/30' : 'border-gray-300 dark:border-gray-700 focus:ring-primary/30'}`} />
                     {errorsSearchQuote.nro_part && (
@@ -1044,18 +1134,19 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                   <div className="relative w-40">
                     <input onKeyDown={handleKeyDown} type="number" min="1" step="1" autoComplete="off"
                       {...registerSearchQuote("quantity", { required: true, min: 1, valueAsNumber: true })}
+                      disabled={vencido}
                       placeholder={t.enter_quantity}
                       className={`h-9 w-full rounded-lg border px-3 text-sm focus:outline-none focus:ring-2 bg-white dark:bg-gray-900 transition ${errorsSearchQuote.quantity ? 'border-red-400 dark:border-red-500 focus:ring-red-300/30' : 'border-gray-300 dark:border-gray-700 focus:ring-primary/30'}`} />
                     {errorsSearchQuote.quantity && (
                       <p className="absolute top-full left-0 mt-0.5 text-[10px] text-red-500 whitespace-nowrap">{t.field_required ?? 'Campo requerido'}</p>
                     )}
                   </div>
-                  <button type="submit" disabled={isSubmitting}
+                  <button type="submit" disabled={isSubmitting || vencido}
                     className="h-9 shrink-0 rounded-lg bg-primary px-5 text-white text-sm font-medium hover:bg-primary/90 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
                     {t.btn_search}
                   </button>
                   <div className="h-6 w-px bg-gray-200 dark:bg-gray-700 shrink-0" />
-                  <button type="button" onClick={run(addBatch)} disabled={isSubmitting}
+                  <button type="button" onClick={run(addBatch)} disabled={isSubmitting || vencido}
                     title={t.enter_codes_in_batch ?? 'Añadir en Lote'}
                     className="h-9 shrink-0 flex items-center gap-1.5 rounded-lg border border-primary/40 px-3 text-primary text-sm font-medium hover:bg-primary/5 transition disabled:opacity-50 disabled:cursor-not-allowed">
                     <IconBatch className="h-3.5 w-3.5" />
@@ -1078,7 +1169,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
               {/* Nro. Pedido */}
               <div className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
                 <label className={labelClass}>{t.nro_pedido}</label>
-                <input type="text" autoComplete="off" {...registerSearchQuote("nro_order")} placeholder={t.enter_nro_order} className={`${inputClass} uppercase`}
+                <input type="text" autoComplete="off" {...registerSearchQuote("nro_order")} disabled={vencido} placeholder={t.enter_nro_order} className={`${inputClass} uppercase`}
                   onInput={e => { e.target.value = e.target.value.toUpperCase(); }} />
               </div>
 
@@ -1103,7 +1194,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                   <div className="flex-1">
                     <Controller name="equipment_brand" control={control} rules={{ required: false }}
                       render={({ field }) => (
-                        <Select {...field} isClearable options={brands} placeholder={t.select} instanceId="equipment_brand" menuPosition="fixed" menuShouldScrollIntoView={false}
+                        <Select {...field} isClearable isDisabled={vencido} options={brands} placeholder={t.select} instanceId="equipment_brand" menuPosition="fixed" menuShouldScrollIntoView={false}
                           filterOption={(opt, input) => input.length >= 2 && opt.label.toLowerCase().includes(input.toLowerCase())}
                           noOptionsMessage={({ inputValue }) => inputValue.length < 2 ? (t.type_to_search ?? 'Escribe al menos 2 caracteres') : (t.no_options ?? 'Sin opciones')}
                           styles={{ control: b => ({ ...b, minHeight: '32px', height: '32px', fontSize: '12px' }), valueContainer: b => ({ ...b, padding: '0 8px' }), indicatorsContainer: b => ({ ...b, height: '32px' }) }}
@@ -1117,7 +1208,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                   <div className="flex-1">
                     <Controller name="engine_brand" control={control} rules={{ required: false }}
                       render={({ field }) => (
-                        <Select {...field} isClearable options={brands} placeholder={t.select} instanceId="engine_brand" menuPosition="fixed" menuShouldScrollIntoView={false}
+                        <Select {...field} isClearable isDisabled={vencido} options={brands} placeholder={t.select} instanceId="engine_brand" menuPosition="fixed" menuShouldScrollIntoView={false}
                           filterOption={(opt, input) => input.length >= 2 && opt.label.toLowerCase().includes(input.toLowerCase())}
                           noOptionsMessage={({ inputValue }) => inputValue.length < 2 ? (t.type_to_search ?? 'Escribe al menos 2 caracteres') : (t.no_options ?? 'Sin opciones')}
                           styles={{ control: b => ({ ...b, minHeight: '32px', height: '32px', fontSize: '12px' }), valueContainer: b => ({ ...b, padding: '0 8px' }), indicatorsContainer: b => ({ ...b, height: '32px' }) }}
@@ -1130,13 +1221,13 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                 {/* Modelo */}
                 <div className="flex items-center gap-2">
                   <label className="text-[11px] text-gray-400 dark:text-gray-500 w-16 shrink-0 text-right">{t.model}</label>
-                  <input type="text" autoComplete="off" {...registerSearchQuote("equipment_model")} placeholder={t.enter_equipment_model}
+                  <input type="text" autoComplete="off" {...registerSearchQuote("equipment_model")} disabled={vencido} placeholder={t.enter_equipment_model}
                     onInput={e => { e.target.value = e.target.value.toUpperCase(); }}
                     className="h-8 flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-xs uppercase focus:outline-none focus:ring-2 focus:ring-primary/30" />
                 </div>
                 <div className="flex items-center gap-2">
                   <label className="text-[11px] text-gray-400 dark:text-gray-500 w-16 shrink-0 text-right">{t.model}</label>
-                  <input type="text" autoComplete="off" {...registerSearchQuote("engine_model")} placeholder={t.enter_engine_model}
+                  <input type="text" autoComplete="off" {...registerSearchQuote("engine_model")} disabled={vencido} placeholder={t.enter_engine_model}
                     onInput={e => { e.target.value = e.target.value.toUpperCase(); }}
                     className="h-8 flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-xs uppercase focus:outline-none focus:ring-2 focus:ring-primary/30" />
                 </div>
@@ -1144,13 +1235,13 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                 {/* Serie */}
                 <div className="flex items-center gap-2">
                   <label className="text-[11px] text-gray-400 dark:text-gray-500 w-16 shrink-0 text-right">{t.equipment_serie ?? 'Serie'}</label>
-                  <input type="text" autoComplete="off" {...registerSearchQuote("equipment_serie")} placeholder={t.enter_equipment_serie}
+                  <input type="text" autoComplete="off" {...registerSearchQuote("equipment_serie")} disabled={vencido} placeholder={t.enter_equipment_serie}
                     onInput={e => { e.target.value = e.target.value.toUpperCase(); }}
                     className="h-8 flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-xs uppercase focus:outline-none focus:ring-2 focus:ring-primary/30" />
                 </div>
                 <div className="flex items-center gap-2">
                   <label className="text-[11px] text-gray-400 dark:text-gray-500 w-16 shrink-0 text-right">{t.engine_serie ?? 'Serie'}</label>
-                  <input type="text" autoComplete="off" {...registerSearchQuote("engine_serie")} placeholder={t.enter_engine_serie}
+                  <input type="text" autoComplete="off" {...registerSearchQuote("engine_serie")} disabled={vencido} placeholder={t.enter_engine_serie}
                     onInput={e => { e.target.value = e.target.value.toUpperCase(); }}
                     className="h-8 flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-xs uppercase focus:outline-none focus:ring-2 focus:ring-primary/30" />
                 </div>
@@ -1158,7 +1249,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                 {/* Año / Actualizar */}
                 <div className="flex items-center gap-2">
                   <label className="text-[11px] text-gray-400 dark:text-gray-500 w-16 shrink-0 text-right">{t.year}</label>
-                  <input type="text" autoComplete="off" {...registerSearchQuote("equipment_year")} placeholder={t.enter_equipment_year}
+                  <input type="text" autoComplete="off" {...registerSearchQuote("equipment_year")} disabled={vencido} placeholder={t.enter_equipment_year}
                     onInput={e => { e.target.value = e.target.value.toUpperCase(); }}
                     className="h-8 flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-xs uppercase focus:outline-none focus:ring-2 focus:ring-primary/30" />
                 </div>
@@ -1172,7 +1263,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                       </button>
                     )}
                     {order.NroOrden && (
-                      <button type="button" onClick={run(updateQuote)} disabled={isSubmitting}
+                      <button type="button" onClick={run(updateQuote)} disabled={isSubmitting || vencido}
                         className="h-8 flex-1 rounded-lg bg-slate-300 px-4 text-gray-600 text-xs font-medium hover:bg-slate-500 hover:text-white transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
                         {t.btn_update}
                       </button>
@@ -1191,39 +1282,49 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
 
           {/* Resumen cotización */}
           <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
-            <div className="p-4">
-              {order.NroOrden ? (
-                <div className="space-y-0">
-                  {[
-                    [t.nro_quote,       <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-0.5 text-sm font-bold text-primary">{order.NroOrden}</span>],
-                    [t.nro_items,       order.NroItems],
-                    [t.total_weight_lb, customFormat(order.TotalPeso)],
-                    [t.quote_total,     customFormat(order.Total)],
-                    [t.exchange_rate,   order.TipoCambio],
-                  ].map(([label, val], i) => (
-                    <div key={i} className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
-                      <span className="text-sm text-gray-500">{label}</span>
-                      <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">{val}</span>
-                    </div>
-                  ))}
+            {order.NroOrden ? (() => {
+              const colA = [
+                [t.nro_quote,       <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-0.5 text-sm font-bold text-primary">{order.NroOrden}</span>],
+                [t.nro_items,       order.NroItems],
+                [t.total_weight_lb, customFormat(order.TotalPeso)],
+                ['Tipo de Cotización', order.TipCotizacion || order.Categoria || '—'],
+              ];
+              const colB = [
+                ['Vendedor Asignado',   order.Vendedor || '—'],
+                ['Fecha de Cotización', order.FecCotizacion || '—'],
+                [t.exchange_rate,       order.TipoCambio],
+                [t.quote_total,        customFormat(order.Total)],
+              ];
+              const Row = ([label, val], i, last) => (
+                <div key={i} className={`flex items-center justify-between px-4 py-2 ${last ? '' : 'border-b border-gray-100 dark:border-gray-700/60'}`}>
+                  <span className="text-sm text-gray-500 shrink-0">{label}</span>
+                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 ml-2 text-right">{val}</span>
                 </div>
-              ) : (
-                <p className="text-sm text-gray-400 text-center py-6">{t.no_order ?? 'Sin cotización activa'}</p>
-              )}
-            </div>
+              );
+              return (
+                <div className="grid grid-cols-2 divide-x divide-gray-100 dark:divide-gray-700/60">
+                  <div>{colA.map((r, i) => Row(r, i, i === colA.length - 1))}</div>
+                  <div>{colB.map((r, i) => Row(r, i, i === colB.length - 1))}</div>
+                </div>
+              );
+            })() : (
+              <p className="text-sm text-gray-400 text-center py-6 px-4">{t.no_order ?? 'Sin cotización activa'}</p>
+            )}
           </div>
 
-          {/* Seguimiento */}
-          <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
-            <div className="flex items-center gap-2 px-4 py-3">
-              <span className="text-xs text-gray-500 shrink-0">{t.share_with}</span>
-              {all_disabled_tracking ? (
+          {/* Seguimiento + Contacto */}
+          <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0 divide-y divide-gray-100 dark:divide-gray-700/60">
+
+            {/* ── Fila 1: Seguimiento ─────────────────────────────────── */}
+            <div className="flex items-center gap-2 px-4 py-2.5">
+              <span className="text-xs text-gray-500 shrink-0 w-24 text-right pr-1">{t.share_with}</span>
+              {all_disabled_tracking || vencido ? (
                 <span className="h-9 flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 text-sm font-medium text-primary dark:border-primary/40 dark:bg-primary/10 truncate">
                   {seguimientoNombre ?? '—'}
                 </span>
               ) : (
-                <div className="flex min-w-0 flex-1 gap-0">
-                  <div className="flex-1 sm:flex-none sm:w-[280px]">
+                <div className="flex min-w-0 gap-0">
+                  <div className="w-[320px]">
                     <Select
                       options={options_share}
                       value={select_share}
@@ -1235,36 +1336,126 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                       placeholder={t.select_option}
                       onChange={(sel) => setSelectShare(sel ?? null)}
                       styles={{
-                        control:             b => ({ ...b, minHeight: '36px', height: '36px', fontSize: '14px', borderRadius: '0.5rem 0 0 0.5rem', borderRight: 'none' }),
+                        control:             b => ({ ...b, minHeight: '36px', height: '36px', fontSize: '13px', borderRadius: '0.5rem 0 0 0.5rem', borderRight: 'none' }),
                         valueContainer:      b => ({ ...b, padding: '0 8px' }),
                         indicatorsContainer: b => ({ ...b, height: '36px' }),
-                        menu:                b => ({ ...b, minWidth: '280px' }),
+                        menu:                b => ({ ...b, minWidth: '200px' }),
                       }}
                     />
                   </div>
                   <button onClick={run(apply)} type="button" disabled={isSubmitting}
-                    className="h-9 shrink-0 px-4 rounded-r-lg border border-l-0 border-gray-300 bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                    className="h-9 shrink-0 px-3 rounded-r-lg border border-l-0 border-gray-300 bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition disabled:opacity-50 disabled:cursor-not-allowed">
                     {t.apply}
                   </button>
                 </div>
               )}
             </div>
+
+            {/* ── Fila 2: Contacto ────────────────────────────────────── */}
+            <div className="flex items-center gap-2 px-4 py-2.5">
+              <span className="text-xs font-medium text-gray-500 shrink-0 w-24 text-right pr-1">Contacto</span>
+              <ContactQuoteSection
+                nroCotizacion={order.NroOrden}
+                codCliente={customer.CodCliente}
+                codContacto={order.CodContacto}
+                vencido={vencido}
+                t={t}
+                onContactChange={(cod) => setOrder(prev => ({ ...prev, CodContacto: cod }))}
+              />
+            </div>
+
           </div>
 
-          {/* Mostrar Nro. Parte */}
+          {/* Opciones de reporte */}
           {order.NroOrden && (
-            <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
-              <div className="flex items-center justify-between px-4 py-2.5">
-                <span className="text-sm text-gray-500 dark:text-gray-400">
-                  {t.show_nro_part_in_report ?? '¿Deseas mostrar la columna de Nro. Parte en el reporte?'}
-                </span>
-                <div className="flex items-center gap-2 shrink-0 ml-4">
-                  <span className="text-xs text-gray-400 whitespace-nowrap">{t.show} {t.nro_part}</span>
-                  <label className="relative h-5 w-10 cursor-pointer">
-                    <input checked={order.MostrarCodigo === 1} {...register("show_nro_part")} onChange={handelChangeShowPart} type="checkbox" className="custom_switch peer absolute z-10 h-full w-full cursor-pointer opacity-0" />
-                    <span className="outline_checkbox bg-white block h-full rounded-full border-2 border-gray-400 before:absolute before:bottom-0.5 before:left-0.5 before:h-4 before:w-4 before:rounded-full before:bg-gray-400 before:bg-[url(/assets/images/close.svg)] before:bg-center before:bg-no-repeat before:transition-all before:duration-300 peer-checked:border-primary peer-checked:before:left-5 peer-checked:before:bg-primary peer-checked:before:bg-[url(/assets/images/checked.svg)] dark:border-white-dark dark:before:bg-white-dark"></span>
-                  </label>
+            <div className="panel border border-gray-200 dark:border-gray-700 p-0 overflow-hidden">
+              <div className="flex items-stretch divide-x divide-gray-100 dark:divide-gray-700/60">
+
+                {/* Columnas a mostrar */}
+                <div className="w-1/4 shrink-0 px-4 py-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-center text-gray-400 dark:text-gray-500 mb-2.5">
+                    Columnas a mostrar en el reporte
+                  </p>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {[
+                      { regName: 'show_nro_part', label: 'Nro. Parte', checked: order.MostrarCodigo === 1, onChange: handelChangeShowPart },
+                      { regName: 'show_peso',     label: 'Peso',        checked: order.MostrarPeso   === 1, onChange: handelChangeShowPeso },
+                    ].map(({ regName, label, checked, onChange }) => (
+                      <label key={regName}
+                        className={`inline-flex items-center gap-1.5 select-none px-3 py-1.5 rounded-lg border text-xs font-medium transition
+                          ${vencido ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}
+                          ${checked
+                            ? 'border-primary/50 bg-primary/10 text-primary dark:bg-primary/15'
+                            : 'border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:border-gray-300 dark:hover:border-gray-600'
+                          }`}>
+                        <input type="checkbox" checked={checked} {...register(regName)} onChange={onChange} disabled={vencido} className="sr-only" />
+                        <span className={`h-3.5 w-3.5 rounded border-[1.5px] flex items-center justify-center shrink-0 transition
+                          ${checked ? 'bg-primary border-primary' : 'border-gray-300 dark:border-gray-600'}`}>
+                          {checked && (
+                            <svg width="7" height="6" viewBox="0 0 7 6" fill="none">
+                              <path d="M1 3l1.8 2L6 1" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          )}
+                        </span>
+                        {label}
+                      </label>
+                    ))}
+                  </div>
                 </div>
+
+                {/* Configuración de cotización */}
+                <div className="flex-1 px-3 py-3 grid grid-cols-3 gap-2 items-end">
+                  {[
+                    { label: 'Moneda',     opts: optsMoneda,     val: selMoneda,    set: setSelMoneda,    url: URL_SAVE_MONEDA,     key: 'moneda',     payloadKey: 'moneda'          },
+                    { label: 'Tipo Envío', opts: optsTipoEnvio,  val: selTipoEnvio, set: setSelTipoEnvio, url: URL_SAVE_TIPO_ENVIO, key: 'tipoEnvio',  payloadKey: 'tipoEnvio'       },
+                    { label: 'Estado',     opts: optsEstado,     val: selEstado,    set: setSelEstado,    url: URL_SAVE_ESTADO,     key: 'estado',     payloadKey: 'codSeguimiento'  },
+                  ].map(({ label, opts, val, set, url, key, payloadKey }) => (
+                    <div key={key} className="flex flex-col gap-1">
+                      <span className="text-xs text-gray-500">{label}</span>
+                      <div className="flex items-center gap-1.5">
+                        <div className="flex-1">
+                          <Select
+                            options={opts}
+                            value={val}
+                            isClearable={false}
+                            isSearchable={false}
+                            isDisabled={vencido}
+                            menuPosition="fixed"
+                            menuShouldScrollIntoView={false}
+                            onChange={(sel) => set(sel)}
+                            styles={{
+                              control:             b => ({ ...b, minHeight: '34px', height: '34px', fontSize: '12px' }),
+                              valueContainer:      b => ({ ...b, padding: '0 8px' }),
+                              indicatorsContainer: b => ({ ...b, height: '34px' }),
+                              menu:                b => ({ ...b, fontSize: '12px' }),
+                            }}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          disabled={vencido || !val}
+                          onClick={async () => {
+                            if (!val) return;
+                            try {
+                              await axiosClient.put(url, { nroCotizacion: order.NroOrden, [payloadKey]: val.value });
+                              swalSuccess(t.record_updated);
+                            } catch (err) {
+                              swalError(t.error, err?.response?.data?.mensaje ?? 'No se pudo guardar');
+                            }
+                          }}
+                          className="h-[34px] w-[34px] shrink-0 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 text-gray-400 hover:border-primary hover:text-primary hover:bg-primary/5 dark:hover:border-primary/50 dark:hover:bg-primary/10 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+                            <path d="M17 21v-8H7v8"/>
+                            <path d="M7 3v5h8"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
               </div>
             </div>
           )}
@@ -1281,29 +1472,29 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
 
               {/* Acciones sobre ítems */}
               <div className="flex flex-wrap items-center gap-1.5">
-                <button onClick={run(newQuote)} title={t.btn_new} type="button" disabled={isSubmitting}
+                <button onClick={run(newQuote)} title={t.btn_new} type="button" disabled={isSubmitting || vencido}
                   className="h-8 w-8 flex items-center justify-center rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition disabled:opacity-50 disabled:cursor-not-allowed">
                   <IconFile className="h-4 w-4" />
                 </button>
-                <button onClick={run(updateItem)} title={t.update} type="button" disabled={isSubmitting || isSelectItems}
+                <button onClick={run(updateItem)} title={t.update} type="button" disabled={isSubmitting || isSelectItems || vencido}
                   className="h-8 w-8 flex items-center justify-center rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition disabled:opacity-40 disabled:cursor-not-allowed group">
                   <IconRefresh className="h-4 w-4 group-hover:rotate-180 transition-transform duration-300" />
                 </button>
                 <BtnPrintQuote order={order} token={token}
                   className="h-8 w-8 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700" />
-                <button onClick={run(deleteItems)} title={t.delete} type="button" disabled={isSubmitting || isSelectItems}
+                <button onClick={run(deleteItems)} title={t.delete} type="button" disabled={isSubmitting || isSelectItems || vencido}
                   className="h-8 w-8 flex items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition disabled:opacity-40 disabled:cursor-not-allowed">
                   <IconTrashLines className="h-4 w-4" />
                 </button>
-                <button onClick={run(message)} title={t.send_by_message} type="button" disabled={isSubmitting}
+                <button onClick={run(message)} title={t.send_by_message} type="button" disabled={isSubmitting || vencido}
                   className="h-8 w-8 flex items-center justify-center rounded-lg bg-sky-50 text-sky-600 hover:bg-sky-100 transition disabled:opacity-50 disabled:cursor-not-allowed">
                   <IconMail className="h-4 w-4" />
                 </button>
-                <button onClick={run(discount)} title={t.add_discount} type="button" disabled={isSubmitting || hasItemsWithoutPrice}
+                <button onClick={run(discount)} title={t.add_discount} type="button" disabled={isSubmitting || hasItemsWithoutPrice || vencido}
                   className="h-8 w-8 flex items-center justify-center rounded-lg bg-violet-50 text-violet-600 hover:bg-violet-100 transition disabled:opacity-50 disabled:cursor-not-allowed">
                   <IconDiscount className="h-4 w-4" />
                 </button>
-                <button onClick={run(attach)} title={t.attach} type="button" disabled={isSubmitting}
+                <button onClick={run(attach)} title={t.attach} type="button" disabled={isSubmitting || vencido}
                   className="h-8 w-8 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
                   <IconAttachment className="h-4 w-4" />
                 </button>
@@ -1317,7 +1508,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                 <div className="w-40">
                   <Select
                     options={[{ value: "RE", label: "MAS ECONOMICO" }, { value: "OR", label: "ORIGINAL" }]}
-                    isClearable={false} isSearchable={false}
+                    isClearable={false} isSearchable={false} isDisabled={vencido}
                     instanceId="preference-select"
                     onChange={handleChangePreference}
                     placeholder={t.select_option}
@@ -1334,23 +1525,23 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
 
               {/* Opciones de cotización */}
               <div className="flex flex-wrap items-center gap-1.5">
-                <button onClick={run(priceParameters)} type="button" disabled={isSubmitting}
+                <button onClick={run(priceParameters)} type="button" disabled={isSubmitting || vencido}
                   className="h-8 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-[11px] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed">
                   {t.price_parameter}
                 </button>
-                <button onClick={run(costSummary)} type="button" disabled={isSubmitting}
+                <button onClick={run(costSummary)} type="button" disabled={isSubmitting || vencido}
                   className="h-8 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-[11px] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed">
                   {t.cost_summary}
                 </button>
-                <button onClick={run(cloneQuote)} type="button" disabled={isSubmitting}
+                <button onClick={run(cloneQuote)} type="button" disabled={isSubmitting || vencido}
                   className="h-8 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-[11px] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed">
                   {t.duplicate}
                 </button>
-                <button onClick={run(() => validateQuote())} type="button" disabled={isSubmitting || isSelectItems}
+                <button onClick={run(() => validateQuote())} type="button" disabled={isSubmitting || isSelectItems || vencido}
                   className="h-8 rounded-lg border border-primary/30 bg-primary/5 px-3 text-[11px] text-primary hover:bg-primary/10 transition disabled:opacity-50 disabled:cursor-not-allowed">
                   {t.validate}
                 </button>
-                <button onClick={run(buyQuote)} type="button" disabled={isSubmitting || hasItemsWithoutPrice}
+                <button onClick={run(buyQuote)} type="button" disabled={isSubmitting || hasItemsWithoutPrice || vencido}
                   className="h-8 rounded-lg bg-green-600 px-4 text-white text-[11px] font-bold hover:bg-green-700 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
                   {t.buy}
                 </button>
@@ -1367,7 +1558,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                       <th className={`${thClass} w-10 text-center`}>
                         <input type="checkbox" className="form-checkbox border-gray-400 rounded"
                           checked={seleccionados.length === items.length && items.length > 0}
-                          onChange={toggleTodos} />
+                          onChange={toggleTodos} disabled={vencido} />
                       </th>
                       <th className={`${thClass} w-24`}>{t.qty}</th>
                       <th className={thClass}>{t.nro_part}</th>
@@ -1376,10 +1567,10 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                       <th className={thClass}>{t.spare_part_type}</th>
                       <th className={thClass}>{t.application}</th>
                       <th className={thClass}>{t.brand}</th>
-                      <th className={`${thClass} text-right`}>{t.price_unit}</th>
+                      <th className={`${thClass} text-right`}>{t.price_unit}*</th>
                       <th className={`${thClass} text-right`}>Total</th>
                       <th className={thClass}>{t.indicator}</th>
-                      <th className={thClass}>{t.t_delivery}</th>
+                      <th className={thClass}>{t.t_delivery}**</th>
                       <th className={`${thClass} text-right`}>{t.days_of_validity}</th>
                     </tr>
                   </thead>
@@ -1389,12 +1580,13 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                         <SortableRow key={item.CodItem} id={item.CodItem} index={index + 1} className={`transition ${item.ParPrecio ? 'bg-amber-50 dark:bg-amber-900/15 hover:bg-amber-100/70 dark:hover:bg-amber-900/25' : 'hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
                           <td className={`${tdClass} text-center`}>
                             <input type="checkbox" className="form-checkbox border-gray-400 rounded"
-                              checked={seleccionados.includes(item)} onChange={() => toggleSeleccion(item)} />
+                              checked={seleccionados.includes(item)} onChange={() => toggleSeleccion(item)} disabled={vencido} />
                           </td>
                           <td className={tdClass}>
                             <input step="any" type="number"
                               {...registerSearchQuote(`items.${item.CodItem}.Cantidad`, { valueAsNumber: true })}
                               onBlur={(e) => handleQuantityBlur(item, +e.target.value)}
+                              disabled={vencido}
                               className="h-8 w-20 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-2 text-xs text-center focus:outline-none focus:ring-1 focus:ring-primary/40"
                             />
                           </td>
@@ -1454,7 +1646,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                   <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t.notes ?? 'Notas'}</p>
                   <div className="h-0.5 w-8 rounded bg-primary/60 mt-0.5" />
                 </div>
-                <button type="button" onClick={run(handleSaveNoteQuoteFormSubmit(onSaveNote))} disabled={isSubmitting}
+                <button type="button" onClick={run(handleSaveNoteQuoteFormSubmit(onSaveNote))} disabled={isSubmitting || vencido}
                   className="h-9 rounded-lg bg-slate-300 px-4 text-gray-600 text-xs font-medium hover:bg-slate-500 hover:text-white transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
                   {t.btn_save}
                 </button>
@@ -1462,13 +1654,17 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
               <div className="p-4 space-y-3">
                 <div>
                   <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{t.note_to_customer}</label>
-                  <textarea defaultValue={order.NotaCliente} {...registerNoteQuote("note_customer")} rows={3}
-                    className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
+                  <textarea defaultValue={order.NotaCliente} {...registerNoteQuote("note_customer")} rows={1} disabled={vencido}
+                    className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{t.note_to_user}</label>
-                  <textarea defaultValue={order.NotaUsuario} {...registerNoteQuote("note_user")} rows={3}
-                    className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
+                  <textarea defaultValue={order.NotaUsuario} {...registerNoteQuote("note_user")} rows={1} disabled={vencido}
+                    className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
+                </div>
+                <div className="pt-1 space-y-0.5">
+                  <p className="text-[11px] leading-snug text-gray-400 dark:text-gray-500">* El Inventario y disponibilidad de piezas es actualizado constantemente. Sin embargo las mismas pueden ser sujetas a cambio.</p>
+                  <p className="text-[11px] leading-snug text-gray-400 dark:text-gray-500">** Tiempo de entrega son basados en condiciones normales de nuestros operadores logísticos, condiciones meteorológicas y procesos aduaneros.</p>
                 </div>
               </div>
             </div>
@@ -1487,14 +1683,14 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                 <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
                   <span className="text-sm text-gray-500">{t.freight}</span>
                   <div className="flex items-center gap-1.5">
-                    <input {...register("freight")} type="text"
+                    <input {...register("freight")} type="text" disabled={vencido}
                       className="h-8 w-24 text-right text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-2 focus:outline-none focus:ring-1 focus:ring-primary/30" />
-                    <button type="button" onClick={run(saveFreight)} disabled={isSubmitting} title={t.save ?? 'Guardar flete'}
+                    <button type="button" onClick={run(saveFreight)} disabled={isSubmitting || vencido} title={t.save ?? 'Guardar flete'}
                       className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition group disabled:opacity-50 disabled:cursor-not-allowed">
                       <IconCheck className="h-3.5 w-3.5 fill-gray-400 group-hover:fill-green-600 transition" />
                     </button>
                     {order.FleteInterno > 0 && (
-                      <button type="button" onClick={run(deleteFreight)} disabled={isSubmitting} title={t.distribute ?? 'Distribuir flete'}
+                      <button type="button" onClick={run(deleteFreight)} disabled={isSubmitting || vencido} title={t.distribute ?? 'Distribuir flete'}
                         className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 hover:border-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/20 transition group disabled:opacity-50 disabled:cursor-not-allowed">
                         <IconDirection className="h-3.5 w-3.5 fill-gray-400 group-hover:fill-sky-600 transition" />
                       </button>

@@ -19,10 +19,10 @@ import IconSearch from "@/components/icon/icon-search";
 import IconBackSpace from "@/components/icon/icon-backspace";
 import Settings from "./settings";
 
-const URL_PROCESO   = 'cotizaciones/proceso';
-const URL_CONTROLES = 'cotizaciones/proceso/controles';
+const URL_PROCESO   = 'ordenesenproceso/proceso';
+const URL_CONTROLES = 'ordenesenproceso/proceso/controles';
 const URL_DELIVERED    = process.env.NEXT_PUBLIC_API_URL + 'revision/EntregarOrden';
-const URL_CANCEL_ORDER = process.env.NEXT_PUBLIC_API_URL + 'revision/AnularOrden';
+const URL_CANCEL_ORDER = 'ordenesenproceso/anular';
 
 const PAGE_SIZE      = 20;
 const ASYNC_MIN_CHARS = 2;
@@ -217,9 +217,8 @@ export default function OrdersProcess() {
 
   const cancelOrder = async () => {
     try {
-      const data = selected.map(o => ({ Idioma: locale, NroOrden: o.nroCotizacion, ValToken: token }));
-      const rs   = await axios.post(URL_CANCEL_ORDER, data);
-      if (rs.data.estado === 'Ok') refetch();
+      await Promise.all(selected.map(o => axiosClient.post(URL_CANCEL_ORDER, { NroCotizacion: o.nroCotizacion })));
+      refetch();
     } catch {}
   };
 
@@ -464,9 +463,7 @@ export default function OrdersProcess() {
                         </td>
                         <td className={`${tdClass} text-right font-medium`}>{customFormat(o.totalSus)}</td>
                         <td className={`${tdClass} text-center`}>
-                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${daysBadge(o.canDias ?? 0)}`}>
-                            {o.canDias ?? 0}d
-                          </span>
+                          {o.canDias ?? 0}
                         </td>
                         <td className={`${tdClass} text-gray-400`}>{o.fecOrden}</td>
                         <td className={`${tdClass} text-gray-400`}>{o.fecModifica}</td>

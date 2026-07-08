@@ -295,6 +295,7 @@
   "days": "Days",
   "apply" : "Update",
   "share_with" : "Share with",
+  "shared_with" : "Shared with",
   "shared_by" : "Shared by",
   "started_by" : "Initiated by",
   "days_process": "Processing days",
@@ -644,6 +645,7 @@
   "shipping_amount" : "Shipping Cost",
   "others_amount" : "Other cost",
   "quote_date" : "Quote date",
+  "created_by" : "Created by",
   "see_details" : "See more",
   "nro_items" : "# of items",
   "equipment_brand" : "Equipment Brand",
@@ -761,7 +763,7 @@
   "discontinued" : "Discontinued",
   "no_option" : "No Options",
   "view_assignments" : "View Assignments",
-  "supplier_suggestion" : "Supplier Suggestion",
+  "supplier_suggestion" : "Suggested Suppliers",
   "prev" : "Previous",
   "next" : "Next",
   "finish" : "Done",
@@ -896,5 +898,7 @@
   "spare_parts_site" : "Spares Site",
   "representative" : "Representative",
   "representatives" : "Representatives",
-  "categorization" : "Categorization"
+  "categorization" : "Categorization",
+  "change_assiged" : "Change User Assignment",
+  "to_customer" : "To / Customer"
 }

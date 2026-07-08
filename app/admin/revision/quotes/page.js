@@ -79,7 +79,7 @@ export default function Quotes() {
     try {
       if (option === 'quotes' || option === 'quotes-without-code' || option === 'batch' || option === 'buy' || option === 'manual') {
         const rs = await axiosClient.get(`cotizaciondetalle/detalle/${order_id}`, { params: { codCliente: customer_id } });
-        const { cotizacion, detalle, seguimiento } = rs.data;
+        const { cotizacion, detalle, seguimiento, contacto } = rs.data;
 
         const expectedOption = CATEGORY_OPTION[cotizacion.categoria];
         if (expectedOption && expectedOption !== option) {
@@ -101,6 +101,7 @@ export default function Quotes() {
           NroSerieMotor:  cotizacion.nroSerieMotor   ?? '',
           FleteInterno:   cotizacion.mtoFlete        ?? 0,
           MostrarCodigo:  cotizacion.mostrarCodigo   ?? 0,
+          MostrarPeso:    cotizacion.mostrarPeso     ?? 0,
           TotalPeso:      cotizacion.totPeso         ?? 0,
           Total:          cotizacion.totalSus        ?? 0,
           TipoCambio:     cotizacion.tipCambio       ?? 0,
@@ -110,6 +111,14 @@ export default function Quotes() {
           TotRepuestos:   cotizacion.totRepuestos    ?? 0,
           Descuento:      cotizacion.mtoDescuento    ?? 0,
           MtoIva:         cotizacion.mtoIva          ?? 0,
+          Vencido:        cotizacion.vencido         ?? false,
+          CodContacto:    contacto?.codRegistro      ?? null,
+          Categoria:      cotizacion.categoria       ?? '',
+          TipCotizacion:  cotizacion.tipCotizacion   ?? '',
+          FecCotizacion:  cotizacion.fecCotizacion   ?? '',
+          CodEstado:      cotizacion.codEstado       ?? '',
+          TipEnvio:       cotizacion.tipEnvio        ?? '',
+          Vendedor:       cotizacion.vendedor        ?? '',
         });
 
         setItems((detalle ?? []).map(d => ({

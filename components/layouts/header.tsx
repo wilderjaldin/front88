@@ -25,8 +25,10 @@ import useAuthGuard from '@/components/layouts/useAuthGuard';
 import { Transition, Dialog, DialogPanel, TransitionChild } from '@headlessui/react';
 import IconX from '@/components/icon/icon-x';
 import IconMailDot from '../icon/icon-mail-dot';
+import IconSend from '@/components/icon/icon-send';
 import Select from 'react-select';
-import axios from 'axios'
+import axiosClient from '@/app/lib/axiosClient';
+import { swalSuccess } from '@/app/lib/swal';
 import Swal from 'sweetalert2'
 import IconHome from '../icon/icon-home';
 import IconMenuDashboard from '../icon/menu/icon-menu-dashboard';
@@ -38,8 +40,8 @@ import { MenuItem } from '@/components/layouts/menuConfig';
 import { usePermissions } from "@/app/hooks/usePermissions";
 import { PERMISSIONS } from "@/constants/permissions";
 
-const url_list_users = process.env.NEXT_PUBLIC_API_URL + "inbox/MostrarListaUsuarios"
-const url_save_message = process.env.NEXT_PUBLIC_API_URL + "inbox/IniciarMsg"
+const URL_USUARIOS = "usuarios/mensaje";
+const URL_INICIAR_MSG = "inbox/IniciarMsg";
 
 const Header = () => {
   useAuthGuard();
@@ -75,7 +77,8 @@ const Header = () => {
     register: registerMessage,
     handleSubmit: handleSubmitMessage,
     setValue: setValueMessage,
-    formState: { errors: errorsMessage },
+    reset: resetMessage,
+    formState: { errors: errorsMessage, isSubmitting: isSubmittingMessage },
   } = useForm();
 
   const themeConfig = useSelector((state: IRootState) => state.themeConfig);
@@ -161,6 +164,7 @@ const Header = () => {
   }
 
   const showFormMessage = async () => {
+    resetMessage({ user: null, nro_order: '', message: '' });
     setShowModal(true);
     if (users.length == 0) {
       await getListUsers();
@@ -169,18 +173,11 @@ const Header = () => {
   }
   const handleInitMessage = async (data: any) => {
     try {
-      const rs = await axios.post(url_save_message, { CodUsuarioDestino: data.user, NroOrden: data.nro_order, Mensaje: data.message, ValToken: token });
+      const rs = await axiosClient.post(URL_INICIAR_MSG, { CodUsuarioDestino: data.user, NroOrden: data.nro_order || 0, Mensaje: data.message });
 
       if (rs.data.estado == 'OK') {
-        Swal.fire({
-          position: "top-end",
-          icon: "success",
-          title: t.message_successfully_saved,
-          showConfirmButton: false,
-          timer: 1000
-        }).then(r => {
-          setShowModal(false);
-        });
+        swalSuccess(t.message_successfully_saved);
+        setShowModal(false);
       }
     } catch (error) {
 
@@ -189,16 +186,8 @@ const Header = () => {
 
   const getListUsers = async () => {
     try {
-      const rs = await axios.post(url_list_users, { ValToken: token });
-      if (rs.data.estado == 'OK') {
-        const _users: any = [];
-        rs.data.dato.map((u: any) => {
-          if (u.CodUsuario != 0) {
-            _users.push({ value: u.CodUsuario, label: u.NomUsuario })
-          }
-        });
-        setUsers(_users);
-      }
+      const rs = await axiosClient.get(URL_USUARIOS);
+      setUsers((rs.data ?? []).map((u: any) => ({ value: u.codUsuario, label: u.nomUsuario })));
     } catch (error) {
 
     }
@@ -544,52 +533,63 @@ const Header = () => {
                 leaveFrom="opacity-100 scale-100"
                 leaveTo="opacity-0 scale-95"
               >
-                <DialogPanel as="div" className={`panel my-8 w-full max-w-lg overflow-hidden rounded-lg border-0 p-0 text-black dark:text-white-dark`}>
-                  <div className="flex items-center justify-between bg-[#fbfbfb] px-5 py-3 dark:bg-[#121c2c]">
-                    <div className="text-lg font-bold"></div>
-                    <button type="button" className="text-white-dark hover:text-dark" onClick={() => setShowModal(false)}>
-                      <IconX />
+                <DialogPanel as="div" className="panel my-8 w-full max-w-md overflow-hidden rounded-2xl border-0 p-0 shadow-xl text-black dark:text-white-dark">
+                  <div className="flex items-center justify-between bg-[#fbfbfb] px-5 py-3.5 border-b border-gray-100 dark:border-gray-700 dark:bg-[#121c2c]">
+                    <div className="flex items-center gap-2">
+                      <IconMailDot className="h-5 w-5 text-primary" />
+                      <span className="text-base font-bold">Nuevo mensaje</span>
+                    </div>
+                    <button type="button" className="p-1 rounded-md text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition" onClick={() => setShowModal(false)}>
+                      <IconX className="h-4 w-4" />
                     </button>
                   </div>
                   <div className="p-5">
-                    <form action="" onSubmit={handleSubmitMessage(handleInitMessage)}>
-                      <fieldset className='space-y-4 items-center justify-center'>
-                        <legend className='space-y-1'></legend>
-                        <div className="flex sm:flex-row flex-col">
-                          <label className="mb-0 sm:w-1/4 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="nit">{t.to_user}</label>
-                          <div className="flex flex-1">
-                            <Select {...registerMessage('user', { required: { value: true, message: t.required_select } })} onChange={onChangeSelect} isClearable id='select-doc_type' options={users} placeholder={t.select_option} className={`w-full`} />
-                            {errorsMessage.user && <span className='text-red-400 error block text-xs mt-1' role="alert">{errorsMessage.user?.message?.toString()}</span>}
-                          </div>
-                        </div>
+                    <form onSubmit={handleSubmitMessage(handleInitMessage)} className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">{t.to_user}</label>
+                        <Select
+                          isClearable
+                          placeholder={t.select_option}
+                          options={users}
+                          onChange={onChangeSelect}
+                          classNamePrefix="react-select"
+                          instanceId="header-new-message-user-select"
+                        />
+                        {errorsMessage.user && <span className="text-red-400 text-xs mt-1 block" role="alert">{errorsMessage.user?.message?.toString()}</span>}
+                        <input type="hidden" {...registerMessage('user', { required: { value: true, message: t.required_select } })} />
+                      </div>
 
-                        <div className="flex sm:flex-row flex-col">
-                          <label className="mb-0 sm:w-1/4 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="nit">{t.nro_quote}</label>
-                          <div className="flex flex-1">
-                            <input type='number' autoComplete='OFF' {...registerMessage('nro_order', { required: false })} placeholder={t.login.enter_nro_order} className="form-input placeholder:" />
-                          </div>
-                        </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">{t.nro_quote}</label>
+                        <input type="number" autoComplete="off" {...registerMessage('nro_order')} placeholder={t.nro_order} className="form-input w-full text-sm" />
+                      </div>
 
-                        <div className="flex sm:flex-row flex-col">
-                          <div className='w-full'>
-                            <textarea {...registerMessage('message', { required: { value: true, message: t.required_field } })} className='form-input w-full'></textarea>
-                            {errorsMessage.message && <span className='text-red-400 error block text-xs mt-1' role="alert">{errorsMessage.message?.message?.toString()}</span>}
-                          </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">{t.message ?? 'Mensaje'}</label>
+                        <textarea {...registerMessage('message', { required: { value: true, message: t.required_field } })} rows={4} className="form-input w-full resize-none text-sm" />
+                        {errorsMessage.message && <span className="text-red-400 text-xs mt-1 block" role="alert">{errorsMessage.message?.message?.toString()}</span>}
+                      </div>
 
-                        </div>
-
-                      </fieldset>
-
-                      <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
-
-
-                        <button onClick={() => setShowModal(false)} type="button" className="btn btn-dark">
+                      <div className="flex items-center justify-end gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowModal(false)}
+                          className="inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-gray-300 text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 hover:border-gray-400 transition-all duration-150"
+                        >
                           {t.btn_cancel}
                         </button>
-                        <button type="submit" className="btn btn-success">
-                          {t.start_message}
+                        <button
+                          type="submit"
+                          disabled={isSubmittingMessage}
+                          className="btn btn-primary inline-flex items-center gap-2 h-9 disabled:opacity-50"
+                        >
+                          {isSubmittingMessage ? (
+                            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                          ) : (
+                            <IconSend className="h-4 w-4" />
+                          )}
+                          {t.accept}
                         </button>
-
                       </div>
                     </form>
                   </div>

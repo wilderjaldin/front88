@@ -2,34 +2,31 @@
 
 import { useEffect, useState } from 'react';
 import { Document, Page } from 'react-pdf';
-import axios from 'axios';
+import axiosClient from '@/app/lib/axiosClient';
 
 import '@/utils/pdfWorker';
 import { useTranslation } from "@/app/locales";
 
-const url_proforma = process.env.NEXT_PUBLIC_API_URL + 'consulta/ImprimirOrdenCompra';
-
-
 export default function PdfViewerOrder({ order, token, onClose }) {
-  const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
-  const [numPages, setNumPages] = useState(null);
+  const [pdfBlobUrl,   setPdfBlobUrl]   = useState(null);
+  const [pdfFilename,  setPdfFilename]  = useState('orden-compra.pdf');
+  const [numPages,     setNumPages]     = useState(null);
   const t = useTranslation();
 
   useEffect(() => {
-    if (!order?.NroOrdenCompra || !token) return;
+    const nro = order?.nroOrdenCompra ?? order?.NroOrdenCompra ?? order?.NroOrden;
+    if (!nro) return;
     let timeout;
     const loadPdf = async () => {
       try {
-        // Espera a que el modal se muestre completamente
         timeout = setTimeout(async () => {
-          const res = await axios.post(
-            url_proforma,
-            { NroOrdenCompra: order.NroOrdenCompra, ValToken: token },
-            { responseType: 'blob' }
-          );
+          const res = await axiosClient.get(`ordenescompra/${nro}/pdf`, { responseType: 'blob' });
+          const disposition = res.headers['content-disposition'] ?? '';
+          const match = disposition.match(/filename[^;=\n]*=["']?([^"';\n]+)["']?/i);
+          setPdfFilename(match ? match[1].trim() : `OC${nro}.pdf`);
           const blob = new Blob([res.data], { type: 'application/pdf' });
           setPdfBlobUrl(URL.createObjectURL(blob));
-        }, 100); // Espera 100ms
+        }, 100);
       } catch (error) {
         console.error('Error al cargar PDF:', error);
       }
@@ -54,7 +51,7 @@ export default function PdfViewerOrder({ order, token, onClose }) {
       <div className="flex flex-wrap items-center justify-center gap-2">
         <a
           href={pdfBlobUrl}
-          download={`Cotizacion-${order.NroOrden}.pdf`}
+          download={pdfFilename}
           className="btn btn-primary rounded hover:bg-blue-700"
         >
           { t.download_pdf }

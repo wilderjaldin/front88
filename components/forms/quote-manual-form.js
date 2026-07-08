@@ -12,6 +12,7 @@ import IconTrashLines from '../icon/icon-trash-lines';
 import IconPencil from '../icon/icon-pencil';
 import BtnPrintQuote from '@/components/BtnPrintQuote';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import ContactQuoteSection from '@/components/forms/contact-quote-section';
 
 const URL_MARCAS           = 'cotizaciones/marcas';
 const URL_PROVEEDORES      = 'cotizaciones/proveedores';
@@ -33,11 +34,11 @@ const ICON_ERR   = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none">
 const ICON_Q     = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 const swalSuccess = (title) => Swal.fire({
-  html: `<div style="padding:12px 0 6px">
-    <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#86efac,#16a34a);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 8px 24px rgba(22,163,74,0.3)">${ICON_CHECK}</div>
-    <h2 style="color:#1e293b;font-size:17px;font-weight:700;margin:0;line-height:1.3">${title}</h2>
+  html: `<div style="display:flex;align-items:center;gap:8px;padding:0">
+    ${ICON_CHECK}
+    <p style="color:#fff;font-size:13px;font-weight:600;margin:0;line-height:1.3;text-align:left">${title}</p>
   </div>`,
-  position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true,
+  backdrop: false, position: 'top-end', padding: '10px 14px', background: '#16a34a', showConfirmButton: false, timer: 2000, timerProgressBar: true,
 });
 
 const swalError = (title) => Swal.fire({
@@ -295,7 +296,7 @@ export default function QuoteManualForm({ t, _customer_, _order_ = [], _items_, 
       if (rs.data.cotizacion) {
         const newOrder = mapCotizacion(rs.data.cotizacion);
         const newItems = mapDetalle(rs.data.detalle);
-        setOrder(newOrder);
+        setOrder(prev => ({ ...prev, ...newOrder }));
         setItems(newItems);
         updateInputs(newItems);
         setCalcResult(null);
@@ -628,6 +629,25 @@ export default function QuoteManualForm({ t, _customer_, _order_ = [], _items_, 
                   </button>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Contacto */}
+          {order?.NroOrden && (
+            <div className="pt-2 mt-1 border-t border-gray-100 dark:border-gray-700">
+              <p className="text-[10px] uppercase font-semibold text-gray-400 tracking-wide mb-1.5">
+                Contacto
+              </p>
+              <div className="flex flex-wrap gap-1">
+                <ContactQuoteSection
+                  nroCotizacion={order.NroOrden}
+                  codCliente={customer.CodCliente}
+                  codContacto={order.CodContacto}
+                  vencido={false}
+                  t={t}
+                  onContactChange={(cod) => setOrder(prev => ({ ...prev, CodContacto: cod }))}
+                />
+              </div>
             </div>
           )}
         </div>

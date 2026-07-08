@@ -205,8 +205,10 @@ export default function Quotes({
                   return (
                     <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                       <td className={tdClass}>
-                        <BtnPrintQuote order={{ NroOrden: q.nroCotizacion }} token={token}
-                          className="h-7 w-7 flex items-center justify-center rounded bg-sky-50 text-sky-600 hover:bg-sky-100 transition" />
+                        {(q.catCotizacion === 'NR' || q.catCotizacion === 'MA') && (
+                          <BtnPrintQuote order={{ NroOrden: q.nroCotizacion }} token={token}
+                            className="h-8 w-8 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700" />
+                        )}
                       </td>
                       <td className={tdClass}>
                         <div className="flex items-center gap-1.5">
@@ -265,10 +267,12 @@ export default function Quotes({
                   </div>
                 ))}
               </div>
-              <div className="px-4 pb-3">
-                <BtnPrintQuote order={{ NroOrden: q.nroCotizacion }} token={token}
-                  className="h-7 w-7 flex items-center justify-center rounded bg-sky-50 text-sky-600 hover:bg-sky-100 transition" />
-              </div>
+              {(q.catCotizacion === 'NR' || q.catCotizacion === 'MA') && (
+                <div className="px-4 pb-3">
+                  <BtnPrintQuote order={{ NroOrden: q.nroCotizacion }} token={token}
+                    className="h-8 w-8 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700" />
+                </div>
+              )}
             </div>
           ))}
         </div>

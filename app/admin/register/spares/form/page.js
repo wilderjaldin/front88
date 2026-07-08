@@ -6,6 +6,7 @@ import axiosClient from '@/app/lib/axiosClient';
 import AsyncSelect from 'react-select/async';
 import Select from 'react-select';
 import Swal from 'sweetalert2';
+import { swalSuccess, swalError } from '@/app/lib/swal';
 import { useTranslation } from '@/app/locales';
 import { useDynamicTitle } from '@/app/hooks/useDynamicTitle';
 import { usePermissions } from '@/app/hooks/usePermissions';
@@ -233,30 +234,15 @@ export default function SpareFormPage() {
       const url    = isEdit ? URL_UPDATE : URL_SAVE;
       await axiosClient[method](url, payload);
 
-      const Toast = Swal.mixin({
-        toast: true, position: 'top-end',
-        showConfirmButton: false, timer: 3000, timerProgressBar: true,
-      });
-      Toast.fire({
-        icon:  'success',
-        title: isEdit ? 'Repuesto actualizado correctamente' : 'Repuesto registrado correctamente',
-      }).then(() => router.push('/admin/register/spares'));
+      await swalSuccess(isEdit ? 'Repuesto actualizado correctamente' : 'Repuesto registrado correctamente');
+      router.push('/admin/register/spares');
 
     } catch (err) {
       const resData = err?.response?.data ?? {};
-      let msg = '';
-      if (resData.errors && typeof resData.errors === 'object') {
-        msg = Object.values(resData.errors).flat().join('\n');
-      } else {
-        msg = resData.message ?? err?.message ?? 'Error al guardar';
-      }
-      Swal.fire({
-        title:              t.warning           ?? 'Advertencia',
-        text:               msg,
-        icon:               'warning',
-        confirmButtonColor: '#dc2626',
-        confirmButtonText:  t.close             ?? 'Cerrar',
-      });
+      const msg = resData.errors && typeof resData.errors === 'object'
+        ? Object.values(resData.errors).flat().join('\n')
+        : (resData.message ?? err?.message ?? 'Error al guardar');
+      swalError(t.warning ?? 'Advertencia', msg);
     } finally {
       setIsSaving(false);
     }

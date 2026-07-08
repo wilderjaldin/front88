@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from '@/app/locales';
 import axiosClient from '@/app/lib/axiosClient';
-import Swal from 'sweetalert2';
+import { swalSuccess, swalError } from '@/app/lib/swal';
 import IconPlus from '@/components/icon/icon-plus';
 
 // ── URLs ──────────────────────────────────────────────────────────────────────
@@ -243,16 +243,8 @@ const ComponentContactForm = ({
     try {
       const res = await axiosClient.post(URL_GUARDAR(codCliente), payload);
 
-      Swal.fire({
-        title: t.success,
-        icon: 'success',
-        confirmButtonColor: '#15803d',
-        text: isNew ? t.contact_success_save : t.contact_update_save,
-        confirmButtonText: t.close,
-      }).then(() => {
-        onSaved(res.data ?? []);
-        onCancel();
-      });
+      swalSuccess(isNew ? t.contact_success_save : t.contact_update_save);
+      onSaved(res.data ?? []);
 
     } catch (err) {
       // ── 400: errores de validación del backend campo a campo ──────────────
@@ -276,13 +268,7 @@ const ComponentContactForm = ({
       }
 
       // ── Cualquier otro error ──────────────────────────────────────────────
-      Swal.fire({
-        title: t.error,
-        text: t.contact_error_server,
-        icon: 'error',
-        confirmButtonColor: '#dc2626',
-        confirmButtonText: t.close,
-      });
+      swalError(t.error, t.contact_error_server);
     }
   };
 

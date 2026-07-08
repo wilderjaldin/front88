@@ -295,6 +295,7 @@
   "days": "Días",
   "apply" : "Aplicar",
   "share_with" : "Compartir con",
+  "shared_with" : "Compartido con",
   "shared_by" : "Compartido Por",
   "started_by" : "Iniciado por",
   "days_process": "Dias Proceso",
@@ -644,6 +645,7 @@
   "shipping_amount" : "Mto. Shipping",
   "others_amount" : "Mto. Otros",
   "quote_date" : "Fecha Cotización",
+  "created_by" : "Creado por",
   "see_details" : "Ver detalles",
   "nro_items" : "Nro. de Items",
   "equipment_brand" : "Marca Equipo",
@@ -761,7 +763,7 @@
   "discontinued" : "Descontinuado",
   "no_option" : "Sin Opción",
   "view_assignments" : "Ver asignaciones",
-  "supplier_suggestion" : "Sugerencia Proveedor",
+  "supplier_suggestion" : "Proveedores Sugeridos",
   "prev" : "Anterior",
   "next" : "Siguiente",
   "finish" : "Terminar",
@@ -898,5 +900,7 @@
   "spare_parts_site" : "Repuestos Site",
   "representative" : "Representante",
   "representatives" : "Representantes",
-  "categorization" : "Categorización"
+  "categorization" : "Categorización",
+  "change_assiged" : "Cambiar Asignacion de Usuario",
+  "to_customer" : "Destino / Cliente"
 }

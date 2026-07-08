@@ -1,10 +1,10 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import Select from 'react-select';
 import IconSave from '@/components/icon/icon-save';
 import axiosClient from '@/app/lib/axiosClient';
-import Swal from 'sweetalert2';
+import { swalSuccess, swalError } from '@/app/lib/swal';
 import { useTranslation } from '@/app/locales';
 import SelectCountry from '@/components/select-country';
 import SelectCity from '@/components/select-city';
@@ -22,10 +22,6 @@ const IDIOMA_OPTIONS = [
 const IDIOMA_ES = IDIOMA_OPTIONS[0]; // Español
 const IDIOMA_EN = IDIOMA_OPTIONS[1]; // Inglés
 
-const Toast = Swal.mixin({
-  toast: true, position: 'top-end',
-  showConfirmButton: false, timer: 3000, timerProgressBar: true,
-});
 
 const FieldError = ({ error }) =>
   error ? <p className="text-xs text-red-500 mt-1">{error.message}</p> : null;
@@ -34,6 +30,7 @@ const FieldError = ({ error }) =>
 const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
   const t      = useTranslation();
   const isEdit = !!cliente;
+  const skipIdiomaRef = useRef(isEdit);
 
   const [saving, setSaving]         = useState(false);
   const [paises, setPaises]         = useState([]);
@@ -120,7 +117,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
           });
         }
       } catch {
-        Toast.fire({ icon: 'error', title: 'Error cargando controles' });
+        swalError('Error cargando controles');
       } finally {
         setLoading(false);
       }
@@ -135,9 +132,13 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
       return;
     }
 
-    // Ajustar idioma por defecto según país
-    const idiomaDefault = watchPais.value === 'US' ? IDIOMA_EN : IDIOMA_ES;
-    setValue('cliIdioma', idiomaDefault);
+    // Ajustar idioma por defecto según país (omitir en la carga inicial al editar)
+    if (skipIdiomaRef.current) {
+      skipIdiomaRef.current = false;
+    } else {
+      const idiomaDefault = watchPais.value === 'US' ? IDIOMA_EN : IDIOMA_ES;
+      setValue('cliIdioma', idiomaDefault);
+    }
 
     // Limpiar campos US si cambia de país
     if (watchPais.value !== 'US') {
@@ -154,7 +155,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
         const res = await axiosClient.get(URL_CIUDADES, { params: { codPais: watchPais.value } });
         setCiudades(res.data ?? []);
       } catch {
-        Toast.fire({ icon: 'error', title: 'Error cargando ciudades' });
+        swalError('Error cargando ciudades');
         setCiudades([]);
       } finally {
         setLoadingCities(false);
@@ -193,10 +194,10 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
         ? await axiosClient.put(URL_EDITAR,    payload)
         : await axiosClient.post(URL_REGISTRO, payload);
 
-      Toast.fire({ icon: 'success', title: isEdit ? 'Cliente actualizado' : 'Cliente registrado' });
+      swalSuccess(isEdit ? 'Cliente actualizado' : 'Cliente registrado');
       onSaved?.(res.data);
     } catch (err) {
-      Toast.fire({ icon: 'error', title: err?.response?.data?.message || 'Error al guardar' });
+      swalError(err?.response?.data?.message || 'Error al guardar');
     } finally {
       setSaving(false);
     }

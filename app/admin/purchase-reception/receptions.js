@@ -13,7 +13,7 @@ const url_verify = process.env.NEXT_PUBLIC_API_URL + 'recepcion/ValidarDatosRece
 const url_save = process.env.NEXT_PUBLIC_API_URL + 'recepcion/GuardarDatosRecepcion';
 
 const url_save_note = process.env.NEXT_PUBLIC_API_URL + 'repporcotizar/GuardarNota';
-const url_save_status = process.env.NEXT_PUBLIC_API_URL + 'repporcotizar/CodigoInvalidoDescontinuado';
+const URL_EXCLUIR = 'repuestosporcotizar/excluir-item';
 
 const Receptions = ({ token, t, data, setReceptions, setOrders, selected_orders }) => {
 

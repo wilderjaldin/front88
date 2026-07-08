@@ -14,7 +14,7 @@ import IconArrowForward from '@/components/icon/icon-arrow-forward';
 const url_cancel_reception = process.env.NEXT_PUBLIC_API_URL + 'embalaje/AnularRecepcion';
 
 const url_save_note = process.env.NEXT_PUBLIC_API_URL + 'repporcotizar/GuardarNota';
-const url_save_status = process.env.NEXT_PUBLIC_API_URL + 'repporcotizar/CodigoInvalidoDescontinuado';
+const URL_EXCLUIR = 'repuestosporcotizar/excluir-item';
 
 const Pendings = ({ token, t, data, setOrders, attachOrder }) => {
 

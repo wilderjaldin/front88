@@ -1,15 +1,12 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
 import AsyncSelect from 'react-select/async';
 import axiosClient from '@/app/lib/axiosClient';
-import axios from 'axios';
-import Swal from 'sweetalert2';
 import { customFormat } from '@/app/lib/format';
-import { useSelector } from 'react-redux';
-import { selectToken } from '@/store/authSlice';
 import { Pagination } from '@mantine/core';
 import { useTranslation } from "@/app/locales";
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
@@ -18,7 +15,6 @@ import IconBackSpace from "@/components/icon/icon-backspace";
 
 const URL_ORDERS    = 'cotizaciones/ordenes-realizadas';
 const URL_CONTROLES = 'cotizaciones/ordenes-realizadas/controles';
-const URL_VERIFY    = process.env.NEXT_PUBLIC_API_URL + 'cotrealizadas/VerifCotizacion';
 
 const PAGE_SIZE      = 20;
 const ASYNC_MIN_CHARS = 2;
@@ -26,6 +22,21 @@ const ASYNC_LIMIT     = 20;
 
 const thClass = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap";
 const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-3 py-2";
+
+const CAT_META = {
+  NR: { label: 'Normal',     dot: 'bg-sky-500',    cls: 'bg-sky-50    text-sky-700    border border-sky-200    dark:bg-sky-900/30   dark:text-sky-400   dark:border-sky-800'    },
+  SC: { label: 'Sin Código', dot: 'bg-amber-500',  cls: 'bg-amber-50  text-amber-700  border border-amber-200  dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'  },
+  MA: { label: 'Manual',     dot: 'bg-violet-500', cls: 'bg-violet-50 text-violet-700 border border-violet-200 dark:bg-violet-900/30 dark:text-violet-400 dark:border-violet-800' },
+};
+const CatBadge = ({ cat }) => {
+  const m = CAT_META[cat] ?? { label: cat, dot: 'bg-gray-400', cls: 'bg-gray-100 text-gray-500 border border-gray-200' };
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${m.cls}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${m.dot}`} />
+      {m.label}
+    </span>
+  );
+};
 
 const SortIcon = ({ active, dir }) => {
   if (!active)
@@ -61,7 +72,6 @@ export default function OrdersPlaced() {
   const router       = useRouter();
   const pathname     = usePathname();
   const searchParams = useSearchParams();
-  const token        = useSelector(selectToken);
   const t            = useTranslation();
 
   // URL params — fuente de verdad
@@ -185,21 +195,8 @@ export default function OrdersPlaced() {
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
-  const verify = (o) => {
-    Swal.fire({
-      title: t.verifying,
-      showConfirmButton: false,
-      timer: 1000,
-      timerProgressBar: true,
-      didOpen: () => { Swal.showLoading(); },
-    }).then(async () => {
-      try {
-        await axios.post(URL_VERIFY, { NroOrden: o.nroCotizacion, ValToken: token });
-        const tab = o.tipCot === 'NR' ? 'quotes' : 'quotes-without-code';
-        router.push(`/admin/revision/quotes?customer=${o.codCliente}&option=${tab}&id=${o.nroCotizacion}`);
-      } catch {}
-    });
-  };
+  const TAB = { NR: 'quotes', SC: 'quotes-without-code', MA: 'manual' };
+  const quoteUrl = (o) => `/admin/revision/quotes?customer=${o.codCliente}&option=${TAB[o.tipCot] ?? 'quotes'}&id=${o.nroCotizacion}`;
 
   const hasFilters = urlTerm || urlEstado || urlCliente || urlPais || urlVendedor;
 
@@ -367,14 +364,13 @@ export default function OrdersPlaced() {
                         {o.creadoPor === 1 ? 'Cliente' : 'Usuario'}
                       </span>
                     </td>
-                    <td className={`${tdClass} text-center`}>
-                      <button
-                        onClick={() => verify(o)}
-                        title={t.see_details}
-                        className="font-semibold text-primary hover:underline"
-                      >
-                        {o.nroCotizacion}
-                      </button>
+                    <td className={tdClass}>
+                      <div className="inline-flex items-center gap-2">
+                        <Link href={quoteUrl(o)} className="font-semibold text-primary hover:underline">
+                          {o.nroCotizacion}
+                        </Link>
+                        <CatBadge cat={o.tipCot} />
+                      </div>
                     </td>
                     <td className={`${tdClass} text-center`}>{o.nroItems}</td>
                     <td className={`${tdClass} text-right font-medium`}>{customFormat(o.totalSus)}</td>

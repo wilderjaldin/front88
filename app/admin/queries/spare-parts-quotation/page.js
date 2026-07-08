@@ -2,7 +2,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "@/app/locales";
 import { useRouter, useSearchParams } from 'next/navigation';
-import axios from 'axios';
 import axiosClient from '@/app/lib/axiosClient';
 import { useSelector } from 'react-redux';
 import { selectToken } from '@/store/authSlice';
@@ -10,9 +9,9 @@ import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 import ItemsUnassigned from './items-unassigned';
 import ItemsAssigned from './items-assigned';
 
-const URL_ORDERS         = 'repuestos/por-cotizar';
-const url_assign_order   = process.env.NEXT_PUBLIC_API_URL + 'repporcotizar/AsignarAUsuario';
-const url_unassign_order = process.env.NEXT_PUBLIC_API_URL + 'repporcotizar/QuitarAsignacionUsuario';
+const URL_ORDERS         = 'repuestosporcotizar/por-cotizar';
+const URL_ASSIGN   = 'repuestosporcotizar/asignar-items';
+const URL_UNASSIGN = 'repuestosporcotizar/quitar-items';
 
 const TAB_KEYS = ['unassigned', 'assigned'];
 
@@ -50,23 +49,19 @@ export default function SparePartsQuotation() {
 
   const assignOrder = async (selected) => {
     try {
-      const data = selected.map(o => ({ CodRegistro: o.codRegistro, ValToken: token }));
-      const rs   = await axios.post(url_assign_order, data);
-      if (rs.data.estado === 'OK') {
-        setOrdersUnassigned((rs.data.dato1 ?? []).map((o, i) => ({ ...o, id: i })));
-        setOrdersAssigned((rs.data.dato2   ?? []).map((o, i) => ({ ...o, id: i })));
-      }
+      const payload = selected.map(o => ({ CodRegistro: o.codRegistro, NomAplicacion: o.nomAplicacion ?? '' }));
+      const rs      = await axiosClient.put(URL_ASSIGN, payload);
+      setOrdersUnassigned((rs.data.noAsignados ?? []).map((o, i) => ({ ...o, id: i })));
+      setOrdersAssigned((rs.data.asignados     ?? []).map((o, i) => ({ ...o, id: i })));
     } catch {}
   };
 
   const unassignOrder = async (selected) => {
     try {
-      const data = selected.map(o => ({ CodRegistro: o.codRegistro, ValToken: token }));
-      const rs   = await axios.post(url_unassign_order, data);
-      if (rs.data.estado === 'OK') {
-        setOrdersUnassigned((rs.data.dato1 ?? []).map((o, i) => ({ ...o, id: i })));
-        setOrdersAssigned((rs.data.dato2   ?? []).map((o, i) => ({ ...o, id: i })));
-      }
+      const payload = selected.map(o => ({ CodRegistro: o.codRegistro }));
+      const rs      = await axiosClient.put(URL_UNASSIGN, payload);
+      setOrdersUnassigned((rs.data.noAsignados ?? []).map((o, i) => ({ ...o, id: i })));
+      setOrdersAssigned((rs.data.asignados     ?? []).map((o, i) => ({ ...o, id: i })));
     } catch {}
   };
 
@@ -118,7 +113,7 @@ export default function SparePartsQuotation() {
           <ItemsUnassigned t={t} token={token} data={orders_unassigned} assignOrder={assignOrder} />
         )}
         {activeTab === 1 && (
-          <ItemsAssigned t={t} token={token} data={orders_assigned} unassignOrder={unassignOrder} setOrdersAssigned={setOrdersAssigned} />
+          <ItemsAssigned t={t} token={token} data={orders_assigned} unassignOrder={unassignOrder} setOrdersAssigned={setOrdersAssigned} setOrdersUnassigned={setOrdersUnassigned} />
         )}
       </div>
     </>

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from '@/app/locales';
 import axiosClient from '@/app/lib/axiosClient';
-import Swal from 'sweetalert2';
+import { swalSuccess, swalError } from '@/app/lib/swal';
 import IconPlus from '@/components/icon/icon-plus';
 
 const URL_SAVE = (codPrv) => `/proveedores/${codPrv}/contactos/guardar`;
@@ -172,12 +172,8 @@ export default function ContactForm({ contacto = null, proveedor, onCancel, onSa
 
     try {
       const res = await axiosClient.post(URL_SAVE(proveedor.codPrv), payload);
-      Swal.fire({
-        title: t.success, icon: 'success',
-        confirmButtonColor: '#15803d',
-        text: isEdit ? t.contact_update_save : t.contact_success_save,
-        confirmButtonText: t.close,
-      }).then(() => { onSaved?.(res.data ?? []); onCancel(); });
+      swalSuccess(isEdit ? t.contact_update_save : t.contact_success_save);
+      onSaved?.(res.data ?? []);
     } catch (err) {
       const apiErrors = err?.response?.data?.errors;
       if (err?.response?.status === 400 && apiErrors) {
@@ -193,7 +189,7 @@ export default function ContactForm({ contacto = null, proveedor, onCancel, onSa
         });
         return;
       }
-      Swal.fire({ title: t.error, text: t.contact_error_server, icon: 'error', confirmButtonColor: '#dc2626', confirmButtonText: t.close });
+      swalError(t.error, t.contact_error_server);
     }
   };
 

@@ -136,7 +136,7 @@ export default function OpenOrders({
                     <td className={`${tdClass} text-gray-400`}>{o.fecOrden ?? '—'}</td>
                     <td className={`${tdClass} text-center`}>
                       <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${daysBadgeClass(o.canDias ?? 0)}`}>
-                        {o.canDias ?? 0}d
+                        {o.canDias ?? 0}
                       </span>
                     </td>
                     <td className={tdClass}>

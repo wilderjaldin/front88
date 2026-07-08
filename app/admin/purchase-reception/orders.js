@@ -13,7 +13,7 @@ import IconArrowDown from '@/components/icon/icon-arrow-down';
 const url_filter = process.env.NEXT_PUBLIC_API_URL + 'repporcotizar/MostrarDatosPFiltro';
 const url_save_changes = process.env.NEXT_PUBLIC_API_URL + 'recepcion/GuardarCambiosOrdenCompra';
 const url_cancel_order = process.env.NEXT_PUBLIC_API_URL + 'recepcion/AnulaOrdenCompra';
-const url_save_status = process.env.NEXT_PUBLIC_API_URL + 'repporcotizar/CodigoInvalidoDescontinuado';
+const URL_EXCLUIR = 'repuestosporcotizar/excluir-item';
 
 const Orders = ({ token, t, data, setOrders, attachOrder }) => {
 

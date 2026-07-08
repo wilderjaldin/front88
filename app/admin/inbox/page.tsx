@@ -1,24 +1,39 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "@/app/locales";
 import Select from "react-select";
+import { Pagination } from "@mantine/core";
 import axios from "axios";
-import Swal from "sweetalert2";
+import axiosClient from "@/app/lib/axiosClient";
+import { swalSuccess, swalError, swalConfirm } from "@/app/lib/swal";
 import { useSelector } from "react-redux";
-import { selectToken } from "@/store/authSlice";
-import IconCaretDown from "@/components/icon/icon-caret-down";
-import IconCheck from "@/components/icon/icon-check";
+import { selectUser, selectToken } from "@/store/authSlice";
+import { customFormat } from "@/app/lib/format";
+import Modal from "@/components/modal";
 import IconSearch from "@/components/icon/icon-search";
 import IconMailDot from "@/components/icon/icon-mail-dot";
+import IconSend from "@/components/icon/icon-send";
+import IconArchive from "@/components/icon/icon-archive";
+import IconPlus from "@/components/icon/icon-plus";
+import IconXCircle from "@/components/icon/icon-x-circle";
 import IconX from "@/components/icon/icon-x";
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 
-const url_list_mails  = process.env.NEXT_PUBLIC_API_URL + "inbox/MostrarMsgPendientes";
-const url_detail_mail = process.env.NEXT_PUBLIC_API_URL + "inbox/MostrarDetMsg";
-const url_save        = process.env.NEXT_PUBLIC_API_URL + "inbox/GuardarMsg";
-const url_close       = process.env.NEXT_PUBLIC_API_URL + "inbox/CerrarMsg";
-const url_list_users  = process.env.NEXT_PUBLIC_API_URL + "inbox/MostrarListaUsuarios";
+const URL_LISTAR        = "inbox/listar";
+const URL_DETALLE       = "inbox/detalle";
+const URL_USUARIOS      = "usuarios/mensaje";
+const URL_MARCAR_VISTO  = "seguimiento/marcar-visto";
+const URL_ARCHIVAR      = "inbox/archivar";
+const URL_RESPONDER     = "inbox/responder";
+const url_iniciar_msg   = process.env.NEXT_PUBLIC_API_URL + "inbox/IniciarMsg";
+
+const STATUS_TABS = [
+  { value: "unread",   label: "No leídos" },
+  { value: "read",     label: "Leídos" },
+  { value: "archived", label: "Archivados" },
+];
 
 function getInitials(name: string = ""): string {
   return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
@@ -35,112 +50,255 @@ function avatarColor(name: string = ""): string {
 }
 
 export default function Inbox() {
-  const token = useSelector(selectToken);
-  const t     = useTranslation();
+  const currentUser = useSelector(selectUser);
+  const token       = useSelector(selectToken);
+  const t           = useTranslation();
   useDynamicTitle(t.inbox);
 
-  const [pager] = useState<any>({
-    currentPage: 1, totalPages: 0, pageSize: 10,
-    startIndex: 0, endIndex: 0,
-  });
+  const router       = useRouter();
+  const pathname     = usePathname();
+  const searchParams = useSearchParams();
 
-  const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm();
-  const { register: regSearch, handleSubmit: submitSearch, setValue: setValSearch } = useForm();
+  // URL como fuente de verdad — permite compartir/recargar en una página o mensaje específico
+  const urlPage        = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+  const urlQuote       = parseInt(searchParams.get("quote") || "0", 10);
+  const urlUser        = parseInt(searchParams.get("user") || "0", 10);
+  const urlMessageParam = searchParams.get("message");
+  const urlMessage      = urlMessageParam ? parseInt(urlMessageParam, 10) : null;
+  const urlStatus       = searchParams.get("status") || "all"; // all | unread | read | archived
 
-  const [mailList,         setMailList]         = useState<any[]>([]);
-  const [filteredMailList, setFilteredMailList] = useState<any[]>([]);
-  const [pagedMails,       setPagedMails]       = useState<any[]>([]);
-  const [selectedMail,     setSelectedMail]     = useState<any>(null);
-  const [details,          setDetails]          = useState<any[]>([]);
-  const [users,            setUsers]            = useState<any[]>([]);
-  const [loadingDetail,    setLoadingDetail]    = useState(false);
+  const pushParams = (updates: Record<string, any>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([k, v]) => {
+      if (v === null || v === undefined || v === "" || v === 0) params.delete(k);
+      else params.set(k, String(v));
+    });
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  const { register: regSearch, handleSubmit: submitSearch, setValue: setValSearch, reset: resetSearch, watch: watchSearch } = useForm();
+  const { register: regNew, handleSubmit: submitNew, setValue: setValNew, reset: resetNew, formState: { errors: errorsNew, isSubmitting: isSubmittingNew } } = useForm();
+
+  const [mailList,      setMailList]      = useState<any[]>([]);
+  const [total,         setTotal]         = useState(0);
+  const [totalUnread,   setTotalUnread]   = useState(0);
+  const [totalPages,    setTotalPages]    = useState(1);
+  const [selectedMail,  setSelectedMail]  = useState<any>(null);
+  const [details,       setDetails]       = useState<any[]>([]);
+  const [users,         setUsers]         = useState<any[]>([]);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+
+  // Refleja la selección en curso del formulario (no la URL), para que el Select
+  // se actualice al instante al elegir una opción, antes de apretar "Buscar"
+  const watchedUser = watchSearch("user");
+  const selectedUserOption = watchedUser ? (users.find((u: any) => u.value === watchedUser) ?? null) : null;
+
+  // Sincroniza los campos del formulario con la URL (carga inicial, F5, back/forward)
+  useEffect(() => {
+    resetSearch({ nro_quote: urlQuote || "" });
+    setValSearch("user", urlUser || 0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlQuote, urlUser]);
+
+  const [respuesta, setRespuesta] = useState("");
+  const [closing,   setClosing]   = useState(false);
+  const [sending,   setSending]   = useState(false);
+
+  const [showNewMsgModal, setShowNewMsgModal] = useState(false);
+
+  const hasActiveFilters = urlQuote !== 0 || urlUser !== 0;
+
+  const [stickyTop, setStickyTop] = useState(0);
+
+  const threadRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = threadRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [details]);
+
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [glider, setGlider] = useState({ left: 0, width: 0 });
 
   useEffect(() => {
-    getList();
+    const measureGlider = () => {
+      const index = STATUS_TABS.findIndex(tab => tab.value === urlStatus);
+      const el = index >= 0 ? tabRefs.current[index] : null;
+      setGlider(el ? { left: el.offsetLeft, width: el.offsetWidth } : { left: 0, width: 0 });
+    };
+    // Al montar (ej. F5 directo a una URL con ?status=), el layout puede no estar
+    // asentado todavía (fuente web cargando, hidratación) — remedir tras el próximo
+    // frame y cuando la fuente termine de cargar evita que el glider quede mal calculado.
+    measureGlider();
+    const raf = requestAnimationFrame(measureGlider);
+    window.addEventListener("resize", measureGlider);
+    document.fonts?.ready?.then(measureGlider);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", measureGlider);
+    };
+  // totalUnread también dispara re-medición: el badge de "No leídos" solo se
+  // renderiza cuando totalUnread > 0, lo que cambia el ancho de ese tab después
+  // de que responda el fetch (llega más tarde que el raf/fonts.ready de arriba).
+  }, [urlStatus, totalUnread]);
+
+  useEffect(() => {
+    fetchList();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlPage, urlQuote, urlUser, urlStatus]);
+
+  useEffect(() => {
     getListUsers();
   }, []);
 
-  useEffect(() => { paginate(mailList); }, [mailList]);
+  useEffect(() => {
+    if (!urlMessage) { setSelectedMail(null); setDetails([]); return; }
+    loadDetail(urlMessage);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlMessage]);
 
-  const getList = async (CodNroOrden = 0, CodUsuario = 0) => {
+  // El header global es sticky/fixed en top:0 — el panel de detalle debe engancharse justo debajo, a ras de su borde inferior
+  useEffect(() => {
+    const updateStickyTop = () => {
+      const header = document.getElementById("site-header");
+      setStickyTop(header?.getBoundingClientRect().height ?? 0);
+    };
+    updateStickyTop();
+    window.addEventListener("resize", updateStickyTop);
+    return () => window.removeEventListener("resize", updateStickyTop);
+  }, []);
+
+  const fetchList = async () => {
     try {
-      const rs = await axios.post(url_list_mails, { CodNroOrden, CodUsuario, ValToken: token });
-      if (rs.data.estado === "OK") {
-        setMailList(rs.data.dato);
-        setFilteredMailList(rs.data.dato);
-      }
+      const params: Record<string, number | string> = { page: urlPage };
+      if (urlQuote) params.nroCotizacion = urlQuote;
+      if (urlUser)  params.codUsuario    = urlUser;
+      if (urlStatus !== "all") params.status = urlStatus;
+      const rs = await axiosClient.get(URL_LISTAR, { params });
+      setMailList(rs.data?.datos ?? []);
+      setTotal(rs.data?.total ?? 0);
+      setTotalUnread(rs.data?.totalNoLeidos ?? 0);
+      setTotalPages(rs.data?.totalPaginas ?? 1);
     } catch {}
   };
 
   const getListUsers = async () => {
     try {
-      const rs = await axios.post(url_list_users, { ValToken: token });
-      if (rs.data.estado === "OK") {
-        setUsers(
-          rs.data.dato
-            .filter((u: any) => u.CodUsuario !== 0)
-            .map((u: any) => ({ value: u.CodUsuario, label: u.NomUsuario }))
-        );
-      }
+      const rs = await axiosClient.get(URL_USUARIOS);
+      setUsers((rs.data ?? []).map((u: any) => ({ value: u.codUsuario, label: u.nomUsuario })));
     } catch {}
   };
 
-  const paginate = (list: any[], resetPage = true) => {
-    if (resetPage) pager.currentPage = 1;
-    if (!list.length) {
-      setPagedMails([]);
-      pager.startIndex = -1; pager.endIndex = -1;
-      return;
-    }
-    pager.totalPages  = Math.ceil(list.length / pager.pageSize);
-    if (pager.currentPage > pager.totalPages) pager.currentPage = 1;
-    pager.startIndex  = (pager.currentPage - 1) * pager.pageSize;
-    pager.endIndex    = Math.min(pager.startIndex + pager.pageSize - 1, list.length - 1);
-    setPagedMails([...list.slice(pager.startIndex, pager.endIndex + 1)]);
+  const markAsRead = async (codMensaje: number) => {
+    try {
+      await axiosClient.post(URL_MARCAR_VISTO, { codMensaje });
+      let wasUnread = false;
+      setMailList(prev => prev.map(m => {
+        if (m.codMensaje !== codMensaje) return m;
+        wasUnread = m.visto === false;
+        return { ...m, visto: true };
+      }));
+      if (wasUnread) setTotalUnread(prev => Math.max(0, prev - 1));
+    } catch {}
   };
 
-  const selectMail = async (item: any) => {
-    if (!item) { setSelectedMail(null); return; }
+  const loadDetail = async (codMensaje: number) => {
+    setRespuesta("");
     setLoadingDetail(true);
     try {
-      const rs = await axios.post(url_detail_mail, { CodMensaje: item.CodMensaje, ValToken: token });
-      if (rs.data.estado === "OK") {
-        setSelectedMail(rs.data.dato1[0]);
-        setDetails(rs.data.dato2);
-      }
+      const item = mailList.find((m: any) => m.codMensaje === codMensaje);
+      if (item && !item.visto) await markAsRead(codMensaje);
+      const rs = await axiosClient.get(`${URL_DETALLE}/${codMensaje}`);
+      setSelectedMail(rs.data?.encabezado ?? null);
+      setDetails(rs.data?.detalle ?? []);
     } catch {} finally { setLoadingDetail(false); }
   };
 
   const onSearch = async (data: any) => {
-    await getList(data.nro_quote || 0, data.user || 0);
+    pushParams({ quote: data.nro_quote || 0, user: data.user || 0, page: 1 });
   };
 
-  const onSubmit = async (data: any) => {
+  const clearFilters = () => {
+    pushParams({ quote: 0, user: 0, page: 1 });
+  };
+
+  const openNewMsgModal = () => { resetNew({ user: null, nro_order: "", message: "" }); setShowNewMsgModal(true); };
+
+  const onNewMessage = async (data: any) => {
     try {
-      const rs = await axios.post(url_save, {
-        CodMensaje: selectedMail.CodMensaje,
-        DesMensaje: data.message,
-        ValToken:   token,
+      const rs = await axios.post(url_iniciar_msg, {
+        CodUsuarioDestino: data.user,
+        NroOrden:          data.nro_order || 0,
+        Mensaje:           data.message,
+        ValToken:          token,
       });
       if (rs.data.estado === "OK") {
-        setDetails(rs.data.dato);
-        setValue("message", "");
+        setShowNewMsgModal(false);
+        swalSuccess("Mensaje enviado");
+        await fetchList();
+      } else {
+        swalError(t.error ?? "Error", "No se pudo enviar el mensaje.");
       }
-    } catch {}
+    } catch (error: any) {
+      const apiMsg = error?.response?.data?.mensaje;
+      swalError(t.error ?? "Error", apiMsg ?? "No se pudo enviar el mensaje.");
+    }
   };
 
-  const handleCloseMessage = async (mail: any) => {
+  const handleCerrar = async () => {
+    setClosing(true);
     try {
-      const rs = await axios.post(url_close, { CodMensaje: mail.CodMensaje, ValToken: token });
-      if (rs.data.estado === "OK") {
-        const Toast = Swal.mixin({ toast: true, position: "top-end", showConfirmButton: false, timer: 1500, timerProgressBar: true });
-        Toast.fire({ icon: "success", title: t.message_read });
-        setMailList(rs.data.dato);
-      }
-    } catch {}
+      const rs = await axiosClient.post(URL_ARCHIVAR, {
+        codMensaje:    selectedMail.codMensaje,
+        page:          urlPage,
+        status:        urlStatus === "all" ? "" : urlStatus,
+        nroCotizacion: urlQuote,
+        codUsuario:    urlUser,
+      });
+      setMailList(rs.data?.datos ?? []);
+      setTotal(rs.data?.total ?? 0);
+      setTotalUnread(rs.data?.totalNoLeidos ?? 0);
+      setTotalPages(rs.data?.totalPaginas ?? 1);
+      setRespuesta("");
+      setSelectedMail(null);
+      setDetails([]);
+      pushParams({ message: null });
+      swalSuccess("Mensaje archivado");
+    } catch (error: any) {
+      const apiMsg = error?.response?.data?.mensaje;
+      swalError(t.error ?? "Error", apiMsg ?? "No se pudo archivar el mensaje.");
+    } finally {
+      setClosing(false);
+    }
   };
 
-  const unreadCount = mailList.filter((m: any) => m.Visto === 0).length;
+  const handleCloseConfirm = async () => {
+    const res = await swalConfirm("¿Archivar este mensaje?", "El seguimiento se marcará como cerrado.", {
+      confirmText: "Archivar", cancelText: "Cancelar", confirmColor: "#dc2626",
+    });
+    if (!res.isConfirmed) return;
+    await handleCerrar();
+  };
+
+  const handleReply = async () => {
+    if (!respuesta.trim()) {
+      swalError(t.error ?? "Error", "Escribe un mensaje antes de enviar.");
+      return;
+    }
+    setSending(true);
+    try {
+      const rs = await axiosClient.post(URL_RESPONDER, {
+        codMensaje: selectedMail.codMensaje,
+        desMensaje: respuesta.trim(),
+      });
+      setDetails(rs.data?.detalle ?? []);
+      setRespuesta("");
+    } catch (error: any) {
+      const apiMsg = error?.response?.data?.mensaje;
+      swalError(t.error ?? "Error", apiMsg ?? "No se pudo enviar el mensaje.");
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -153,73 +311,148 @@ export default function Inbox() {
         </li>
       </ul>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-0 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-md overflow-hidden bg-white dark:bg-gray-900" style={{ minHeight: '600px' }}>
+      <div className="flex flex-col lg:flex-row gap-4 items-start">
 
         {/* ── LEFT: CONVERSATION LIST ─────────────────────────────────────── */}
-        <div className="lg:col-span-2 flex flex-col border-r border-gray-200 dark:border-gray-700">
+        <div className="w-full lg:w-2/5 shrink-0 flex flex-col overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700 shadow-md bg-white dark:bg-gray-900">
 
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60">
-            <div className="flex items-center gap-2">
-              <IconMailDot className="h-5 w-5 text-primary" />
-              <span className="font-semibold text-gray-800 dark:text-white text-sm">{t.inbox}</span>
-              {unreadCount > 0 && (
-                <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-primary text-white">
-                  {unreadCount}
-                </span>
-              )}
+          {/* Tabs de estado + Nuevo */}
+          <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60">
+            <div className="relative flex gap-1">
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute top-0 bottom-0 rounded-lg bg-slate-700 shadow-sm transition-all duration-200 ease-out"
+                style={{ left: glider.left, width: glider.width }}
+              />
+              {STATUS_TABS.map((tab, index) => (
+                <button
+                  key={tab.value}
+                  type="button"
+                  ref={(el) => { tabRefs.current[index] = el; }}
+                  onClick={() => pushParams({ status: urlStatus === tab.value ? null : tab.value, page: 1 })}
+                  className={`relative z-10 flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap transition-colors
+                    ${urlStatus === tab.value ? "text-white" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"}`}
+                >
+                  {tab.label}
+                  {tab.value === "unread" && totalUnread > 0 && (
+                    <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 text-[10px] font-bold rounded-full bg-primary text-white">
+                      {totalUnread}
+                    </span>
+                  )}
+                </button>
+              ))}
             </div>
-            <span className="text-xs text-gray-400">
-              {filteredMailList.length} {filteredMailList.length === 1 ? "mensaje" : "mensajes"}
-            </span>
+            <button
+              type="button"
+              onClick={openNewMsgModal}
+              title="Nuevo mensaje"
+              className="shrink-0 flex items-center gap-1.5 h-7 px-2.5 rounded-lg bg-secondary text-white text-xs font-semibold shadow-sm hover:bg-secondary/90 transition-all"
+            >
+              <IconPlus className="h-3.5 w-3.5" />
+              Nuevo
+            </button>
           </div>
 
           {/* Search */}
-          <form onSubmit={submitSearch(onSearch)} className="flex flex-col gap-2 px-3 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30">
+          <form onSubmit={submitSearch(onSearch)} className="flex flex-wrap items-center gap-2 px-3 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30">
             <input
               type="number"
               {...regSearch("nro_quote")}
               placeholder={t.nro_quote}
-              className="form-input text-sm h-8 py-1"
+              className="form-input text-xs py-1 px-2 h-[30px] flex-1 min-w-0"
             />
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <Select
-                  isClearable
-                  placeholder="Usuario..."
-                  options={users}
-                  onChange={(opt: any) => setValSearch("user", opt?.value ?? 0)}
-                  classNamePrefix="react-select"
-                  instanceId="inbox-user-select"
-                />
-              </div>
-              <button type="submit" className="btn btn-primary btn-sm px-3 h-[38px]">
-                <IconSearch className="h-4 w-4" />
+            <div className="flex-1 min-w-0">
+              <Select
+                isClearable
+                placeholder="Usuario..."
+                options={users}
+                value={selectedUserOption}
+                onChange={(opt: any) => setValSearch("user", opt?.value ?? 0)}
+                classNamePrefix="react-select"
+                instanceId="inbox-user-select"
+                menuPosition="fixed"
+                menuShouldScrollIntoView={false}
+                styles={{
+                  control: (b) => ({ ...b, minHeight: "30px", height: "30px", fontSize: "12px" }),
+                  valueContainer: (b) => ({ ...b, padding: "0 8px", height: "30px" }),
+                  input: (b) => ({ ...b, margin: 0, padding: 0 }),
+                  indicatorsContainer: (b) => ({ ...b, height: "30px" }),
+                }}
+              />
+            </div>
+            <button
+              type="submit"
+              className="h-[30px] px-3 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 flex items-center gap-1.5 transition-colors shrink-0"
+            >
+              <IconSearch className="w-3 h-3" />
+              Buscar
+            </button>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="h-[30px] px-3 text-xs font-medium border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-300 rounded hover:bg-gray-50 dark:hover:bg-gray-600 flex items-center gap-1.5 transition-colors shrink-0"
+              >
+                <IconXCircle className="w-3 h-3" />
+                Limpiar
               </button>
+            )}
+
+            <div className="w-full flex items-center justify-end gap-3 mt-1">
+              <span className="text-xs text-gray-400 dark:text-gray-500">
+                {total} {total === 1 ? "mensaje" : "mensajes"}
+              </span>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => pushParams({ page: urlPage - 1 })}
+                    disabled={urlPage <= 1}
+                    className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M15 18l-6-6 6-6" />
+                    </svg>
+                  </button>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums min-w-[48px] text-center">
+                    {urlPage} / {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => pushParams({ page: urlPage + 1 })}
+                    disabled={urlPage >= totalPages}
+                    className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 18l6-6-6-6" />
+                    </svg>
+                  </button>
+                </div>
+              )}
             </div>
           </form>
 
           {/* Message list */}
-          <div className="flex-1 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700/50">
-            {pagedMails.length === 0 ? (
+          <div className="divide-y divide-gray-100 dark:divide-gray-700/50">
+            {mailList.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-40 text-gray-400 gap-2">
                 <IconMailDot className="h-8 w-8 opacity-30" />
                 <span className="text-sm">Sin mensajes</span>
               </div>
             ) : (
-              pagedMails.map((mail: any) => {
-                const isSelected = selectedMail?.CodMensaje === mail.CodMensaje;
-                const isUnread   = mail.Visto === 0;
-                const initials   = getInitials(mail.IniciadoPor);
-                const color      = avatarColor(mail.IniciadoPor);
+              mailList.map((mail: any) => {
+                const isSelected = selectedMail?.codMensaje === mail.codMensaje;
+                const isUnread   = mail.visto === false;
+                const initials   = getInitials(mail.destino);
+                const color      = avatarColor(mail.destino);
                 return (
                   <div
-                    key={mail.CodMensaje}
-                    onClick={() => selectMail(mail)}
+                    key={mail.codMensaje}
+                    onClick={() => pushParams({ message: mail.codMensaje })}
                     className={`group relative flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors
                       ${isSelected
-                        ? "bg-primary/8 dark:bg-primary/15 border-l-2 border-primary"
-                        : "hover:bg-gray-50 dark:hover:bg-gray-800/50 border-l-2 border-transparent"
+                        ? "bg-primary/10 dark:bg-primary/20 border-l-4 border-primary"
+                        : "hover:bg-gray-50 dark:hover:bg-gray-800/50 border-l-4 border-transparent"
                       }`}
                   >
                     {/* Avatar */}
@@ -229,31 +462,27 @@ export default function Inbox() {
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center justify-between gap-2">
                         <span className={`text-sm truncate ${isUnread ? "font-bold text-gray-900 dark:text-white" : "text-gray-700 dark:text-gray-300"}`}>
-                          {mail.IniciadoPor}
+                          {mail.notificacion}
                         </span>
-                        {isUnread && <span className="h-2 w-2 rounded-full bg-primary shrink-0" />}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {mail.fecha && <span className="text-[10px] text-gray-400 whitespace-nowrap">{mail.fecha}</span>}
+                          {isUnread && <span className="h-2 w-2 rounded-full bg-primary" />}
+                        </div>
                       </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
-                        {mail.DesMensaje}
-                      </p>
-                      {mail.Destino && (
-                        <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 truncate max-w-full">
-                          → {mail.Destino}
+                      {mail.destino && (
+                        <span
+                          title={mail.correo || undefined}
+                          className="inline-flex items-center mt-0.5 text-[10px] font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary truncate max-w-full"
+                        >
+                          {mail.destino}
                         </span>
                       )}
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
+                        {mail.desMensaje}
+                      </p>
                     </div>
-
-                    {/* Mark-as-read on hover */}
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); handleCloseMessage(mail); }}
-                      title="Marcar como leído"
-                      className="invisible group-hover:visible shrink-0 p-1 rounded-md hover:bg-success/10 text-success transition"
-                    >
-                      <IconCheck className="h-4 w-4" />
-                    </button>
                   </div>
                 );
               })
@@ -261,43 +490,33 @@ export default function Inbox() {
           </div>
 
           {/* Pagination */}
-          {filteredMailList.length > pager.pageSize && (
-            <div className="flex items-center justify-between px-4 py-2.5 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40">
-              <span className="text-xs text-gray-400">
-                {pager.startIndex + 1}–{pager.endIndex + 1} {t.of} {filteredMailList.length}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-gray-700/60">
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {total} {total === 1 ? "mensaje" : "mensajes"} · página {urlPage} de {totalPages}
               </span>
-              <div className="flex gap-1">
-                <button
-                  type="button"
-                  disabled={pager.currentPage === 1}
-                  onClick={() => { pager.currentPage--; paginate(mailList, false); }}
-                  className="p-1 rounded-md bg-gray-100 dark:bg-gray-700 hover:bg-primary/10 disabled:opacity-40 disabled:cursor-not-allowed transition"
-                >
-                  <IconCaretDown className="h-4 w-4 rotate-90" />
-                </button>
-                <button
-                  type="button"
-                  disabled={pager.currentPage === pager.totalPages}
-                  onClick={() => { pager.currentPage++; paginate(mailList, false); }}
-                  className="p-1 rounded-md bg-gray-100 dark:bg-gray-700 hover:bg-primary/10 disabled:opacity-40 disabled:cursor-not-allowed transition"
-                >
-                  <IconCaretDown className="h-4 w-4 -rotate-90" />
-                </button>
-              </div>
+              <Pagination
+                total={totalPages}
+                value={urlPage}
+                onChange={(p) => pushParams({ page: p })}
+                size="sm"
+                withEdges
+              />
             </div>
           )}
         </div>
 
         {/* ── RIGHT: CONVERSATION DETAIL ──────────────────────────────────── */}
-        <div className="lg:col-span-3 flex flex-col">
+        {/* tarjeta independiente (no comparte borde con la lista) + sticky, enganchada justo debajo del header global (altura real medida por JS) */}
+        <div className="flex-1 min-w-0 w-full flex flex-col rounded-2xl border border-gray-200 dark:border-gray-700 shadow-md bg-white dark:bg-gray-900 overflow-hidden sticky" style={{ top: stickyTop }}>
           {!selectedMail ? (
             /* Empty state */
-            <div className="flex flex-col items-center justify-center h-full min-h-[400px] gap-3 text-gray-300 dark:text-gray-600">
+            <div className="flex flex-col items-center justify-center min-h-[400px] gap-3 text-gray-300 dark:text-gray-600">
               <IconMailDot className="h-14 w-14" />
               <p className="text-sm font-medium">Selecciona un mensaje para leer</p>
             </div>
           ) : loadingDetail ? (
-            <div className="flex items-center justify-center h-full min-h-[400px]">
+            <div className="flex items-center justify-center min-h-[400px]">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             </div>
           ) : (
@@ -307,40 +526,51 @@ export default function Inbox() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">{t.customer}</p>
-                    <p className="text-sm font-semibold text-gray-800 dark:text-white">{selectedMail.NomCliente}</p>
+                    <p className="text-sm font-semibold text-gray-800 dark:text-white">{selectedMail.cliente}</p>
                   </div>
                   <button
                     type="button"
-                    onClick={() => setSelectedMail(null)}
-                    className="p-1 rounded-md text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+                    onClick={() => pushParams({ message: null })}
+                    title="Cerrar detalle"
+                    className="shrink-0 p-1.5 rounded-md text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
                   >
                     <IconX className="h-4 w-4" />
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-x-6 gap-y-1 mt-2">
-                  <MetaItem label={t.quote}  value={selectedMail.NroOrden}  />
-                  <MetaItem label="Total"    value={selectedMail.Total}     />
-                  <MetaItem label={t.date}   value={selectedMail.FechaCot}  />
+                  <MetaItem label={t.quote}  value={selectedMail.nroCotizacion} />
+                  <MetaItem label="Total"    value={selectedMail.total != null ? `US$ ${customFormat(selectedMail.total)}` : null} />
+                  <MetaItem label="Creado"     value={selectedMail.fecRegistra} />
+                  <MetaItem label="Modificado" value={selectedMail.fecModifica} />
                 </div>
               </div>
 
               {/* Thread */}
-              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4" style={{ maxHeight: '380px' }}>
+              <div ref={threadRef} className="max-h-[480px] overflow-y-auto px-5 py-4 space-y-3 bg-gray-100/70 dark:bg-gray-900/50">
                 {details.length === 0 ? (
                   <p className="text-sm text-center text-gray-400 py-6">Sin mensajes en la conversación</p>
                 ) : (
-                  details.map((msg: any, i: number) => {
-                    const initials = getInitials(msg.NomUsuario);
-                    const color    = avatarColor(msg.NomUsuario);
+                  // El backend devuelve detalle en orden DESC (más reciente primero); se invierte para leer el chat cronológicamente
+                  [...details].reverse().map((msg: any, i: number) => {
+                    const isMe     = !!currentUser?.name && String(msg.nomUsuario).toLowerCase() === String(currentUser.name).toLowerCase();
+                    const initials = getInitials(msg.nomUsuario);
+                    const color    = avatarColor(msg.nomUsuario);
                     return (
-                      <div key={i} className="flex items-start gap-3">
-                        <div className={`${color} h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0`}>
+                      <div key={i} className={`flex items-end gap-2 ${isMe ? "flex-row-reverse" : ""}`}>
+                        <div className={`${color} h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0`} title={msg.correo || undefined}>
                           {initials}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">{msg.NomUsuario}</p>
-                          <div className="rounded-2xl rounded-tl-none bg-gray-100 dark:bg-gray-800 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 leading-relaxed">
-                            {msg.DesMensaje}
+                        <div className={`max-w-[75%] flex flex-col ${isMe ? "items-end" : "items-start"}`}>
+                          <div className="flex items-center gap-2 mb-1 px-1">
+                            {!isMe && <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{msg.nomUsuario}</span>}
+                            {msg.fecha && <span className="text-[10px] text-gray-400">{msg.fecha}</span>}
+                          </div>
+                          <div className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                            isMe
+                              ? "bg-primary text-white rounded-br-none"
+                              : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-bl-none border border-gray-200 dark:border-gray-700 shadow-sm"
+                          }`}>
+                            {msg.desMensaje}
                           </div>
                         </div>
                       </div>
@@ -349,47 +579,126 @@ export default function Inbox() {
                 )}
               </div>
 
-              {/* Reply input */}
-              <div className="px-5 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/20">
-                <form onSubmit={handleSubmit(onSubmit)}>
-                  <div className="flex gap-2 items-end">
-                    <div className="flex-1 space-y-1">
-                      <textarea
-                        {...register("message", { required: { value: true, message: t.required_field } })}
-                        rows={2}
-                        placeholder="Escribe un mensaje..."
-                        className="form-input w-full resize-none text-sm"
-                      />
-                      {errors.message && (
-                        <p className="text-xs text-red-500">{errors.message?.message?.toString()}</p>
-                      )}
-                    </div>
+              {/* Responder / cerrar seguimiento */}
+              {selectedMail.abierto === false ? (
+                <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 px-5 py-3 flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+                  <IconArchive className="h-4 w-4 shrink-0" />
+                  Este mensaje está archivado — no se puede responder.
+                </div>
+              ) : (
+                <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-5 py-3 space-y-2">
+                  <textarea
+                    value={respuesta}
+                    onChange={(e) => setRespuesta(e.target.value)}
+                    rows={2}
+                    placeholder="Escribe una respuesta..."
+                    className="form-input w-full resize-none text-sm"
+                  />
+                  <div className="flex items-center justify-between gap-2">
                     <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="btn btn-primary shrink-0 h-[58px] px-4 disabled:opacity-50"
+                      type="button"
+                      disabled={closing}
+                      onClick={handleCloseConfirm}
+                      title="Archivar"
+                      className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-danger transition disabled:opacity-50"
                     >
-                      {isSubmitting ? (
+                      {closing ? (
+                        <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
+                      ) : (
+                        <IconArchive className="h-3.5 w-3.5" />
+                      )}
+                      Archivar
+                    </button>
+                    <button
+                      type="button"
+                      disabled={sending}
+                      onClick={handleReply}
+                      className="btn btn-primary inline-flex items-center gap-2 h-9 px-4 disabled:opacity-50"
+                    >
+                      {sending ? (
                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                      ) : t.accept}
+                      ) : (
+                        <IconSend className="h-4 w-4" />
+                      )}
+                      Responder
                     </button>
                   </div>
-                </form>
-              </div>
+                </div>
+              )}
             </>
           )}
         </div>
 
       </div>
+
+      {/* Modal nuevo mensaje */}
+      <Modal showModal={showNewMsgModal} closeModal={() => setShowNewMsgModal(false)} openModal={openNewMsgModal} title="Nuevo mensaje" size="w-full max-w-md">
+        <form onSubmit={submitNew(onNewMessage)} className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">{t.to_user}</label>
+            <Select
+              isClearable
+              placeholder={t.select_option}
+              options={users}
+              onChange={(opt: any) => setValNew("user", opt?.value ?? null)}
+              classNamePrefix="react-select"
+              instanceId="new-message-user-select"
+            />
+            {errorsNew.user && <span className="text-red-400 text-xs mt-1 block">{errorsNew.user?.message?.toString()}</span>}
+            <input type="hidden" {...regNew("user", { required: { value: true, message: t.required_select } })} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">{t.nro_quote}</label>
+            <input
+              type="number"
+              autoComplete="off"
+              {...regNew("nro_order")}
+              placeholder={t.nro_order}
+              className="form-input w-full text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">{t.message ?? "Mensaje"}</label>
+            <textarea
+              {...regNew("message", { required: { value: true, message: t.required_field } })}
+              rows={4}
+              className="form-input w-full resize-none text-sm"
+            />
+            {errorsNew.message && <span className="text-red-400 text-xs mt-1 block">{errorsNew.message?.message?.toString()}</span>}
+          </div>
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setShowNewMsgModal(false)}
+              className="inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-gray-300 text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 hover:border-gray-400 transition-all duration-150"
+            >
+              {t.btn_cancel}
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmittingNew}
+              className="btn btn-primary inline-flex items-center gap-2 h-9 disabled:opacity-50"
+            >
+              {isSubmittingNew ? (
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              ) : (
+                <IconSend className="h-4 w-4" />
+              )}
+              {t.accept}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
 
 function MetaItem({ label, value }: { label: string; value: any }) {
+  const isEmpty = value === null || value === undefined || value === "";
   return (
     <div className="space-y-0.5">
-      <p className="text-[10px] text-gray-400 uppercase tracking-wide">{label}</p>
-      <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{value ?? "—"}</p>
+      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{label}</p>
+      <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{isEmpty ? "—" : value}</p>
     </div>
   );
 }

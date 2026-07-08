@@ -1,370 +1,339 @@
 'use client';
-import React, { useEffect, useState } from 'react';
-import { useForm } from "react-hook-form"
-import axios from 'axios'
-import Swal from 'sweetalert2'
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import axiosClient from '@/app/lib/axiosClient';
+import { useForm, Controller } from 'react-hook-form';
 import Select from 'react-select';
-import { DataTable, DataTableSortStatus } from 'mantine-datatable';
-import { Checkbox } from '@mantine/core';
-import sortBy from 'lodash/sortBy';
+import { Pagination } from '@mantine/core';
+import { swalError, swalSuccess } from '@/app/lib/swal';
 
-const url_list = process.env.NEXT_PUBLIC_API_URL + 'repporcotizar/VerAsignaciones';
-const url_remove = process.env.NEXT_PUBLIC_API_URL + 'repporcotizar/QuitarAsignaciones';
-const url_change = process.env.NEXT_PUBLIC_API_URL + 'repporcotizar/ModificarAsignaciones';
+const URL_CONTROLES = 'repuestosporcotizar/asignaciones-controles';
+const URL_LIST      = 'repuestosporcotizar/ver-asignaciones';
+const URL_REMOVE    = 'repuestosporcotizar/quitar-asignacion';
+const URL_CHANGE    = 'repuestosporcotizar/modificar-asignacion';
 
-const ShowAssignmentsForm = ({ token, t, action_cancel, setOrdersAssigned }) => {
+const PAGE_SIZE = 10;
 
-  const [users, setUsers] = useState([]);
-  const [records, setRecords] = useState([])
-  const [current_position, setCurrentPosition] = useState(0)
-  const [data_values, setData] = useState([]);
-  const [selected_items, setSelectedOrders] = useState([]);
-  const [page, setPage] = useState(1);
-  const PAGE_SIZES = [10, 20, 30, 50, 100];
-  const [pageSize, setPageSize] = useState(PAGE_SIZES[0]);
-  const [initialRecords, setInitialRecords] = useState(sortBy(records, 'NroOrden'));
-  const [recordsData, setRecordsData] = useState(initialRecords);
+const thClass = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap select-none";
+const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-3 py-2";
 
-  const [search, setSearch] = useState('');
+const SortIcon = ({ active, desc }) => {
+  if (!active)
+    return (
+      <svg width="7" height="11" viewBox="0 0 7 11" fill="currentColor" className="shrink-0 text-gray-300">
+        <path d="M3.5 0L7 4.5H0L3.5 0Z"/><path d="M3.5 11L0 6.5H7L3.5 11Z"/>
+      </svg>
+    );
+  return (
+    <svg width="7" height="7" viewBox="0 0 7 7" fill="currentColor" className="shrink-0 text-primary">
+      {!desc ? <path d="M3.5 0L7 7H0L3.5 0Z"/> : <path d="M3.5 7L0 0H7L3.5 7Z"/>}
+    </svg>
+  );
+};
 
-  const [sortStatus, setSortStatus] = useState({
-    columnAccessor: 'NroOrden',
-    direction: 'desc',
+const SortableHeader = ({ col, label, sortCol, sortDesc, onSort, className = '' }) => (
+  <th onClick={() => onSort(col)}
+    className={`${thClass} cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${className}`}>
+    <span className="inline-flex items-center gap-1.5">
+      {label}<SortIcon active={sortCol === col} desc={sortDesc} />
+    </span>
+  </th>
+);
+
+const filterOpts = {
+  filterOption:     (opt, input) => input.length < 2 ? false : opt.label.toLowerCase().includes(input.toLowerCase()),
+  noOptionsMessage: ({ inputValue }) => inputValue.length < 2 ? 'Ingrese al menos 2 caracteres' : 'Sin resultados',
+};
+
+const ShowAssignmentsForm = ({ t, action_cancel }) => {
+  const [records,       setRecords]       = useState([]);
+  const [usuarios,      setUsuarios]      = useState([]);
+  const [marcas,        setMarcas]        = useState([]);
+  const [total,         setTotal]         = useState(0);
+  const [totalPages,    setTotalPages]    = useState(1);
+  const [page,          setPage]          = useState(1);
+  const [sortCol,       setSortCol]       = useState('nroCotizacion');
+  const [sortDesc,      setSortDesc]      = useState(false);
+  const [loading,       setLoading]       = useState(false);
+  const [submitting,    setSubmitting]    = useState(false);
+  const [selectedItems, setSelectedItems] = useState([]);
+
+  const [activeFilters, setActiveFilters] = useState({ usuario: null, marca: null });
+
+  const lastKeyRef = useRef('');
+
+  const { control, handleSubmit, reset, watch } = useForm({
+    defaultValues: { usuario: null, marca: null },
   });
 
-  const {
-    register,
-    handleSubmit,
-    getValues,
-    setValue,
-    formState: { errors },
-  } = useForm();
+  const watchedUsuario = watch('usuario');
 
+  // controles: una sola llamada al montar
   useEffect(() => {
-    async function fetchData() {
-      await getLists();
-    }
-    fetchData();
-
+    axiosClient.get(URL_CONTROLES)
+      .then(rs => {
+        setUsuarios((rs.data.usuarios ?? []).filter(u => u.value !== '0'));
+        setMarcas((rs.data.marcas   ?? []).filter(m => m.value !== '0'));
+      })
+      .catch(() => {});
   }, []);
 
-  const getLists = async () => {
-    let array = [];
+  const fetchData = useCallback(async (filters, pg, col, desc) => {
+    const key = `${pg}|${col}|${desc}|${filters.usuario?.value ?? '0'}|${filters.marca?.value ?? '0'}`;
+    if (lastKeyRef.current === key) return;
+    lastKeyRef.current = key;
+    setLoading(true);
+    setSelectedItems([]);
     try {
-      const rs = await axios.post(url_list, { ValToken: token });
-
-      if (rs.data.estado == 'OK') {
-        setRecords(() => rs.data.dato1.map((o, index) => {
-          o.id = index;
-          return o;
-        }));
-        let options = [];
-        rs.data.dato2.map((o, index) => {
-          if (o.CodUsuario != 0) {
-            options.push({ value: o.CodUsuario, label: o.NomUsuario });
-          }
-        });
-        setUsers(options);
-      }
-      return array;
-
-    } catch (error) {
-
-      return [];
-    }
-  }
-
-  useEffect(() => {
-    const sorted = sortBy(records, 'NroOrden');
-    setInitialRecords(sorted);
-    setSortStatus({ columnAccessor: 'NroOrden', direction: 'desc' });
-  }, [records]);
-
-  useEffect(() => {
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize;
-
-    setRecordsData([...initialRecords.slice(from, to)]);
-  }, [page, pageSize, initialRecords]);
-
-  useEffect(() => {
-    const data = sortBy(initialRecords, sortStatus.columnAccessor);
-    setInitialRecords(sortStatus.direction === 'desc' ? data.reverse() : data);
-    setPage(1);
-  }, [sortStatus]);
-
-  useEffect(() => {
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize;
-    setRecordsData(records.slice(from, to));
-  }, [page, pageSize]);
-
-  useEffect(() => {
-    setInitialRecords(() => {
-      return records.filter((item) => {
-        return (
-          item.NroOrden.toString().includes(search.toLowerCase()) ||
-          item.NroParte.toLowerCase().includes(search.toLowerCase()) ||
-          item.Marca.toLowerCase().includes(search.toLowerCase()) ||
-          item.NomCliente.toLowerCase().includes(search.toLowerCase())
-        );
+      const rs = await axiosClient.get(URL_LIST, {
+        params: {
+          page:       pg,
+          codUsuario: filters.usuario?.value ?? 0,
+          codMarca:   filters.marca?.value   ?? 0,
+          sortBy:     col,
+          sortDesc:   desc,
+        },
       });
-    });
-  }, [search]);
+      setRecords((rs.data.data ?? []).map((o, i) => ({ ...o, id: i })));
+      setTotal(rs.data.totalRegistros ?? 0);
+      setTotalPages(rs.data.totalPaginas ?? 1);
+    } catch {
+      swalError('Error', 'No se pudo cargar las asignaciones.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const toggleRow = (row) => {
-    setSelectedOrders((prev) =>
-      prev.includes(row) ? prev.filter((x) => x !== row) : [...prev, row]
-    );
+  // carga inicial de datos
+  useEffect(() => {
+    fetchData({ usuario: null, marca: null }, 1, 'nroCotizacion', false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const onBuscar = (data) => {
+    const filters = { usuario: data.usuario, marca: data.marca };
+    setActiveFilters(filters);
+    setPage(1);
+    setSortCol('nroCotizacion');
+    setSortDesc(false);
+    lastKeyRef.current = '';
+    fetchData(filters, 1, 'nroCotizacion', false);
   };
 
-  const handleChangeOption = (select) => {
-    setValue('user', (select?.value) ?? null);
-  }
+  const onLimpiar = () => {
+    reset({ usuario: null, marca: null });
+    const filters = { usuario: null, marca: null };
+    setActiveFilters(filters);
+    setPage(1);
+    setSortCol('nroCotizacion');
+    setSortDesc(false);
+    lastKeyRef.current = '';
+    fetchData(filters, 1, 'nroCotizacion', false);
+  };
 
-  const next = async (data) => {
-    let position = current_position;
+  const handleSort = (col) => {
+    const newDesc = sortCol === col ? !sortDesc : false;
+    setSortCol(col);
+    setSortDesc(newDesc);
+    setPage(1);
+    lastKeyRef.current = '';
+    fetchData(activeFilters, 1, col, newDesc);
+  };
 
+  const handlePageChange = (newPage) => {
+    setPage(newPage);
+    lastKeyRef.current = '';
+    fetchData(activeFilters, newPage, sortCol, sortDesc);
+  };
 
-    if (position <= selected_items.length) {
-      let d = [];
-      d.push(
-        ...data_values, {
-        CodUsuDestino: data.user,
-        Mensaje: data.message,
-        CodRegistro: selected_items[position].CodRegistro,
-        NroOrden: data.nro_quote,
-        NroParte: selected_items[position].NroParte,
-        UltimoItem: ((current_position + 1) == selected_items.length) ? 1 : 0,
-        ValToken: token
-      });
+  const toggleRow = (row) =>
+    setSelectedItems(prev => prev.includes(row) ? prev.filter(x => x !== row) : [...prev, row]);
 
-      setData(d);
-      position++;
-      if (position == selected_items.length) {
-
-        try {
-          const rs = await axios.post(url_delete, d);
-
-          if (rs.data.estado == 'OK') {
-            Swal.fire({
-              position: "top-end",
-              icon: "success",
-              title: t.delete_orders_success,
-              showConfirmButton: false,
-              timer: 1500
-            }).then(r => {
-              let orders_assigned = rs.data.dato.map((o, index) => {
-                o.id = index;
-                return o;
-              });
-              setOrdersAssigned(orders_assigned);
-            });
-
-          }
-          action_cancel();
-        } catch (error) {
-
-        }
-
-      } else {
-        setValue('nro_quote', selected_items[position].NroOrden);
-        setValue('message', 'Listo');
-        setCurrentPosition(position);
-      }
-
-    } else {
-
-    }
-
-  }
+  const toggleAll = () =>
+    setSelectedItems(selectedItems.length === records.length ? [] : [...records]);
 
   const removeAssignment = async () => {
+    if (selectedItems.length === 0 || submitting) return;
+    setSubmitting(true);
     try {
-      let data = [];
-      selected_items.map(item => {
-        data.push({
-          CodRegistro: item.CodRegistro,
-          ValToken: token
-        })
-      });
-
-      const rs = await axios.post(url_remove, data);
-      if (rs.data.estado == 'OK') {
-        Swal.fire({
-          position: "top-end",
-          icon: "success",
-          title: t.remove_assignment_success,
-          showConfirmButton: false,
-          timer: 2000
-        }).then(r => {
-          setRecords(() => rs.data.dato.map((o, index) => {
-            o.id = index;
-            return o;
-          }));
-        });
-
-      } else {
-        Swal.fire({
-          position: "top-end",
-          icon: "error",
-          title: t.remove_assignment_error,
-          showConfirmButton: false,
-          timer: 2500
-        });
-      }
-    } catch (error) {
-
+      const payload = selectedItems.map(item => item.codRegistro);
+      await axiosClient.post(URL_REMOVE, payload);
+      swalSuccess(t.remove_assignment_success ?? 'Asignación eliminada');
+      lastKeyRef.current = '';
+      fetchData(activeFilters, page, sortCol, sortDesc);
+    } catch (err) {
+      swalError('Error', err?.response?.data?.mensaje ?? (t.remove_assignment_error ?? 'No se pudo quitar la asignación.'));
+    } finally {
+      setSubmitting(false);
     }
-  }
+  };
 
   const changeUser = async () => {
+    if (selectedItems.length === 0 || !watchedUsuario || submitting) return;
+    setSubmitting(true);
     try {
-      let data = [];
-      let CodUsuario = getValues('user');
-      if(selected_items.length == 0 ) { return; }
-      selected_items.map(item => {
-        data.push(
-          {
-            CodRegistro: item.CodRegistro,
-            CodUsuario: CodUsuario,
-            ValToken: token
-          }
-        )
+      await axiosClient.post(URL_CHANGE, {
+        codUsuario:   Number(watchedUsuario.value),
+        codRegistros: selectedItems.map(item => item.codRegistro),
       });
-      
-      const rs = await axios.post(url_change, data);
-      if (rs.data.estado == 'OK') {
-        Swal.fire({
-          position: "top-end",
-          icon: "success",
-          title: t.change_user_success,
-          showConfirmButton: false,
-          timer: 2000
-        }).then(r => {
-          setRecords(() => rs.data.dato.map((o, index) => {
-            o.id = index;
-            return o;
-          }));
-        });
-
-      } else {
-        Swal.fire({
-          position: "top-end",
-          icon: "error",
-          title: t.change_user_error,
-          showConfirmButton: false,
-          timer: 2500
-        });
-      }
-
-    } catch (error) {
-
+      swalSuccess(t.change_user_success ?? 'Usuario actualizado');
+      lastKeyRef.current = '';
+      fetchData(activeFilters, page, sortCol, sortDesc);
+    } catch (err) {
+      swalError('Error', err?.response?.data?.mensaje ?? (t.change_user_error ?? 'No se pudo cambiar el usuario.'));
+    } finally {
+      setSubmitting(false);
     }
-  }
+  };
+
+  const noSel        = selectedItems.length === 0 || submitting;
+  const noChangeUser = noSel || !watchedUsuario;
 
   return (
-    <div className="">
-      <form action="" >
-        <fieldset>
-          <div className="flex sm:flex-row flex-col gap-4">
-            <div className='sm:w-3/4 space-y-2'>
-              <div className="flex sm:flex-row flex-col">
-                <label className="mb-0 sm:w-2/5 sm:ltr:mr-2 rtl:ml-2 text-end" htmlFor="to_user">{ t.user }</label>
-                <div className="relative flex-1">
-                  <Select
-                    options={users}
-                    isClearable
-                    {...register('user', { required: { value: true, message: t.required_select } })}
-                    isSearchable
-                    id="user-select"
-                    instanceId="user-select"
-                    menuPosition={'fixed'}
-                    onChange={handleChangeOption}
-                    menuShouldScrollIntoView={false}
-                    placeholder={t.select_option}
-                  ></Select>
-                  {errors.user && <span className='text-red-400 error block text-xs mt-1' role="alert">{errors.user?.message?.toString()}</span>}
-                </div>
-              </div>
+    <div className="space-y-4">
 
+      {/* Filtros */}
+      <form onSubmit={handleSubmit(onBuscar)}>
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 px-4 py-3">
+          <div className="flex flex-wrap items-end gap-3">
 
-
+            <div className="flex-1 min-w-[180px]">
+              <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-1">
+                {t.user ?? 'Usuario'}
+              </label>
+              <Controller name="usuario" control={control}
+                render={({ field }) => (
+                  <Select {...field} isClearable options={usuarios}
+                    placeholder="Seleccionar..." />
+                )} />
             </div>
 
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
-            <button disabled={(selected_items.length > 0) ? false : true} onClick={() => removeAssignment()} type="button" className="btn btn-danger">
-              { t.remove_assignment }
-            </button>
-            <button disabled={(selected_items.length > 0) ? false : true} type="button" onClick={handleSubmit(changeUser)} className="btn btn-success">
-              { t.change_user }
-            </button>
+            <div className="flex-1 min-w-[180px]">
+              <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-1">
+                {t.application ?? 'Aplicación'}
+              </label>
+              <Controller name="marca" control={control}
+                render={({ field }) => (
+                  <Select {...field} isClearable options={marcas}
+                    placeholder="Seleccionar..." {...filterOpts} />
+                )} />
+            </div>
 
-
-          </div>
-        </fieldset>
-
-
-      </form>
-      <div className="datatables mt-4">
-        <div className="mb-5 block flex-col gap-5 md:flex-row md:items-center">
-          <div className="ltr:ml-auto rtl:mr-auto">
-            <input type="text" className="form-input w-full border border-dark border-1" placeholder={t.filter} value={search} onChange={(e) => setSearch(e.target.value)} />
+            <div className="flex items-center gap-2 pb-0.5">
+              <button type="submit"
+                className="h-9 px-4 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 transition whitespace-nowrap">
+                Buscar
+              </button>
+              <button type="button" onClick={onLimpiar}
+                className="h-9 px-4 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-transparent text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition whitespace-nowrap">
+                Limpiar
+              </button>
+            </div>
           </div>
         </div>
-        <DataTable
-          noRecordsText={t.empty_results}
-          highlightOnHover
-          className="table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 whitespace-nowrap"
-          records={recordsData}
-          columns={[
-            {
-              accessor: 'select',
-              title: "",
-              render: (record) => (
-                <Checkbox
-                  className='cursor-pointer'
-                  checked={selected_items.includes(record)}
-                  onChange={() => toggleRow(record)}
-                />
-              ),
-              textAlign: 'center',
-              width: 50,
-            },
+      </form>
 
-            { accessor: 'NroOrden', title: t.nro_order, sortable: true },
-            {
-              accessor: 'NroParte', title: t.nro_part, sortable: true
-            },
-            { accessor: 'Marca', title: t.application, sortable: true },
-            {
-              accessor: 'Cantidad', title: t.amount , sortable: true
-            },
-            { accessor: 'NomCliente', title: t.customer, sortable: true },
-            { accessor: 'NomUsuario', title: t.user, sortable: true },
-            { accessor: 'Dias', title: t.days, sortable: true }
-          ]}
-          totalRecords={initialRecords.length}
-          recordsPerPage={pageSize}
-          page={page}
-          onPageChange={(p) => setPage(p)}
-          recordsPerPageOptions={PAGE_SIZES}
-          onRecordsPerPageChange={setPageSize}
-          sortStatus={sortStatus}
-          onSortStatusChange={setSortStatus}
-          minHeight={200}
-          paginationText={({ from = 0, to = 1, totalRecords = 110 }) => `${t.showing}  ${from} ${t.to} ${to} ${t.of} ${totalRecords} ${t.entries}`}
-
-        />
+      {/* Acciones sobre selección */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" onClick={removeAssignment} disabled={noSel}
+          className={`h-9 px-3 rounded-lg text-sm font-medium transition ${noSel ? 'border border-gray-200 text-gray-300 cursor-not-allowed dark:border-gray-700 dark:text-gray-600' : 'bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400'}`}>
+          {t.remove_assignment ?? 'Quitar Asignación'}
+        </button>
+        <button type="button" onClick={changeUser} disabled={noChangeUser}
+          className={`h-9 px-3 rounded-lg text-sm font-medium transition ${noChangeUser ? 'border border-gray-200 text-gray-300 cursor-not-allowed dark:border-gray-700 dark:text-gray-600' : 'bg-primary text-white hover:bg-primary/90'}`}>
+          {t.change_user ?? 'Cambiar Usuario'}
+        </button>
+        {selectedItems.length > 0 && (
+          <span className="text-xs font-medium text-primary ml-1">
+            {selectedItems.length} seleccionado{selectedItems.length !== 1 ? 's' : ''}
+          </span>
+        )}
+        <span className="ml-auto text-xs text-gray-400">
+          {total} {total === 1 ? 'registro' : 'registros'}
+        </span>
       </div>
 
-      <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
-        <button onClick={() => action_cancel()} type="button" className="btn btn-dark">
-          {t.close}
+      {/* Tabla */}
+      <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse bg-white dark:bg-gray-900">
+            <thead>
+              <tr>
+                <th className={`${thClass} w-10`}>
+                  <input type="checkbox" className="form-checkbox"
+                    checked={records.length > 0 && selectedItems.length === records.length}
+                    onChange={toggleAll} />
+                </th>
+                <SortableHeader col="nroCotizacion" label={t.nro_order   ?? 'Nro. Orden'}   sortCol={sortCol} sortDesc={sortDesc} onSort={handleSort} />
+                <SortableHeader col="nroParte"      label={t.nro_part    ?? 'Nro. Parte'}    sortCol={sortCol} sortDesc={sortDesc} onSort={handleSort} />
+                <SortableHeader col="aplicacion"    label={t.application ?? 'Aplicación'}    sortCol={sortCol} sortDesc={sortDesc} onSort={handleSort} />
+                <SortableHeader col="cantidad"      label={t.amount      ?? 'Cantidad'}      sortCol={sortCol} sortDesc={sortDesc} onSort={handleSort} className="text-center" />
+                <SortableHeader col="cliente"       label={t.customer    ?? 'Cliente'}       sortCol={sortCol} sortDesc={sortDesc} onSort={handleSort} />
+                <SortableHeader col="usuario"       label={t.user        ?? 'Usuario'}       sortCol={sortCol} sortDesc={sortDesc} onSort={handleSort} />
+                <SortableHeader col="dias"          label={t.days        ?? 'Días'}          sortCol={sortCol} sortDesc={sortDesc} onSort={handleSort} className="text-center" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+              {loading ? (
+                <>
+                  {Array.from({ length: PAGE_SIZE }).map((_, i) => (
+                    <tr key={`sk-${i}`} className="border-t border-gray-100 dark:border-gray-700">
+                      {Array.from({ length: 8 }).map((_, j) => (
+                        <td key={j} className="px-3 py-2">
+                          <div className="h-3 rounded animate-pulse bg-gray-100 dark:bg-gray-700" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </>
+              ) : records.length === 0 ? (
+                <>
+                  <tr><td colSpan={8} className="py-4 text-center text-sm text-gray-400">{t.empty_results ?? 'Sin resultados'}</td></tr>
+                  {Array.from({ length: PAGE_SIZE - 1 }).map((_, i) => (
+                    <tr key={`empty-${i}`} className="border-t border-gray-50 dark:border-gray-800">
+                      <td colSpan={8} className="py-[13px]" />
+                    </tr>
+                  ))}
+                </>
+              ) : (
+                <>
+                  {records.map((o, i) => (
+                    <tr key={o.id ?? i}
+                      className={`transition-colors ${selectedItems.includes(o) ? 'bg-primary/5 dark:bg-primary/10' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}>
+                      <td className={`${tdClass} text-center`}>
+                        <input type="checkbox" className="form-checkbox"
+                          checked={selectedItems.includes(o)} onChange={() => toggleRow(o)} />
+                      </td>
+                      <td className={`${tdClass} font-semibold text-primary`}>{o.nroCotizacion}</td>
+                      <td className={`${tdClass} font-medium`}>{o.nroParte}</td>
+                      <td className={tdClass}>{o.aplicacion}</td>
+                      <td className={`${tdClass} text-center`}>{o.cantidad}</td>
+                      <td className={tdClass}>{o.nomCliente}</td>
+                      <td className={`${tdClass} text-primary`}>{o.nomUsuario}</td>
+                      <td className={`${tdClass} text-center`}>{o.dias}</td>
+                    </tr>
+                  ))}
+                  {Array.from({ length: PAGE_SIZE - records.length }).map((_, i) => (
+                    <tr key={`empty-${i}`} className="border-t border-gray-50 dark:border-gray-800">
+                      <td colSpan={8} className="py-[13px]" />
+                    </tr>
+                  ))}
+                </>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Paginación + Cerrar */}
+      <div className="flex items-center justify-between">
+        {totalPages > 1 ? (
+          <Pagination total={totalPages} value={page} onChange={handlePageChange} size="sm" radius="xl" />
+        ) : <div />}
+        <button type="button" onClick={action_cancel}
+          className="h-9 px-4 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-600 dark:text-gray-300 bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+          {t.close ?? 'Cerrar'}
         </button>
       </div>
-
     </div>
   );
 };

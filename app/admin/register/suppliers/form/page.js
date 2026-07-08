@@ -5,7 +5,7 @@ import { useTranslation } from '@/app/locales';
 import axiosClient from '@/app/lib/axiosClient';
 import SelectCountry from '@/components/select-country';
 import SelectCity from '@/components/select-city';
-import Swal from 'sweetalert2';
+import { swalSuccess, swalError } from '@/app/lib/swal';
 import Select from 'react-select';
 import IconSave from '@/components/icon/icon-save';
 
@@ -150,25 +150,18 @@ const SupplierForm = ({
 
     try {
       const res = await axiosClient.post(URL_GUARDAR, payload);
-      Swal.fire({
-        title: t.success, icon: 'success',
-        confirmButtonColor: '#15803d',
-        text: isEdit ? t.supplier_update_save : t.supplier_success_save,
-        confirmButtonText: t.close,
-      }).then(() => onSaved(res.data ?? []));
+      await swalSuccess(isEdit ? t.supplier_update_save : t.supplier_success_save);
+      onSaved(res.data ?? []);
     } catch (err) {
       const status  = err?.response?.status;
       const apiData = err?.response?.data ?? {};
       if (status === 400) {
-        if (apiData.errors && typeof apiData.errors === 'object') {
-          const msgs = Object.values(apiData.errors).flat().join('\n');
-          Swal.fire({ title: t.warning, text: msgs, icon: 'warning', confirmButtonColor: '#dc2626', confirmButtonText: t.close });
-        } else {
-          const msg = apiData.message ?? apiData.mensaje ?? t.save_data_error;
-          Swal.fire({ title: t.warning, text: msg, icon: 'warning', confirmButtonColor: '#dc2626', confirmButtonText: t.close });
-        }
+        const msgs = apiData.errors && typeof apiData.errors === 'object'
+          ? Object.values(apiData.errors).flat().join('\n')
+          : (apiData.message ?? apiData.mensaje ?? t.save_data_error);
+        swalError(t.warning, msgs);
       } else {
-        Swal.fire({ title: t.error, text: t.supplier_error_server, icon: 'error', confirmButtonColor: '#dc2626', confirmButtonText: t.close });
+        swalError(t.error, t.supplier_error_server);
       }
     }
   };

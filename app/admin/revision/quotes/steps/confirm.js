@@ -15,12 +15,14 @@ const ICON_X        = `<svg width="28" height="28" viewBox="0 0 24 24" fill="non
 const ICON_QUESTION = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 const swalSuccess = (title, msg = '') => Swal.fire({
-  html: `<div style="padding:12px 0 6px">
-    <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#86efac,#16a34a);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 8px 24px rgba(22,163,74,0.3)">${ICON_CHECK}</div>
-    ${msg ? `<p style="color:#94a3b8;font-size:11px;margin:0 0 6px;text-transform:uppercase;letter-spacing:.08em">${msg}</p>` : ''}
-    <h2 style="color:#1e293b;font-size:17px;font-weight:700;margin:0;line-height:1.3">${title}</h2>
+  html: `<div style="display:flex;align-items:center;gap:8px;padding:0">
+    ${ICON_CHECK}
+    <div style="text-align:left">
+      ${msg ? `<p style="color:rgba(255,255,255,0.75);font-size:10px;margin:0 0 2px;text-transform:uppercase;letter-spacing:.08em">${msg}</p>` : ''}
+      <p style="color:#fff;font-size:13px;font-weight:600;margin:0;line-height:1.3">${title}</p>
+    </div>
   </div>`,
-  position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true,
+  backdrop: false, position: 'top-end', padding: '10px 14px', background: '#16a34a', showConfirmButton: false, timer: 2000, timerProgressBar: true,
 });
 
 const swalError = (title, msg = '', confirmText = 'Cerrar') => Swal.fire({
