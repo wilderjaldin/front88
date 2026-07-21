@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { DataTable } from 'mantine-datatable';
 import { Pagination } from '@mantine/core';
-import IconPencil from '@/components/icon/icon-pencil';
 import IconToggleOn from '@/components/icon/icon-toggle-on';
 import IconTrash from '@/components/icon/icon-trash';
 import IconSettings from '@/components/icon/icon-settings';
@@ -21,7 +20,7 @@ const Toast = Swal.mixin({
   showConfirmButton: false, timer: 3000, timerProgressBar: true,
 });
 
-const SupplierCard = ({ s, t, onEdit, onStatus, onSettings, hasPermission }) => (
+const SupplierCard = ({ s, t, onStatus, onSettings, hasPermission }) => (
   <div className="rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 overflow-hidden">
     <div className="flex items-start justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
       <div className="min-w-0 flex-1">
@@ -56,9 +55,6 @@ const SupplierCard = ({ s, t, onEdit, onStatus, onSettings, hasPermission }) => 
       )}
     </div>
     <div className="flex items-center justify-end gap-1 px-4 py-2 border-t border-gray-100 dark:border-gray-700">
-      <button onClick={() => onEdit(s)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition">
-        <IconPencil className="w-4 h-4 text-blue-500" />
-      </button>
       {(hasPermission(PERMISSIONS.ELIMINAR_PROVEEDORES)) &&
         <button onClick={() => onStatus(s)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition">
           {s.codEst === 'AC' ? <IconTrash className="w-4 h-4 text-red-500" /> : <IconToggleOn className="w-6 h-6 text-gray-400" />}
@@ -73,14 +69,13 @@ const SupplierCard = ({ s, t, onEdit, onStatus, onSettings, hasPermission }) => 
 
 const DatatablesSuppliers = ({
   data = [], total = 0, page = 1, pageSize = 20,
-  onPageChange, onEdit, setData, setTotal, t, hasPermission = () => false,
+  onPageChange, setData, setTotal, t, hasPermission = () => false,
 }) => {
   const router = useRouter();
   const { isMobile } = useDevice();
   const [view, setView] = useState(isMobile ? 'grid' : 'list');
 
   const onSettings  = (s) => router.push(`/admin/register/suppliers/${s.codPrv}/general`);
-  const handleEdit   = (s) => onEdit(s);
 
   const handleStatus = async (s) => {
     const nuevoEstado = s.codEst === 'AC' ? 'IN' : 'AC';
@@ -143,9 +138,6 @@ const DatatablesSuppliers = ({
                   title: '', accessor: 'acciones', width: 110,
                   render: (s) => (
                     <div className="flex gap-1">
-                      <button className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => handleEdit(s)}>
-                        <IconPencil className="w-4 h-4 text-blue-500" />
-                      </button>
                       <button className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => onSettings(s)}>
                         <IconSettings className="w-4 h-4 text-gray-500" />
                       </button>
@@ -238,7 +230,6 @@ const DatatablesSuppliers = ({
                 key={s.codPrv}
                 s={s}
                 t={t}
-                onEdit={handleEdit}
                 onStatus={handleStatus}
                 onSettings={onSettings}
                 hasPermission={hasPermission}

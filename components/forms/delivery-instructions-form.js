@@ -3,17 +3,19 @@ import React, { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
 import axios from 'axios'
+import axiosClient from '@/app/lib/axiosClient';
 import Swal from 'sweetalert2'
 
 const url_list = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/MostrarListasDesplegables';
 const url_get_detail_address = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/SeleccionarDirEntrega';
 const url_update_instruction = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/GuardarInsEntrega';
-const url_get_instruction = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/MostrarInsEntrega';
+const URL_GET_INSTRUCTION = (id) => `ordenesenproceso/${id}/instrucciones-entrega`;
 const url_save_address = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetalle/GuardarDirEntrega';
 
 const DeliveryInstructionsForm = ({ action_cancel, order_id, token, t }) => {
 
-  const [address, setAddress] = useState([]);
+  const [address,  setAddress]  = useState([]);
+  const [codPais,  setCodPais]  = useState('');
 
   const {
     register,
@@ -53,22 +55,26 @@ const DeliveryInstructionsForm = ({ action_cancel, order_id, token, t }) => {
 
   const getInstruction = async () => {
     try {
-      const rs = await axios.post(url_get_instruction, { NroOrden: order_id, ValToken: token });
+      const rs = await axiosClient.get(URL_GET_INSTRUCTION(order_id));
+      const d = rs.data ?? {};
 
-      if (rs.data.estado == 'OK') {
-        setValue('payment_method', rs.data.dato[0].FormaPago)
-        setValue('instructions', rs.data.dato[0].InsEntrega);
+      setValue('payment_method', d.formPago);
+      setValue('instructions', d.insEnvio);
 
-        setValue('city', rs.data.dato[0].DirEntCiudad)
-        setValue('company', rs.data.dato[0].DirEntNomEmpresa);
-        setValue('contact', rs.data.dato[0].DirEntNomContacto);
-        setValue('phone', rs.data.dato[0].DirEntNumTelefono);
-        setValue('email', rs.data.dato[0].DirEntMail);
-        setValue('address', rs.data.dato[0].DirEntDireccion);
-        setValue('city', rs.data.dato[0].DirEntCiudad);
-        setValue('state', rs.data.dato[0].DirEntNomEstado);
-        setValue('zip', rs.data.dato[0].DirEntCodPostal);
-      }
+      setValue('city', d.dirEntNomCiudad);
+      setValue('company', d.dirEntNomEmpresa);
+      setValue('contact', d.dirEntNomContacto);
+      setValue('phone', d.dirEntNumTelefono);
+      setValue('email', d.dirEntMail);
+      setValue('address', d.dirEnvio);
+      setValue('state', d.dirEntNomEstado);
+      setValue('zip', d.dirEntCodPostal);
+
+      setValue('name', d.ctoNomCliente);
+      setValue('phone_contact', d.ctoNumTelefono);
+      setValue('email_contact', d.ctoMail);
+
+      setCodPais(d.codPais ?? '');
     } catch (error) {
 
     }

@@ -103,7 +103,10 @@ export default function SpareFormPage() {
     const term = input.trim().toLowerCase();
     if (term.length < ASYNC_MIN_CHARS) return [];
     return options
-      .filter(o => o.label.toLowerCase().includes(term))
+      .filter(o =>
+        o.label.toLowerCase().includes(term) ||
+        o.razSoc?.toLowerCase().includes(term)
+      )
       .slice(0, ASYNC_LIMIT);
   };
 
@@ -509,6 +512,14 @@ export default function SpareFormPage() {
                     styles={selectStyles}
                     className="w-full"
                     error={!!errors.codPrv}
+                    formatOptionLabel={(opt) => (
+                      <span>
+                        {opt.label}
+                        {opt.razSoc && opt.razSoc !== opt.label && (
+                          <span className="text-gray-400"> ({opt.razSoc})</span>
+                        )}
+                      </span>
+                    )}
                   />
                 )}
               />

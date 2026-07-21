@@ -56,6 +56,10 @@ export default function SpareDetail() {
   };
   const fmtMoney = (val) =>
     val != null ? Number(val).toLocaleString('es-BO', { minimumFractionDigits: 2 }) : '—';
+  const fmtDateTime = (val) => {
+    if (!val) return '—';
+    return new Date(val).toLocaleString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
 
   if (loading) return null;
 
@@ -241,7 +245,7 @@ export default function SpareDetail() {
           <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-700">
             <p className="text-xs text-gray-400 uppercase tracking-wider mb-3">Próximamente</p>
             <div className="space-y-2">
-              {['Repuestos similares', 'Cotizar desde aquí', 'Historial de precios'].map(item => (
+              {['Repuestos similares', 'Cotizar desde aquí'].map(item => (
                 <div key={item}
                   className="flex items-center gap-2 text-xs text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-lg px-3 py-2">
                   <span className="h-1.5 w-1.5 rounded-full bg-gray-300 dark:bg-gray-600 flex-shrink-0" />
@@ -253,6 +257,39 @@ export default function SpareDetail() {
         </div>
 
       </div>
+
+      {/* ── Historial de Precios ─────────────────────────────────────────── */}
+      {spare?.historial?.length > 0 && (
+        <div className="panel mt-5">
+          <SectionTitle>Historial de Precios</SectionTitle>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+                  <th className="pb-2 pr-4">Costo</th>
+                  <th className="pb-2 pr-4">Usuario</th>
+                  <th className="pb-2">Fecha</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                {spare.historial.map((h) => (
+                  <tr key={h.codRegistro}>
+                    <td className="py-2 pr-4 font-semibold text-gray-800 dark:text-gray-100">
+                      ${fmtMoney(h.costo)}
+                    </td>
+                    <td className="py-2 pr-4 text-gray-600 dark:text-gray-300">
+                      {fmt(h.usuario)}
+                    </td>
+                    <td className="py-2 text-gray-500">
+                      {fmtDateTime(h.fecRegistra)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
     </div>
   );

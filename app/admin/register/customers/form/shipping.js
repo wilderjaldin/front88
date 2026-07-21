@@ -12,6 +12,12 @@ import Swal from 'sweetalert2';
 const URL_PAISES   = `/clientes/paises`;
 const URL_CIUDADES = (codPais) => `/clientes/ciudades?codPais=${codPais}`;
 
+// Países que además de US muestran los campos Estado/ZIP (codPais 33)
+const isEstadoZipCountry = (value) => {
+  const v = String(value ?? '').toUpperCase();
+  return v === 'US' || v === '33';
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 const ShippingForm = ({
   dir        = null,
@@ -67,7 +73,7 @@ const ShippingForm = ({
 
     const codPaisResuelto = paisObj?.value ?? dir.codPais ?? null;
 
-    setIsUsa(codPaisResuelto?.toUpperCase() === 'US');
+    setIsUsa(isEstadoZipCountry(codPaisResuelto));
 
     reset({
       company: dir.nomEmpresa   ?? '',
@@ -116,7 +122,7 @@ const ShippingForm = ({
 
   // ── Al cambiar país manualmente ───────────────────────────────────────────
   const handleCountryChange = (selected) => {
-    setIsUsa(selected?.value?.toUpperCase() === 'US');
+    setIsUsa(isEstadoZipCountry(selected?.value));
     setValue('state', '');
     setValue('zip', '');
     if (selected?.value) {

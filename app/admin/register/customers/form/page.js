@@ -22,6 +22,9 @@ const IDIOMA_OPTIONS = [
 const IDIOMA_ES = IDIOMA_OPTIONS[0]; // Español
 const IDIOMA_EN = IDIOMA_OPTIONS[1]; // Inglés
 
+// Países que además de US muestran los campos Estado/ZIP (codPais 33)
+const isEstadoZipCountry = (value) => value === 'US' || value === 33 || value === '33';
+
 
 const FieldError = ({ error }) =>
   error ? <p className="text-xs text-red-500 mt-1">{error.message}</p> : null;
@@ -68,7 +71,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
   const watchPais         = watch('country');
   const watchNoIva        = watch('noConsiderarIva');
   const watchTipDoc       = watch('tipDocumento');
-  const isUS              = watchPais?.value === 'US';
+  const isUS              = isEstadoZipCountry(watchPais?.value);
 
   // ── Carga controles ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -140,8 +143,8 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
       setValue('cliIdioma', idiomaDefault);
     }
 
-    // Limpiar campos US si cambia de país
-    if (watchPais.value !== 'US') {
+    // Limpiar campos Estado/ZIP si cambia a un país que no los usa
+    if (!isEstadoZipCountry(watchPais.value)) {
       setValue('estado', '');
       setValue('zip', '');
     }

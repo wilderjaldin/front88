@@ -156,33 +156,24 @@ export default function TradingConditions({
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 {t.assigned_seller}
-                <span className="text-red-500 ml-0.5">*</span>
               </label>
-              <div className={errors.seller ? 'react-select-error' : ''}>
-                <Controller
-                  name="seller"
-                  control={control}
-                  rules={{ required: { value: true, message: t.required_select } }}
-                  render={({ field }) => (
-                    <Select
-                      {...field}
-                      options={sellerOptions}
-                      placeholder={t.select_option}
-                      isClearable
-                      className="w-full"
-                      instanceId="seller-select"
-                      menuPosition="fixed"
-                      classNamePrefix="select"
-                      menuShouldScrollIntoView={false}
-                    />
-                  )}
-                />
-              </div>
-              {errors.seller && (
-                <span className="block text-red-400 text-xs mt-1" role="alert">
-                  {errors.seller.message}
-                </span>
-              )}
+              <Controller
+                name="seller"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    {...field}
+                    options={sellerOptions}
+                    placeholder={t.select_option}
+                    isClearable
+                    className="w-full"
+                    instanceId="seller-select"
+                    menuPosition="fixed"
+                    classNamePrefix="select"
+                    menuShouldScrollIntoView={false}
+                  />
+                )}
+              />
             </div>
 
             <div className="border-t border-gray-100 dark:border-gray-700" />

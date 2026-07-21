@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { DataTable } from 'mantine-datatable';
 import { Pagination } from '@mantine/core';
-import IconPencil from '@/components/icon/icon-pencil';
 import IconToggleOn from '@/components/icon/icon-toggle-on';
 import IconTrash from '@/components/icon/icon-trash';
 import IconSettings from '@/components/icon/icon-settings';
@@ -24,7 +23,7 @@ const Toast = Swal.mixin({
 const IDIOMA_LABEL = { ES: 'Español', US: 'Inglés' };
 
 // ── Tarjeta grid ──────────────────────────────────────────────────────────────
-const ClienteCard = ({ c, onEdit, onStatus, onSettings, t, hasPermission }) => (
+const ClienteCard = ({ c, onStatus, onSettings, t, hasPermission }) => (
   <div className="group relative rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 overflow-hidden">
 
     <div className="flex items-start justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
@@ -67,12 +66,6 @@ const ClienteCard = ({ c, onEdit, onStatus, onSettings, t, hasPermission }) => (
     </div>
 
     <div className="flex items-center justify-end gap-1 px-4 py-2 border-t border-gray-100 dark:border-gray-700">
-      {(hasPermission(PERMISSIONS.EDITAR_CLIENTE)) &&
-        <button onClick={() => onEdit(c)} title="Editar"
-          className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition">
-          <IconPencil className="w-4 h-4 text-blue-500" />
-        </button>
-      }
       <button onClick={() => onStatus(c)} title={c.codEstado === 'AC' ? 'Eliminar' : 'Activar'}
         className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition">
         {c.codEstado === 'AC'
@@ -97,7 +90,6 @@ const DatatablesCustomers = ({
   page = 1,
   pageSize = 20,
   onPageChange,
-  onEdit,
   setData,
   t,
   hasPermission = () => false,
@@ -185,15 +177,6 @@ const DatatablesCustomers = ({
                   accessor: 'codCliente',
                   render: (c) => (
                     <div className="flex gap-1">
-                      {(hasPermission(PERMISSIONS.EDITAR_CLIENTE)) &&
-                        <button
-                          className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                          onClick={() => onEdit(c)}
-                          title="Editar"
-                        >
-                          <IconPencil className="w-4 h-4 text-blue-500" />
-                        </button>
-                      }
                       <button
                         className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
                         onClick={() => onSettings(c)}
@@ -315,7 +298,6 @@ const DatatablesCustomers = ({
               <ClienteCard
                 key={c.codCliente}
                 c={c}
-                onEdit={onEdit}
                 onStatus={handleStatus}
                 onSettings={onSettings}
                 t={t}

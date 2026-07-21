@@ -47,9 +47,8 @@ export default function CustomersPage() {
   const [paises,       setPaises]       = useState([]);      // [{ codPais, nomPais }]
   const [selectedPais, setSelectedPais] = useState(null);   // null = todos
 
-  // Modal nuevo / editar cliente
+  // Modal nuevo cliente
   const [showModal,    setShowModal]    = useState(false);
-  const [editCliente,  setEditCliente]  = useState(null);
 
 
   // ── Carga de listado ───────────────────────────────────────────────────
@@ -93,22 +92,10 @@ export default function CustomersPage() {
     fetchClientes(p, debouncedTerm, selectedPais);
   };
 
-  // ── Abrir modal de edición ────────────────────────────────────────────
-  const handleEdit = async (cliente) => {
-    try {
-      const res = await axiosClient.get(`${URL_BASE}/${cliente.codCliente}`);
-      setEditCliente(res.data);
-      setShowModal(true);
-    } catch {
-      Toast.fire({ icon: 'error', title: 'Error cargando datos del cliente' });
-    }
-  };
-
-  // ── Tras guardar (nuevo o editado) ────────────────────────────────────
+  // ── Tras guardar ────────────────────────────────────────────────────
   const handleSaved = () => {
     fetchClientes(1, debouncedTerm, selectedPais);
     setShowModal(false);
-    setEditCliente(null);
   };
 
   return (
@@ -177,7 +164,7 @@ export default function CustomersPage() {
             { (hasPermission(PERMISSIONS.CREAR_CLIENTE)) && 
               <button
                 type="button"
-                onClick={() => { setEditCliente(null); setShowModal(true); }}
+                onClick={() => setShowModal(true)}
                 className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2
                           text-white text-sm font-medium shadow-sm hover:bg-primary/90 transition-all"
               >
@@ -255,7 +242,6 @@ export default function CustomersPage() {
           pageSize={PAGE_SIZE}
           loading={loading}
           onPageChange={handlePageChange}
-          onEdit={handleEdit}
           setData={setClientes}
           t={t}
           hasPermission={hasPermission}
@@ -263,16 +249,16 @@ export default function CustomersPage() {
 
       </div>
 
-      {/* ── MODAL NUEVO / EDITAR CLIENTE ─────────────────────────────── */}
+      {/* ── MODAL NUEVO CLIENTE ──────────────────────────────────────── */}
       <Modal
         size="w-full max-w-2xl"
         showModal={showModal}
-        closeModal={() => { setShowModal(false); setEditCliente(null); }}
-        title={editCliente ? 'Editar Cliente' : 'Nuevo Cliente'}
+        closeModal={() => setShowModal(false)}
+        title="Nuevo Cliente"
       >
         <CustomerForm
-          cliente={editCliente}
-          onCancel={() => { setShowModal(false); setEditCliente(null); }}
+          cliente={null}
+          onCancel={() => setShowModal(false)}
           onSaved={handleSaved}
         />
       </Modal>

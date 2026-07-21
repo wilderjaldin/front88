@@ -13,7 +13,7 @@ const URL_OPCIONES  = 'cotizaciondetalle/opciones-envio';
 const URL_DIRECCION = 'cotizaciondetalle/direccion-entrega';
 const URL_GUARDAR   = (codCliente) => `clientes/${codCliente}/direcciones/guardar`;
 
-const ShippingQuote = ({ token, t, order_id, customer, savedShipping, registerShipping, reset, setValue, errors }) => {
+const ShippingQuote = ({ token, t, order_id, customer, savedShipping, registerShipping, reset, setValue, getValues, errors }) => {
   const searchParams = useSearchParams();
   const customer_id  = searchParams.get("customer");
 
@@ -101,9 +101,12 @@ const ShippingQuote = ({ token, t, order_id, customer, savedShipping, registerSh
       const d  = rs.data;
       setCurrentDir(d);
       setValue('_direccionLabel', sel.label ?? '');
+      // cuentaTransporte y note son datos ya ingresados por el usuario, ajenos a
+      // la dirección elegida — se preservan en vez de hardcodearlos a '' (bug:
+      // cambiar de dirección borraba el # de cuenta y las instrucciones ya escritas).
       reset({
         codTransporte:    selTransporte?.value ?? '',
-        cuentaTransporte: '',
+        cuentaTransporte: getValues('cuentaTransporte') ?? '',
         codDireccion:     sel.value,
         _transporteLabel: selTransporte?.label ?? '',
         _direccionLabel:  sel.label ?? '',
@@ -112,7 +115,7 @@ const ShippingQuote = ({ token, t, order_id, customer, savedShipping, registerSh
         phone:   d.numTelefono  ?? '', email:   d.mail        ?? '',
         country: d.nomPais      ?? '', address: d.desDireccion ?? '',
         city:    d.nomCiudad    ?? '', state:   d.nomEstado   ?? '',
-        zip:     d.codPostal    ?? '', note:    '',
+        zip:     d.codPostal    ?? '', note:    getValues('note') ?? '',
       });
     } catch {
       setCurrentDir(null);

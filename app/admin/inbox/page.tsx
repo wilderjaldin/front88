@@ -8,8 +8,10 @@ import { Pagination } from "@mantine/core";
 import axios from "axios";
 import axiosClient from "@/app/lib/axiosClient";
 import { swalSuccess, swalError, swalConfirm } from "@/app/lib/swal";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { selectUser, selectToken } from "@/store/authSlice";
+import { selectTotalNoLeidos, setTotalNoLeidos, decrementTotalNoLeidos } from "@/store/notificationsSlice";
+import { getHubConnection } from "@/app/lib/signalr";
 import { customFormat } from "@/app/lib/format";
 import Modal from "@/components/modal";
 import IconSearch from "@/components/icon/icon-search";
@@ -58,6 +60,8 @@ export default function Inbox() {
   const router       = useRouter();
   const pathname     = usePathname();
   const searchParams = useSearchParams();
+  const dispatch     = useDispatch();
+  const totalUnread  = useSelector(selectTotalNoLeidos);
 
   // URL como fuente de verdad — permite compartir/recargar en una página o mensaje específico
   const urlPage        = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
@@ -81,7 +85,6 @@ export default function Inbox() {
 
   const [mailList,      setMailList]      = useState<any[]>([]);
   const [total,         setTotal]         = useState(0);
-  const [totalUnread,   setTotalUnread]   = useState(0);
   const [totalPages,    setTotalPages]    = useState(1);
   const [selectedMail,  setSelectedMail]  = useState<any>(null);
   const [details,       setDetails]       = useState<any[]>([]);
@@ -156,6 +159,27 @@ export default function Inbox() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlMessage]);
 
+  // Tiempo real: cuando el otro usuario responde, el hub emite "nuevaMensaje".
+  // Si el hilo abierto es ese mismo mensaje, se agrega al chat en vivo (details
+  // va en orden DESC, igual que la API); si no, solo se refresca la fila de la lista.
+  useEffect(() => {
+    const conn = getHubConnection();
+    const onNuevaMensaje = (data: any) => {
+      setMailList(prev => prev.map(m => m.codMensaje === data.codMensaje
+        ? { ...m, desMensaje: data.desMensaje, fecha: data.fecha, visto: false }
+        : m
+      ));
+      if (urlMessage === data.codMensaje) {
+        setDetails(prev => [
+          { correo: data.correo, nomUsuario: data.nomUsuario, fecha: data.fecha, desMensaje: data.desMensaje },
+          ...prev,
+        ]);
+      }
+    };
+    conn.on("nuevaMensaje", onNuevaMensaje);
+    return () => conn.off("nuevaMensaje", onNuevaMensaje);
+  }, [urlMessage]);
+
   // El header global es sticky/fixed en top:0 — el panel de detalle debe engancharse justo debajo, a ras de su borde inferior
   useEffect(() => {
     const updateStickyTop = () => {
@@ -176,7 +200,7 @@ export default function Inbox() {
       const rs = await axiosClient.get(URL_LISTAR, { params });
       setMailList(rs.data?.datos ?? []);
       setTotal(rs.data?.total ?? 0);
-      setTotalUnread(rs.data?.totalNoLeidos ?? 0);
+      dispatch(setTotalNoLeidos(rs.data?.totalNoLeidos ?? 0));
       setTotalPages(rs.data?.totalPaginas ?? 1);
     } catch {}
   };
@@ -197,7 +221,7 @@ export default function Inbox() {
         wasUnread = m.visto === false;
         return { ...m, visto: true };
       }));
-      if (wasUnread) setTotalUnread(prev => Math.max(0, prev - 1));
+      if (wasUnread) dispatch(decrementTotalNoLeidos());
     } catch {}
   };
 
@@ -256,7 +280,7 @@ export default function Inbox() {
       });
       setMailList(rs.data?.datos ?? []);
       setTotal(rs.data?.total ?? 0);
-      setTotalUnread(rs.data?.totalNoLeidos ?? 0);
+      dispatch(setTotalNoLeidos(rs.data?.totalNoLeidos ?? 0));
       setTotalPages(rs.data?.totalPaginas ?? 1);
       setRespuesta("");
       setSelectedMail(null);

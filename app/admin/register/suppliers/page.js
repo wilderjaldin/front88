@@ -48,11 +48,6 @@ export default function SuppliersPage() {
   // Modal nuevo
   const [showNewModal, setShowNewModal] = useState(false);
 
-  // Modal editar — carga el proveedor desde la API
-  const [showEditModal,   setShowEditModal]   = useState(false);
-  const [editProveedor,   setEditProveedor]   = useState(null);
-  const [loadingEdit,     setLoadingEdit]     = useState(false);
-
   const selectedPaisRef = useRef(null);
 
   useEffect(() => {
@@ -95,26 +90,19 @@ export default function SuppliersPage() {
     fetchSuppliers(p, debouncedTerm, selectedPaisRef.current);
   };
 
-  // Abre modal de edición cargando datos frescos desde la API
-  const handleEdit = async (s) => {
-    setShowEditModal(true);
-    setEditProveedor(null);
-    setLoadingEdit(true);
-    try {
-      const res = await axiosClient.get(`${URL_BASE}/${s.codPrv}`);
-      setEditProveedor(res.data);
-    } catch {
-      Toast.fire({ icon: 'error', title: 'Error cargando datos del proveedor' });
-      setShowEditModal(false);
-    } finally {
-      setLoadingEdit(false);
+  const handleSaved = (data) => {
+    // guardar (creación) retorna el mismo envelope que GET /proveedores — si no
+    // hay filtros activos se usa directo, evitando un fetch redundante.
+    const hasFilters = debouncedTerm.trim() !== '' || !!selectedPaisRef.current;
+    if (hasFilters) {
+      fetchSuppliers(1, debouncedTerm, selectedPaisRef.current);
+    } else {
+      setSuppliers(data?.data ?? []);
+      setTotal(data?.total ?? 0);
+      setPage(1);
+      if (data?.paises) setPaises(data.paises);
     }
-  };
-
-  const handleSaved = () => {
-    fetchSuppliers(1, debouncedTerm, selectedPaisRef.current);
     setShowNewModal(false);
-    setShowEditModal(false);
     Toast.fire({ icon: 'success', title: t.supplier_success_save });
   };
 
@@ -250,7 +238,6 @@ export default function SuppliersPage() {
           pageSize={PAGE_SIZE}
           loading={loading}
           onPageChange={handlePageChange}
-          onEdit={handleEdit}
           setData={setSuppliers}
           setTotal={setTotal}
           t={t}
@@ -271,27 +258,6 @@ export default function SuppliersPage() {
           onCancel={() => setShowNewModal(false)}
           onSaved={handleSaved}
         />
-      </Modal>
-
-      {/* Modal editar */}
-      <Modal
-        size="w-full max-w-2xl"
-        showModal={showEditModal}
-        closeModal={() => setShowEditModal(false)}
-        title="Editar Proveedor"
-      >
-        {loadingEdit ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          </div>
-        ) : editProveedor ? (
-          <SupplierForm
-            proveedor={editProveedor}
-            controles={controles}
-            onCancel={() => setShowEditModal(false)}
-            onSaved={handleSaved}
-          />
-        ) : null}
       </Modal>
     </>
   );

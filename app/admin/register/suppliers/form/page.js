@@ -12,6 +12,9 @@ import IconSave from '@/components/icon/icon-save';
 const URL_CIUDADES = '/ciudades';
 const URL_GUARDAR  = '/proveedores/guardar';
 
+// Países que además de US muestran los campos Estado/ZIP (codPais 33)
+const isEstadoZipCountry = (value) => value === 'US' || value === 33 || value === '33';
+
 const IDIOMA_OPTIONS = [
   { value: 'ES', label: 'Español' },
   { value: 'US', label: 'Inglés'  },
@@ -42,6 +45,8 @@ const SupplierForm = ({
       nomChe:              '',
       country:             null,
       city:                null,
+      estado:              '',
+      zip:                 '',
       tipDoc:              null,
       numDoc:              '',
       diasProceso:         0,
@@ -54,6 +59,7 @@ const SupplierForm = ({
   });
 
   const selectedCountry = watch('country');
+  const isUS = isEstadoZipCountry(selectedCountry?.value);
 
   useEffect(() => {
     setPaises(controles.paises ?? []);
@@ -63,7 +69,7 @@ const SupplierForm = ({
     if (!proveedor) {
       reset({
         nomPrv: '', razSoc: '', dirPrv: '', sitWeb: '', nomChe: '',
-        country: null, city: null, tipDoc: null, numDoc: '',
+        country: null, city: null, estado: '', zip: '', tipDoc: null, numDoc: '',
         diasProceso: 0, diasShipingExpress: 0, diasShipingStandard: 0,
         blnStock: false, blnExpress: false, prvIdioma: IDIOMA_OPTIONS[0],
       });
@@ -71,7 +77,7 @@ const SupplierForm = ({
       return;
     }
 
-    const paisObj    = paises.find(p => p.value?.toUpperCase() === proveedor.codPais?.toUpperCase()) ?? null;
+    const paisObj    = paises.find(p => String(p.value).toUpperCase() === String(proveedor.codPais).toUpperCase()) ?? null;
     const tipDocObj  = controles.docTypes?.find(d => d.value === proveedor.tipDoc) ?? null;
     const idiomaObj  = IDIOMA_OPTIONS.find(i => i.value === proveedor.prvIdioma) ?? IDIOMA_OPTIONS[0];
 
@@ -83,6 +89,8 @@ const SupplierForm = ({
       nomChe:              proveedor.nomChe              ?? '',
       country:             paisObj,
       city:                null,
+      estado:              proveedor.nomEstado           ?? proveedor.estado ?? '',
+      zip:                 proveedor.codZip              ?? proveedor.zip    ?? '',
       tipDoc:              tipDocObj,
       numDoc:              proveedor.numDoc              ?? '',
       diasProceso:         proveedor.diasProceso         ?? 0,
@@ -126,6 +134,10 @@ const SupplierForm = ({
       setCiudades([]);
       setValue('city', null);
     }
+    if (!isEstadoZipCountry(selected?.value)) {
+      setValue('estado', '');
+      setValue('zip', '');
+    }
   };
 
   const onSubmit = async (data) => {
@@ -138,6 +150,8 @@ const SupplierForm = ({
       nomChe:              data.nomChe?.trim()              ?? '',
       codPais:             data.country?.value              ?? '',
       codCiudad:           data.city?.value                 ?? '',
+      estado:              isUS ? (data.estado?.trim() || null) : null,
+      zip:                 isUS ? (data.zip?.trim()    || null) : null,
       tipDoc:              data.tipDoc?.value                ?? '',
       numDoc:              data.numDoc?.trim()              ?? '',
       diasProceso:         Number(data.diasProceso)         || 0,
@@ -207,10 +221,46 @@ const SupplierForm = ({
         </div>
       </div>
 
+      {/* Estado y ZIP — aparece con animación suave al seleccionar US/33 */}
+      <div
+        className={`grid grid-cols-2 gap-3 overflow-hidden transition-all duration-300 ease-in-out
+          ${isUS ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}
+      >
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Estado <span className="text-red-500">*</span>
+          </label>
+          <input
+            {...register('estado', {
+              required: isUS ? 'El estado es requerido para USA' : false,
+              maxLength: { value: 60, message: 'Máximo 60 caracteres' },
+              pattern: { value: /^[a-zA-Z\s]+$/, message: 'Solo se permiten letras' },
+            })}
+            placeholder="Ej: California"
+            className="form-input w-full"
+          />
+          {errors.estado && <p className="text-red-400 text-xs mt-1">{errors.estado.message}</p>}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            ZIP <span className="text-red-500">*</span>
+          </label>
+          <input
+            {...register('zip', {
+              required: isUS ? 'El ZIP es requerido para USA' : false,
+              pattern: { value: /^\d{5}(-\d{4})?$/, message: 'Formato inválido. Ej: 90210 o 90210-1234' },
+            })}
+            placeholder="Ej: 90210"
+            className="form-input w-full"
+          />
+          {errors.zip && <p className="text-red-400 text-xs mt-1">{errors.zip.message}</p>}
+        </div>
+      </div>
+
       {/* Empresa (nomPrv) */}
       <div className="space-y-1">
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          {t.company}<span className="text-red-500 ml-0.5">*</span>
+          {t.company_group_name}<span className="text-red-500 ml-0.5">*</span>
         </label>
         <input
           type="text" autoComplete="off"
@@ -223,7 +273,7 @@ const SupplierForm = ({
       {/* Proveedor (razSoc) */}
       <div className="space-y-1">
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          {t.supplier}
+          {t.commercial_name}
         </label>
         <input
           type="text" autoComplete="off"

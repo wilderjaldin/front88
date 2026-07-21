@@ -33,6 +33,20 @@ import { PERMISSIONS } from '@/constants/permissions';
 
 const url_delete_spare = process.env.NEXT_PUBLIC_API_URL + 'repuesto/EliminarRegistroCliente';
 
+const compactSelectStyles = {
+  control: (base) => ({ ...base, minHeight: '32px', fontSize: '12.5px' }),
+  valueContainer: (base) => ({ ...base, padding: '0 8px' }),
+  input: (base) => ({ ...base, margin: 0, padding: 0 }),
+  indicatorsContainer: (base) => ({ ...base, height: '32px' }),
+  dropdownIndicator: (base) => ({ ...base, padding: '4px' }),
+  clearIndicator: (base) => ({ ...base, padding: '4px' }),
+};
+
+const compactSelectStylesWidth = (width) => ({
+  ...compactSelectStyles,
+  control: (base) => ({ ...compactSelectStyles.control(base), minWidth: width, width }),
+});
+
 const DatatablesSpares = ({
   data = [],
   t,
@@ -60,7 +74,7 @@ const DatatablesSpares = ({
   const [checks, setChecks] = useState([]);
   const [all, setAll] = useState(false);
 
-  const [hideCols, setHideCols] = useState(['canDias', 'blnPedidoEspecial', 'canMin', 'uniMed', 'canStock', 'canMin', 'uniMed', 'blnPedEspecialSinFecha', 'fecModifica', 'fecVencimiento', 'codEstado']);
+  const [hideCols, setHideCols] = useState(['canDias', 'blnPedidoEspecial', 'canMin', 'desUniMed', 'canStock', 'blnPedEspecialSinFecha', 'fecModifica', 'fecVencimiento', 'codEstado']);
 
   const options_status = useMemo(() => [
     { value: '', label: t.all },
@@ -157,7 +171,7 @@ const DatatablesSpares = ({
   const cols = [
     { accessor: 'canStock', title: t.abb_available_quantity },
     { accessor: 'canMin', title: t.min_quantity },
-    { accessor: 'uniMed', title: t.abb_unit },
+    { accessor: 'desUniMed', title: t.abb_unit },
     { accessor: 'blnPedidoEspecial', title: t.abb_special_order },
     { accessor: 'canDias', title: t.abb_special_order_quantity },
     { accessor: 'blnPedEspecialSinFecha', title: t.abb_special_order_date },
@@ -220,28 +234,28 @@ const DatatablesSpares = ({
             >
 
               {/* LIST / GRID */}
-              <div className="flex h-10 items-center rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-900">
+              <div className="flex h-8 items-center rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-900">
 
                 <button
                   type="button"
-                  className={`flex h-10 w-10 items-center justify-center transition
+                  className={`flex h-8 w-8 items-center justify-center transition
         ${value === 'list'
                       ? 'bg-primary/10 text-primary'
                       : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                   onClick={() => setOptionView('list')}
                 >
-                  <IconListCheck className="h-4 w-4" />
+                  <IconListCheck className="h-3.5 w-3.5" />
                 </button>
 
                 <button
                   type="button"
-                  className={`flex h-10 w-10 items-center justify-center transition
+                  className={`flex h-8 w-8 items-center justify-center transition
         ${value === 'grid'
                       ? 'bg-primary/10 text-primary'
                       : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                   onClick={() => setOptionView('grid')}
                 >
-                  <IconLayoutGrid className="h-4 w-4" />
+                  <IconLayoutGrid className="h-3.5 w-3.5" />
                 </button>
 
               </div>
@@ -251,21 +265,21 @@ const DatatablesSpares = ({
                 type="text"
                 placeholder={t.filter}
                 {...register("term")}
-                className="h-10 w-80 rounded-lg border border-gray-300 dark:border-gray-700 
-      bg-white dark:bg-gray-900 
-      px-4 text-sm
+                className="h-8 w-64 rounded-lg border border-gray-300 dark:border-gray-700
+      bg-white dark:bg-gray-900
+      px-3 text-xs
       focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
 
               {/* BUSCAR */}
               <button
                 type="submit"
-                className="flex h-10 px-2 items-center justify-center rounded-lg
-      bg-primary/20 text-primary
+                className="flex h-8 px-2.5 items-center justify-center gap-1 rounded-lg
+      bg-primary/20 text-primary text-xs font-medium
       hover:bg-primary/40 transition"
                 title={t.search}
               >
-                <IconSearch className="h-4 w-4 mr-2" /> {t.search}
+                <IconSearch className="h-3.5 w-3.5" /> {t.search}
               </button>
 
               {/* LIMPIAR */}
@@ -278,27 +292,27 @@ const DatatablesSpares = ({
                   });
                   handleClear();
                 }}
-                className="flex h-10 items-center justify-center rounded-lg
-      bg-gray-200 text-gray-700
+                className="flex h-8 items-center justify-center gap-1 rounded-lg
+      bg-gray-200 text-gray-700 text-xs font-medium
       hover:bg-gray-300 transition
-      dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 px-2"
+      dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 px-2.5"
                 title={t.btn_clear}
               >
-                <IconBackSpace className="h-4 w-4 mr-2" />{t.btn_clear}
+                <IconBackSpace className="h-3.5 w-3.5" />{t.btn_clear}
               </button>
 
             </form>
 
             {(hasPermission(PERMISSIONS.REPUESTOS_CREAR)) &&
               <>
-                <div className="h-10 w-px bg-gray-300 dark:bg-gray-600 mx-4" />
+                <div className="h-8 w-px bg-gray-300 dark:bg-gray-600 mx-3" />
 
 
                 <button
                   type="button"
                   onClick={handleNew}
-                  className="h-10 rounded-lg bg-primary px-5
-            text-white text-sm font-medium
+                  className="h-8 rounded-lg bg-primary px-4
+            text-white text-xs font-medium
             shadow-sm hover:bg-primary/90 transition"
                 >
                   {t.btn_add_spare_parts}
@@ -310,11 +324,11 @@ const DatatablesSpares = ({
 
 
           {/* FILA ABAJO — filtros por catálogo */}
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
 
             {/* ESTADO */}
-            <div className="flex flex-col gap-1">
-              <span className="text-xs text-gray-500 dark:text-gray-400 px-1">Estado</span>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[11px] text-gray-500 dark:text-gray-400 px-1">Estado</span>
               <Controller
                 name="status"
                 control={control}
@@ -324,15 +338,15 @@ const DatatablesSpares = ({
                     value={options_status.find(o => o.value === field.value) ?? null}
                     onChange={(s) => field.onChange(s?.value ?? '')}
                     placeholder="Estado"
-                    styles={{ control: (base) => ({ ...base, minWidth: '160px', width: '160px' }) }}
+                    styles={compactSelectStylesWidth('140px')}
                   />
                 )}
               />
             </div>
 
             {/* PROVEEDOR */}
-            <div className="flex flex-col gap-1">
-              <span className="text-xs text-gray-500 dark:text-gray-400 px-1">Proveedor</span>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[11px] text-gray-500 dark:text-gray-400 px-1">Proveedor</span>
               <Controller
                 name="supplier"
                 control={control}
@@ -350,15 +364,15 @@ const DatatablesSpares = ({
                     }
                     isClearable
                     cacheOptions
-                    styles={{ control: (base) => ({ ...base, minWidth: '200px', width: '200px' }) }}
+                    styles={compactSelectStylesWidth('180px')}
                   />
                 )}
               />
             </div>
 
             {/* MARCA */}
-            <div className="flex flex-col gap-1">
-              <span className="text-xs text-gray-500 dark:text-gray-400 px-1">Marca</span>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[11px] text-gray-500 dark:text-gray-400 px-1">Marca</span>
               <Controller
                 name="brand"
                 control={control}
@@ -376,15 +390,15 @@ const DatatablesSpares = ({
                     }
                     isClearable
                     cacheOptions
-                    styles={{ control: (base) => ({ ...base, minWidth: '200px', width: '200px' }) }}
+                    styles={compactSelectStylesWidth('180px')}
                   />
                 )}
               />
             </div>
 
             {/* APLICACIÓN */}
-            <div className="flex flex-col gap-1">
-              <span className="text-xs text-gray-500 dark:text-gray-400 px-1">Aplicación</span>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[11px] text-gray-500 dark:text-gray-400 px-1">Aplicación</span>
               <Controller
                 name="application"
                 control={control}
@@ -402,15 +416,15 @@ const DatatablesSpares = ({
                     }
                     isClearable
                     cacheOptions
-                    styles={{ control: (base) => ({ ...base, minWidth: '200px', width: '200px' }) }}
+                    styles={compactSelectStylesWidth('180px')}
                   />
                 )}
               />
             </div>
 
             {/* TIPO DE REPUESTO — vacío por ahora, listo para cuando se agreguen opciones */}
-            <div className="flex flex-col gap-1">
-              <span className="text-xs text-gray-500 dark:text-gray-400 px-1">Tipo de Repuesto</span>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[11px] text-gray-500 dark:text-gray-400 px-1">Tipo de Repuesto</span>
               <Controller
                 name="type"
                 control={control}
@@ -421,7 +435,7 @@ const DatatablesSpares = ({
                     onChange={(s) => field.onChange(s?.value ?? '')}
                     placeholder="Tipo de repuesto..."
                     isClearable
-                    styles={{ control: (base) => ({ ...base, minWidth: '180px', width: '180px' }) }}
+                    styles={compactSelectStylesWidth('160px')}
                   />
 
                 )}
@@ -430,16 +444,16 @@ const DatatablesSpares = ({
 
             {value === 'list' && (
 
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-gray-500 dark:text-gray-400 px-1">Columnas</span>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[11px] text-gray-500 dark:text-gray-400 px-1">Columnas</span>
                 <div className="dropdown">
                   <Dropdown
                     placement={`bottom-end`}
-                    btnClassName="!flex items-center btn btn-outline-primary font-semibold dark:border-[#253b5c] rounded-md px-4 py-2 text-sm dark:bg-[#1b2e4b] dark:text-white-dark"
+                    btnClassName="!flex h-8 items-center btn btn-outline-primary font-medium dark:border-[#253b5c] rounded-lg px-3 text-xs dark:bg-[#1b2e4b] dark:text-white-dark"
                     button={
                       <>
                         <span className="ltr:mr-1 rtl:ml-1">{t.columns}</span>
-                        <IconCaretDown className="h-5 w-5" />
+                        <IconCaretDown className="h-4 w-4" />
                       </>
                     }
                   >
@@ -515,17 +529,18 @@ const DatatablesSpares = ({
                 "
                 highlightOnHover
                 verticalSpacing="xs"
-                horizontalSpacing="sm"
+                horizontalSpacing="xs"
                 records={data}
                 columns={[
                   {
                     title: '',
                     accessor: 'id',
+                    width: 84,
                     render: (s) => (
-                      <div className="flex gap-1">
+                      <div className="flex gap-0.5">
 
                         <button
-                          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                          className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
                           onClick={() => handleView(s)}
                           title="Ver"
                         >
@@ -533,7 +548,7 @@ const DatatablesSpares = ({
                         </button>
                         {(hasPermission(PERMISSIONS.REPUESTOS_MODIFICAR)) &&
                           <button
-                            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                            className="p-1 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-800"
                             onClick={() => handleEdit(s)}
                             title="Editar"
                           >
@@ -542,13 +557,13 @@ const DatatablesSpares = ({
                         }
                         {(hasPermission(PERMISSIONS.REPUESTOS_ELIMINAR)) &&
                           <button
-                            className="p-1 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
+                            className="p-1 rounded-lg hover:bg-red-50 dark:hover:bg-gray-800"
                             onClick={() => handleToggleStatus(s)}
                             title={s.codEstado === 'AC' ? 'Eliminar' : 'Activar'}
                           >
                             {s.codEstado === 'AC'
                               ? <IconTrash className="w-4 h-4 text-red-500" />
-                              : <IconToggleOn className="w-7 h-7 text-gray-400" />
+                              : <IconToggleOn className="w-5 h-5 text-gray-400" />
                             }
                           </button>
                         }
@@ -560,18 +575,19 @@ const DatatablesSpares = ({
                     accessor: 'files',
                     title: "",
                     sortable: false,
+                    width: 48,
                     render: (s) => (
                       <div className="flex items-center gap-1">
 
                         {(s.tieneImagen) &&
                           <IconPhoto
-                            className={`w-6 h-6 text-blue-500`}
+                            className={`w-4 h-4 text-blue-500`}
                           />
                         }
 
                         {(s.tieneDocumento) &&
                           <IconFile
-                            className={`w-5 h-5 text-indigo-500`}
+                            className={`w-4 h-4 text-indigo-500`}
                           />
                         }
 
@@ -582,78 +598,98 @@ const DatatablesSpares = ({
                     accessor: 'nroParte',
                     title: t.nro_part,
                     sortable: false,
+                    width: 100,
+                    ellipsis: true,
                     hidden: hideCols.includes('nroParte'),
                   },
                   {
                     accessor: 'descripcion',
                     title: t.description,
                     sortable: false,
+                    width: 180,
+                    ellipsis: true,
                     hidden: hideCols.includes('descripcion'),
                   },
                   {
                     accessor: 'proveedor',
                     title: t.supplier,
                     sortable: false,
+                    width: 130,
+                    ellipsis: true,
                     hidden: hideCols.includes('proveedor'),
                   },
                   {
                     accessor: 'marca',
                     title: t.brand,
                     sortable: false,
+                    width: 110,
+                    ellipsis: true,
                     hidden: hideCols.includes('marca'),
                   },
                   {
                     accessor: 'aplicacion',
                     title: t.application,
                     sortable: false,
+                    width: 110,
+                    ellipsis: true,
                     hidden: hideCols.includes('aplicacion'),
                   },
                   {
                     accessor: 'desTipRepuesto',
                     title: t.spare_part_type,
                     sortable: false,
+                    width: 100,
+                    ellipsis: true,
                     hidden: hideCols.includes('desTipRepuesto'),
                   },
                   {
                     accessor: 'desEstado',
                     title: t.status,
                     sortable: false,
+                    width: 90,
+                    ellipsis: true,
                     hidden: hideCols.includes('desEstado'),
                   },
                   {
                     accessor: 'peso',
                     title: `${t.weight} (lb)`,
                     sortable: false,
+                    width: 80,
                     hidden: hideCols.includes('peso')
                   },
                   {
                     accessor: 'costo',
                     title: t.cost,
                     sortable: false,
+                    width: 80,
                     hidden: hideCols.includes('costo'),
                   },
                   {
                     accessor: 'canStock',
                     title: t.abb_available_quantity,
                     sortable: false,
+                    width: 80,
                     hidden: hideCols.includes('canStock'),
                   },
                   {
                     accessor: 'canMin',
                     title: t.min_quantity,
                     sortable: false,
+                    width: 80,
                     hidden: hideCols.includes('canMin'),
                   },
                   {
                     accessor: 'desUniMed',
                     title: t.abb_unit,
                     sortable: false,
+                    width: 80,
                     hidden: hideCols.includes('desUniMed'),
                   },
                   {
                     accessor: 'blnPedidoEspecial',
                     title: t.abb_special_order,
                     sortable: false,
+                    width: 80,
                     hidden: hideCols.includes('blnPedidoEspecial'),
                     render: (s) => (
                       (s.PedidoEspecial == 1) ?
@@ -666,12 +702,14 @@ const DatatablesSpares = ({
                     accessor: 'canDias',
                     title: t.abb_special_order_quantity,
                     sortable: false,
+                    width: 80,
                     hidden: hideCols.includes('canDias'),
                   },
                   {
                     accessor: 'blnPedEspecialSinFecha',
                     title: t.abb_special_order_date,
                     sortable: false,
+                    width: 90,
                     hidden: hideCols.includes('blnPedEspecialSinFecha'),
                     render: (s) => (
                       (s.PedEspecialSinFecha == 1) ?
@@ -684,6 +722,7 @@ const DatatablesSpares = ({
                     accessor: 'fecModifica',
                     title: t.date,
                     sortable: false,
+                    width: 140,
                     hidden: hideCols.includes('fecModifica'),
                     render: (s) => (
 
@@ -691,13 +730,13 @@ const DatatablesSpares = ({
                       <div className="text-[11px] leading-tight space-y-0.5 text-gray-500 dark:text-gray-400">
                         <div className="flex gap-1">
                           <span className="text-gray-400 shrink-0">Reg:</span>
-                          <span>{s.usuarioRegistra || '-'}</span>
-                          <span className="ml-auto text-gray-400" title={s.fecRegistraCompleto}>{s.fecRegistra}</span>
+                          <span className="truncate">{s.usuarioRegistra || '-'}</span>
+                          <span className="ml-auto text-gray-400 shrink-0" title={s.fecRegistraCompleto}>{s.fecRegistra}</span>
                         </div>
                         <div className="flex gap-1">
                           <span className="text-gray-400 shrink-0">Mod:</span>
-                          <span>{s.usuarioModifica || '-'}</span>
-                          <span className="ml-auto text-gray-400" title={s.fecModificaCompleto}>{s.fecModifica}</span>
+                          <span className="truncate">{s.usuarioModifica || '-'}</span>
+                          <span className="ml-auto text-gray-400 shrink-0" title={s.fecModificaCompleto}>{s.fecModifica}</span>
                         </div>
                       </div>
                     )
@@ -706,6 +745,7 @@ const DatatablesSpares = ({
                     accessor: 'fecVencimiento',
                     title: t.abb_validity_date,
                     sortable: false,
+                    width: 90,
                     hidden: hideCols.includes('fecVencimiento'),
                     render: (s) => (
                       <span title={s.fecVencimientoCompleto} >{s.fecVencimiento}</span>
@@ -715,6 +755,7 @@ const DatatablesSpares = ({
                     accessor: 'codEstado',
                     title: t.status,
                     sortable: false,
+                    width: 80,
                     hidden: hideCols.includes('codEstado'),
                     render: (row) => (
                       <span
@@ -791,11 +832,11 @@ const DatatablesSpares = ({
                     </div>
 
                     {/* BOTONES */}
-                    <div className="flex gap-1">
+                    <div className="flex gap-0.5">
 
                       <button
-                        className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                        onClick={() => router.push(`/admin/spares/${s.codRepuesto}`)}
+                        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                        onClick={() => handleView(s)}
                         title="Ver"
                       >
                         <IconEye className="w-4 h-4 text-gray-600" />
@@ -803,7 +844,7 @@ const DatatablesSpares = ({
 
                       {(hasPermission(PERMISSIONS.REPUESTOS_MODIFICAR)) &&
                         <button
-                          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                          className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-800"
                           onClick={() => handleEdit(s)}
                           title="Editar"
                         >
@@ -812,7 +853,7 @@ const DatatablesSpares = ({
                       }
                       {(hasPermission(PERMISSIONS.REPUESTOS_ELIMINAR)) &&
                         <button
-                          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                          className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-gray-800"
                           onClick={() => handleToggleStatus(s)}
                           title={s.codEstado === 'AC' ? 'Eliminar' : 'Activar'}
                         >
@@ -876,12 +917,38 @@ const DatatablesSpares = ({
 
                     <div>
                       <div className="text-gray-400">Unidad</div>
-                      <div className="font-semibold">{s.uniMed}</div>
+                      <div className="font-semibold">{s.desUniMed || "-"}</div>
                     </div>
 
                     <div>
                       <div className="text-gray-400">Peso</div>
                       <div className="font-semibold">{s.peso || "-"}</div>
+                    </div>
+
+                  </div>
+
+                  {/* PEDIDO ESPECIAL */}
+                  <div className="grid grid-cols-3 text-center border-t border-gray-100 dark:border-gray-700 py-3 text-xs">
+
+                    <div className="space-y-1">
+                      <div className="text-gray-400">Ped. Especial</div>
+                      {(s.PedidoEspecial == 1)
+                        ? <span className="badge bg-success">{t.yes}</span>
+                        : <span className="badge bg-dark">{t.no}</span>
+                      }
+                    </div>
+
+                    <div>
+                      <div className="text-gray-400">Cant. PedEsp</div>
+                      <div className="font-semibold">{s.canDias ?? "-"}</div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="text-gray-400">Ped. Esp. S/Fecha</div>
+                      {(s.PedEspecialSinFecha == 1)
+                        ? <span className="badge bg-success">{t.yes}</span>
+                        : <span className="badge bg-dark">{t.no}</span>
+                      }
                     </div>
 
                   </div>

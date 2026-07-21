@@ -268,6 +268,8 @@
   "contact_error_save": " An error occurred, please try again or contact support ",
   "contact_error_server": " An error occurred, please try again or contact support ",
   "company": "Company",
+  "company_group_name": "Company/group name",
+  "commercial_name": "Commercial name",
   "contact": "Contact",
   "address": "Address",
   "state": "State",

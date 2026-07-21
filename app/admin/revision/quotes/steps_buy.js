@@ -187,7 +187,7 @@ const StepsToBuy = ({ token, t, _customer_ }) => {
           customer={_customer_}
           savedShipping={shipping_info}
           registerShipping={registerShipping} reset={reset}
-          setValue={setValue} errors={errors}
+          setValue={setValue} getValues={getValues} errors={errors}
         />
       )}
       {activeTab === 3 && (

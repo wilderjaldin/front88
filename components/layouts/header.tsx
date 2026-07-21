@@ -21,10 +21,12 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useForm } from "react-hook-form"
 import { selectUser, setAuth, selectToken, selectImpersonated } from '@/store/authSlice';
 import { getLocale, setLocale } from '@/store/localeSlice';
+import { selectTotalNoLeidos } from '@/store/notificationsSlice';
 import useAuthGuard from '@/components/layouts/useAuthGuard';
 import { Transition, Dialog, DialogPanel, TransitionChild } from '@headlessui/react';
 import IconX from '@/components/icon/icon-x';
 import IconMailDot from '../icon/icon-mail-dot';
+import IconBell from '../icon/icon-bell';
 import IconSend from '@/components/icon/icon-send';
 import Select from 'react-select';
 import axiosClient from '@/app/lib/axiosClient';
@@ -57,6 +59,7 @@ const Header = () => {
   const t = useTranslation();
 
   const user_redux = useSelector(selectUser);
+  const totalNoLeidos = useSelector(selectTotalNoLeidos);
   console.log('user_redux', user_redux)
 
   const [showModal, setShowModal] = useState(false);
@@ -273,6 +276,17 @@ const Header = () => {
                   <button onClick={() => showFormMessage()} className="block p-2 rounded-full bg-white-light/40 dark:bg-dark/40 hover:text-primary hover:bg-white-light/90 dark:hover:bg-dark/60">
                     <IconMailDot />
                   </button>
+                </div>
+
+                <div className="dropdown shrink-0 mr-4">
+                  <Link href="/admin/inbox" className="relative block p-2 rounded-full bg-white-light/40 dark:bg-dark/40 hover:text-primary hover:bg-white-light/90 dark:hover:bg-dark/60">
+                    <IconBell />
+                    {totalNoLeidos > 0 && (
+                      <span className="absolute top-0.5 right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white">
+                        {totalNoLeidos}
+                      </span>
+                    )}
+                  </Link>
                 </div>
 
                 {themeConfig.theme === 'light' ? (

@@ -67,13 +67,14 @@ export default function SupplierLayout({ children }) {
       .finally(() => setLoadingClient(false));
   }, [id]);
 
-  // Abrir modal: carga datos completos + controles en paralelo
+  // Abrir modal: reutiliza los datos de "general" (ya cargados en esa tab) en
+  // vez de volver a pedirlos — son el mismo shape que retorna guardar/general.
   const handleOpenEdit = async () => {
     setShowModal(true);
     setEditProveedor(null);
     setLoadingEditData(true);
     try {
-      const promises = [axiosClient.get(`${URL_BASE}/${id}`)];
+      const promises = [general ? Promise.resolve({ data: general }) : axiosClient.get(`${URL_BASE}/general/${id}`)];
       if (!controles) promises.push(axiosClient.get(`${URL_BASE}/controles`));
       const results = await Promise.all(promises);
       setEditProveedor(results[0].data);
@@ -82,14 +83,14 @@ export default function SupplierLayout({ children }) {
     finally { setLoadingEditData(false); }
   };
 
-  const handleSaved = async () => {
+  const handleSaved = (data) => {
     setShowModal(false);
     setEditProveedor(null);
-    setLoadGeneral(true);
-    try {
-      const res = await axiosClient.get(`${URL_BASE}/ficha/${id}`);
-      setProveedor(res.data);
-    } catch {}
+    // guardar ahora retorna el mismo shape que /proveedores/general/{id} —
+    // no hace falta volver a pedir ficha ni general, se actualiza directo.
+    setGeneral(data);
+    setLoadGeneral(false);
+    setProveedor(prev => ({ ...prev, nomPrv: data.nomPrv, codPais: data.codPais, nomPais: data.nomPais }));
   };
 
   if (loadingClient) {

@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useForm, Controller } from "react-hook-form";
 import { useTranslation } from "@/app/locales";
@@ -373,7 +374,11 @@ export default function DeliveryReport() {
                         />
                       </div>
                     </td>
-                    <td className={`${tdClass} font-semibold text-primary`}>{o.numEntrega}</td>
+                    <td className={tdClass}>
+                      <Link href={`/admin/queries/delivery-report/${o.numEntrega}`} className="font-semibold text-primary hover:underline">
+                        {o.numEntrega}
+                      </Link>
+                    </td>
                     <td className={`${tdClass} text-gray-400`}>{o.fecEntrega}</td>
                     <td className={`${tdClass} text-gray-400`}>{o.destino}</td>
                     <td className={tdClass}>{o.cliente}</td>

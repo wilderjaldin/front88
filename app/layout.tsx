@@ -6,6 +6,7 @@ import { Nunito } from 'next/font/google';
 import { useTranslation } from "./locales";
 import { LoadingProvider } from '@/components/layouts/LoadingProvider';
 import RouteClickInterceptor from '@/components/layouts/RouteClickInterceptor';
+import ChunkErrorHandler from '@/components/layouts/ChunkErrorHandler';
 
 import { headers } from 'next/headers';
 import { DeviceProvider } from '@/context/device-context';
@@ -32,6 +33,7 @@ export default async function RootLayout({
       <body className={nunito.variable}>
         <div className="min-h-screen text-black dark:text-white-dark">
           <ProviderComponent>
+            <ChunkErrorHandler />
             <RouteClickInterceptor />
             <LoadingProvider>
                 {children}

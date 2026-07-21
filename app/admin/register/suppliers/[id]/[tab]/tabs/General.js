@@ -7,6 +7,9 @@ import axiosClient from '@/app/lib/axiosClient';
 import IconPencil from '@/components/icon/icon-pencil';
 import IconUsers from '@/components/icon/icon-users';
 
+// Países que además de US muestran los campos Estado/ZIP (codPais 33)
+const isEstadoZipCountry = (value) => value === 'US' || value === 33 || value === '33';
+
 const Field = ({ label, value }) => (
   <div className="flex flex-col gap-0.5">
     <span className="text-xs text-gray-400">{label}</span>
@@ -122,6 +125,12 @@ export default function GeneralSupplier() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             <Field label={t.country}  value={general.nomPais} />
             <Field label={t.city}     value={general.nomCiudad} />
+            {isEstadoZipCountry(general.codPais) && (
+              <>
+                <Field label={t.state ?? 'Estado'} value={general.nomEstado} />
+                <Field label="ZIP" value={general.codZip} />
+              </>
+            )}
             <Field label={t.address}  value={general.dirPrv} />
             <Field label={t.website}  value={general.sitWeb} />
             <Field label={t.phone}    value={general.telPrv} />

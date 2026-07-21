@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useTranslation } from "@/app/locales";
-import axios from 'axios';
 import axiosClient from '@/app/lib/axiosClient';
 import { useSelector } from 'react-redux';
 import { selectToken } from '@/store/authSlice';
@@ -14,14 +13,11 @@ import QuoteWithoutCodeForm from '@/components/forms/quote-whithout-code-form';
 import QuoteManualForm from '@/components/forms/quote-manual-form';
 import Link from "next/link";
 import Swal from 'sweetalert2';
-import { getLocale } from '@/store/localeSlice';
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 import IconArrowBackward from '@/components/icon/icon-arrow-backward';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/constants/permissions';
 import AccessDenied from '@/components/AccessDenied';
-
-const url_order_confirmed = process.env.NEXT_PUBLIC_API_URL + 'ordenesdetallemod/MostrarDetalleOrden';
 
 const CATEGORY_OPTION = { NR: 'quotes', SC: 'quotes-without-code', MA: 'manual' };
 
@@ -31,7 +27,6 @@ export default function Quotes() {
   const router = useRouter();
   const token               = useSelector(selectToken);
   const t                   = useTranslation();
-  const locale              = useSelector(getLocale);
   const { hasPermission }   = usePermissions();
 
   const option      = searchParams.get("option");
@@ -77,11 +72,13 @@ export default function Quotes() {
 
   const getOrder = async (order_id) => {
     try {
-      if (option === 'quotes' || option === 'quotes-without-code' || option === 'batch' || option === 'buy' || option === 'manual') {
+      if (option === 'quotes' || option === 'quotes-without-code' || option === 'batch' || option === 'buy' || option === 'manual' || option === 'confirmed-quote') {
         const rs = await axiosClient.get(`cotizaciondetalle/detalle/${order_id}`, { params: { codCliente: customer_id } });
         const { cotizacion, detalle, seguimiento, contacto } = rs.data;
 
-        const expectedOption = CATEGORY_OPTION[cotizacion.categoria];
+        // El redirect por categoría solo aplica al flujo de cotizaciones (NR/SC/MA) —
+        // una orden ya confirmada no debe rebotar a ninguna de esas opciones.
+        const expectedOption = option === 'confirmed-quote' ? null : CATEGORY_OPTION[cotizacion.categoria];
         if (expectedOption && expectedOption !== option) {
           Swal.close();
           router.replace(`/admin/revision/quotes?customer=${customer_id}&option=${expectedOption}&id=${order_id}`);
@@ -113,12 +110,15 @@ export default function Quotes() {
           MtoIva:         cotizacion.mtoIva          ?? 0,
           Vencido:        cotizacion.vencido         ?? false,
           CodContacto:    contacto?.codRegistro      ?? null,
+          Contacto:       contacto ?? null,
           Categoria:      cotizacion.categoria       ?? '',
           TipCotizacion:  cotizacion.tipCotizacion   ?? '',
           FecCotizacion:  cotizacion.fecCotizacion   ?? '',
           CodEstado:      cotizacion.codEstado       ?? '',
+          Estado:         cotizacion.estado          ?? '',
           TipEnvio:       cotizacion.tipEnvio        ?? '',
           Vendedor:       cotizacion.vendedor        ?? '',
+          TieneCopiaAr:   cotizacion.tieneCopiaAr    ?? null,
         });
 
         setItems((detalle ?? []).map(d => ({
@@ -143,15 +143,6 @@ export default function Quotes() {
         setTracking(seguimiento ?? {});
         Swal.close();
         return;
-      }
-
-      if (option === 'confirmed-quote') {
-        const rs = await axios.post(url_order_confirmed, { Idioma: locale, NroOrden: order_id, CodCliente: customer_id, ValToken: token });
-        if (rs?.data?.estado === 'OK') {
-          setOrder(rs.data.dato1[0]);
-          setItems(rs.data.dato2);
-          Swal.close();
-        }
       }
     } catch (error) {
       if (error?.response?.status === 404) {
@@ -230,7 +221,9 @@ export default function Quotes() {
         </ul>
 
         <Link
-          href={`/admin/revision/orders-process?customer=${customer_id}&option=quotes`}
+          href={option === 'confirmed-quote'
+            ? '/admin/revision/orders-process'
+            : `/admin/revision/orders-process?customer=${customer_id}&option=quotes`}
           className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3
             text-sm text-gray-600 hover:bg-gray-50 transition
             dark:border-gray-600 dark:bg-transparent dark:text-gray-300 dark:hover:bg-gray-800"

@@ -84,7 +84,7 @@ const ConfirmQuote = ({
           CtoMail:           contact.email              ?? '',
           InsEntrega:        shipping_info.note         ?? '',
           NomTransporte:     shipping_info._transporteLabel ?? '',
-          NumCtaTransporte:  shipping_info._cuentaTransporte ?? '',
+          NumCtaTransporte:  shipping_info.cuentaTransporte ?? '',
         });
 
         if (rs.data.resultado === 'ok') {

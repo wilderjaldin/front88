@@ -4,6 +4,7 @@ import themeConfigReducer from '@/store/themeConfigSlice';
 import authReducer from '@/store/authSlice';
 import localeReducer from '@/store/localeSlice';
 import buyWizardReducer from '@/store/buyWizardSlice';
+import notificationsReducer from '@/store/notificationsSlice';
 import storage from 'redux-persist/lib/storage'
 import { persistReducer } from 'redux-persist'
 import thunk from 'redux-thunk'
@@ -15,10 +16,11 @@ const persistConfig = {
 }
 
 const rootReducer = combineReducers({
-  authState:   authReducer,
-  localeState: localeReducer,
-  themeConfig: themeConfigReducer,
-  buyWizard:   buyWizardReducer,
+  authState:          authReducer,
+  localeState:        localeReducer,
+  themeConfig:        themeConfigReducer,
+  buyWizard:          buyWizardReducer,
+  notificationsState: notificationsReducer,
 })
 
 const persistedReducer = persistReducer(persistConfig, rootReducer)

@@ -331,31 +331,32 @@ export default function OrdersProcess() {
                 <IconSearch className="h-4 w-4" />
               </button>
 
-              {/* Limpiar */}
-              {hasFilters && (
-                <button
-                  type="button"
-                  onClick={clearFilter}
-                  className="flex h-10 items-center justify-center rounded-lg px-2
-                    bg-gray-200 text-gray-700 hover:bg-gray-300 transition
-                    dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-                  title={t.btn_clear}
-                >
-                  <IconBackSpace className="h-4 w-4 mr-1.5" />
-                  {t.btn_clear}
-                </button>
-              )}
+              {/* Limpiar — siempre presente (solo deshabilitado) para que no salte el layout */}
+              <button
+                type="button"
+                onClick={clearFilter}
+                disabled={!hasFilters}
+                className="flex h-10 items-center justify-center rounded-lg px-2
+                  bg-gray-200 text-gray-700 hover:bg-gray-300 transition
+                  dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700
+                  disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-200 dark:disabled:hover:bg-gray-800"
+                title={t.btn_clear}
+              >
+                <IconBackSpace className="h-4 w-4 mr-1.5" />
+                {t.btn_clear}
+              </button>
             </form>
           </div>
 
           {/* Barra de acciones */}
-          <div className="flex flex-wrap items-center gap-2 mb-3">
+          <div className="flex flex-wrap items-center gap-1.5 mb-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 shadow-sm">
             <button
               type="button"
               onClick={delivered}
               disabled={selected.length === 0}
-              className="h-9 px-4 rounded-lg bg-green-600 text-white text-sm font-medium
-                hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-green-50 text-green-600 text-xs font-semibold
+                hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/40
+                disabled:opacity-35 disabled:cursor-not-allowed transition"
             >
               {t.delivered}
             </button>
@@ -363,13 +364,14 @@ export default function OrdersProcess() {
               type="button"
               onClick={cancelOrder}
               disabled={selected.length === 0}
-              className="h-9 px-4 rounded-lg bg-red-500 text-white text-sm font-medium
-                hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-red-50 text-red-600 text-xs font-semibold
+                hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40
+                disabled:opacity-35 disabled:cursor-not-allowed transition"
             >
               {t.cancel_order}
             </button>
             {selected.length > 0 && (
-              <span className="text-xs font-medium text-primary ml-1">
+              <span className="ml-auto inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
                 {selected.length} {t.selected ?? 'seleccionado(s)'}
               </span>
             )}

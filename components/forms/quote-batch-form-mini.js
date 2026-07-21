@@ -8,6 +8,7 @@ import { customFormat } from '@/app/lib/format';
 import axiosClient from '@/app/lib/axiosClient';
 import Swal from 'sweetalert2';
 import IconInfoCircle from '../icon/icon-info-circle';
+import { useRouter } from 'next/navigation';
 
 const URL_MARCAS = 'cotizaciones/marcas';
 const URL_SEARCH = 'cotizaciondetalle/buscar-parte-lote';
@@ -31,6 +32,7 @@ const selectStyles = {
 };
 
 const mapCotizacion = (c) => ({
+  NroOrden:       c.nroCotizacion,
   Total:          c.totalSus      ?? 0,
   TotRepuestos:   c.totRepuestos  ?? 0,
   TotalPeso:      c.totPeso       ?? 0,
@@ -68,6 +70,7 @@ const mapDetalle = (detalle = []) => detalle.map(d => ({
 }));
 
 const QuoteBatchFormMini = ({ close, t, customer, order, setOrder, setItems, updateInputs }) => {
+  const router = useRouter();
 
   const [marcas, setMarcas] = useState([]);
   const [showHelpModal, setShowHelpModal] = useState(false);
@@ -161,6 +164,9 @@ const QuoteBatchFormMini = ({ close, t, customer, order, setOrder, setItems, upd
         const newItems = mapDetalle(rs.data.detalle);
         setItems(newItems);
         updateInputs(newItems);
+        if (mapped.NroOrden && mapped.NroOrden !== order?.NroOrden) {
+          router.push(`/admin/revision/quotes?customer=${customer.CodCliente}&option=quotes&id=${mapped.NroOrden}`);
+        }
         close();
       }
     } catch { Swal.close(); }
