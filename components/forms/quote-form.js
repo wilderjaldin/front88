@@ -62,6 +62,7 @@ const URL_SEARCH_REFERENCE = 'referenciasCruzadas/buscar';
 const URL_CHANGE_REPORT      = 'cotizaciondetalle/mostrar-codigo';
 const URL_CHANGE_REPORT_PESO = 'cotizaciondetalle/mostrar-peso';
 const URL_CONTROLES          = 'cotizaciones/controles';
+const URL_MARCAS             = 'cotizacion/marcas';
 const URL_SAVE_SEGUIMIENTO   = 'cotizaciondetalle/registrar-seguimiento';
 const URL_REORDER            = 'cotizaciondetalle/ordenar-detalle';
 const URL_UPDATE_ALL         = 'cotizaciondetalle/actualizar-todo';
@@ -682,6 +683,25 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
         setOptsMoneda(monedas);
         setOptsTipoEnvio(tiposEnvio);
         setOptsEstado(estados);
+      })
+      .catch(() => {});
+  }, [order.NroOrden]);
+
+  // cotizaciones/controles necesita un nroCotizacion existente — en una cotización
+  // nueva (sin NroOrden aún) las marcas se cargan aparte para que el Select no quede vacío.
+  useEffect(() => {
+    if (order.NroOrden) return;
+    axiosClient.get(URL_MARCAS)
+      .then(rs => {
+        const raw = Array.isArray(rs.data) ? rs.data : (rs.data.marcas ?? rs.data.dato1 ?? rs.data.data ?? []);
+        const mapped = raw
+          .filter(m => m != null)
+          .map(m => ({
+            value: m.value ?? m.CodMarca ?? m.codMarca,
+            label: m.label ?? m.NomMarca ?? m.nomMarca,
+          }))
+          .filter(m => m.value != null && m.label != null);
+        setBrands(mapped);
       })
       .catch(() => {});
   }, [order.NroOrden]);
@@ -1366,6 +1386,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
           </div>
 
           {/* Seguimiento + Contacto */}
+          {order.NroOrden && (
           <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0 divide-y divide-gray-100 dark:divide-gray-700/60">
 
             {/* ── Fila 1: Seguimiento ─────────────────────────────────── */}
@@ -1418,6 +1439,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
             </div>
 
           </div>
+          )}
 
           {/* Opciones de reporte */}
           {order.NroOrden && (
