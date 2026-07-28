@@ -1,0 +1,53 @@
+"use client";
+import Link from "next/link";
+import { useSelector } from "react-redux";
+import { selectToken } from "@/store/authSlice";
+import { useTranslation } from "./locales";
+import AuthBackground from "@/components/auth/auth-background";
+
+export default function NotFound() {
+  const t = useTranslation();
+  const token = useSelector(selectToken);
+
+  return (
+    <div
+      className="min-h-screen flex flex-col items-center justify-center px-4 py-12 relative overflow-hidden"
+      style={{ background: "linear-gradient(135deg, #f9fafb 0%, #eef2ff 100%)" }}
+    >
+      <AuthBackground />
+
+      <div
+        className="relative z-10 w-full max-w-[440px] rounded-2xl overflow-hidden"
+        style={{
+          background: "#ffffff",
+          boxShadow: "0 20px 60px rgba(100,116,139,0.14), 0 0 0 1px rgba(245,158,11,0.14), 0 4px 20px rgba(245,158,11,0.05)",
+        }}
+      >
+        <div className="px-10 pt-10 pb-6 flex justify-center">
+          <img src="/assets/images/logo.png" alt="logo" className="w-full max-w-[220px] object-contain" />
+        </div>
+
+        <div className="h-[3px] bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600" />
+
+        <div className="px-10 pb-10 pt-8 text-center">
+          <p className="text-6xl font-black tracking-tight text-primary leading-none">404</p>
+          <h1 className="mt-3 text-xl font-bold text-slate-800">{t.page_not_found ?? "Página no encontrada"}</h1>
+          <p className="mt-2 text-sm text-slate-500">
+            {t.page_not_found_description ?? "La página que buscas no existe o fue movida."}
+          </p>
+
+          <Link
+            href={token ? "/admin/dashboard" : "/"}
+            className="mt-8 inline-flex h-10 items-center justify-center rounded-lg bg-primary px-6 text-sm font-medium text-white shadow-sm hover:bg-primary/90 transition"
+          >
+            {t.back_to_home ?? "Volver al inicio"}
+          </Link>
+        </div>
+      </div>
+
+      <p className="relative z-10 mt-8 text-xs text-slate-400">
+        © {new Date().getFullYear()} — Sistema de Gestión Daxparts
+      </p>
+    </div>
+  );
+}

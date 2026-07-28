@@ -17,6 +17,7 @@ import MessageQuoteForm from "@/components/forms/message-quote"
 import PriceParametersForm from "@/components/forms/price-parameters-form"
 import NotFoundPartForm from "@/components/forms/not-found-part-form"
 import CostSummary from "@/components/cost-summary"
+import SpareSummary from "@/components/spare-summary"
 import DeliveryAddressForm from "@/components/forms/delivery-address-form"
 import { customFormat } from '@/app/lib/format';
 import { useSelector } from 'react-redux';
@@ -467,6 +468,11 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
         token={token}
         t={t}
         data={data}
+        onAdded={() => {
+          setValueQuote('nro_part', '');
+          setValueQuote('quantity', '');
+          setFocus('nro_part');
+        }}
       />
     );
     setShowModal(true);
@@ -1065,6 +1071,13 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
     router.replace(`${pathname}?${nextSearchParams}`);
   }
 
+  const showSpareSummary = (item) => {
+    setModalTitle(t.spare_summary ?? 'Resumen del Repuesto');
+    setModalSize('w-full max-w-md');
+    setModalContent(<SpareSummary close={() => setShowModal(false)} t={t} codRepuesto={item.CodRepuesto} />);
+    setShowModal(true);
+  };
+
   const showReference = async (item) => {
     Swal.fire({
       title: t.searching,
@@ -1657,8 +1670,16 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                   </thead>
                   <SortableContext items={items.map(i => i.CodItem)} strategy={verticalListSortingStrategy}>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                      {items.map((item, index) => (
-                        <SortableRow key={item.CodItem} id={item.CodItem} index={index + 1} className={`transition ${item.ParPrecio ? 'bg-amber-50 dark:bg-amber-900/15 hover:bg-amber-100/70 dark:hover:bg-amber-900/25' : 'hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
+                      {items.map((item, index) => {
+                        const sinPrecio = !item.Precio || item.Precio === 0;
+                        return (
+                        <SortableRow key={item.CodItem} id={item.CodItem} index={index + 1} className={`transition ${
+                          sinPrecio
+                            ? 'bg-rose-50 dark:bg-rose-900/15 hover:bg-rose-100/70 dark:hover:bg-rose-900/25'
+                            : item.ParPrecio
+                              ? 'bg-amber-50 dark:bg-amber-900/15 hover:bg-amber-100/70 dark:hover:bg-amber-900/25'
+                              : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                        }`}>
                           <td className={`${tdClass} text-center`}>
                             <input type="checkbox" className="form-checkbox border-gray-400 rounded"
                               checked={seleccionados.includes(item)} onChange={() => toggleSeleccion(item)} disabled={blocked} />
@@ -1675,6 +1696,12 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                             {item.NroParte.includes("*") ? (
                               <button onClick={run(() => showReference(item))} type="button" disabled={isSubmitting}
                                 className="text-primary text-xs font-semibold border border-primary/30 rounded px-2 py-0.5 hover:bg-primary/5 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                                {item.NroParte}
+                              </button>
+                            ) : item.CodRepuesto ? (
+                              <button onClick={run(() => showSpareSummary(item))} type="button" disabled={isSubmitting}
+                                title={t.spare_summary ?? 'Resumen del Repuesto'}
+                                className="text-xs font-medium text-gray-800 dark:text-gray-100 hover:text-primary hover:underline transition disabled:opacity-50 disabled:cursor-not-allowed">
                                 {item.NroParte}
                               </button>
                             ) : (
@@ -1699,7 +1726,8 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                           <td className={tdClass}>{item.TiEntrega}</td>
                           <td className={`${tdClass} text-right`}>{item.DiasVigencia}</td>
                         </SortableRow>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </SortableContext>
                 </table>
@@ -1707,12 +1735,24 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
             </div>
 
             {/* Leyenda */}
-            {items.some(i => i.ParPrecio) && (
-              <div className="flex items-center gap-2 px-1 pt-2">
-                <span className="inline-block h-3 w-5 rounded-sm bg-amber-200 dark:bg-amber-700/50 border border-amber-300 dark:border-amber-600 shrink-0" />
-                <span className="text-[11px] text-gray-400 dark:text-gray-500">
-                  {t.par_precio_legend ?? 'Con parámetro de precio'}
-                </span>
+            {(items.some(i => i.ParPrecio) || items.some(i => !i.Precio || i.Precio === 0)) && (
+              <div className="flex flex-col gap-1.5 px-1 pt-2">
+                {items.some(i => !i.Precio || i.Precio === 0) && (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-block h-3 w-5 rounded-sm bg-rose-100 dark:bg-rose-900/40 border border-rose-300 dark:border-rose-700 shrink-0" />
+                    <span className="text-[11px] text-gray-400 dark:text-gray-500">
+                      {t.sin_precio_legend ?? 'Ítem sin precio / falta actualizar precio'}
+                    </span>
+                  </div>
+                )}
+                {items.some(i => i.ParPrecio) && (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-block h-3 w-5 rounded-sm bg-amber-200 dark:bg-amber-700/50 border border-amber-300 dark:border-amber-600 shrink-0" />
+                    <span className="text-[11px] text-gray-400 dark:text-gray-500">
+                      {t.par_precio_legend ?? 'Con parámetro de precio'}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </div>

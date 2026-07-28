@@ -18,6 +18,8 @@ import 'react-pdf/dist/Page/TextLayer.css';
 import { customFormat } from '@/app/lib/format';
 import Modal from '@/components/modal';
 import { useRouter } from 'next/navigation';
+import IconRepartir from '@/components/icon/icon-repartir';
+import { swalError, swalConfirm } from '@/app/lib/swal';
 
 const ICON_CHECK = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
@@ -27,8 +29,32 @@ const swalSuccess = (title) => Swal.fire({
 });
 
 const url_generate      = process.env.NEXT_PUBLIC_API_URL + 'ordcompradetalle/GenerarOrdCompra';
-const url_validate      = process.env.NEXT_PUBLIC_API_URL + 'ordcompradetalle/ValidarOpcionPrv';
+const URL_OPCIONES_PROVEEDOR = 'ordenescompra/opciones-proveedor';
 const url_update_order  = 'ordenescompra/actualizar';
+const URL_VERIFICAR_REVERSION = (numCorrelativo) => `ordenescompra/dividir-cantidad/${numCorrelativo}/verificar-reversion`;
+const URL_REVERTIR_DIVISION   = (numCorrelativo) => `ordenescompra/dividir-cantidad/${numCorrelativo}/revertir`;
+
+const mapDetalleItem = (d) => ({
+  CodRepuesto:           d.codRepuesto,
+  CodPrv:                d.codProveedor ?? null,
+  CodItem:               d.codItem,
+  NroOrden:              d.nroCotizacion,
+  NroParteCliente:       d.nroParte,
+  NroParteCompra:        d.nroParteCompra,
+  Descripcion:           d.desRepuesto,
+  NomPrv:                d.razSoc ?? '',
+  CantFaltante:          d.canFaltante,
+  CantComprada:          d.canComprada,
+  CostoSistema:          d.costo,
+  CostoReal:             d.costoReal,
+  Total:                 d.total,
+  OrigenCompra:          d.origenCompra ?? '',
+  isDivide:              d.isDivide ?? 0,
+  EsDividido:            d.esDividido ?? false,
+  NumCorrelativo:        d.numCorrelativo ?? null,
+  PuedeDividirCantidad:  d.puedeDividirCantidad  ?? true,
+  PuedeCambiarProveedor: d.puedeCambiarProveedor ?? true,
+});
 const url_print_proforma = process.env.NEXT_PUBLIC_API_URL + 'ordcompradetalle/BorradorOrdenCompra';
 
 const thClass = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap";
@@ -39,6 +65,17 @@ const InfoRow = ({ label, value, accent }) => (
     <span className="text-xs text-gray-500 dark:text-gray-400">{label}</span>
     <span className={`text-xs font-semibold ${accent ? 'text-primary' : 'text-gray-800 dark:text-gray-100'}`}>{value || '—'}</span>
   </div>
+);
+
+const IconSwap = (props) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <circle cx="8" cy="8" r="3"/>
+    <path d="M2 20a6 6 0 0 1 12 0"/>
+    <g transform="translate(11,0) scale(0.5)">
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+      <path d="M3 3v5h5"/>
+    </g>
+  </svg>
 );
 
 const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, setItems, contact, setReload, bloqueado = false }) => {
@@ -75,42 +112,86 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
     });
   }, [items]);
 
-  const divideQuantity = async () => {
-    let isDivisible = true;
-    selected.map((i, index) => {
-      const quantity = Number(getValues(`items.${index}.quantity_purchased`));
-      if (quantity == 1 && i.CantFaltante == 1) isDivisible = false;
-    });
-    if (!isDivisible) {
+  const divideQuantity = (item) => {
+    const itemIndex = items.findIndex(i => i.CodItem === item.CodItem);
+    const quantity = Number(getValues(`items.${itemIndex}.quantity_purchased`));
+    if (quantity == 1 && item.CantFaltante == 1) {
       Swal.fire({ title: t.error, text: t.not_disisible, icon: 'error', confirmButtonColor: '#dc2626', confirmButtonText: t.close });
       return;
     }
-    if (selected[0]?.isDivide == 1) {
+    if (item?.isDivide == 1) {
       Swal.fire({ title: t.error, text: `${t.has_already_been_divided}`, icon: 'error', confirmButtonColor: '#dc2626', confirmButtonText: t.close });
       return;
     }
-    const valid = await validate(selected[0].NroParteCompra);
-    if (valid) {
-      setModalTitle(t.divide_quantity); setModalSize('w-full max-w-xl'); setShowCloseModal(true);
-      setModalContent(<DivideQuantity close={() => setShowModal(false)} t={t} item={selected[0]} items={items} setItems={setItems} />);
-      setShowModal(true);
+    // La disponibilidad de otros proveedores la resuelve el propio modal contra
+    // proveedores-disponibles (con su propio estado vacío) — no hace falta un
+    // chequeo previo contra opciones-proveedor.
+    setModalTitle(t.divide_quantity); setModalSize('w-full max-w-5xl'); setShowCloseModal(true);
+    setModalContent(<DivideQuantity close={() => setShowModal(false)} t={t} item={item} setItems={setItems} order={order} CadNroOrden={CadNroOrden} setReload={setReload} />);
+    setShowModal(true);
+  };
+
+  const undoDivideQuantity = async (item) => {
+    if (!item.NumCorrelativo) return;
+    try {
+      const rs = await axiosClient.get(URL_VERIFICAR_REVERSION(item.NumCorrelativo));
+      const info = rs.data;
+
+      if (!info?.puedeRevertir) {
+        swalError(t.error ?? 'Error', info?.motivo ?? (t.undo_divide_not_allowed ?? 'Esta división no se puede revertir.'), t.close ?? 'Cerrar');
+        return;
+      }
+
+      const result = await swalConfirm(
+        t.question_undo_divide_quantity ?? '¿Deshacer esta división?',
+        `${info.canCambiada} × ${info.desRepuesto} (${info.nroParteCompra}) — ${info.razSocDestino} → ${info.razSocOriginal}`,
+        { confirmText: t.yes ?? 'Sí', cancelText: t.btn_cancel ?? 'Cancelar', confirmColor: '#dc2626' }
+      );
+      if (!result.isConfirmed) return;
+
+      const cadNroCotizacion = (CadNroOrden ?? '')
+        .toString()
+        .split(',')
+        .map(s => Number(s.trim()))
+        .filter(n => !Number.isNaN(n));
+
+      const rsRevert = await axiosClient.post(URL_REVERTIR_DIVISION(item.NumCorrelativo), {
+        nomPrv:           order?.NomPrv,
+        cadNroCotizacion,
+      });
+
+      setItems((rsRevert.data?.detalle ?? []).map(mapDetalleItem));
+      setReload();
+      swalSuccess(t.undo_divide_quantity_success ?? 'División revertida correctamente');
+    } catch (error) {
+      const apiMsg = error?.response?.data?.mensaje;
+      swalError(t.error ?? 'Error', apiMsg ?? (t.undo_divide_error ?? 'No se pudo revertir la división.'), t.close ?? 'Cerrar');
     }
   };
 
-  const validate = async (NroParte) => {
+  const validate = async (item) => {
     try {
-      const rs = await axios.post(url_validate, { NroParte, ValToken: token });
-      if (rs.data.estado == 'Ok') return true;
+      const data = {
+        nroParte:       item.NroParteCliente,
+        nroParteCompra: item.NroParteCompra,
+      };
+      if (item?.CodPrv) data.codProveedorActual = item.CodPrv;
+
+      const rs = await axiosClient.post(URL_OPCIONES_PROVEEDOR, data);
+      const total = (rs.data?.actual ? 1 : 0) + (rs.data?.otros?.length ?? 0);
+      if (total > 0) return true;
       Swal.fire({ title: t.error, text: `${t.empty_suppliers}`, icon: 'error', confirmButtonColor: '#dc2626', confirmButtonText: t.close });
       return false;
-    } catch (_) {}
+    } catch (_) {
+      return false;
+    }
   };
 
-  const changeSupplier = async () => {
-    const valid = await validate(selected[0].NroParteCompra);
+  const changeSupplier = async (item) => {
+    const valid = await validate(item);
     if (valid) {
       setModalTitle(t.change_supplier); setModalSize('w-full max-w-5xl'); setShowCloseModal(true);
-      setModalContent(<ChangeSupplier setReload={setReload} setSelectedItems={setSelected} CadNroOrden={CadNroOrden} close={() => setShowModal(false)} t={t} token={token} item={selected[0]} items={items} setItems={setItems} />);
+      setModalContent(<ChangeSupplier setReload={setReload} setSelectedItems={setSelected} CadNroOrden={CadNroOrden} close={() => setShowModal(false)} t={t} token={token} item={item} items={items} setItems={setItems} order={order} />);
       setShowModal(true);
     }
   };
@@ -141,13 +222,17 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
       const data = getValues();
 
       selected.forEach(i => {
-        const itemIndex = items.findIndex(item => item.CodItem === i.CodItem);
+        // Referencia exacta (no por CodItem): un ítem dividido genera varias filas
+        // con el mismo CodItem pero distinto proveedor/costo, así que buscar por
+        // CodItem siempre encontraría la primera y arrastraría su cantidad a todas.
+        const itemIndex = items.indexOf(i);
         if (itemIndex === -1) return;
         const CantComprada = getValues(`items.${itemIndex}.quantity_purchased`);
         data_send.push({
-          NomPrv: order.NomPrv, CadNroOrden, NumOrdCompra: 0,
+          NomPrv: i.NomPrv || order.NomPrv, CadNroOrden, NumOrdCompra: 0,
           MtoShipping: data.shipping, MtoOtros: data.others,
-          CodRepuesto: i.CodRepuesto, CodItem: i.CodItem, NroOrden: i.NroOrden,
+          CodRepuesto: i.CodRepuesto, CodPrv: i.CodPrv ?? order.CodPrv ?? null,
+          CodItem: i.CodItem, NroOrden: i.NroOrden,
           NroParteCliente: i.NroParteCliente, NroParteCompra: i.NroParteCompra,
           Descripcion: i.Descripcion, CantFaltante: i.CantFaltante, CantComprada,
           CostoSistema: i.CostoSistema, CostoReal: i.CostoReal,
@@ -181,9 +266,11 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
         mtoOtros:       getValues('others')   || 0,
         items: items.map((item, index) => ({
           codRepuesto:   item.CodRepuesto,
+          codProveedor:  item.CodPrv ?? null,
           codItem:       item.CodItem,
           nroCotizacion: item.NroOrden,
           costoReal:     getValues(`items.${index}.real_cost`) || 0,
+          origenCompra:  item.OrigenCompra ?? '',
         })),
       };
       const rs = await axiosClient.put(url_update_order, payload);
@@ -287,19 +374,13 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
         </div>
       </div>
 
-      {/* Barra de acciones (solo cuando no hay OC existente) */}
-      {!isExisting && (
+      {/* Barra de acciones (solo cuando no hay OC existente y no hay ítems ya divididos) */}
+      {!isExisting && !items.some(i => i.OrigenCompra === 'AX') && (
         <div className="flex flex-wrap items-center gap-2 mt-4">
           <button
-            disabled={isSelect || bloqueado}
-            onClick={changeSupplier}
-            className="h-9 flex items-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 px-4 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {t.change_of_supplier}
-          </button>
-          <button
-            disabled={isSelect || bloqueado}
+            disabled={bloqueado}
             onClick={resetOrder}
+            title={t.undo_changes_hint ?? 'Vuelve la orden a su estado original'}
             className="h-9 flex items-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 px-4 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
@@ -316,6 +397,7 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
           <table className="w-full border-collapse bg-white dark:bg-gray-900">
             <thead>
               <tr>
+                {!isExisting && <th className={`${thClass} w-16`}></th>}
                 <th className={`${thClass} w-10`}>
                   <input
                     type="checkbox"
@@ -337,6 +419,41 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
               {items.map((item, index) => (
                 <tr key={index} className={`transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50 ${selected.includes(item) ? 'bg-primary/5 dark:bg-primary/10' : ''}`}>
+                  {!isExisting && (
+                    <td className={tdClass}>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          disabled={bloqueado || !item.PuedeCambiarProveedor}
+                          onClick={() => changeSupplier(item)}
+                          title={!item.PuedeCambiarProveedor ? (t.change_supplier_not_available ?? 'Este ítem no admite cambio de proveedor') : t.change_of_supplier}
+                          className="p-1.5 rounded-lg text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                        >
+                          <IconSwap className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={bloqueado || !item.PuedeDividirCantidad}
+                          onClick={() => divideQuantity(item)}
+                          title={!item.PuedeDividirCantidad ? (t.divide_quantity_not_available ?? 'Este ítem no admite dividir cantidad') : t.divide_quantity}
+                          className="p-1.5 rounded-lg text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/20 transition disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                        >
+                          <IconRepartir className="h-4 w-4 rotate-180" />
+                        </button>
+                        {item.NumCorrelativo != null && (
+                          <button
+                            type="button"
+                            disabled={bloqueado}
+                            onClick={() => undoDivideQuantity(item)}
+                            title={t.undo_divide_quantity ?? 'Deshacer división'}
+                            className="p-1.5 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                          >
+                            <IconRepartir className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  )}
                   <td className={tdClass}>
                     <input
                       type="checkbox"
@@ -347,7 +464,12 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
                   </td>
                   <td className={tdClass}>{item.NroParteCliente}</td>
                   <td className={`${tdClass} font-medium text-primary`}>{item.NroParteCompra}</td>
-                  <td className={tdClass}>{item.Descripcion}</td>
+                  <td className={tdClass}>
+                    {item.Descripcion}
+                    {item.NomPrv && (
+                      <span className="block text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{item.NomPrv}</span>
+                    )}
+                  </td>
                   <td className={`${tdClass} text-center`}>{item.CantFaltante}</td>
                   <td className={`${tdClass} text-center`}>
                     { item.CantComprada }

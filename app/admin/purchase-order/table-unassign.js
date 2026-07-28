@@ -1,101 +1,156 @@
 'use client';
-import React, { useEffect, useState } from 'react';
-import sortBy from 'lodash/sortBy';
-import { Checkbox } from '@mantine/core';
-import { DataTable, DataTableSortStatus } from 'mantine-datatable';
-import { useForm, Controller } from "react-hook-form"
-import IconSave from '@/components/icon/icon-save';
-import IconTrashLines from '@/components/icon/icon-trash-lines';
-import Select from 'react-select';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Pagination } from '@mantine/core';
 import { customFormat } from '@/app/lib/format';
-import IconArrowDown from '@/components/icon/icon-arrow-down';
+import IconBackSpace from '@/components/icon/icon-backspace';
+
+const PAGE_SIZE = 20;
+
+const thClass = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap select-none";
+const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-3 py-2";
 
 const TableUnassigned = ({ t, orders_unassigned, assignOrder, goToTab }) => {
 
+  const [selected,   setSelected]   = useState([]);
+  const [filter,     setFilter]     = useState('');
+  const [page,       setPage]       = useState(1);
+  const [submitting, setSubmitting] = useState(false);
 
-  const [selected_pending, setSelectedPending] = useState([]);
+  useEffect(() => { setSelected([]); setPage(1); }, [orders_unassigned]);
 
-  //
-  const toggleSelectPending = (order) => {
-    setSelectedPending((prev) =>
-      prev.includes(order) ? prev.filter((i) => i.NroOrden !== order.NroOrden) : [...prev, order]
-    )
-  }
+  const filteredData = useMemo(() => {
+    if (!filter.trim()) return orders_unassigned;
+    const f = filter.trim().toLowerCase();
+    return orders_unassigned.filter(o =>
+      (o.NomProveedor ?? '').toLowerCase().includes(f) ||
+      (o.NroOrden?.toString() ?? '').includes(f) ||
+      (o.NomCliente ?? '').toLowerCase().includes(f)
+    );
+  }, [orders_unassigned, filter]);
 
-  const toggleAllPending = () => {
-    if (selected_pending.length === orders_unassigned.length) {
-      setSelectedPending([])
-    } else {
-      setSelectedPending(orders_unassigned.map((d) => d))
-    }
-  }
+  const totalPages = Math.ceil(filteredData.length / PAGE_SIZE);
+  const pageData    = filteredData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
- 
+  const toggleAll = () =>
+    setSelected(selected.length === pageData.length ? [] : [...pageData]);
+  const toggleRow = (row) =>
+    setSelected(prev => prev.includes(row) ? prev.filter(i => i !== row) : [...prev, row]);
 
-  const assignOrderTable = async() => {
-    const res = await assignOrder(selected_pending);
-    if(res){
-      setSelectedPending([]);
+  const assignOrderTable = async () => {
+    setSubmitting(true);
+    const res = await assignOrder(selected);
+    setSubmitting(false);
+    if (res) {
+      setSelected([]);
       goToTab('assigned');
     }
-  }
+  };
 
   return (
-    <div className="table-responsive mt-5 shadow-lg border border-gray-400 border-1">
-      <h2 className="text-xl font-bold text-blue-600 px-4 py-2 mb-4">{ t.pending_orders_not_assigned }</h2>
+    <div>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+        <div className="flex-1">
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+            {t.pending_orders_not_assigned}
+            <span className="ml-2 text-sm font-normal text-gray-400">({filteredData.length})</span>
+          </h2>
+          <div className="mt-1 h-0.5 w-10 rounded bg-primary/60" />
+        </div>
 
-      <div className="ml-4 mb-2">
-        <div className="flex flex-wrap items-center justify-start">
-          <button disabled={!(selected_pending.length>0)} onClick={() => assignOrderTable()} type="button" className="btn enabled:btn-dark disabled:btn-outline-dark hover:disabled:bg-transparent hover:disabled:text-dark">
-            { t.assign } <IconArrowDown className='rotate-90 ml-2'></IconArrowDown>
-          </button>
+        {/* Filtro local */}
+        <div className="relative">
+          <input
+            type="text"
+            value={filter}
+            onChange={e => { setFilter(e.target.value); setPage(1); }}
+            placeholder={t.filter}
+            className="h-10 w-52 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 pe-8 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+          />
+          {filter && (
+            <button onClick={() => setFilter('')} className="absolute inset-y-0 end-2 flex items-center text-gray-400 hover:text-gray-600">
+              <IconBackSpace className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
 
-      <table className="bg-white table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 text-sm">
-        <thead>
-          <tr className="relative !bg-gray-400 text-center text-sm">
-            <th className="w-1">
-              <Checkbox
-                checked={selected_pending.length === orders_unassigned.length && orders_unassigned.length != 0}
-                indeterminate={
-                  selected_pending.length > 0 &&
-                  selected_pending.length < orders_unassigned.length
-                }
-                onChange={toggleAllPending}
-              />
-            </th>
-            <th>{t.supplier}</th>
-            <th>{ t.nro_order }</th>
-            <th>Items</th>
-            <th>{ t.value }</th>
-            <th>{t.days}</th>
-            <th>{t.customer}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {orders_unassigned.map((o, index) => {
-            return (
-              <tr key={index} className="group/item">
-                <td className="w-1">
+      {/* Barra de acciones */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 shadow-sm">
+        <button
+          onClick={assignOrderTable}
+          disabled={selected.length === 0 || submitting}
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 disabled:opacity-35 disabled:cursor-not-allowed transition"
+        >
+          {t.assign}
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7-7 7M3 12h18"/>
+          </svg>
+        </button>
+        {selected.length > 0 && (
+          <span className="ml-auto inline-flex items-center rounded-full bg-primary/10 dark:bg-primary/20 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
+            {selected.length} seleccionado{selected.length !== 1 ? 's' : ''}
+          </span>
+        )}
+      </div>
+
+      {/* Tabla */}
+      <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse bg-white dark:bg-gray-900">
+            <thead>
+              <tr>
+                <th className={`${thClass} w-10`}>
                   <input
                     type="checkbox"
-                    className="border border-dark border-1 form-checkbox"
-                    checked={selected_pending.includes(o)}
-                    onChange={() => toggleSelectPending(o)}
+                    className="form-checkbox"
+                    checked={pageData.length > 0 && selected.length === pageData.length}
+                    onChange={toggleAll}
                   />
-                </td>
-                <td>{o.NomProveedor}</td>
-                <td className="w-2">{o.NroOrden}</td>
-                <td className="w-2">{o.NroItems}</td>
-                <td className="w-2">{o.Monto}</td>
-                <td className="w-2">{o.Dias}</td>
-                <td className="!p-0">{o.NomCliente}</td>
+                </th>
+                <th className={thClass}>{t.supplier}</th>
+                <th className={`${thClass} text-center`}>{t.nro_order}</th>
+                <th className={`${thClass} text-center`}>Items</th>
+                <th className={`${thClass} text-right`}>{t.value}</th>
+                <th className={`${thClass} text-center`}>{t.days}</th>
+                <th className={thClass}>{t.customer}</th>
               </tr>
-            )
-          })}
-        </tbody>
-      </table>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+              {pageData.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-10 text-center text-sm text-gray-400">{t.empty_results}</td>
+                </tr>
+              ) : pageData.map((o, i) => (
+                <tr
+                  key={i}
+                  className={`transition-colors ${
+                    selected.includes(o)
+                      ? 'bg-primary/5 dark:bg-primary/10'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                  }`}
+                >
+                  <td className={`${tdClass} text-center`}>
+                    <input type="checkbox" className="form-checkbox" checked={selected.includes(o)} onChange={() => toggleRow(o)} />
+                  </td>
+                  <td className={`${tdClass} font-medium`}>{o.NomProveedor}</td>
+                  <td className={`${tdClass} text-center`}>{o.NroOrden}</td>
+                  <td className={`${tdClass} text-center`}>{o.NroItems}</td>
+                  <td className={`${tdClass} text-right`}>{customFormat(o.Monto)}</td>
+                  <td className={`${tdClass} text-center`}>{o.Dias}</td>
+                  <td className={`${tdClass} text-gray-500`}>{o.NomCliente}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {totalPages > 1 && (
+        <div className="flex justify-center mt-4">
+          <Pagination total={totalPages} value={page} onChange={setPage} size="sm" radius="xl" />
+        </div>
+      )}
     </div>
   )
 }

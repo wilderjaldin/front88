@@ -1,103 +1,173 @@
 'use client';
-import React, { useEffect, useState } from 'react';
-import sortBy from 'lodash/sortBy';
-import { Checkbox } from '@mantine/core';
-import { DataTable, DataTableSortStatus } from 'mantine-datatable';
-import { useForm, Controller } from "react-hook-form"
-import IconSave from '@/components/icon/icon-save';
-import IconTrashLines from '@/components/icon/icon-trash-lines';
-import Select from 'react-select';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Pagination } from '@mantine/core';
 import { customFormat } from '@/app/lib/format';
-import IconArrowDown from '@/components/icon/icon-arrow-down';
-import IconArrowUp from '@/components/icon/icon-arrow-up';
+import IconBackSpace from '@/components/icon/icon-backspace';
 
-const TableAssigned = ({ t, orders_assigned, assignOrder, unassignOrder, createPurchaseOrder }) => {
+const PAGE_SIZE = 20;
 
-  const [selected_assigned, setSelectedAssigned] = useState([]);
+const thClass = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap select-none";
+const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-3 py-2";
 
-  //
-  const toggleSelectAssigned = (order) => {
-    setSelectedAssigned((prev) =>
-      prev.includes(order) ? prev.filter((i) => i.NroOrden !== order.NroOrden) : [...prev, order]
-    )
-  }
+const TableAssigned = ({ t, orders_assigned, unassignOrder, createPurchaseOrder }) => {
 
-  const toggleAllAssigned = () => {
-    if (selected_assigned.length === orders_assigned.length) {
-      setSelectedAssigned([])
-    } else {
-      setSelectedAssigned(orders_assigned.map((d) => d))
-    }
-  }
+  const [selected,   setSelected]   = useState([]);
+  const [filter,     setFilter]     = useState('');
+  const [page,       setPage]       = useState(1);
+  const [submitting, setSubmitting] = useState(false);
 
-  //
+  useEffect(() => { setSelected([]); setPage(1); }, [orders_assigned]);
 
-  const unassignOrderTable = async() => {
-    const res = await unassignOrder(selected_assigned);
-    if(res){
-      setSelectedAssigned([]);
-    }
-  }
+  const filteredData = useMemo(() => {
+    if (!filter.trim()) return orders_assigned;
+    const f = filter.trim().toLowerCase();
+    return orders_assigned.filter(o =>
+      (o.NomProveedor ?? '').toLowerCase().includes(f) ||
+      (o.NroOrden?.toString() ?? '').includes(f) ||
+      (o.NomCliente ?? '').toLowerCase().includes(f)
+    );
+  }, [orders_assigned, filter]);
+
+  const totalPages = Math.ceil(filteredData.length / PAGE_SIZE);
+  const pageData    = filteredData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const toggleAll = () =>
+    setSelected(selected.length === pageData.length ? [] : [...pageData]);
+  const toggleRow = (row) =>
+    setSelected(prev => prev.includes(row) ? prev.filter(i => i !== row) : [...prev, row]);
+
+  const unassignOrderTable = async () => {
+    setSubmitting(true);
+    const res = await unassignOrder(selected);
+    setSubmitting(false);
+    if (res) setSelected([]);
+  };
+
+  const createOrderTable = () => {
+    createPurchaseOrder(selected);
+    setSelected([]);
+  };
 
   return (
-    <div className="table-responsive mt-5 shadow-lg border border-gray-400 border-1">
-      <h2 className="text-xl font-bold text-blue-600 px-4 py-2 mb-4">{ t.assigned_purchase_orders }</h2>
-      <div className="ml-4 mb-2">
-        <div className="flex flex-wrap items-center justify-start gap-4">
-          <button disabled={!(selected_assigned.length > 0)} onClick={() => unassignOrderTable()} type="button" className="btn enabled:btn-dark disabled:btn-outline-dark hover:disabled:bg-transparent hover:disabled:text-dark">
-            { t.remove_from_list } <IconArrowUp className='-rotate-90 ml-2'></IconArrowUp>
-          </button>
+    <div>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+        <div className="flex-1">
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+            {t.assigned_purchase_orders}
+            <span className="ml-2 text-sm font-normal text-gray-400">({filteredData.length})</span>
+          </h2>
+          <div className="mt-1 h-0.5 w-10 rounded bg-primary/60" />
+        </div>
 
-          <button disabled={!(selected_assigned.length > 0)} onClick={() => { createPurchaseOrder(selected_assigned); setSelectedAssigned([]); } } type="button" className="btn enabled:btn-dark disabled:btn-outline-dark hover:disabled:bg-transparent hover:disabled:text-dark">
-            { t.create_purchase_order }
-          </button>
+        {/* Filtro local */}
+        <div className="relative">
+          <input
+            type="text"
+            value={filter}
+            onChange={e => { setFilter(e.target.value); setPage(1); }}
+            placeholder={t.filter}
+            className="h-10 w-52 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 pe-8 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+          />
+          {filter && (
+            <button onClick={() => setFilter('')} className="absolute inset-y-0 end-2 flex items-center text-gray-400 hover:text-gray-600">
+              <IconBackSpace className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
-      <table className="bg-white table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 text-sm">
-        <thead>
-          <tr className="relative !bg-gray-400 hover:!bg-gray-400  text-center text-sm">
-            <th className="w-1">
-              <Checkbox
-                checked={selected_assigned.length === orders_assigned.length && orders_assigned.length != 0}
-                indeterminate={
-                  selected_assigned.length > 0 &&
-                  selected_assigned.length < orders_assigned.length
-                }
-                onChange={toggleAllAssigned}
-              />
-            </th>
-            <th>{t.supplier}</th>
-            <th>{ t.nro_order }</th>
-            <th>Items</th>
-            <th>{ t.value }</th>
-            <th>{t.days}</th>
-            <th>{t.customer}</th>
-          </tr>
-        </thead>
 
-        <tbody>
-          {orders_assigned.map((o, index) => {
-            return (
-              <tr key={index} className="group/item">
-                <td className="w-1">
+      {/* Barra de acciones */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 shadow-sm">
+        <button
+          onClick={unassignOrderTable}
+          disabled={selected.length === 0 || submitting}
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100 disabled:opacity-35 disabled:cursor-not-allowed transition dark:bg-red-900/20 dark:text-red-400"
+        >
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7 7-7M3 12h18"/>
+          </svg>
+          {t.remove_from_list}
+        </button>
+
+        <div className="h-5 w-px bg-gray-200 dark:bg-gray-700 mx-0.5" />
+
+        <button
+          onClick={createOrderTable}
+          disabled={selected.length === 0}
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 disabled:opacity-35 disabled:cursor-not-allowed transition"
+        >
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+          </svg>
+          {t.create_purchase_order}
+        </button>
+
+        {selected.length > 0 && (
+          <span className="ml-auto inline-flex items-center rounded-full bg-primary/10 dark:bg-primary/20 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
+            {selected.length} seleccionado{selected.length !== 1 ? 's' : ''}
+          </span>
+        )}
+      </div>
+
+      {/* Tabla */}
+      <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse bg-white dark:bg-gray-900">
+            <thead>
+              <tr>
+                <th className={`${thClass} w-10`}>
                   <input
                     type="checkbox"
-                    className="border border-dark border-1 form-checkbox"
-                    checked={selected_assigned.includes(o)}
-                    onChange={() => toggleSelectAssigned(o)}
+                    className="form-checkbox"
+                    checked={pageData.length > 0 && selected.length === pageData.length}
+                    onChange={toggleAll}
                   />
-                </td>
-                <td>{o.NomProveedor}</td>
-                <td className="w-2">{o.NroOrden}</td>
-                <td className="w-2">{o.NroItems}</td>
-                <td className="w-2">{o.Monto}</td>
-                <td className="w-2">{o.Dias}</td>
-                <td className="!p-0">{o.NomCliente}</td>
+                </th>
+                <th className={thClass}>{t.supplier}</th>
+                <th className={`${thClass} text-center`}>{t.nro_order}</th>
+                <th className={`${thClass} text-center`}>Items</th>
+                <th className={`${thClass} text-right`}>{t.value}</th>
+                <th className={`${thClass} text-center`}>{t.days}</th>
+                <th className={thClass}>{t.customer}</th>
               </tr>
-            )
-          })}
-        </tbody>
-      </table>
+            </thead>
+
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+              {pageData.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-10 text-center text-sm text-gray-400">{t.empty_results}</td>
+                </tr>
+              ) : pageData.map((o, i) => (
+                <tr
+                  key={i}
+                  className={`transition-colors ${
+                    selected.includes(o)
+                      ? 'bg-primary/5 dark:bg-primary/10'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                  }`}
+                >
+                  <td className={`${tdClass} text-center`}>
+                    <input type="checkbox" className="form-checkbox" checked={selected.includes(o)} onChange={() => toggleRow(o)} />
+                  </td>
+                  <td className={`${tdClass} font-medium`}>{o.NomProveedor}</td>
+                  <td className={`${tdClass} text-center`}>{o.NroOrden}</td>
+                  <td className={`${tdClass} text-center`}>{o.NroItems}</td>
+                  <td className={`${tdClass} text-right`}>{customFormat(o.Monto)}</td>
+                  <td className={`${tdClass} text-center`}>{o.Dias}</td>
+                  <td className={`${tdClass} text-gray-500`}>{o.NomCliente}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {totalPages > 1 && (
+        <div className="flex justify-center mt-4">
+          <Pagination total={totalPages} value={page} onChange={setPage} size="sm" radius="xl" />
+        </div>
+      )}
     </div>
   )
 }

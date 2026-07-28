@@ -1,28 +1,23 @@
 "use client";
-import { useEffect, useState, Fragment } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "@/app/locales";
-import axios from 'axios'
+import axiosClient from '@/app/lib/axiosClient';
 import Swal from 'sweetalert2'
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSelector } from 'react-redux';
 import { selectToken } from '@/store/authSlice';
-import IconArrowUp from "@/components/icon/icon-arrow-up";
-import IconArrowDown from "@/components/icon/icon-arrow-down";
 import PurchaseOrderDetails from "@/app/admin/purchase-order/purchase-order";
-import { Checkbox } from '@mantine/core';
-import { Tab } from '@headlessui/react';
 
 import TableUnassign from "@/app/admin/purchase-order/table-unassign"
 import TableAssigned from "@/app/admin/purchase-order/table-assigned"
-import Link from "next/link";
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 
-const url = process.env.NEXT_PUBLIC_API_URL + 'ordencompra/MostrarOrdenesCompra';
-const url_assign_order = process.env.NEXT_PUBLIC_API_URL + 'ordencompra/AsignarOrdenCompra';
-const url_unassign_order = process.env.NEXT_PUBLIC_API_URL + 'ordencompra/DesasignarOrdenCompra';
-const url_show_purchase_order_items = process.env.NEXT_PUBLIC_API_URL + 'ordcompradetalle/DetOrdenesCompraItems';
+const URL_LIST = 'ordenescompra/listar-pendientes';
+const URL_ASSIGN_ORDER = 'ordenescompra/asignar-item';
+const URL_UNASSIGN_ORDER = 'ordenescompra/quitar-item';
+const URL_PREVIEW_OC = 'ordenescompra/preview-oc';
 
-const tabs = { '0': 'pending', '1': 'assigned' }
+const TAB_KEYS = ['pending', 'assigned'];
 
 export default function PurchaseOrder() {
 
@@ -35,20 +30,17 @@ export default function PurchaseOrder() {
   const [orders_unassigned, setOrdersUnassigned] = useState([])
   const [orders_assigned, setOrdersAssigned] = useState([])
 
-
-
-
-
   const [CadNroOrden, setCadNroOrden] = useState('');
 
   const [items, setItems] = useState([]);
   const [order, setOrder] = useState([]);
   const [contact, setContact] = useState([]);
 
-  let option = searchParams.get("option") || "";
-  const [currentTab, setCurrentTab] = useState(
-    Number(Object.keys(tabs).find((key) => tabs[key] === option) ?? 0)
-  );
+  const option = searchParams.get("option") || "";
+  const activeTab = Math.max(0, TAB_KEYS.indexOf(option));
+
+  const [glider, setGlider] = useState({ left: 0, width: 0 });
+  const tabRefs = useRef([]);
 
   const [reload, setReloadState] = useState(false);
 
@@ -69,15 +61,36 @@ export default function PurchaseOrder() {
     }
   }, [option]);
 
+  useEffect(() => {
+    const measure = () => {
+      const el = tabRefs.current[activeTab];
+      if (el) setGlider({ left: el.offsetLeft, width: el.offsetWidth });
+    };
+    measure();
+    const raf = requestAnimationFrame(measure);
+    window.addEventListener("resize", measure);
+    document.fonts?.ready?.then(measure);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", measure);
+    };
+  }, [activeTab, orders_unassigned.length, orders_assigned.length]);
+
+  const mapPendingOrder = (o) => ({
+    NomProveedor: o.razSoc,
+    NroOrden: o.nroCotizacion,
+    NroItems: o.nroTems,
+    Monto: o.total,
+    Dias: o.dias,
+    NomCliente: o.nomCliente,
+  });
 
   const getData = async () => {
     try {
-      const rs = await axios.post(url, { ValToken: token });
+      const rs = await axiosClient.get(URL_LIST);
 
-      if (rs.data.estado == 'Ok') {
-        setOrdersUnassigned(rs.data.dato1);
-        setOrdersAssigned(rs.data.dato2);
-      }
+      setOrdersUnassigned((rs.data.noAsignados ?? []).map(mapPendingOrder));
+      setOrdersAssigned((rs.data.asignados ?? []).map(mapPendingOrder));
 
     } catch (error) {
 
@@ -86,29 +99,16 @@ export default function PurchaseOrder() {
 
   const assignOrder = async (selected_pending) => {
     try {
-      let names = [];
-      let ids = [];
-      selected_pending.map(o => {
-        names.push(`'${o.NomProveedor}'`);
-        ids.push(o.NroOrden);
-      });
-      let CadNomPrv = names.join(",");
-      let CadNroOrden = ids.join(",");
+      const data = {
+        CadNomPrv: selected_pending.map(o => o.NomProveedor),
+        CadNroCotizacion: selected_pending.map(o => o.NroOrden),
+      };
 
-      let data = {
-        CadNomPrv: CadNomPrv,
-        CadNroOrden: CadNroOrden,
-        ValToken: token
-      }
+      const rs = await axiosClient.post(URL_ASSIGN_ORDER, data);
 
-      const rs = await axios.post(url_assign_order, data);
-
-      if (rs.data.estado == 'Ok') {
-        setOrdersUnassigned(rs.data.dato1);
-        setOrdersAssigned(rs.data.dato2);
-        return true;
-      }
-      return false;
+      setOrdersUnassigned((rs.data.noAsignados ?? []).map(mapPendingOrder));
+      setOrdersAssigned((rs.data.asignados ?? []).map(mapPendingOrder));
+      return true;
     } catch (error) {
 
       return false;
@@ -117,28 +117,16 @@ export default function PurchaseOrder() {
 
   const unassignOrder = async (selected_assigned) => {
     try {
-      let names = [];
-      let ids = [];
-      selected_assigned.map(o => {
-        names.push(`'${o.NomProveedor}'`);
-        ids.push(o.NroOrden);
-      });
-      let CadNomPrv = names.join(",");
-      let CadNroOrden = ids.join(",");
+      const data = {
+        CadNomPrv: selected_assigned.map(o => o.NomProveedor),
+        CadNroCotizacion: selected_assigned.map(o => o.NroOrden),
+      };
 
-      let data = {
-        CadNomPrv: CadNomPrv,
-        CadNroOrden: CadNroOrden,
-        ValToken: token
-      }
+      const rs = await axiosClient.post(URL_UNASSIGN_ORDER, data);
 
-      const rs = await axios.post(url_unassign_order, data);
-      if (rs.data.estado == 'Ok') {
-        setOrdersUnassigned(rs.data.dato1);
-        setOrdersAssigned(rs.data.dato2);
-        return true;
-      }
-      return false;
+      setOrdersUnassigned((rs.data.noAsignados ?? []).map(mapPendingOrder));
+      setOrdersAssigned((rs.data.asignados ?? []).map(mapPendingOrder));
+      return true;
     } catch (error) {
 
       return false;
@@ -147,134 +135,140 @@ export default function PurchaseOrder() {
 
   const createPurchaseOrder = async (selected_assigned) => {
     try {
-      let names = [];
-      let ids = [];
-      selected_assigned.map(o => {
-        names.push(`${o.NomProveedor}`);
-        ids.push(o.NroOrden);
-      });
+      const names = [...new Set(selected_assigned.map(o => o.NomProveedor))];
       if (names.length > 1) {
-        let s = new Set(names);
-        let diferrents_suppliers = [...s];
-        if (diferrents_suppliers.length > 1) {
-          Swal.fire({
-            title: t.error,
-            text: `${t.different_providers_error} [${diferrents_suppliers.toString()}]`,
-            icon: 'error',
-            confirmButtonColor: '#dc2626',
-            confirmButtonText: t.close
-          });
-          return;
-        }
-        names = diferrents_suppliers;
+        Swal.fire({
+          title: t.error,
+          text: `${t.different_providers_error} [${names.toString()}]`,
+          icon: 'error',
+          confirmButtonColor: '#dc2626',
+          confirmButtonText: t.close
+        });
+        return;
       }
 
-      let CadNomPrv = names.join(",");
-      let CadNroOrden = ids.join(",");
+      const cadNroCotizacion = selected_assigned.map(o => o.NroOrden);
 
-      let data = {
-        NomPrv: CadNomPrv,
-        CadNroOrden: CadNroOrden,
-        NumOrdCompra: 0,
-        ValToken: token
-      }
-      const rs = await axios.post(url_show_purchase_order_items, data);
-      if (rs.data.estado == 'Ok') {
-        setItems(rs.data.dato1)
-        setContact((rs.data.dato2[0]) ?? [])
-        setOrder(rs.data.dato3[0])
-        setCadNroOrden(CadNroOrden);
+      const rs = await axiosClient.post(URL_PREVIEW_OC, {
+        nomPrv: names[0],
+        cadNroCotizacion,
+      });
 
-      }
+      const con = rs.data.contacto ?? {};
+      const add = rs.data.datosAdicionales ?? {};
+
+      setItems((rs.data.detalle ?? []).map(d => ({
+        CodRepuesto:     d.codRepuesto,
+        CodPrv:          d.codProveedor ?? null,
+        CodItem:         d.codItem,
+        NroOrden:        d.nroCotizacion,
+        NroParteCliente: d.nroParte,
+        NroParteCompra:  d.nroParteCompra,
+        Descripcion:     d.desRepuesto,
+        NomPrv:          d.razSoc ?? '',
+        CantFaltante:    d.canFaltante,
+        CantComprada:    d.canComprada,
+        CostoSistema:    d.costo,
+        CostoReal:       d.costoReal,
+        Total:           d.total,
+        OrigenCompra:    d.origenCompra ?? '',
+        isDivide:        d.isDivide ?? 0,
+        EsDividido:      d.esDividido ?? false,
+        NumCorrelativo:  d.numCorrelativo ?? null,
+        PuedeDividirCantidad:  d.puedeDividirCantidad  ?? true,
+        PuedeCambiarProveedor: d.puedeCambiarProveedor ?? true,
+      })));
+      setContact({
+        NomContato: con.nomContacto,
+        Mail:       con.email,
+        Telefono:   con.telefono,
+      });
+      setOrder({
+        NomPrv:           add.nomPrv,
+        CodPrv:           add.codProveedor ?? null,
+        NomPaisProveedor: add.nomPaisProveedor,
+        NomPaisDestino:   add.nomPaisDestino,
+        CodPaisDestino:   add.codPaisDestino,
+        MtoShipping:      add.mtoShipping,
+        MtoOtros:         add.mtoOtros,
+        MtoSubTotal:      add.subTotal,
+        MtoTotal:         add.total,
+      });
+      setCadNroOrden(cadNroCotizacion.join(","));
+
     } catch (error) {
-      
+
     }
   }
 
   const goToTab = (tabName) => {
-    const index = Object.keys(tabs).find(
-      key => tabs[key] === tabName
-    );
-
-    if (index !== undefined) {
-      setCurrentTab(Number(index));
-      router.push(`?option=${tabs[index]}`);
+    const index = TAB_KEYS.indexOf(tabName);
+    if (index !== -1) {
+      router.push(`?option=${TAB_KEYS[index]}`, { scroll: false });
     }
   };
 
+  const handleTabChange = (index) => {
+    router.push(`?option=${TAB_KEYS[index]}`, { scroll: false });
+  };
+
   useDynamicTitle(`${t.purchase_order}`);
+
+  if (items.length > 0) {
+    return (
+      <PurchaseOrderDetails setReload={setReload} CadNroOrden={CadNroOrden} token={token} t={t} order={order} items={items} setOrder={() => setItems([])} setItems={setItems} contact={contact} ></PurchaseOrderDetails>
+    );
+  }
+
+  const tabLabels = [
+    `${t.unassigned_pending} (${orders_unassigned.length})`,
+    `${t.assigned} (${orders_assigned.length})`,
+  ];
+
   return (
     <>
-      <div>
-        <ul className="flex space-x-2 rtl:space-x-reverse">
-          <li>
-            {t.home}
-          </li>
-          <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
-            {(items.length > 0) ?
-              <Link href={'/admin/purchase-order'} className="text-blue-600 hover:underline">{t.purchase_order}</Link>
-              :
-              <span className="font-bold">{t.purchase_order}</span>
-            }
-          </li>
-          {(items.length > 0) &&
-            <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
-              <span className="font-bold">{t.creating_purchase_order}</span>
-            </li>
-          }
-        </ul>
+      {/* Breadcrumb */}
+      <ul className="flex space-x-2 rtl:space-x-reverse mb-4 text-sm text-gray-500">
+        <li>{t.home}</li>
+        <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2 text-gray-800 dark:text-gray-100">
+          {t.purchase_order}
+        </li>
+      </ul>
+
+      {/* Tabs con glider */}
+      <div className="flex justify-center mb-5">
+        <div className="relative flex rounded-xl bg-gray-100 dark:bg-gray-800 p-1">
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1 bottom-1 rounded-lg bg-slate-700 dark:bg-slate-500 shadow-sm transition-all duration-200 ease-out"
+            style={{ left: glider.left, width: glider.width }}
+          />
+          {tabLabels.map((label, index) => (
+            <button
+              key={label}
+              ref={el => { tabRefs.current[index] = el; }}
+              type="button"
+              onClick={() => handleTabChange(index)}
+              className={`relative z-10 px-5 py-2 text-sm font-medium rounded-lg transition-colors duration-150 outline-none whitespace-nowrap
+                ${activeTab === index
+                  ? 'text-white'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
-      {!(items.length > 0) ?
 
-        <Tab.Group
-          selectedIndex={currentTab}
-          onChange={(index) => {
-            setCurrentTab(index);
-            router.push(`?option=${tabs[index]}`);
-          }}
-        >
-          <Tab.List className="mb-5 mt-3 grid grid-cols-4 gap-2 rtl:space-x-reverse sm:flex sm:flex-wrap sm:justify-center sm:space-x-3">
-
-            <Tab as={Fragment}>
-              {({ selected }) => (
-                <button
-                  className={`${selected ? '!bg-success text-white !outline-none' : ''}
-                                                          flex flex-col items-center justify-center rounded-lg bg-[#f1f2f3] p-7 py-3 hover:!bg-success hover:text-white hover:shadow-[0_5px_15px_0_rgba(0,0,0,0.30)] dark:bg-[#191e3a]`}
-                >
-                  {t.unassigned_pending}
-                </button>
-              )}
-            </Tab>
-            <Tab as={Fragment}>
-              {({ selected }) => (
-                <button
-                  className={`${selected ? '!bg-success text-white !outline-none' : ''}
-                                                          flex flex-col items-center justify-center rounded-lg bg-[#f1f2f3] p-7 py-3 hover:!bg-success hover:text-white hover:shadow-[0_5px_15px_0_rgba(0,0,0,0.30)] dark:bg-[#191e3a]`}
-                >
-                  {t.assigned}
-                </button>
-              )}
-            </Tab>
-          </Tab.List>
-          <Tab.Panels className="shadow-lg bg-gray-200 ">
-
-            <Tab.Panel>
-              <TableUnassign t={t} token={token} goToTab={goToTab} orders_unassigned={orders_unassigned} assignOrder={assignOrder}></TableUnassign>
-            </Tab.Panel>
-            <Tab.Panel>
-              <TableAssigned t={t} token={token} orders_assigned={orders_assigned} unassignOrder={unassignOrder} createPurchaseOrder={createPurchaseOrder} ></TableAssigned>
-            </Tab.Panel>
-          </Tab.Panels>
-
-        </Tab.Group>
-
-
-        :
-        <PurchaseOrderDetails setReload={setReload} CadNroOrden={CadNroOrden} token={token} t={t} order={order} items={items} setOrder={() => setItems([])} setItems={setItems} contact={contact} ></PurchaseOrderDetails>
-      }
-
-
-
+      <div className="animate__animated animate__faster animate__fadeIn">
+        {activeTab === 0 && (
+          <TableUnassign t={t} token={token} goToTab={goToTab} orders_unassigned={orders_unassigned} assignOrder={assignOrder}></TableUnassign>
+        )}
+        {activeTab === 1 && (
+          <TableAssigned t={t} token={token} orders_assigned={orders_assigned} unassignOrder={unassignOrder} createPurchaseOrder={createPurchaseOrder} ></TableAssigned>
+        )}
+      </div>
     </>
   );
 }

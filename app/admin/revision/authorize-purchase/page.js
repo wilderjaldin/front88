@@ -2,18 +2,14 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "@/app/locales";
 import { customFormat } from '@/app/lib/format';
-import axios from 'axios';
 import axiosClient from '@/app/lib/axiosClient';
-import Swal from 'sweetalert2';
-import { useSelector } from 'react-redux';
-import { selectToken } from '@/store/authSlice';
+import { swalSuccess, swalError } from '@/app/lib/swal';
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 
 const URL_PENDIENTES       = 'cotizaciones/pendientes-autorizar';
-const URL_PROCEDER_COMPRA  = process.env.NEXT_PUBLIC_API_URL + 'revision/ProcederCompra';
+const URL_PROCEDER_COMPRA  = 'Cotizaciones/autorizar-compra';
 
 export default function AuthorizePurchase() {
-  const token = useSelector(selectToken);
   const t     = useTranslation();
 
   const [orders,        setOrders]        = useState([]);
@@ -42,18 +38,15 @@ export default function AuthorizePurchase() {
 
   const proceedPurchase = async () => {
     try {
-      const data = seleccionados.map(o => ({ NroOrden: o.nroCotizacion, ValToken: token }));
-      const rs   = await axios.post(URL_PROCEDER_COMPRA, data);
-      if (rs.data.estado === 'OK') {
-        Swal.fire({
-          position: "top-end", icon: "success",
-          title: t.proceed_purchase_success,
-          showConfirmButton: false, timer: 1500,
-        });
-        setOrders(rs.data.dato ?? []);
-        setSeleccionados([]);
-      }
-    } catch {}
+      const data = seleccionados.map(o => ({ NroCotizacion: o.nroCotizacion }));
+      const rs   = await axiosClient.post(URL_PROCEDER_COMPRA, data);
+      swalSuccess(t.proceed_purchase_success);
+      setOrders(rs.data ?? []);
+      setSeleccionados([]);
+    } catch (error) {
+      const apiMsg = error?.response?.data?.mensaje;
+      swalError(t.error ?? 'Error', apiMsg ?? 'No se pudo autorizar la compra', t.close ?? 'Cerrar');
+    }
   };
 
   useDynamicTitle(`${t.revision} | ${t.authorize_purchase}`);

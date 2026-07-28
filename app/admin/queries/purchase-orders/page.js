@@ -177,6 +177,7 @@ export default function PurchaseOrders() {
       setOrder({
         NroOrden:         nroOrdenCompra,
         NomPrv:           enc.nomPrv,
+        CodPrv:           enc.codPrv ?? enc.codProveedor ?? null,
         NomPaisProveedor: enc.nomPaisProveedor,
         CodPaisDestino:   enc.codPais,
         NomPaisDestino:   enc.nomPais,
@@ -187,6 +188,7 @@ export default function PurchaseOrders() {
       });
       setItems((data.detalle ?? []).map(d => ({
         CodRepuesto:     d.codRepuesto,
+        CodPrv:          d.codProveedor ?? d.codPrv ?? null,
         CodItem:         d.codItem,
         NroOrden:        d.nroCotizacion,
         NroParteCliente: d.nroParte,

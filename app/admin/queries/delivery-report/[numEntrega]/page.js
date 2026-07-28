@@ -3,16 +3,38 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Select from 'react-select';
+import DatePicker from "react-date-picker";
 import { useTranslation } from "@/app/locales";
 import axiosClient from '@/app/lib/axiosClient';
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 import IconArrowBackward from '@/components/icon/icon-arrow-backward';
+import { swalSuccess, swalError } from '@/app/lib/swal';
+
+import "react-date-picker/dist/DatePicker.css";
+import "react-calendar/dist/Calendar.css";
 
 const URL_ENTREGA = (num) => `entregas/${num}`;
-const URL_CONTROLES = 'entregas/controles';
+const URL_USUARIOS = 'entregas/usuarios';
 
-const resolveByValue = (opts, code) => opts.find(o => String(o.value)?.trim() === String(code)?.trim()) ?? (code ? { value: code, label: code } : null);
-const resolveByLabel = (opts, label) => opts.find(o => o.label?.trim().toUpperCase() === label?.trim().toUpperCase()) ?? (label ? { value: label, label } : null);
+const resolveByValue = (opts, code) => {
+  if (code === null || code === undefined || code === '') return null;
+  return opts.find(o => String(o.value).trim() === String(code).trim()) ?? null;
+};
+
+const parseDate = (s) => {
+  if (!s) return null;
+  // new Date("YYYY-MM-DD") parsea como UTC medianoche; en zonas horarias detrás de
+  // UTC eso muestra el día anterior. Se arma la fecha en hora local en su lugar.
+  const [y, m, d] = s.split('-').map(Number);
+  if (!y || !m || !d) return null;
+  const date = new Date(y, m - 1, d);
+  return isNaN(date) ? null : date;
+};
+const formatDate = (d) => {
+  if (!d) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
 
 const thClass = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap";
 const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-3 py-1.5";
@@ -31,6 +53,15 @@ const EditableField = ({ label, value, onChange, type = 'text' }) => (
     <label className="text-[11px] text-gray-400 dark:text-gray-500 w-28 shrink-0 text-right">{label}</label>
     <input type={type} value={value} onChange={(e) => onChange(e.target.value)}
       className="h-8 flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30" />
+  </div>
+);
+
+const DateField = ({ label, value, onChange }) => (
+  <div className="flex items-center gap-2">
+    <label className="text-[11px] text-gray-400 dark:text-gray-500 w-28 shrink-0 text-right">{label}</label>
+    <div className="h-8 flex-1 flex items-center rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 text-xs">
+      <DatePicker onChange={onChange} value={value} format="dd/MM/y" locale="es-ES" className="w-full" clearIcon={null} />
+    </div>
   </div>
 );
 
@@ -64,11 +95,11 @@ const mapEntrega = (d) => ({
 // Columnas editables del detalle, en orden — define tanto el input como la navegación tipo Excel
 const ITEM_COLUMNS = [
   { key: 'NroParte',     type: 'text',   widthPx: 120, className: 'font-medium' },
-  { key: 'DesRepuesto',  type: 'text' },
+  { key: 'DesRepuesto',  type: 'text',   widthPx: 220 },
   { key: 'Cantidad',     type: 'number', widthPx: 70,  align: 'text-center' },
   { key: 'TipoRepuesto', type: 'text',   widthPx: 120 },
   { key: 'Marca',        type: 'text',   widthPx: 120 },
-  { key: 'TiEntrega',    type: 'text',   widthPx: 110 },
+  { key: 'TiEntrega',    type: 'text',   widthPx: 160 },
   { key: 'Origen',       type: 'text',   widthPx: 90 },
   { key: 'HCode',        type: 'text',   widthPx: 110 },
   { key: 'Material',     type: 'text',   widthPx: 100 },
@@ -84,9 +115,9 @@ const mapItems = (items) => (items ?? []).map(i => ({
   NroParteCompra: i.nroParteCompra ?? '',
   DesRepuesto:    i.desRepuesto    ?? '',
   Cantidad:       i.cantidad       ?? 0,
-  TipoRepuesto:   i.tipoRepuesto ?? i.tipRepuesto ?? '',
-  Marca:          i.marca ?? i.nomMarca ?? '',
-  TiEntrega:      i.tiEntrega ?? i.desTieEntrega ?? '',
+  TipoRepuesto:   i.tipRepuesto ?? '',
+  Marca:          i.marca       ?? '',
+  TiEntrega:      i.tiEntrega   ?? '',
   Presentacion:   i.presentacion   ?? '',
   Material:       i.material       ?? '',
   Origen:         i.origen         ?? '',
@@ -101,24 +132,15 @@ export default function DeliveryDetail() {
   const [items,    setItems]    = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [saving,   setSaving]   = useState(false);
 
-  const [optsMoneda,      setOptsMoneda]      = useState([]);
-  const [optsTransporte,  setOptsTransporte]  = useState([]);
-  const [optsCondPago,    setOptsCondPago]    = useState([]);
-  const [optsEntregadoPor, setOptsEntregadoPor] = useState([]);
-  const [optsVendedores,  setOptsVendedores]  = useState([]);
+  const [optsUsuarios, setOptsUsuarios] = useState([]);
 
   useDynamicTitle(`${t.delivery_report} | ${numEntrega}`);
 
   useEffect(() => {
-    axiosClient.get(URL_CONTROLES)
-      .then(rs => {
-        setOptsMoneda(rs.data?.monedas ?? []);
-        setOptsTransporte(rs.data?.transportes ?? []);
-        setOptsCondPago(rs.data?.condPago ?? []);
-        setOptsEntregadoPor(rs.data?.entregadoPor ?? []);
-        setOptsVendedores(rs.data?.vendedores ?? []);
-      })
+    axiosClient.get(URL_USUARIOS)
+      .then(rs => setOptsUsuarios(rs.data ?? []))
       .catch(() => {});
   }, []);
 
@@ -138,11 +160,8 @@ export default function DeliveryDetail() {
 
   const setField = (field, value) => setEntrega(prev => ({ ...prev, [field]: value }));
 
-  const selMoneda      = resolveByValue(optsMoneda, entrega?.CodMoneda);
-  const selTransporte  = resolveByValue(optsTransporte, entrega?.TipTransporte);
-  const selCondPago    = resolveByValue(optsCondPago, entrega?.CondPago);
-  const selEntregadoPor = resolveByLabel(optsEntregadoPor, entrega?.EntregadoPor);
-  const selVendedor    = resolveByLabel(optsVendedores, entrega?.Vendedor);
+  const selEntregadoPor = resolveByValue(optsUsuarios, entrega?.EntregadoPor);
+  const selVendedor    = resolveByValue(optsUsuarios, entrega?.Vendedor);
 
   const selectClass = { classNamePrefix: 'react-select', menuPosition: 'fixed', menuShouldScrollIntoView: false };
 
@@ -177,8 +196,43 @@ export default function DeliveryDetail() {
     }
   };
 
-  // Guardado pendiente — aún no existe el endpoint para persistir estos cambios.
-  const handleGuardar = () => {};
+  const buildPayload = () => ({
+    fecEntrega:   entrega.FecEntrega ? `${entrega.FecEntrega}T00:00:00` : null,
+    recibidoPor:  entrega.RecibidoPor,
+    entregadoPor: entrega.EntregadoPor ? Number(entrega.EntregadoPor) : null,
+    vendedor:     entrega.Vendedor ? Number(entrega.Vendedor) : null,
+    lugEntrega:   entrega.LugEntrega,
+    items: items.map(i => ({
+      numCorrelativo: i.NumCorrelativo,
+      numEmbalaje:    i.NumEmbalaje || null,
+      nroCotizacion:  i.NroCotizacion,
+      codItem:        i.CodItem,
+      nroParte:       i.NroParte,
+      nroParteCompra: i.NroParteCompra,
+      desRepuesto:    i.DesRepuesto,
+      cantidad:       Number(i.Cantidad) || 0,
+      tipRepuesto:    i.TipoRepuesto,
+      marca:          i.Marca,
+      tiEntrega:      i.TiEntrega,
+      origen:         i.Origen,
+      hCode:          i.HCode,
+      material:       i.Material,
+      presentacion:   i.Presentacion,
+    })),
+  });
+
+  const handleGuardar = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const rs = await axiosClient.put(URL_ENTREGA(numEntrega), buildPayload());
+      swalSuccess(rs.data?.mensaje ?? 'Entrega guardada correctamente.');
+    } catch (err) {
+      swalError('Error', err?.response?.data?.mensaje ?? 'No se pudo guardar la entrega.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <>
@@ -216,8 +270,8 @@ export default function DeliveryDetail() {
         <div className="space-y-4">
 
           {/* Datos de la Entrega */}
-          <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
-            <div className="px-4 py-2.5 border-b border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 flex items-center justify-between flex-wrap gap-2">
+          <div className="panel border border-gray-200 dark:border-gray-700 p-0">
+            <div className="px-4 py-2.5 border-b border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 rounded-t-md flex items-center justify-between flex-wrap gap-2">
               <div>
                 <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t.delivery_data ?? 'Datos de la Entrega'}</p>
                 <div className="h-0.5 w-8 rounded bg-primary/60 mt-0.5" />
@@ -233,25 +287,19 @@ export default function DeliveryDetail() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 p-4">
               <InfoField label={t.nro_delivery ?? 'Nro. Entrega'} value={entrega.NumEntrega} />
-              <EditableField label={t.date} value={entrega.FecEntrega} onChange={(v) => setField('FecEntrega', v)} />
+              <DateField label={t.date} value={parseDate(entrega.FecEntrega)} onChange={(d) => setField('FecEntrega', formatDate(d))} />
               <EditableField label={t.received_by} value={entrega.RecibidoPor} onChange={(v) => setField('RecibidoPor', v)} />
-              <SelectField label={t.currency ?? 'Moneda'} value={selMoneda} options={optsMoneda} instanceId="sel-moneda" selectClass={selectClass}
-                onChange={(opt) => setField('CodMoneda', opt?.value ?? '')} />
-              <SelectField label={t.delivered_by} value={selEntregadoPor} options={optsEntregadoPor} instanceId="sel-entregado-por" selectClass={selectClass}
-                onChange={(opt) => setField('EntregadoPor', opt?.label ?? '')} />
-              <SelectField label={t.transport ?? 'Transporte'} value={selTransporte} options={optsTransporte} instanceId="sel-transporte" selectClass={selectClass}
-                onChange={(opt) => { setField('TipTransporte', opt?.value ?? ''); setField('NomTransporte', opt?.label ?? ''); }} />
-              <SelectField label={t.vendor ?? 'Vendedor'} value={selVendedor} options={optsVendedores} instanceId="sel-vendedor" selectClass={selectClass}
-                onChange={(opt) => setField('Vendedor', opt?.label ?? '')} />
-              <SelectField label={t.payment_condition ?? 'Cond. Pago'} value={selCondPago} options={optsCondPago} instanceId="sel-cond-pago" selectClass={selectClass}
-                onChange={(opt) => setField('CondPago', opt?.value ?? '')} />
+              <SelectField label={t.delivered_by} value={selEntregadoPor} options={optsUsuarios} instanceId="sel-entregado-por" selectClass={selectClass}
+                onChange={(opt) => setField('EntregadoPor', opt?.value ?? '')} />
+              <SelectField label={t.vendor ?? 'Vendedor'} value={selVendedor} options={optsUsuarios} instanceId="sel-vendedor" selectClass={selectClass}
+                onChange={(opt) => setField('Vendedor', opt?.value ?? '')} />
               <EditableField label={t.delivery_place ?? 'Lugar Entrega'} value={entrega.LugEntrega} onChange={(v) => setField('LugEntrega', v)} />
             </div>
 
             <div className="flex items-center justify-end px-4 pb-4">
-              <button type="button" onClick={handleGuardar}
-                className="h-9 rounded-lg bg-primary px-5 text-sm font-medium text-white shadow-sm hover:bg-primary/90 transition">
-                {t.btn_save ?? 'Guardar'}
+              <button type="button" onClick={handleGuardar} disabled={saving}
+                className="h-9 rounded-lg bg-primary px-5 text-sm font-medium text-white shadow-sm hover:bg-primary/90 transition disabled:opacity-60 disabled:cursor-not-allowed">
+                {saving ? (t.saving ?? 'Guardando...') : (t.btn_save ?? 'Guardar')}
               </button>
             </div>
           </div>
@@ -264,11 +312,11 @@ export default function DeliveryDetail() {
                   <tr>
                     <th className={`${thClass} text-center`} style={{ width: 44 }}>{t.nro ?? 'Nro.'}</th>
                     <th className={thClass} style={{ width: 120 }}>{t.nro_part}</th>
-                    <th className={thClass}>{t.description}</th>
+                    <th className={thClass} style={{ width: 220 }}>{t.description}</th>
                     <th className={`${thClass} text-center`} style={{ width: 70 }}>{t.qty}</th>
                     <th className={thClass} style={{ width: 120 }}>{t.spare_part_type}</th>
                     <th className={thClass} style={{ width: 120 }}>{t.brand}</th>
-                    <th className={thClass} style={{ width: 110 }}>{t.t_delivery}</th>
+                    <th className={thClass} style={{ width: 160 }}>{t.t_delivery}</th>
                     <th className={thClass} style={{ width: 90 }}>{t.origin ?? 'Origen'}</th>
                     <th className={thClass} style={{ width: 110 }}>H Code</th>
                     <th className={thClass} style={{ width: 100 }}>{t.material ?? 'Material'}</th>

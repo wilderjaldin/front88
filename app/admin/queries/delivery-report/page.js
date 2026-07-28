@@ -355,7 +355,7 @@ export default function DeliveryReport() {
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                 {orders.map((o, index) => (
-                  <tr key={index} className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                  <tr key={index} className={`transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50 ${o.esCopia ? 'bg-sky-50/60 dark:bg-sky-900/10' : ''}`}>
                     <td className={tdClass}>
                       <div className="flex items-center justify-center gap-1.5">
                         <label className="cursor-pointer">
@@ -375,9 +375,16 @@ export default function DeliveryReport() {
                       </div>
                     </td>
                     <td className={tdClass}>
-                      <Link href={`/admin/queries/delivery-report/${o.numEntrega}`} className="font-semibold text-primary hover:underline">
-                        {o.numEntrega}
-                      </Link>
+                      <div className="flex items-center gap-1.5">
+                        <Link href={`/admin/queries/delivery-report/${o.numEntrega}`} className="font-semibold text-primary hover:underline">
+                          {o.numEntrega}
+                        </Link>
+                        {o.esCopia && (
+                          <span className="inline-flex items-center rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
+                            {t.copy ?? 'Copia'}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className={`${tdClass} text-gray-400`}>{o.fecEntrega}</td>
                     <td className={`${tdClass} text-gray-400`}>{o.destino}</td>

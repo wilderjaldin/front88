@@ -87,7 +87,7 @@ function SectionLabel({ label }) {
   );
 }
 
-const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, token, t, order, setItems, setOrder, updateInputs, item_select = [], changePrice = false }) => {
+const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, token, t, order, setItems, setOrder, updateInputs, item_select = [], changePrice = false, onAdded }) => {
 
   const router = useRouter();
   const locale = useSelector(getLocale);
@@ -123,6 +123,7 @@ const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, 
       if (updatedOrder.NroOrden) {
         router.push(`/admin/revision/quotes?customer=${customer.CodCliente}&option=quotes&id=${updatedOrder.NroOrden}`);
       }
+      onAdded?.();
       close();
     } catch (error) {}
   }
@@ -146,6 +147,7 @@ const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, 
         setOrder(rs.data.dato2[0]);
         setItems(rs.data.dato3);
         updateInputs(rs.data.dato3);
+        onAdded?.();
         close();
       }
     } catch (error) {}
@@ -184,6 +186,7 @@ const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, 
         if (rs.data.estado == 'OK') {
           setItems(rs.data.dato3);
           updateInputs(rs.data.dato3);
+          onAdded?.();
           close();
         }
       } catch (error) {}
@@ -227,6 +230,7 @@ const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, 
       setOrder(updatedOrder);
       setItems(updatedItems);
       updateInputs(updatedItems);
+      onAdded?.();
       close();
     } catch (error) {}
   };

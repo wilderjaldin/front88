@@ -599,56 +599,70 @@ const DatatablesSpares = ({
                     title: t.nro_part,
                     sortable: false,
                     width: 100,
-                    ellipsis: true,
                     hidden: hideCols.includes('nroParte'),
+                    render: (s) => (
+                      <div className="truncate" style={{ maxWidth: 100 }} title={s.nroParte}>{s.nroParte}</div>
+                    ),
                   },
                   {
                     accessor: 'descripcion',
                     title: t.description,
                     sortable: false,
                     width: 180,
-                    ellipsis: true,
                     hidden: hideCols.includes('descripcion'),
+                    render: (s) => (
+                      <div className="truncate" style={{ maxWidth: 180 }} title={s.descripcion}>{s.descripcion}</div>
+                    ),
                   },
                   {
                     accessor: 'proveedor',
                     title: t.supplier,
                     sortable: false,
                     width: 130,
-                    ellipsis: true,
                     hidden: hideCols.includes('proveedor'),
+                    render: (s) => (
+                      <div className="truncate" style={{ maxWidth: 130 }} title={s.proveedor}>{s.proveedor}</div>
+                    ),
                   },
                   {
                     accessor: 'marca',
                     title: t.brand,
                     sortable: false,
                     width: 110,
-                    ellipsis: true,
                     hidden: hideCols.includes('marca'),
+                    render: (s) => (
+                      <div className="truncate" style={{ maxWidth: 110 }} title={s.marca}>{s.marca}</div>
+                    ),
                   },
                   {
                     accessor: 'aplicacion',
                     title: t.application,
                     sortable: false,
                     width: 110,
-                    ellipsis: true,
                     hidden: hideCols.includes('aplicacion'),
+                    render: (s) => (
+                      <div className="truncate" style={{ maxWidth: 110 }} title={s.aplicacion}>{s.aplicacion}</div>
+                    ),
                   },
                   {
                     accessor: 'desTipRepuesto',
                     title: t.spare_part_type,
                     sortable: false,
                     width: 100,
-                    ellipsis: true,
                     hidden: hideCols.includes('desTipRepuesto'),
+                    render: (s) => (
+                      <div className="truncate" style={{ maxWidth: 100 }} title={s.desTipRepuesto}>{s.desTipRepuesto}</div>
+                    ),
                   },
                   {
                     accessor: 'desEstado',
                     title: t.status,
                     sortable: false,
                     width: 90,
-                    ellipsis: true,
                     hidden: hideCols.includes('desEstado'),
+                    render: (s) => (
+                      <div className="truncate" style={{ maxWidth: 90 }} title={s.desEstado}>{s.desEstado}</div>
+                    ),
                   },
                   {
                     accessor: 'peso',
