@@ -3,20 +3,56 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Pagination } from '@mantine/core';
 import { customFormat } from '@/app/lib/format';
 import IconBackSpace from '@/components/icon/icon-backspace';
+import axiosClient from '@/app/lib/axiosClient';
+import { swalError, swalConfirm, swalSuccess } from '@/app/lib/swal';
 
 const PAGE_SIZE = 20;
+const URL_DESHACER_CAMBIOS = 'ordenescompra/deshacer-cambios';
 
 const thClass = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap select-none";
 const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-3 py-2";
 
-const TableAssigned = ({ t, orders_assigned, unassignOrder, createPurchaseOrder }) => {
+const TableAssigned = ({ t, orders_assigned, unassignOrder, createPurchaseOrder, setReload }) => {
 
   const [selected,   setSelected]   = useState([]);
   const [filter,     setFilter]     = useState('');
   const [page,       setPage]       = useState(1);
   const [submitting, setSubmitting] = useState(false);
+  const [undoingRow, setUndoingRow] = useState(null);
 
   useEffect(() => { setSelected([]); setPage(1); }, [orders_assigned]);
+
+  const undoRowChanges = async (o) => {
+    const codItems = o.CodItemsConCambios ?? [];
+    if (codItems.length === 0) return;
+
+    const result = await swalConfirm(
+      t.question_undo_changes ?? '¿Deshacer los cambios de este proveedor?',
+      `${o.NomProveedor} — ${codItems.length} ${codItems.length !== 1 ? (t.items ?? 'ítems') : (t.item ?? 'ítem')} (${t.nro_order ?? 'Cotización'} ${o.NroOrden})`,
+      { confirmText: t.yes ?? 'Sí', cancelText: t.btn_cancel ?? 'Cancelar', confirmColor: '#dc2626' }
+    );
+    if (!result.isConfirmed) return;
+
+    setUndoingRow(o);
+    try {
+      // Un llamado por cada codItem que tenga cambios en esta fila.
+      for (const codItem of codItems) {
+        await axiosClient.post(URL_DESHACER_CAMBIOS, {
+          nroCotizacion:    o.NroOrden,
+          codItem,
+          nomPrv:           o.NomProveedor,
+          cadNroCotizacion: [o.NroOrden],
+        });
+      }
+      setReload?.();
+      swalSuccess(t.undo_changes_success ?? 'Cambios revertidos correctamente');
+    } catch (error) {
+      const apiMsg = error?.response?.data?.mensaje;
+      swalError(t.error ?? 'Error', apiMsg ?? (t.undo_changes_error ?? 'No se pudo deshacer el cambio.'), t.close ?? 'Cerrar');
+    } finally {
+      setUndoingRow(null);
+    }
+  };
 
   const filteredData = useMemo(() => {
     if (!filter.trim()) return orders_assigned;
@@ -138,7 +174,9 @@ const TableAssigned = ({ t, orders_assigned, unassignOrder, createPurchaseOrder 
                 <tr>
                   <td colSpan={7} className="py-10 text-center text-sm text-gray-400">{t.empty_results}</td>
                 </tr>
-              ) : pageData.map((o, i) => (
+              ) : pageData.map((o, i) => {
+                const isChanged = o.TieneDivididos || o.TieneCambioProveedor;
+                return (
                 <tr
                   key={i}
                   className={`transition-colors ${
@@ -150,14 +188,42 @@ const TableAssigned = ({ t, orders_assigned, unassignOrder, createPurchaseOrder 
                   <td className={`${tdClass} text-center`}>
                     <input type="checkbox" className="form-checkbox" checked={selected.includes(o)} onChange={() => toggleRow(o)} />
                   </td>
-                  <td className={`${tdClass} font-medium`}>{o.NomProveedor}</td>
+                  <td className={`${tdClass} font-medium`}>
+                    <div className="flex items-center gap-2">
+                      <div>
+                        {o.NomProveedor}
+                        {isChanged && (
+                          <span className="block text-[10px] font-normal text-gray-400 dark:text-gray-500">
+                            {[o.TieneDivididos && (t.divided_tag ?? 'Dividido'), o.TieneCambioProveedor && (t.changed_supplier_tag ?? 'Cambio de proveedor')]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </span>
+                        )}
+                      </div>
+                      {isChanged && (
+                        <button
+                          type="button"
+                          disabled={undoingRow === o}
+                          onClick={() => undoRowChanges(o)}
+                          title={t.undo_changes_row_hint ?? 'Deshace la división/cambio de proveedor de este proveedor puntual'}
+                          className="inline-flex items-center gap-1 h-6 px-2 rounded-lg bg-red-50 text-red-600 text-[10px] font-semibold hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 transition shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path strokeLinecap="round" strokeLinejoin="round" d="M3 3v5h5"/>
+                          </svg>
+                          {undoingRow === o ? (t.saving ?? 'Deshaciendo…') : (t.undo_changes ?? 'Deshacer Cambios')}
+                        </button>
+                      )}
+                    </div>
+                  </td>
                   <td className={`${tdClass} text-center`}>{o.NroOrden}</td>
                   <td className={`${tdClass} text-center`}>{o.NroItems}</td>
                   <td className={`${tdClass} text-right`}>{customFormat(o.Monto)}</td>
                   <td className={`${tdClass} text-center`}>{o.Dias}</td>
                   <td className={`${tdClass} text-gray-500`}>{o.NomCliente}</td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -83,6 +83,9 @@ export default function PurchaseOrder() {
     Monto: o.total,
     Dias: o.dias,
     NomCliente: o.nomCliente,
+    TieneDivididos: o.tieneDivididos ?? false,
+    TieneCambioProveedor: o.tieneCambioProveedor ?? false,
+    CodItemsConCambios: o.codItemsConCambios ?? [],
   });
 
   const getData = async () => {
@@ -177,6 +180,9 @@ export default function PurchaseOrder() {
         NumCorrelativo:  d.numCorrelativo ?? null,
         PuedeDividirCantidad:  d.puedeDividirCantidad  ?? true,
         PuedeCambiarProveedor: d.puedeCambiarProveedor ?? true,
+        CambioProveedor:       d.cambioProveedor ?? false,
+        CodPrvOriginal:        d.codProveedorOriginal ?? null,
+        NomPrvOriginal:        d.razSocOriginal ?? '',
       })));
       setContact({
         NomContato: con.nomContacto,
@@ -266,7 +272,7 @@ export default function PurchaseOrder() {
           <TableUnassign t={t} token={token} goToTab={goToTab} orders_unassigned={orders_unassigned} assignOrder={assignOrder}></TableUnassign>
         )}
         {activeTab === 1 && (
-          <TableAssigned t={t} token={token} orders_assigned={orders_assigned} unassignOrder={unassignOrder} createPurchaseOrder={createPurchaseOrder} ></TableAssigned>
+          <TableAssigned t={t} token={token} orders_assigned={orders_assigned} unassignOrder={unassignOrder} createPurchaseOrder={createPurchaseOrder} setReload={setReload} ></TableAssigned>
         )}
       </div>
     </>

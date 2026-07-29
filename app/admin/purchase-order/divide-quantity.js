@@ -171,6 +171,9 @@ const DivideQuantity = ({ close, t, item, setItems, order, CadNroOrden, setReloa
         NumCorrelativo:        d.numCorrelativo ?? null,
         PuedeDividirCantidad:  d.puedeDividirCantidad  ?? true,
         PuedeCambiarProveedor: d.puedeCambiarProveedor ?? true,
+        CambioProveedor:       d.cambioProveedor ?? false,
+        CodPrvOriginal:        d.codProveedorOriginal ?? null,
+        NomPrvOriginal:        d.razSocOriginal ?? '',
       }));
 
       setItems(refreshedItems);

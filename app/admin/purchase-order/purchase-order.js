@@ -33,6 +33,7 @@ const URL_OPCIONES_PROVEEDOR = 'ordenescompra/opciones-proveedor';
 const url_update_order  = 'ordenescompra/actualizar';
 const URL_VERIFICAR_REVERSION = (numCorrelativo) => `ordenescompra/dividir-cantidad/${numCorrelativo}/verificar-reversion`;
 const URL_REVERTIR_DIVISION   = (numCorrelativo) => `ordenescompra/dividir-cantidad/${numCorrelativo}/revertir`;
+const URL_RESTABLECER_PROVEEDOR_ORIGINAL = 'ordenescompra/restablecer-proveedor-original';
 
 const mapDetalleItem = (d) => ({
   CodRepuesto:           d.codRepuesto,
@@ -54,6 +55,9 @@ const mapDetalleItem = (d) => ({
   NumCorrelativo:        d.numCorrelativo ?? null,
   PuedeDividirCantidad:  d.puedeDividirCantidad  ?? true,
   PuedeCambiarProveedor: d.puedeCambiarProveedor ?? true,
+  CambioProveedor:       d.cambioProveedor ?? false,
+  CodPrvOriginal:        d.codProveedorOriginal ?? null,
+  NomPrvOriginal:        d.razSocOriginal ?? '',
 });
 const url_print_proforma = process.env.NEXT_PUBLIC_API_URL + 'ordcompradetalle/BorradorOrdenCompra';
 
@@ -86,10 +90,10 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
   const [modal_content,      setModalContent]     = useState(null);
   const [modal_size,         setModalSize]        = useState('w-full max-w-5xl');
   const [show_close_button,  setShowCloseModal]   = useState(true);
-  const [bk_items,           setBackupItems]      = useState(items);
   const [selected,           setSelected]         = useState([]);
   const [isSelect,           setIsSelect]         = useState(false);
   const [updating,           setUpdating]         = useState(false);
+  const [undoingSupplier,    setUndoingSupplier]  = useState(false);
 
   const { register, setValue, getValues, formState: { errors } } = useForm({
     defaultValues: { others: customFormat(order.MtoOtros), shipping: customFormat(order.MtoShipping) },
@@ -250,11 +254,44 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
     } catch (error) { console.error(error); }
   };
 
-  const resetOrder = () => {
-    setItems(bk_items);
-    setSelected([]);
-    setValue('others', order.MtoOtros);
-    setValue('shipping', order.MtoShipping);
+  const undoChangeProveedor = async () => {
+    const changedItems = items.filter(i => i.CambioProveedor);
+    if (changedItems.length === 0) return;
+
+    const original = changedItems[0];
+    const result = await swalConfirm(
+      t.question_undo_change_supplier ?? '¿Volver al proveedor original?',
+      `${original.NomPrvOriginal || '—'} ← ${order.NomPrv}`,
+      { confirmText: t.yes ?? 'Sí', cancelText: t.btn_cancel ?? 'Cancelar', confirmColor: '#dc2626' }
+    );
+    if (!result.isConfirmed) return;
+
+    const cadNroCotizacion = (CadNroOrden || String(original.NroOrden ?? ''))
+      .toString()
+      .split(',')
+      .map(s => Number(s.trim()))
+      .filter(n => !Number.isNaN(n));
+
+    setUndoingSupplier(true);
+    try {
+      let lastRs = null;
+      for (const item of changedItems) {
+        lastRs = await axiosClient.post(URL_RESTABLECER_PROVEEDOR_ORIGINAL, {
+          nroCotizacion:    item.NroOrden,
+          codItem:          item.CodItem,
+          nomPrv:           order?.NomPrv,
+          cadNroCotizacion,
+        });
+      }
+      if (lastRs) setItems((lastRs.data?.detalle ?? []).map(mapDetalleItem));
+      setReload?.();
+      swalSuccess(t.undo_change_supplier_success ?? 'Proveedor original restaurado');
+    } catch (error) {
+      const apiMsg = error?.response?.data?.mensaje;
+      swalError(t.error ?? 'Error', apiMsg ?? (t.undo_change_supplier_error ?? 'No se pudo revertir el proveedor.'), t.close ?? 'Cerrar');
+    } finally {
+      setUndoingSupplier(false);
+    }
   };
 
   const handleUpdate = async () => {
@@ -294,6 +331,7 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
 
   const isExisting = !!order.NroOrden;
   const inputCls = `h-8 w-24 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-2 text-xs text-center focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50 disabled:cursor-not-allowed`;
+  const cambioProveedorItem = items.find(i => i.CambioProveedor);
 
   return (
     <>
@@ -350,6 +388,30 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
             <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-3">Orden de Compra</p>
             <InfoRow label={t.nro_purchase_order} value={order.NroOrden} accent />
             <InfoRow label={t.supplier}           value={order.NomPrv} />
+            {cambioProveedorItem && (
+              <div className="flex items-center justify-between py-2 border-b border-dashed border-gray-100 dark:border-gray-700 last:border-0">
+                <span className="text-xs text-gray-500 dark:text-gray-400">{t.original_supplier ?? 'Proveedor Original'}</span>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center rounded-full bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                    {cambioProveedorItem.NomPrvOriginal || '—'}
+                  </span>
+                  {!isExisting && (
+                    <button
+                      type="button"
+                      disabled={bloqueado || undoingSupplier}
+                      onClick={undoChangeProveedor}
+                      title={t.undo_change_supplier_hint ?? 'Vuelve todos los ítems al proveedor original'}
+                      className="inline-flex items-center gap-1 h-6 px-2 rounded-lg bg-red-50 text-red-600 text-[10px] font-semibold hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path strokeLinecap="round" strokeLinejoin="round" d="M3 3v5h5"/>
+                      </svg>
+                      {undoingSupplier ? (t.saving ?? 'Deshaciendo…') : (t.undo_changes ?? 'Deshacer Cambios')}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
             <InfoRow label="País Proveedor"       value={order.NomPaisProveedor} />
             <InfoRow label="País Destino"         value={
               order.NomPaisDestino ? (
@@ -373,23 +435,6 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
           </div>
         </div>
       </div>
-
-      {/* Barra de acciones (solo cuando no hay OC existente y no hay ítems ya divididos) */}
-      {!isExisting && !items.some(i => i.OrigenCompra === 'AX') && (
-        <div className="flex flex-wrap items-center gap-2 mt-4">
-          <button
-            disabled={bloqueado}
-            onClick={resetOrder}
-            title={t.undo_changes_hint ?? 'Vuelve la orden a su estado original'}
-            className="h-9 flex items-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 px-4 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>
-            </svg>
-            {t.undo_changes}
-          </button>
-        </div>
-      )}
 
       {/* Tabla */}
       <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0 mt-4">
