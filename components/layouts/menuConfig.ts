@@ -86,6 +86,13 @@ export const MENU_CONFIG: MenuItem[] = [
   },
   {
     type: 'link',
+    labelKey: 'warehouse_us',
+    href: '/admin/warehouse_us',
+    permission: PERMISSIONS.MOSTRAR_ALMACEN,
+    icon: 'chat',
+  },
+  {
+    type: 'link',
     labelKey: 'purchase_reception',
     href: '/admin/purchase-reception',
     icon: 'chat',

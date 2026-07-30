@@ -69,5 +69,6 @@ export const PERMISSIONS = {
 
   // ── Representantes ──────────────────────────────────────────────
   LISTAR_REPRESENTANTES         : "655L5TJY",
+  MOSTRAR_ALMACEN               : "E3ZQSWNF"
 
 };

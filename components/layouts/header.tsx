@@ -64,12 +64,6 @@ const Header = () => {
 
   const [showModal, setShowModal] = useState(false);
 
-  const initials = user_redux?.name?.split(' ')
-    ?.map((n: any) => n[0])
-    ?.join('')
-    ?.toUpperCase()
-    ?.slice(0, 2);
-
   const {
     register,
     handleSubmit,
@@ -280,7 +274,7 @@ const Header = () => {
 
                 <div className="dropdown shrink-0 mr-4">
                   <Link href="/admin/inbox" className="relative block p-2 rounded-full bg-white-light/40 dark:bg-dark/40 hover:text-primary hover:bg-white-light/90 dark:hover:bg-dark/60">
-                    <IconBell />
+                    <IconBell className="h-5 w-5" />
                     {totalNoLeidos > 0 && (
                       <span className="absolute top-0.5 right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white">
                         {totalNoLeidos}
@@ -327,8 +321,13 @@ const Header = () => {
                 <Dropdown
                   offset={[0, 8]}
                   placement={`bottom-end`}
-                  btnClassName="block p-2 rounded-full bg-white-light/40 dark:bg-dark/40 hover:text-primary hover:bg-white-light/90 dark:hover:bg-dark/60"
-                  button={<img className="h-5 w-5 rounded-full object-cover" src={`/assets/locale/${locale.toUpperCase()}.svg`} alt="flag" />}
+                  btnClassName="flex items-center gap-1 h-9 px-3 rounded-full bg-white-light/40 dark:bg-dark/40 hover:text-primary hover:bg-white-light/90 dark:hover:bg-dark/60"
+                  button={
+                    <span className="flex items-center gap-1 text-xs font-bold uppercase tracking-wide">
+                      {locale}
+                      <IconCaretDown className="h-3 w-3" />
+                    </span>
+                  }
                 >
                   <ul className="grid w-[280px] grid-cols-2 gap-2 !px-2 font-semibold text-dark dark:text-white-dark dark:text-white-light/90">
                     {themeConfig.languageList.map((item: any) => {
@@ -357,25 +356,15 @@ const Header = () => {
                   placement="bottom-end"
                   btnClassName="relative group block"
                   button={
-                    <div
-                      className="
-          h-10 w-10
-          rounded-full
-          flex items-center justify-center
-          bg-yellow-400
-          text-black
-          font-semibold
-          text-sm
-          uppercase
-          select-none
-          shadow-sm
-          ring-2 ring-white dark:ring-gray-900
-          transition
-          group-hover:scale-105
-        "
-                    >
-                      {initials}
-                    </div>
+                    <img
+                      className="h-10 w-10 rounded-full object-cover shadow-sm ring-2 ring-white dark:ring-gray-900 transition group-hover:scale-105"
+                      src={
+                        user_redux?.countryCode
+                          ? `/assets/flags/${user_redux.countryCode.toLowerCase()}.svg`
+                          : "/assets/flags/bo.svg"
+                      }
+                      alt={user_redux?.countryCode || "country"}
+                    />
                   }
                 >
                   <ul className="w-[260px] !py-0 text-gray-700 dark:text-gray-200">
@@ -484,7 +473,7 @@ const Header = () => {
           </div>
 
           {/* horizontal menu */}
-          <ul className="horizontal-menu hidden border-t border-[#ebedf2] bg-white px-6 py-1.5 font-semibold text-black dark:border-[#191e3a] dark:bg-[#0e1726] dark:text-white-dark lg:space-x-1.5 xl:space-x-8 rtl:space-x-reverse">
+          <ul className="horizontal-menu relative hidden border-t border-[#ebedf2] bg-white px-6 py-1.5 font-semibold text-black dark:border-[#191e3a] dark:bg-[#0e1726] dark:text-white-dark lg:space-x-1.5 xl:space-x-8 rtl:space-x-reverse">
             {visibleMenu.map((item: MenuItem, index: number) => {
               const label = (t as any)[item.labelKey] ?? item.labelKey;
 
@@ -519,6 +508,15 @@ const Header = () => {
                 </li>
               );
             })}
+
+            <li className="absolute right-6 top-1/2 -translate-y-1/2 flex flex-col items-end gap-0.5 !px-0 text-right pointer-events-none select-none">
+              <span className="text-sm font-semibold text-black dark:text-white-light">{user_redux?.name}</span>
+              {user_redux?.rol && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-[#191e3a] text-gray-500 dark:text-gray-300">
+                  {user_redux.rol}
+                </span>
+              )}
+            </li>
           </ul>
         </div>
       </header>

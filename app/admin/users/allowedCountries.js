@@ -46,6 +46,14 @@ export default function AllowedCountries({
     setAllowed(allowed.filter(p => p !== codPais))
   }
 
+  const addAllCountries = () => {
+    setAllowed([...new Set([...allowed, ...availableCountries.map(c => c.codPais)])])
+  }
+
+  const removeAllCountries = () => {
+    setAllowed([])
+  }
+
   const save = async () => {
 
   setSaving(true)
@@ -107,9 +115,22 @@ export default function AllowedCountries({
 
         <div className="border rounded-lg p-3 flex flex-col">
 
-          <h3 className="font-semibold mb-2 text-sm">
-            Países disponibles
-          </h3>
+          <div className="flex justify-between items-center mb-2">
+
+            <h3 className="font-semibold text-sm">
+              Países disponibles
+            </h3>
+
+            <button
+              type="button"
+              onClick={addAllCountries}
+              disabled={availableCountries.length === 0}
+              className="text-xs text-blue-600 hover:underline disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline"
+            >
+              Agregar todos →
+            </button>
+
+          </div>
 
           <input
             type="text"
@@ -125,6 +146,7 @@ export default function AllowedCountries({
 
               <div
                 key={c.codPais}
+                onClick={() => addCountry(c.codPais)}
                 className="flex justify-between items-center px-2 py-1 hover:bg-gray-100 rounded cursor-pointer"
               >
 
@@ -132,12 +154,9 @@ export default function AllowedCountries({
                   {c.nomPais}
                 </span>
 
-                <button
-                  onClick={() => addCountry(c.codPais)}
-                  className="text-blue-600 text-sm"
-                >
+                <span className="text-blue-600 text-sm">
                   →
-                </button>
+                </span>
 
               </div>
 
@@ -152,9 +171,22 @@ export default function AllowedCountries({
 
         <div className="border rounded-lg p-3 flex flex-col">
 
-          <h3 className="font-semibold mb-2 text-sm">
-            Países permitidos
-          </h3>
+          <div className="flex justify-between items-center mb-2">
+
+            <h3 className="font-semibold text-sm">
+              Países permitidos
+            </h3>
+
+            <button
+              type="button"
+              onClick={removeAllCountries}
+              disabled={allowedCountries.length === 0}
+              className="text-xs text-red-600 hover:underline disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline"
+            >
+              ← Quitar todos
+            </button>
+
+          </div>
 
           <div className="overflow-auto max-h-[340px] space-y-1">
 
@@ -162,15 +194,13 @@ export default function AllowedCountries({
 
               <div
                 key={c.codPais}
-                className="flex justify-between items-center px-2 py-1 hover:bg-gray-100 rounded"
+                onClick={() => removeCountry(c.codPais)}
+                className="flex justify-between items-center px-2 py-1 hover:bg-gray-100 rounded cursor-pointer"
               >
 
-                <button
-                  onClick={() => removeCountry(c.codPais)}
-                  className="text-red-600 text-sm"
-                >
+                <span className="text-red-600 text-sm">
                   ←
-                </button>
+                </span>
 
                 <span className="text-sm">
                   {c.nomPais}

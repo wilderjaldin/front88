@@ -154,6 +154,7 @@ const MailToSupplierForm = ({ close, t, order, selected = [] }) => {
           proveedor={{ codPrv: Number(selectedSupplier?.value) }}
           onCancel={() => setEditingContact(undefined)}
           onSaved={() => {
+            setEditingContact(undefined);
             setSelectedContacts([]);
             refreshContacts();
           }}

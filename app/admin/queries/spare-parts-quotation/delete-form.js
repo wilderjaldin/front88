@@ -141,6 +141,7 @@ const ClienteStep = ({ stepData, onNext, onCancel, sending, de }) => {
             cliente={{ codCliente: stepData.codCliente }}
             onCancel={() => setEditingContact(undefined)}
             onSaved={() => {
+              setEditingContact(undefined);
               setSelectedContacts([]);
               axiosClient.get(URL_EMAIL_DATA(stepData.codCliente, stepData.items[0]?.nroCotizacion))
                 .then(rs => setContacts(rs.data.contactos ?? []))

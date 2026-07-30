@@ -7,7 +7,6 @@ import { useSelector } from 'react-redux';
 import { selectUser } from '@/store/authSlice';
 import { useForm } from 'react-hook-form';
 import { swalSuccess, swalError } from '@/app/lib/swal';
-import Select from 'react-select';
 import ContactSupplierForm from '@/app/admin/register/suppliers/[id]/[tab]/tabs/ContactSupplierForm';
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false });
@@ -19,9 +18,9 @@ const IconPencil = () => (
   </svg>
 );
 
-const URL_DATA_EMAIL = 'repuestosporcotizar/datos-mail-proveedor';
-const URL_CONTACTS   = (codPrv) => `repuestosporcotizar/contactos-proveedor/${codPrv}`;
-const URL_SEND_EMAIL = 'repuestosporcotizar/enviar-mail-proveedor';
+const URL_DATA_EMAIL = 'recepcion/generar-mail-proveedor';
+// TODO: nombre de endpoint pendiente de confirmar por backend (sigue el patrón usado en repuestosporcotizar/*).
+const URL_SEND_EMAIL = 'recepcion/enviar-mail-proveedor';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const contactKey = (c) => c.codRegistro ?? c.email1 ?? '';
@@ -38,12 +37,14 @@ const MailToSupplierForm = ({ close, t, selected = [] }) => {
   const authUser  = useSelector(selectUser);
   const userEmail = authUser?.Email ?? authUser?.email ?? '';
 
-  const [suppliers,        setSuppliers]        = useState([]);
-  const [selectedSupplier, setSelectedSupplier] = useState(null);
+  const codPrv = selected[0]?.CodPrv ?? null;
+  const nomPrv = selected[0]?.NomPrv ?? '';
+
   const [contacts,         setContacts]         = useState([]);
   const [selectedContacts, setSelectedContacts] = useState([]);
   const [editingContact,   setEditingContact]   = useState(undefined);
-  const [loadingContacts,  setLoadingContacts]  = useState(false);
+  const [loadingContacts,  setLoadingContacts]  = useState(true);
+  const [loadingTemplate,  setLoadingTemplate]  = useState(true);
   const [para,             setPara]             = useState('');
   const [paraError,        setParaError]        = useState('');
   const [loading,          setLoading]          = useState(false);
@@ -63,41 +64,39 @@ const MailToSupplierForm = ({ close, t, selected = [] }) => {
     setPara(emails.join('; '));
   }, [selectedContacts]);
 
+  // Carga inicial: template (asunto/cuerpo) + contactos, en un solo llamado.
   const getData = async () => {
-    try {
-      const payload = selected.map(item => ({
-        NroOrden:   item.nroCotizacion,
-        NroParte:   item.nroParte,
-        Cantidad:   item.cantidad,
-        Aplicacion: item.nomMarca ?? '',
-      }));
-      const rs = await axiosClient.post(URL_DATA_EMAIL, payload);
-      setSuppliers(rs.data.proveedores ?? []);
-      setValue('subject', rs.data.template?.asunto ?? '');
-      const cuerpo = rs.data.template?.cuerpo ?? '';
-      rawTemplate.current = cuerpo;
-      setValue('message', cuerpo, { shouldValidate: false });
-    } catch {}
-  };
-
-  const refreshContacts = () => {
-    if (!selectedSupplier) return;
-    axiosClient.get(URL_CONTACTS(selectedSupplier.value))
-      .then(rs => setContacts(Array.isArray(rs.data) ? rs.data : []))
-      .catch(() => {});
-  };
-
-  const handleSelectSupplier = async (supplier) => {
-    setSelectedSupplier(supplier);
-    setSelectedContacts([]);
-    setEditingContact(undefined);
-    setPara('');
-    setContacts([]);
-    if (!supplier) return;
+    if (selected.length === 0) { setLoadingTemplate(false); setLoadingContacts(false); return; }
+    setLoadingTemplate(true);
     setLoadingContacts(true);
     try {
-      const rs = await axiosClient.get(URL_CONTACTS(supplier.value));
-      setContacts(Array.isArray(rs.data) ? rs.data : []);
+      const rs = await axiosClient.post(URL_DATA_EMAIL, {
+        numOrdenCompra: selected.map(o => o.NumOrdenCompra),
+      });
+      setValue('subject', rs.data?.asunto ?? '');
+      const cuerpo = (rs.data?.cuerpo ?? '')
+        .replace(/\r\n/g, '\n')
+        .split('\n')
+        .map(line => `<p>${line.trim() === '' ? '<br>' : line}</p>`)
+        .join('');
+      rawTemplate.current = cuerpo;
+      setValue('message', cuerpo, { shouldValidate: false });
+      setContacts(Array.isArray(rs.data?.contactos) ? rs.data.contactos : []);
+    } catch {} finally {
+      setLoadingTemplate(false);
+      setLoadingContacts(false);
+    }
+  };
+
+  // Tras crear/editar un contacto: refresca solo la lista, sin pisar el asunto/cuerpo ya editados.
+  const refreshContacts = async () => {
+    if (selected.length === 0) return;
+    setLoadingContacts(true);
+    try {
+      const rs = await axiosClient.post(URL_DATA_EMAIL, {
+        numOrdenCompra: selected.map(o => o.NumOrdenCompra),
+      });
+      setContacts(Array.isArray(rs.data?.contactos) ? rs.data.contactos : []);
     } catch {} finally {
       setLoadingContacts(false);
     }
@@ -124,6 +123,7 @@ const MailToSupplierForm = ({ close, t, selected = [] }) => {
       const editor   = quillRef.current?.getEditor?.();
       const bodyHtml = editor ? editor.root.innerHTML : rawTemplate.current || data.message;
       await axiosClient.post(URL_SEND_EMAIL, {
+        numOrdenCompra: selected.map(o => o.NumOrdenCompra),
         asuntoMail:  data.subject,
         destinoMail: para,
         cuerpoMail:  bodyHtml,
@@ -150,7 +150,7 @@ const MailToSupplierForm = ({ close, t, selected = [] }) => {
       <div>
         <ContactSupplierForm
           contacto={editingContact}
-          proveedor={{ codPrv: Number(selectedSupplier?.value) }}
+          proveedor={{ codPrv: Number(codPrv) }}
           onCancel={() => setEditingContact(undefined)}
           onSaved={() => {
             setEditingContact(undefined);
@@ -165,7 +165,7 @@ const MailToSupplierForm = ({ close, t, selected = [] }) => {
   return (
     <div className="relative space-y-4">
 
-      {loading && (
+      {(loading || loadingTemplate) && (
         <div className="absolute inset-0 z-10 rounded-lg bg-white/85 dark:bg-gray-900/85 flex flex-col gap-3 p-1 pointer-events-none">
           <div className="h-9 rounded-lg animate-pulse bg-gray-200 dark:bg-gray-700" />
           <div className="h-24 rounded-lg animate-pulse bg-gray-200 dark:bg-gray-700" />
@@ -185,88 +185,74 @@ const MailToSupplierForm = ({ close, t, selected = [] }) => {
         </div>
       )}
 
-      {/* Select Proveedor */}
+      {/* Proveedor (fijo, ya viene de las órdenes seleccionadas) */}
       <div>
-        <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">
+        <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
           Proveedor
         </label>
-        <Select
-          isClearable
-          options={suppliers}
-          value={selectedSupplier}
-          onChange={handleSelectSupplier}
-          placeholder="Seleccionar proveedor..."
-          filterOption={(option, inputValue) =>
-            inputValue.length < 2
-              ? false
-              : option.label.toLowerCase().includes(inputValue.toLowerCase())
-          }
-          noOptionsMessage={({ inputValue }) =>
-            inputValue.length < 2 ? 'Ingrese al menos 2 caracteres' : 'Sin resultados'
-          }
-        />
+        <div className="h-9 flex items-center rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 px-3 text-sm font-semibold text-gray-800 dark:text-gray-100">
+          {nomPrv || '—'}
+        </div>
       </div>
 
-      {/* Tabla de contactos — solo visible cuando hay proveedor seleccionado */}
-      {selectedSupplier && (
-        <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-sm">
-          <table className="w-full">
-            <thead style={{ backgroundColor: '#f1f5f9' }}>
+      {/* Tabla de contactos */}
+      <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-sm">
+        <table className="w-full">
+          <thead style={{ backgroundColor: '#f1f5f9' }}>
+            <tr>
+              <th className="w-8 px-2 py-1.5" />
+              <th className="px-2 py-1.5 text-left font-semibold">Contacto</th>
+              <th className="px-2 py-1.5 text-left font-semibold">Cargo</th>
+              <th className="px-2 py-1.5 text-left font-semibold">Mail 1</th>
+              <th className="px-2 py-1.5 text-left font-semibold">Mail 2</th>
+              <th className="px-2 py-1.5 text-right">
+                <button type="button" onClick={() => setEditingContact(null)}
+                  style={{ backgroundColor: '#334155', color: '#fff' }}
+                  className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold hover:opacity-80 transition">
+                  + Añadir
+                </button>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {loadingContacts ? (
               <tr>
-                <th className="w-8 px-2 py-1.5" />
-                <th className="px-2 py-1.5 text-left font-semibold">Contacto</th>
-                <th className="px-2 py-1.5 text-left font-semibold">Cargo</th>
-                <th className="px-2 py-1.5 text-left font-semibold">Mail 1</th>
-                <th className="px-2 py-1.5 text-left font-semibold">Mail 2</th>
-                <th className="px-2 py-1.5 text-right">
-                  <button type="button" onClick={() => setEditingContact(null)}
-                    style={{ backgroundColor: '#334155', color: '#fff' }}
-                    className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold hover:opacity-80 transition">
-                    + Añadir
-                  </button>
-                </th>
+                <td colSpan={6} className="px-2 py-3 text-center text-[12px] text-slate-400">
+                  <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-primary border-t-transparent animate-spin align-middle mr-1.5" />
+                  Cargando...
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {loadingContacts ? (
-                <tr>
-                  <td colSpan={6} className="px-2 py-3 text-center text-[12px] text-slate-400">
-                    <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-primary border-t-transparent animate-spin align-middle mr-1.5" />
-                    Cargando...
-                  </td>
-                </tr>
-              ) : contacts.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-2 py-3 text-center text-[12px] text-slate-400">
-                    Sin contactos registrados
-                  </td>
-                </tr>
-              ) : contacts.map((c, i) => (
-                <tr key={contactKey(c) || i}
-                  className="border-t border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
-                  onClick={() => toggleContact(c)}>
-                  <td className="px-2 py-1.5 text-center" onClick={e => e.stopPropagation()}>
-                    <input type="checkbox"
-                      checked={selectedContacts.some(s => contactKey(s) === contactKey(c))}
-                      onChange={() => toggleContact(c)}
-                      className="form-checkbox" />
-                  </td>
-                  <td className="px-2 py-1.5 font-medium">{c.nomContacto}</td>
-                  <td className="px-2 py-1.5 text-slate-500 text-[12px]">{c.nomCargo}</td>
-                  <td className="px-2 py-1.5 text-slate-600 dark:text-slate-400 text-[12px]">{c.email1}</td>
-                  <td className="px-2 py-1.5 text-slate-400 text-[12px]">{c.email2}</td>
-                  <td className="px-2 py-1.5 text-right" onClick={e => e.stopPropagation()}>
-                    <button type="button" onClick={() => setEditingContact(toFormContact(c))}
-                      className="inline-flex items-center gap-1 rounded border border-slate-300 dark:border-slate-600 px-1.5 py-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400 hover:border-primary hover:text-primary hover:bg-primary/5 transition">
-                      <IconPencil /> Editar
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+            ) : contacts.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-2 py-3 text-center text-[12px] text-slate-400">
+                  Sin contactos registrados
+                </td>
+              </tr>
+            ) : contacts.map((c, i) => (
+              <tr key={contactKey(c) || i}
+                className="border-t border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
+                onClick={() => toggleContact(c)}>
+                <td className="px-2 py-1.5 text-center" onClick={e => e.stopPropagation()}>
+                  <input type="checkbox"
+                    checked={selectedContacts.some(s => contactKey(s) === contactKey(c))}
+                    onChange={() => toggleContact(c)}
+                    className="form-checkbox" />
+                </td>
+                <td className="px-2 py-1.5 font-medium">{c.nomContacto}</td>
+                <td className="px-2 py-1.5 text-slate-500 text-[12px]">{c.nomCargo}</td>
+                <td className="px-2 py-1.5 text-slate-600 dark:text-slate-400 text-[12px]">{c.email1}</td>
+                <td className="px-2 py-1.5 text-slate-400 text-[12px]">{c.email2}</td>
+                <td className="px-2 py-1.5 text-right" onClick={e => e.stopPropagation()}>
+                  <button type="button" onClick={() => setEditingContact(toFormContact(c))}
+                    className="inline-flex items-center gap-1 rounded border border-slate-300 dark:border-slate-600 px-1.5 py-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400 hover:border-primary hover:text-primary hover:bg-primary/5 transition">
+                    <IconPencil /> Editar
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {/* Formulario */}
       <form className="space-y-3" onSubmit={handleSubmit(onSend)}>

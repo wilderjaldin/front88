@@ -64,7 +64,6 @@ const ChangeSupplier = ({ CadNroOrden, close, t, item, setItems, setSelectedItem
   const [loading,    setLoading]    = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [selected,   setSelected]   = useState(null);
-  const [cantidad,   setCantidad]   = useState(item.CantFaltante ?? 1);
 
   useEffect(() => { getList(); }, [item]);
 
@@ -85,7 +84,6 @@ const ChangeSupplier = ({ CadNroOrden, close, t, item, setItems, setSelectedItem
       setTop(rs.data.actual ? mapOpcionProveedor(rs.data.actual) : null);
       setSuppliers((rs.data.otros ?? []).map(mapOpcionProveedor));
       setSelected(null);
-      setCantidad(item.CantFaltante ?? 1);
     } catch (error) {
     } finally {
       setLoading(false);
@@ -95,11 +93,7 @@ const ChangeSupplier = ({ CadNroOrden, close, t, item, setItems, setSelectedItem
   const handleChangeSupplier = async () => {
     if (!selected) return;
 
-    const cant = Number(cantidad);
-    if (!cant || cant <= 0 || cant > item.CantFaltante) {
-      swalError(t.error ?? 'Error', t.change_supplier_invalid_amount ?? `La cantidad debe ser mayor a 0 y no superar ${item.CantFaltante}.`, t.close ?? 'Cerrar');
-      return;
-    }
+    const cant = item.CantFaltante;
 
     setSubmitting(true);
     try {
@@ -256,24 +250,7 @@ const ChangeSupplier = ({ CadNroOrden, close, t, item, setItems, setSelectedItem
         </div>
       </div>
 
-      {/* Cantidad a mover */}
-      <div className="flex items-center justify-center gap-3 mt-5">
-        <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
-          {t.quantity ?? 'Cantidad'} {t.to_move ?? 'a mover'}
-        </label>
-        <input
-          type="number"
-          min={1}
-          max={item.CantFaltante}
-          value={cantidad}
-          disabled={!selected}
-          onChange={(e) => setCantidad(e.target.value)}
-          className="h-9 w-24 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
-        />
-        <span className="text-xs text-gray-400">/ {item.CantFaltante}</span>
-      </div>
-
-      <div className="flex justify-center mt-4">
+      <div className="flex justify-center mt-5">
         <button
           disabled={!selected || submitting}
           type="button"
