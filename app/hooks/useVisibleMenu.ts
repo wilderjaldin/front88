@@ -9,10 +9,18 @@ export const useVisibleMenu = (): MenuItem[] => {
   const user = useSelector(selectUser);
 
   return useMemo(() => {
+    // Un `permission` acotado por `permissionCountry` solo se exige a usuarios de ese país;
+    // para el resto de países el item se muestra igual, sin evaluar el permiso.
+    const checkPermission = (permission?: string, permissionCountry?: string) => {
+      if (!permission) return true;
+      if (permissionCountry && user?.countryCode !== permissionCountry) return true;
+      return hasPermission(permission);
+    };
+
     if (!MENU_CONFIG) return [];
     return MENU_CONFIG.reduce<MenuItem[]>((acc, item) => {
       // Permiso del item padre (si existe)
-      if (item.permission && !hasPermission(item.permission)) return acc;
+      if (!checkPermission(item.permission, item.permissionCountry)) return acc;
 
       if (item.type === 'link') {
         acc.push(item);
@@ -22,7 +30,7 @@ export const useVisibleMenu = (): MenuItem[] => {
       // Dropdown: filtrar hijos por permiso y/o rol
       const visibleChildren = item.children.filter(
         (child: MenuItemChild) =>
-          (!child.permission || hasPermission(child.permission)) &&
+          checkPermission(child.permission, child.permissionCountry) &&
           (!child.rol || user?.rol === child.rol)
       );
 
@@ -32,5 +40,5 @@ export const useVisibleMenu = (): MenuItem[] => {
       acc.push({ ...item, children: visibleChildren });
       return acc;
     }, []);
-  }, [hasPermission, user?.rol]);
+  }, [hasPermission, user?.rol, user?.countryCode]);
 };

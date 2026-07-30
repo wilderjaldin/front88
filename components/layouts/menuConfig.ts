@@ -2,6 +2,9 @@
 // Configuración centralizada del menú.
 // - permission: si se define, el item solo se muestra si el usuario tiene ese permiso.
 // - si NO se define permission, el item es visible para todos.
+// - permissionCountry: si se define junto con permission, el permiso solo se exige a
+//   usuarios de ese país (user.countryCode). Para el resto de países el item se muestra
+//   igual, sin importar si tienen el permiso o no.
 // - Un dropdown padre se oculta automáticamente si todos sus hijos quedan ocultos.
 
 import { PERMISSIONS } from '@/constants/permissions';
@@ -10,6 +13,7 @@ export type MenuItemChild = {
   labelKey: string;       // clave del objeto de traducción (t.xxx)
   href: string;
   permission?: string;    // undefined = visible para todos
+  permissionCountry?: string; // acota `permission` a usuarios de este país (countryCode)
   rol?: string;           // si se define, solo visible para ese rol exacto
 };
 
@@ -19,6 +23,7 @@ export type MenuItem =
     labelKey: string;
     icon: 'invoice' | 'chat';
     permission?: string;  // permiso del padre (opcional, adicional al filtro de hijos)
+    permissionCountry?: string;
     children: MenuItemChild[];
   }
   | {
@@ -27,6 +32,7 @@ export type MenuItem =
     href: string;
     icon: 'invoice' | 'chat';
     permission?: string;
+    permissionCountry?: string;
   };
 
 export const MENU_CONFIG: MenuItem[] = [
@@ -89,6 +95,7 @@ export const MENU_CONFIG: MenuItem[] = [
     labelKey: 'warehouse_us',
     href: '/admin/warehouse_us',
     permission: PERMISSIONS.MOSTRAR_ALMACEN,
+    permissionCountry: 'US',
     icon: 'chat',
   },
   {
