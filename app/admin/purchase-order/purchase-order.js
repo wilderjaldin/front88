@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import axiosClient from '@/app/lib/axiosClient';
 import Swal from 'sweetalert2';
 import { useForm } from 'react-hook-form';
@@ -28,7 +27,7 @@ const swalSuccess = (title) => Swal.fire({
   backdrop: false, position: 'top-end', padding: '10px 14px', background: '#16a34a', showConfirmButton: false, timer: 2000, timerProgressBar: true,
 });
 
-const url_generate      = process.env.NEXT_PUBLIC_API_URL + 'ordcompradetalle/GenerarOrdCompra';
+const url_generate      = 'ordenescompra/generar-oc';
 const URL_OPCIONES_PROVEEDOR = 'ordenescompra/opciones-proveedor';
 const url_update_order  = 'ordenescompra/actualizar';
 const URL_VERIFICAR_REVERSION = (numCorrelativo) => `ordenescompra/dividir-cantidad/${numCorrelativo}/verificar-reversion`;
@@ -218,39 +217,45 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
 
   const generateOrder = async () => {
     try {
-      let data_send = [];
-      let CadOrdenCompra = [];
-      selected.forEach(i => CadOrdenCompra.push(i.NroOrden));
-      const CadNroOrden = [...new Set(CadOrdenCompra)].join(',');
       let different_quantities = false;
       const data = getValues();
 
-      selected.forEach(i => {
+      const Items = selected.map(i => {
         // Referencia exacta (no por CodItem): un ítem dividido genera varias filas
         // con el mismo CodItem pero distinto proveedor/costo, así que buscar por
         // CodItem siempre encontraría la primera y arrastraría su cantidad a todas.
         const itemIndex = items.indexOf(i);
-        if (itemIndex === -1) return;
-        const CantComprada = getValues(`items.${itemIndex}.quantity_purchased`);
-        data_send.push({
-          NomPrv: i.NomPrv || order.NomPrv, CadNroOrden, NumOrdCompra: 0,
-          MtoShipping: data.shipping, MtoOtros: data.others,
-          CodRepuesto: i.CodRepuesto, CodPrv: i.CodPrv ?? order.CodPrv ?? null,
-          CodItem: i.CodItem, NroOrden: i.NroOrden,
-          NroParteCliente: i.NroParteCliente, NroParteCompra: i.NroParteCompra,
-          Descripcion: i.Descripcion, CantFaltante: i.CantFaltante, CantComprada,
-          CostoSistema: i.CostoSistema, CostoReal: i.CostoReal,
-          OrigenCompra: i.OrigenCompra, ValToken: token,
-        });
-        if (CantComprada < i.CantFaltante) different_quantities = true;
-      });
+        if (itemIndex === -1) return null;
+        const canComprada = getValues(`items.${itemIndex}.quantity_purchased`);
+        if (canComprada < i.CantFaltante) different_quantities = true;
+        return {
+          codRepuesto: i.CodRepuesto,
+          codItem: i.CodItem,
+          nroCotizacion: i.NroOrden,
+          nroParte: i.NroParteCliente,
+          nroParteCompra: i.NroParteCompra,
+          desRepuesto: i.Descripcion,
+          canFaltante: i.CantFaltante,
+          canComprada,
+          costo: i.CostoSistema,
+          costoReal: i.CostoReal,
+          origenCompra: i.OrigenCompra,
+          costoSis: i.CostoSistema,
+          costoInc: i.CostoReal,
+        };
+      }).filter(Boolean);
 
       if (different_quantities) {
         Swal.fire({ title: t.error, text: t.different_quantities_purchase_order, icon: 'error', confirmButtonColor: '#dc2626', confirmButtonText: t.close });
         return;
       }
-      const rs = await axios.post(url_generate, data_send);
-      if (rs.data.estado === 'Ok') print(rs.data.dato);
+      const rs = await axiosClient.post(url_generate, {
+        NomPrv: order.NomPrv,
+        MtoOtros: data.others,
+        MtoShipping: data.shipping,
+        Items,
+      });
+      if (rs.data?.numOrdenCompra) router.push('/admin/purchase-reception');
     } catch (error) { console.error(error); }
   };
 
