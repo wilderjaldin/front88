@@ -1,62 +1,104 @@
 'use client';
+import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { selectUser } from '@/store/authSlice';
 import { useTranslation } from '@/app/locales';
 import { useDynamicTitle } from '@/app/hooks/useDynamicTitle';
+import axiosClient from '@/app/lib/axiosClient';
 import IconUser from '@/components/icon/icon-user';
 import IconUsers from '@/components/icon/icon-users';
 import IconChartSquare from '@/components/icon/icon-chart-square';
 import IconSettings from '@/components/icon/icon-settings';
+
+const URL_DASHBOARD = 'usuarios/dashboard';
 
 export default function UserDashboard() {
   const user = useSelector(selectUser);
   const t    = useTranslation();
   useDynamicTitle('Mi Dashboard');
 
-  const initials = user?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  const [data,    setData]    = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getData();
+  }, []);
+
+  const getData = async () => {
+    setLoading(true);
+    try {
+      const rs = await axiosClient.get(URL_DASHBOARD);
+      setData(rs.data ?? null);
+    } catch (error) {
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const usuario     = data?.usuario ?? {};
+  const paises       = data?.paisesPermitidos ?? [];
+  const cotizaciones = data?.cotizaciones ?? { pendientes: 0, enProceso: 0, finalizadas: 0, anuladas: 0, total: 0 };
+  const ordenes      = data?.ordenes ?? { completadas: 0, anuladas: 0, total: 0 };
+  const clientes      = data?.clientes ?? 0;
+  const auditoria     = data?.auditoria ?? {};
+
+  const initials = (usuario.nomUsuario ?? user?.name ?? '')
+    .split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().slice(0, 2);
+
+  const pct = (value) => cotizaciones.total > 0 ? `${Math.round((value / cotizaciones.total) * 100)}%` : '—';
 
   const kpiCards = [
     {
-      label:   'Cotizaciones Pendientes',
-      value:   '—',
-      icon:    <IconChartSquare className="h-7 w-7" />,
-      bg:      'bg-warning',
-      light:   'bg-warning/10 text-warning',
-      border:  'border-warning/30',
+      label:  'Cotizaciones Pendientes',
+      value:  cotizaciones.pendientes,
+      icon:   <IconChartSquare className="h-7 w-7" />,
+      light:  'bg-warning/10 text-warning',
+      border: 'border-warning/30',
     },
     {
-      label:   'En Proceso',
-      value:   '—',
-      icon:    <IconChartSquare className="h-7 w-7" />,
-      bg:      'bg-info',
-      light:   'bg-info/10 text-info',
-      border:  'border-info/30',
+      label:  'En Proceso',
+      value:  cotizaciones.enProceso,
+      icon:   <IconChartSquare className="h-7 w-7" />,
+      light:  'bg-info/10 text-info',
+      border: 'border-info/30',
     },
     {
-      label:   'Cotizaciones Finalizadas',
-      value:   '—',
-      icon:    <IconChartSquare className="h-7 w-7" />,
-      bg:      'bg-success',
-      light:   'bg-success/10 text-success',
-      border:  'border-success/30',
+      label:  'Cotizaciones Finalizadas',
+      value:  cotizaciones.finalizadas,
+      icon:   <IconChartSquare className="h-7 w-7" />,
+      light:  'bg-success/10 text-success',
+      border: 'border-success/30',
     },
     {
-      label:   'Clientes',
-      value:   '—',
-      icon:    <IconUsers className="h-7 w-7" />,
-      bg:      'bg-primary',
-      light:   'bg-primary/10 text-primary',
-      border:  'border-primary/30',
+      label:  'Clientes',
+      value:  clientes,
+      icon:   <IconUsers className="h-7 w-7" />,
+      light:  'bg-primary/10 text-primary',
+      border: 'border-primary/30',
     },
   ];
 
   const quotesBreakdown = [
-    { label: 'Pendientes',  value: '—', color: 'text-warning',  dot: 'bg-warning'  },
-    { label: 'En Proceso',  value: '—', color: 'text-info',     dot: 'bg-info'     },
-    { label: 'Finalizadas', value: '—', color: 'text-success',  dot: 'bg-success'  },
-    { label: 'Anuladas',    value: '—', color: 'text-danger',   dot: 'bg-danger'   },
-    { label: 'Total',       value: '—', color: 'text-gray-700 dark:text-gray-200 font-bold', dot: 'bg-gray-400' },
+    { label: 'Pendientes',  value: cotizaciones.pendientes,  color: 'text-warning',  dot: 'bg-warning'  },
+    { label: 'En Proceso',  value: cotizaciones.enProceso,   color: 'text-info',     dot: 'bg-info'     },
+    { label: 'Finalizadas', value: cotizaciones.finalizadas, color: 'text-success',  dot: 'bg-success'  },
+    { label: 'Anuladas',    value: cotizaciones.anuladas,    color: 'text-danger',   dot: 'bg-danger'   },
+    { label: 'Total',       value: cotizaciones.total,       color: 'text-gray-700 dark:text-gray-200 font-bold', dot: 'bg-gray-400' },
   ];
+
+  const ordersBreakdown = [
+    { label: 'Completadas', value: ordenes.completadas, color: 'text-success', dot: 'bg-success' },
+    { label: 'Anuladas',    value: ordenes.anuladas,    color: 'text-danger',  dot: 'bg-danger'  },
+    { label: 'Total',       value: ordenes.total,       color: 'text-gray-700 dark:text-gray-200 font-bold', dot: 'bg-gray-400' },
+  ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <span className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-8">
@@ -75,20 +117,20 @@ export default function UserDashboard() {
 
           <div className="flex-1 min-w-0">
             <p className="text-white/70 text-sm mb-0.5">Bienvenido de nuevo</p>
-            <h1 className="text-xl sm:text-2xl font-bold truncate">{user?.name ?? '—'}</h1>
+            <h1 className="text-xl sm:text-2xl font-bold truncate">{usuario.nomUsuario ?? user?.name ?? '—'}</h1>
             <span className="inline-block mt-1.5 text-xs font-medium bg-white/20 px-2.5 py-0.5 rounded-full">
-              {user?.rol ?? '—'}
+              {usuario.rol ?? user?.rol ?? '—'}
             </span>
           </div>
 
-          {user?.countryCode && (
+          {usuario.codPais && (
             <div className="flex items-center gap-2 sm:ml-auto shrink-0">
               <img
-                src={`/assets/flags/${user.countryCode.toLowerCase()}.svg`}
-                alt={user.countryCode}
+                src={`/assets/flags/${usuario.codPais.toLowerCase()}.svg`}
+                alt={usuario.codPais}
                 className="h-8 w-8 rounded-md object-cover shadow ring-2 ring-white/30"
               />
-              <span className="text-sm font-medium opacity-90">{user.countryCode}</span>
+              <span className="text-sm font-medium opacity-90">{usuario.nomPais ?? usuario.codPais}</span>
             </div>
           )}
         </div>
@@ -120,14 +162,16 @@ export default function UserDashboard() {
           <SectionHeader icon={<IconUser className="h-4 w-4" />} title="Datos del Usuario" />
 
           <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-            <DataRow label="Nombre"   value={user?.name        ?? '—'} />
-            <DataRow label="Usuario"  value={user?.login       ?? '—'} />
-            <DataRow label="Rol"      value={user?.rol         ?? '—'} />
-            <DataRow label="País"     value={user?.countryCode ?? '—'} />
-            <DataRow label="Ciudad"   value={user?.cityCode    ?? '—'} />
+            <DataRow label="Nombre"   value={usuario.nomUsuario ?? '—'} />
+            <DataRow label="Usuario"  value={usuario.logUsuario ?? '—'} />
+            <DataRow label="Rol"      value={usuario.rol        ?? '—'} />
+            <DataRow label="País"     value={usuario.nomPais    ?? '—'} />
+            <DataRow label="Ciudad"   value={usuario.nomCiudad  ?? '—'} />
             <DataRow label="Estado"   value={
-              <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
-                Activo
+              <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                usuario.codEstado === 'AC' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
+              }`}>
+                {usuario.estado ?? '—'}
               </span>
             } />
           </div>
@@ -138,16 +182,34 @@ export default function UserDashboard() {
           <SectionHeader icon={<IconUsers className="h-4 w-4" />} title="Países Permitidos" />
 
           <div className="rounded-lg border border-gray-100 dark:border-gray-700 overflow-hidden">
-            <div className="flex items-center justify-center h-[120px] text-sm text-gray-400 flex-col gap-1">
-              <span className="text-xs uppercase tracking-wide">Sin datos</span>
-              <span className="text-xs text-gray-300 dark:text-gray-600">Conectar endpoint</span>
-            </div>
+            {paises.length === 0 ? (
+              <div className="flex items-center justify-center h-[120px] text-sm text-gray-400 flex-col gap-1">
+                <span className="text-xs uppercase tracking-wide">Sin países asignados</span>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2 p-3">
+                {paises.map((p) => (
+                  <span
+                    key={p.value}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 pl-1.5 pr-3 py-1 text-xs font-medium text-gray-600 dark:text-gray-300"
+                  >
+                    <img
+                      src={`/assets/flags/${p.value.toLowerCase()}.svg`}
+                      alt={p.label}
+                      className="h-4 w-5 rounded-sm object-cover shrink-0"
+                      onError={e => { e.currentTarget.style.display = 'none'; }}
+                    />
+                    {p.label}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
       </div>
 
-      {/* ── ROW 3: COTIZACIONES + AUDITORÍA ─────────────────────────────────── */}
+      {/* ── ROW 3: COTIZACIONES + ÓRDENES DE COMPRA ─────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
 
         {/* Detalle cotizaciones (3/5) */}
@@ -170,27 +232,42 @@ export default function UserDashboard() {
                     <span className={`text-sm ${row.color}`}>{row.label}</span>
                   </td>
                   <td className={`py-2.5 text-right font-semibold ${row.color}`}>{row.value}</td>
-                  <td className="py-2.5 text-right text-gray-400 pr-2 text-xs">—</td>
+                  <td className="py-2.5 text-right text-gray-400 pr-2 text-xs">{row.label === 'Total' ? '' : pct(row.value)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-
-          <p className="text-xs text-gray-300 dark:text-gray-600 pt-1">* Datos pendientes de endpoint</p>
         </div>
 
-        {/* Auditoría (2/5) */}
+        {/* Órdenes de Compra (2/5) */}
         <div className="lg:col-span-2 panel space-y-4">
-          <SectionHeader icon={<IconSettings className="h-4 w-4" />} title="Auditoría" />
+          <SectionHeader icon={<IconChartSquare className="h-4 w-4" />} title="Órdenes de Compra" />
 
-          <div className="space-y-3">
-            <AuditCard label="Registrado por" name="—" date="—" />
-            <AuditCard label="Modificado por" name="—" date="—" />
-          </div>
-
-          <p className="text-xs text-gray-300 dark:text-gray-600 pt-1">* Datos pendientes de endpoint</p>
+          <table className="w-full text-sm">
+            <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+              {ordersBreakdown.map((row) => (
+                <tr key={row.label}>
+                  <td className="py-2.5 flex items-center gap-2">
+                    <span className={`h-2 w-2 rounded-full shrink-0 ${row.dot}`} />
+                    <span className={`text-sm ${row.color}`}>{row.label}</span>
+                  </td>
+                  <td className={`py-2.5 text-right font-semibold ${row.color}`}>{row.value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
 
+      </div>
+
+      {/* ── ROW 4: AUDITORÍA ─────────────────────────────────────────────────── */}
+      <div className="panel space-y-4">
+        <SectionHeader icon={<IconSettings className="h-4 w-4" />} title="Auditoría" />
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <AuditCard label="Registrado por" name={auditoria.registradoPor ?? '—'} date={auditoria.fecRegistra ?? '—'} />
+          <AuditCard label="Modificado por" name={auditoria.modificadoPor ?? '—'} date={auditoria.fecModifica ?? '—'} />
+        </div>
       </div>
 
       {/* ── REPORTES PLACEHOLDER ─────────────────────────────────────────────── */}

@@ -921,5 +921,20 @@
   "mail_supplier" : "Mail Supplier",
   "mail_supplier_title" : "Mail Supplier",
   "change_status" : "Change Status",
-  "clear_filters" : "Clear"
+  "clear_filters" : "Clear",
+  "save_reception" : "Save Reception",
+  "export_list" : "Export List",
+  "print_labels" : "Print Labels",
+  "barcode" : "Barcode",
+  "save_note" : "Save Note",
+  "pending_receiving" : "Pending Receiving",
+  "already_received" : "Already Received",
+  "medium_format" : "Medium Format",
+  "small_format" : "Small Format",
+  "gen_pdf" : "Generate PDF",
+  "ordered_amount" : "Ordered Qty",
+  "print" : "Print",
+  "copies" : "Copies",
+  "read_barcode" : "Read Barcode",
+  "no_matches" : "No matches found"
 }

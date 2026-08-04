@@ -11,9 +11,8 @@ import axiosClient from '@/app/lib/axiosClient';
 import { swalSuccess, swalError } from '@/app/lib/swal';
 import { useForm } from "react-hook-form"
 import Swal from 'sweetalert2'
-import axios from 'axios'
 
-const url_cancel_order = process.env.NEXT_PUBLIC_API_URL + 'recepcion/AnulaOrdenCompra';
+const URL_CANCEL_ORDER = 'recepcion/anular-orden-compra';
 const URL_UPDATE_STATUS = 'recepcion/actualizar-status';
 const URL_SAVE_ITEMS = 'recepcion/actualizar-datos';
 
@@ -24,6 +23,25 @@ const tdClass = "text-[11px] text-gray-700 dark:text-gray-300 px-2 py-1";
 const inputRowClass = "h-6 w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-1.5 text-[11px] focus:outline-none focus:ring-2 focus:ring-primary/30";
 
 const EMPTY_ADV_FILTERS = { proveedores: [], paises: [], status: [], ordenes: [], oc: [], r1: false, r2: false, r3: false };
+
+// Mismo mapeo que getList() en page.js — la respuesta de anular-orden-compra trae el
+// mismo arreglo (shape) que GET recepcion/listar.
+const mapOrder = (o, index) => ({
+  id:              index,
+  NumOrdenCompra:  o.numOrdenCompra,
+  NroOrden:        o.nroOrden,
+  NomPrv:          o.proveedor,
+  Dias:            o.intDias,
+  NumTracking:     o.numTracking,
+  Nota:            o.nota,
+  CodPaisCliente:  o.codPaisCliente,
+  NomPais:         o.nomPais,
+  NomStatus:       o.nomStatus,
+  CodPrv:          o.codPrv,
+  Recepcion1:      o.recepcion1 ?? false,
+  Recepcion2:      o.recepcion2 ?? false,
+  Recepcion3:      o.recepcion3 ?? false,
+});
 
 // Estados fijos del negocio (no vienen de un catálogo del backend).
 const STATUS_OPTIONS = [
@@ -57,7 +75,7 @@ const FilterChecklist = ({ title, options, selected, onToggle }) => (
   </div>
 );
 
-const Orders = ({ token, t, data, setOrders, attachOrder, loading, onRefresh }) => {
+const Orders = ({ t, data, setOrders, attachOrder, loading, onRefresh }) => {
 
   const [selected_orders, setSelectedOrders] = useState([]);
   const [filter, setFilter] = useState('');
@@ -198,7 +216,7 @@ const Orders = ({ token, t, data, setOrders, attachOrder, loading, onRefresh }) 
   }
 
   const handleCancelOrder = async () => {
-    Swal.fire({
+    const result = await Swal.fire({
       title: t.question_the_purchase_order_cancel,
       icon: 'question',
       showCancelButton: true,
@@ -206,39 +224,20 @@ const Orders = ({ token, t, data, setOrders, attachOrder, loading, onRefresh }) 
       confirmButtonText: t.yes,
       cancelButtonText: t.close,
       reverseButtons: true
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          let data_send = [];
-          selected_orders.map(o => {
-            data_send.push({
-              NroOrdenCompra: o.NumOrdenCompra,
-              ValToken: token
-            });
-          });
-          const rs = await axios.post(url_cancel_order, data_send);
-
-          if (rs.data.estado == 'Ok') {
-            Swal.fire({
-              position: "top-end",
-              icon: "success",
-              title: t.the_purchase_order_was_cancel,
-              showConfirmButton: false,
-              timer: 1500
-            }).then(r => {
-              setSelectedOrders([]);
-              setOrders(() => rs.data.dato.map((o, index) => {
-                o.id = index;
-                return o;
-              }));
-            });
-          }
-        } catch (error) {
-
-        }
-      }
     });
+    if (!result.isConfirmed) return;
 
+    try {
+      const rs = await axiosClient.post(URL_CANCEL_ORDER, {
+        numOrdenCompra: selected_orders.map(o => o.NumOrdenCompra),
+      });
+      setSelectedOrders([]);
+      setOrders((rs.data ?? []).map(mapOrder));
+      swalSuccess(t.the_purchase_order_was_cancel);
+    } catch (error) {
+      const apiMsg = error?.response?.data?.mensaje;
+      swalError(t.error, apiMsg ?? t.save_data_error, t.close);
+    }
   }
 
   const handleChecked = (event, record, n) => {
@@ -379,9 +378,14 @@ const Orders = ({ token, t, data, setOrders, attachOrder, loading, onRefresh }) 
           type="button"
           onClick={openMailModal}
           disabled={selected_orders.length === 0}
-          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-sky-50 text-sky-600 text-xs font-semibold hover:bg-sky-100 disabled:opacity-35 disabled:cursor-not-allowed transition dark:bg-sky-900/20 dark:text-sky-400"
+          className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border text-xs font-semibold transition ${
+            selected_orders.length === 0
+              ? 'border-gray-200 text-gray-300 cursor-not-allowed dark:border-gray-700 dark:text-gray-600'
+              : 'border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-400'
+          }`}
         >
-          {t.mail_supplier}
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path strokeLinecap="round" d="M2 7l10 7 10-7"/></svg>
+          {t.mail_supplier_title}
         </button>
 
         <div className="h-5 w-px bg-gray-200 dark:bg-gray-700 mx-0.5" />

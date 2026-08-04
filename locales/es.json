@@ -923,5 +923,20 @@
   "mail_supplier" : "Mail Prv.",
   "mail_supplier_title" : "Mail a Proveedor",
   "change_status" : "Cambiar Status",
-  "clear_filters" : "Limpiar"
+  "clear_filters" : "Limpiar",
+  "save_reception" : "Guardar Recepción",
+  "export_list" : "Exportar lista",
+  "print_labels" : "Imp. Etiquetas",
+  "barcode" : "Código Barra",
+  "save_note" : "Guardar Nota",
+  "pending_receiving" : "Pendientes de Recibir",
+  "already_received" : "Ya Recibidas",
+  "medium_format" : "Formato Mediano",
+  "small_format" : "Formato Pequeño",
+  "gen_pdf" : "Gen PDF",
+  "ordered_amount" : "Can. Ordenada",
+  "print" : "Imprimir",
+  "copies" : "Copias",
+  "read_barcode" : "Leer Código de Barra",
+  "no_matches" : "No existen coincidencias"
 }

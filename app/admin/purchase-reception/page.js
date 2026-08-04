@@ -164,7 +164,6 @@ export default function PurchaseReception() {
         {activeTab === 0 && (
           <Orders
             t={t}
-            token={token}
             data={orders}
             setOrders={setOrders}
             attachOrder={attachOrder}

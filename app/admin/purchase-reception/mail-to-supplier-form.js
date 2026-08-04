@@ -19,7 +19,6 @@ const IconPencil = () => (
 );
 
 const URL_DATA_EMAIL = 'recepcion/generar-mail-proveedor';
-// TODO: nombre de endpoint pendiente de confirmar por backend (sigue el patrón usado en repuestosporcotizar/*).
 const URL_SEND_EMAIL = 'recepcion/enviar-mail-proveedor';
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -74,11 +73,9 @@ const MailToSupplierForm = ({ close, t, selected = [] }) => {
         numOrdenCompra: selected.map(o => o.NumOrdenCompra),
       });
       setValue('subject', rs.data?.asunto ?? '');
-      const cuerpo = (rs.data?.cuerpo ?? '')
-        .replace(/\r\n/g, '\n')
-        .split('\n')
-        .map(line => `<p>${line.trim() === '' ? '<br>' : line}</p>`)
-        .join('');
+      // El backend ya manda el cuerpo como HTML completo (<p>, <br/>, <table>...) — no hay
+      // texto plano que convertir. Envolverlo en <p> acá lo rompería (<p> anidado dentro de <p>).
+      const cuerpo = rs.data?.cuerpo ?? '';
       rawTemplate.current = cuerpo;
       setValue('message', cuerpo, { shouldValidate: false });
       setContacts(Array.isArray(rs.data?.contactos) ? rs.data.contactos : []);
@@ -123,7 +120,7 @@ const MailToSupplierForm = ({ close, t, selected = [] }) => {
       const editor   = quillRef.current?.getEditor?.();
       const bodyHtml = editor ? editor.root.innerHTML : rawTemplate.current || data.message;
       await axiosClient.post(URL_SEND_EMAIL, {
-        numOrdenCompra: selected.map(o => o.NumOrdenCompra),
+        codPrv:      codPrv,
         asuntoMail:  data.subject,
         destinoMail: para,
         cuerpoMail:  bodyHtml,
@@ -135,6 +132,8 @@ const MailToSupplierForm = ({ close, t, selected = [] }) => {
       const body   = err?.response?.data;
       if (status === 400) {
         swalError('Datos incompletos', body?.mensaje ?? 'Verifica los campos requeridos.');
+      } else if (status === 404) {
+        swalError(t.error, body?.mensaje ?? 'El proveedor no existe.');
       } else if (status === 500) {
         swalError(body?.mensaje ?? 'Error al enviar', body?.detalle ?? '');
       } else {
