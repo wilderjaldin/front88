@@ -15,7 +15,7 @@ import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 const URL_LIST = 'ordenescompra/listar-pendientes';
 const URL_ASSIGN_ORDER = 'ordenescompra/asignar-item';
 const URL_UNASSIGN_ORDER = 'ordenescompra/quitar-item';
-const URL_PREVIEW_OC = 'ordenescompra/preview-oc';
+const URL_PREVIEW_OC = 'ordenescompra/detalle-items';
 
 const TAB_KEYS = ['pending', 'assigned'];
 
@@ -153,14 +153,15 @@ export default function PurchaseOrder() {
       const cadNroCotizacion = selected_assigned.map(o => o.NroOrden);
 
       const rs = await axiosClient.post(URL_PREVIEW_OC, {
-        nomPrv: names[0],
-        cadNroCotizacion,
+        CadNomPrv: names,
+        CadNroCotizacion: cadNroCotizacion,
       });
 
-      const con = rs.data.contacto ?? {};
-      const add = rs.data.datosAdicionales ?? {};
+      const detalle = Array.isArray(rs.data) ? rs.data : [];
+      const firstItem = detalle[0] ?? {};
+      const mtoSubTotal = detalle.reduce((sum, d) => sum + (d.total ?? 0), 0);
 
-      setItems((rs.data.detalle ?? []).map(d => ({
+      setItems(detalle.map(d => ({
         CodRepuesto:     d.codRepuesto,
         CodPrv:          d.codProveedor ?? null,
         CodItem:         d.codItem,
@@ -184,21 +185,17 @@ export default function PurchaseOrder() {
         CodPrvOriginal:        d.codProveedorOriginal ?? null,
         NomPrvOriginal:        d.razSocOriginal ?? '',
       })));
-      setContact({
-        NomContato: con.nomContacto,
-        Mail:       con.email,
-        Telefono:   con.telefono,
-      });
+      setContact({});
       setOrder({
-        NomPrv:           add.nomPrv,
-        CodPrv:           add.codProveedor ?? null,
-        NomPaisProveedor: add.nomPaisProveedor,
-        NomPaisDestino:   add.nomPaisDestino,
-        CodPaisDestino:   add.codPaisDestino,
-        MtoShipping:      add.mtoShipping,
-        MtoOtros:         add.mtoOtros,
-        MtoSubTotal:      add.subTotal,
-        MtoTotal:         add.total,
+        NomPrv:           names[0] ?? firstItem.razSoc ?? '',
+        CodPrv:           firstItem.codProveedor ?? null,
+        NomPaisProveedor: undefined,
+        NomPaisDestino:   undefined,
+        CodPaisDestino:   undefined,
+        MtoShipping:      0,
+        MtoOtros:         0,
+        MtoSubTotal:      mtoSubTotal,
+        MtoTotal:         mtoSubTotal,
       });
       setCadNroOrden(cadNroCotizacion.join(","));
 
