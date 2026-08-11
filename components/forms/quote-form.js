@@ -68,7 +68,7 @@ const URL_SAVE_SEGUIMIENTO   = 'cotizaciondetalle/registrar-seguimiento';
 const URL_REORDER            = 'cotizaciondetalle/ordenar-detalle';
 const URL_UPDATE_ALL         = 'cotizaciondetalle/actualizar-todo';
 const URL_SAVE_MONEDA        = 'cotizaciondetalle/cambiar-moneda';
-const URL_SAVE_TIPO_ENVIO    = 'cotizaciondetalle/cambiar-tipo-envio';
+const URL_SAVE_TIPO_ENVIO    = 'cotizaciondetalle/cambiar-tipoenvio';
 const URL_SAVE_ESTADO        = 'cotizaciondetalle/cambiar-estado';
 
 
@@ -1499,7 +1499,16 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                         const rs = await axiosClient.post(URL_SAVE_MONEDA, { NroCotizacion: order.NroOrden, TipMoneda: v.value });
                         if (rs.data?.tipCambio != null) setOrder(prev => ({ ...prev, TipoCambio: rs.data.tipCambio }));
                       } },
-                    { label: 'Tipo Envío', opts: optsTipoEnvio,  val: selTipoEnvio, set: setSelTipoEnvio, url: URL_SAVE_TIPO_ENVIO, key: 'tipoEnvio',  payloadKey: 'tipoEnvio'       },
+                    { label: 'Tipo Envío', opts: optsTipoEnvio,  val: selTipoEnvio, set: setSelTipoEnvio, key: 'tipoEnvio',
+                      onSave: async (v) => {
+                        const rs = await axiosClient.put(URL_SAVE_TIPO_ENVIO, { NroCotizacion: order.NroOrden, PrefEnvio: v.value });
+                        const { cotizacion, detalle } = rs.data;
+                        const updatedOrder = mapCotizacion(cotizacion);
+                        const updatedItems = mapDetalle(detalle);
+                        setOrder(prev => ({ ...updatedOrder, CodContacto: prev.CodContacto }));
+                        setItems(updatedItems);
+                        updateInputs(updatedItems);
+                      } },
                     { label: 'Estado',     opts: optsEstado,     val: selEstado,    set: setSelEstado,    url: URL_SAVE_ESTADO,     key: 'estado',     payloadKey: 'codSeguimiento'  },
                   ].map(({ label, opts, val, set, url, key, payloadKey, onSave }) => (
                     <div key={key} className="flex flex-col gap-1">
