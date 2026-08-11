@@ -138,6 +138,7 @@ export default function Quotes() {
           Indicador:   d.indicador     ?? '',
           Estado:      d.estado        ?? '',
           ParPrecio:   d.parPrecio     ?? false,
+          NotasAdicionales: d.notasAdicionales ?? [],
         })));
 
         setTracking(seguimiento ?? {});

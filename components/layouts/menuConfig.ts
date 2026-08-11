@@ -126,7 +126,7 @@ export const MENU_CONFIG: MenuItem[] = [
       { labelKey: 'spare_parts_to_be_quoted', href: '/admin/queries/spare-parts-quotation' },
       { labelKey: 'spare_parts_to_be_identified', href: '/admin/queries/spare-parts-identified' },
       { labelKey: 'quotes_orders_done', href: '/admin/queries/orders-placed' },
-      { labelKey: 'purchase_orders', href: '/admin/queries/purchase-orders', permission: PERMISSIONS.ORDENES },
+      { labelKey: 'purchase_orders', href: '/admin/queries/purchase-orders'}, //permission: PERMISSIONS.ORDENES },
       { labelKey: 'delivery_report', href: '/admin/queries/delivery-report' },
       { labelKey: 'change_quote', href: '/admin/queries/change-quote' },
       { labelKey: 'change_assiged', href: '/admin/queries/change-assigned' },

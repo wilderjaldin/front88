@@ -157,9 +157,20 @@ export default function PurchaseOrder() {
         CadNroCotizacion: cadNroCotizacion,
       });
 
-      const detalle = Array.isArray(rs.data) ? rs.data : [];
-      const firstItem = detalle[0] ?? {};
-      const mtoSubTotal = detalle.reduce((sum, d) => sum + (d.total ?? 0), 0);
+      try {
+        const rsBk = await axiosClient.post('ordenescompra/detalle-items-bk', {
+          CadNomPrv: names,
+          CadNroCotizacion: cadNroCotizacion,
+        });
+        console.log('detalle-items-bk response:', rsBk.data);
+      } catch (errBk) {
+        console.log('detalle-items-bk error:', errBk?.response?.status, errBk?.response?.data);
+      }
+
+      const bloque = (Array.isArray(rs.data) ? rs.data : [])[0] ?? {};
+      const detalle = bloque.detalle ?? [];
+      const con = bloque.contacto ?? {};
+      const add = bloque.datosAdicionales ?? {};
 
       setItems(detalle.map(d => ({
         CodRepuesto:     d.codRepuesto,
@@ -185,17 +196,23 @@ export default function PurchaseOrder() {
         CodPrvOriginal:        d.codProveedorOriginal ?? null,
         NomPrvOriginal:        d.razSocOriginal ?? '',
       })));
-      setContact({});
+      setContact({
+        NomContato: con.nomContacto,
+        Mail:       con.email,
+        Telefono:   con.telefono,
+      });
       setOrder({
-        NomPrv:           names[0] ?? firstItem.razSoc ?? '',
-        CodPrv:           firstItem.codProveedor ?? null,
+        NomPrv:           add.nomPrv ?? names[0] ?? '',
+        CodPrv:           add.codProveedor ?? null,
+        NumOrden:         add.numOrden,
         NomPaisProveedor: undefined,
+        CodPaisProveedor: undefined,
         NomPaisDestino:   undefined,
         CodPaisDestino:   undefined,
-        MtoShipping:      0,
-        MtoOtros:         0,
-        MtoSubTotal:      mtoSubTotal,
-        MtoTotal:         mtoSubTotal,
+        MtoShipping:      add.mtoShipping ?? 0,
+        MtoOtros:         add.mtoOtros ?? 0,
+        MtoSubTotal:      add.subTotal ?? 0,
+        MtoTotal:         add.total ?? 0,
       });
       setCadNroOrden(cadNroCotizacion.join(","));
 

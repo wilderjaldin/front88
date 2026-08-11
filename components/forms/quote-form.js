@@ -32,6 +32,7 @@ import TableReference from "@/app/admin/revision/quotes/table-reference"
 //import PdfViewer from "@/app/admin/revision/quotes/PdfViewer"
 import BtnPrintQuote from "@/components/BtnPrintQuote"
 import IconDirection from '../icon/icon-direction';
+import IconInfoTriangle from '../icon/icon-info-triangle';
 import axiosClient from '@/app/lib/axiosClient';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
@@ -70,6 +71,11 @@ const URL_UPDATE_ALL         = 'cotizaciondetalle/actualizar-todo';
 const URL_SAVE_MONEDA        = 'cotizaciondetalle/cambiar-moneda';
 const URL_SAVE_TIPO_ENVIO    = 'cotizaciondetalle/cambiar-tipoenvio';
 const URL_SAVE_ESTADO        = 'cotizaciondetalle/cambiar-estado';
+
+const formatDateTime = (val) => {
+  if (!val) return '—';
+  return new Date(val).toLocaleString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
 
 
 
@@ -437,6 +443,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
     Indicador:   d.indicador     ?? '',
     Estado:      d.estado        ?? '',
     ParPrecio:   d.parPrecio     ?? false,
+    NotasAdicionales: d.notasAdicionales ?? [],
   }));
 
   const mapOpcion = (o) => ({
@@ -1078,6 +1085,25 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
     setShowModal(true);
   };
 
+  const showItemNotes = (item) => {
+    setModalTitle(t.additional_note ?? 'Nota Adicional');
+    setModalSize('w-full max-w-md');
+    setModalContent(
+      <div className="max-h-96 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
+        {(item.NotasAdicionales ?? []).map((n, i) => (
+          <div key={i} className="px-1 py-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">{n.nomUsuario}</span>
+              <span className="text-[11px] text-gray-400">{formatDateTime(n.fecha)}</span>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mt-0.5 whitespace-pre-wrap">{n.nota}</p>
+          </div>
+        ))}
+      </div>
+    );
+    setShowModal(true);
+  };
+
   const showReference = async (item) => {
     Swal.fire({
       title: t.searching,
@@ -1710,20 +1736,29 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                             />
                           </td>
                           <td className={`${tdClass} whitespace-nowrap`}>
-                            {item.NroParte.includes("*") ? (
-                              <button onClick={run(() => showReference(item))} type="button" disabled={isSubmitting}
-                                className="text-primary text-xs font-semibold border border-primary/30 rounded px-2 py-0.5 hover:bg-primary/5 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                                {item.NroParte}
-                              </button>
-                            ) : item.CodRepuesto ? (
-                              <button onClick={run(() => showSpareSummary(item))} type="button" disabled={isSubmitting}
-                                title={t.spare_summary ?? 'Resumen del Repuesto'}
-                                className="text-xs font-medium text-gray-800 dark:text-gray-100 hover:text-primary hover:underline transition disabled:opacity-50 disabled:cursor-not-allowed">
-                                {item.NroParte}
-                              </button>
-                            ) : (
-                              <span className="text-xs font-medium">{item.NroParte}</span>
-                            )}
+                            <div className="flex items-center gap-1.5">
+                              {item.NroParte.includes("*") ? (
+                                <button onClick={run(() => showReference(item))} type="button" disabled={isSubmitting}
+                                  className="text-primary text-xs font-semibold border border-primary/30 rounded px-2 py-0.5 hover:bg-primary/5 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                                  {item.NroParte}
+                                </button>
+                              ) : item.CodRepuesto ? (
+                                <button onClick={run(() => showSpareSummary(item))} type="button" disabled={isSubmitting}
+                                  title={t.spare_summary ?? 'Resumen del Repuesto'}
+                                  className="text-xs font-medium text-gray-800 dark:text-gray-100 hover:text-primary hover:underline transition disabled:opacity-50 disabled:cursor-not-allowed">
+                                  {item.NroParte}
+                                </button>
+                              ) : (
+                                <span className="text-xs font-medium">{item.NroParte}</span>
+                              )}
+                              {item.NotasAdicionales?.length > 0 && (
+                                <button onClick={run(() => showItemNotes(item))} type="button" disabled={isSubmitting}
+                                  title={t.additional_note ?? 'Nota Adicional'}
+                                  className="text-amber-500 hover:text-amber-600 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                                  <IconInfoTriangle className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
                           </td>
                           <td className={tdClass}>{item.DesRepuesto}</td>
                           <td className={`${tdClass} text-right`}>{customFormat(item.Peso)}</td>

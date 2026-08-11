@@ -12,7 +12,6 @@ import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 import IconSearch from "@/components/icon/icon-search";
 import IconBackSpace from "@/components/icon/icon-backspace";
 import IconPencil from "@/components/icon/icon-pencil";
-import IconPencilPaper from "@/components/icon/icon-pencil-paper";
 import IconTag from "@/components/icon/icon-tag";
 import PrintLabelsModal from "./PrintLabelsModal";
 import Modal from "@/components/modal";
@@ -176,9 +175,11 @@ export default function PurchaseOrders() {
       setBloqueado(data.bloqueado ?? false);
       setOrder({
         NroOrden:         nroOrdenCompra,
+        NumOrden:         enc.numOrden,
         NomPrv:           enc.nomPrv,
         CodPrv:           enc.codPrv ?? enc.codProveedor ?? null,
         NomPaisProveedor: enc.nomPaisProveedor,
+        CodPaisProveedor: enc.codPaisProveedor,
         CodPaisDestino:   enc.codPais,
         NomPaisDestino:   enc.nomPais,
         MtoShipping:      enc.mtoShipping,
@@ -379,12 +380,9 @@ export default function PurchaseOrders() {
                         <button
                           onClick={() => handleEdit(o)}
                           title={t.edit}
-                          className={`h-8 w-8 flex items-center justify-center rounded-lg transition ${o.editable ? 'bg-gray-100 text-gray-600 hover:bg-primary/10 hover:text-primary dark:bg-gray-800 dark:text-gray-400' : 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-600'}`}
+                          className={`h-8 w-8 flex items-center justify-center rounded-lg transition ${o.editable ? 'bg-gray-100 text-gray-600 hover:bg-primary/10 hover:text-primary dark:bg-gray-800 dark:text-gray-400' : 'bg-gray-100 text-gray-400 opacity-40 hover:opacity-60 dark:bg-gray-800 dark:text-gray-600'}`}
                         >
-                          {o.editable
-                            ? <IconPencil className="h-3.5 w-3.5" />
-                            : <IconPencilPaper className="h-3.5 w-3.5" />
-                          }
+                          <IconPencil className="h-3.5 w-3.5" />
                         </button>
                         <button
                           onClick={() => handlePrintLabels(o)}

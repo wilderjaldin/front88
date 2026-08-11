@@ -417,7 +417,18 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
                 </div>
               </div>
             )}
-            <InfoRow label="País Proveedor"       value={order.NomPaisProveedor} />
+            <InfoRow label="País Proveedor"       value={
+              order.NomPaisProveedor ? (
+                <span className="inline-flex items-center gap-1.5">
+                  {order.CodPaisProveedor && (
+                    <img src={`/assets/flags/${order.CodPaisProveedor.toLowerCase()}.svg`}
+                      alt={order.NomPaisProveedor}
+                      className="h-3.5 w-5 rounded-sm object-cover shrink-0" />
+                  )}
+                  {order.NomPaisProveedor}
+                </span>
+              ) : '—'
+            } />
             <InfoRow label="País Destino"         value={
               order.NomPaisDestino ? (
                 <span className="inline-flex items-center gap-1.5">
@@ -430,6 +441,7 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
                 </span>
               ) : '—'
             } />
+            <InfoRow label="Nro. Orden"           value={order.NumOrden} />
           </div>
           {/* Contacto */}
           <div className="p-5">
