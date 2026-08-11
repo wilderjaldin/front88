@@ -25,6 +25,11 @@ const URL_UPDATE   = 'repuestos/editar';
 const ASYNC_LIMIT     = 20;
 const ASYNC_MIN_CHARS = 2;
 
+const formatDateTime = (val) => {
+  if (!val) return '—';
+  return new Date(val).toLocaleString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
+
 // ── Estilos react-select mejorados, compatibles con dark mode ─────────────────
 const selectStyles = {
   control: (base, state) => ({
@@ -95,6 +100,7 @@ export default function SpareFormPage() {
   const [units,       setUnits]       = useState([]);
   const [status_code, setStatusCode]  = useState([]);
   const [isSaving,    setIsSaving]    = useState(false);
+  const [notesHistory, setNotesHistory] = useState([]);
 
   const [tempToken] = useState(() => crypto.randomUUID());
 
@@ -140,6 +146,7 @@ export default function SpareFormPage() {
       blnPedEspecialSinFecha: false,
       blnPedidoEspecial:      false,
       canDias:                0,
+      notaAdicional:          '',
     }
   });
 
@@ -197,6 +204,8 @@ export default function SpareFormPage() {
             blnPedidoEspecial:      !!d.blnPedidoEspecial,
             canDias:                d.canDias ?? 0,
           });
+
+          setNotesHistory(d.notasAdicionales ?? []);
         }
       } catch (err) {
         // manejar error silenciosamente o mostrar toast
@@ -231,6 +240,7 @@ export default function SpareFormPage() {
         blnPedEspecialSinFecha: data.blnPedEspecialSinFecha ? true : false,
         blnPedidoEspecial:      data.blnPedidoEspecial    ? true : false,
         canDias:                data.blnPedidoEspecial ? (Number(data.canDias) || null) : null,
+        notaAdicional:          data.notaAdicional?.trim() || null,
       };
 
       const method = isEdit ? 'put'      : 'post';
@@ -700,6 +710,37 @@ export default function SpareFormPage() {
 
             {/* col 3 vacía — fila 5 */}
             <div />
+
+            {/* ── FILA 6 — Nota Adicional ─────────────────────────────────── */}
+
+            {/* 14. Historial de Notas + Agregar nota */}
+            <div className="sm:col-span-3">
+              <label className="block text-sm font-medium mb-1.5">
+                {t.additional_note ?? 'Nota Adicional'}
+              </label>
+
+              {notesHistory.length > 0 && (
+                <div className="mb-2 max-h-40 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+                  {notesHistory.map((n, i) => (
+                    <div key={i} className="px-3 py-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">{n.nomUsuario}</span>
+                        <span className="text-[11px] text-gray-400">{formatDateTime(n.fecha)}</span>
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-300 mt-0.5 whitespace-pre-wrap">{n.nota}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <textarea
+                tabIndex={16}
+                rows={2}
+                placeholder="Agregar nueva nota..."
+                {...register('notaAdicional')}
+                className="form-textarea w-full"
+              />
+            </div>
 
           </div>{/* fin grid */}
         </div>{/* fin panel */}

@@ -1494,10 +1494,14 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                 {/* Configuración de cotización */}
                 <div className="flex-1 px-3 py-3 grid grid-cols-3 gap-2 items-end">
                   {[
-                    { label: 'Moneda',     opts: optsMoneda,     val: selMoneda,    set: setSelMoneda,    url: URL_SAVE_MONEDA,     key: 'moneda',     payloadKey: 'moneda'          },
+                    { label: 'Moneda',     opts: optsMoneda,     val: selMoneda,    set: setSelMoneda,    key: 'moneda',
+                      onSave: async (v) => {
+                        const rs = await axiosClient.post(URL_SAVE_MONEDA, { NroCotizacion: order.NroOrden, TipMoneda: v.value });
+                        if (rs.data?.tipCambio != null) setOrder(prev => ({ ...prev, TipoCambio: rs.data.tipCambio }));
+                      } },
                     { label: 'Tipo Envío', opts: optsTipoEnvio,  val: selTipoEnvio, set: setSelTipoEnvio, url: URL_SAVE_TIPO_ENVIO, key: 'tipoEnvio',  payloadKey: 'tipoEnvio'       },
                     { label: 'Estado',     opts: optsEstado,     val: selEstado,    set: setSelEstado,    url: URL_SAVE_ESTADO,     key: 'estado',     payloadKey: 'codSeguimiento'  },
-                  ].map(({ label, opts, val, set, url, key, payloadKey }) => (
+                  ].map(({ label, opts, val, set, url, key, payloadKey, onSave }) => (
                     <div key={key} className="flex flex-col gap-1">
                       <span className="text-xs text-gray-500">{label}</span>
                       <div className="flex items-center gap-1.5">
@@ -1525,7 +1529,11 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                           onClick={async () => {
                             if (!val) return;
                             try {
-                              await axiosClient.put(url, { nroCotizacion: order.NroOrden, [payloadKey]: val.value });
+                              if (onSave) {
+                                await onSave(val);
+                              } else {
+                                await axiosClient.put(url, { nroCotizacion: order.NroOrden, [payloadKey]: val.value });
+                              }
                               swalSuccess(t.record_updated);
                             } catch (err) {
                               swalError(t.error, err?.response?.data?.mensaje ?? 'No se pudo guardar');
