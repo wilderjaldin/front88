@@ -1,17 +1,22 @@
 'use client';
 import React, { useEffect, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Pagination } from '@mantine/core';
 import IconSave from '@/components/icon/icon-save';
+import IconDownload from '@/components/icon/icon-download';
+import IconTag from '@/components/icon/icon-tag';
+import IconSearchCircle from '@/components/icon/icon-search-circle';
+import IconChecks from '@/components/icon/icon-checks';
+import IconNotesEdit from '@/components/icon/icon-notes-edit';
 import Modal from '@/components/modal';
 import PrintLabelsModal from '@/app/admin/purchase-reception/print-labels-modal';
+const ExportListPdfViewer = dynamic(() => import('@/app/admin/purchase-reception/ExportListPdfViewer'), { ssr: false });
 import axiosClient from '@/app/lib/axiosClient';
 import { swalSuccess, swalError } from '@/app/lib/swal';
 import { useForm } from "react-hook-form"
-import Swal from 'sweetalert2'
-import axios from 'axios'
 
-const url_verify = process.env.NEXT_PUBLIC_API_URL + 'recepcion/ValidarDatosRecepcion';
 const URL_SAVE_ITEMS = 'recepcion/guardar-items';
+const URL_SAVE_NOTE  = 'ordenescompra/guardar-nota-item';
 
 const PAGE_SIZE = 20;
 
@@ -31,7 +36,7 @@ const ITEM_COLUMNS = [
   { key: 'note',         type: 'text',   widthPx: 140 },
 ];
 
-const Receptions = ({ token, t, data, setReceptions, selected_orders, onRefresh }) => {
+const Receptions = ({ t, data, setReceptions, selected_orders, onRefresh }) => {
 
   const [page,   setPage]   = useState(1);
   const [saving, setSaving] = useState(false);
@@ -93,7 +98,7 @@ const Receptions = ({ token, t, data, setReceptions, selected_orders, onRefresh 
   };
 
   // Combina el registro de react-hook-form con la ref propia usada para la navegación.
-  const registerCell = (name, row, col) => {
+  const registerCell = (name, row, col, { uppercase = false } = {}) => {
     const field = register(name);
     return {
       ...field,
@@ -101,6 +106,9 @@ const Receptions = ({ token, t, data, setReceptions, selected_orders, onRefresh 
         field.ref(el);
         cellRefs.current[`${row}_${col}`] = el;
       },
+      onChange: uppercase
+        ? (e) => { e.target.value = e.target.value.toUpperCase(); return field.onChange(e); }
+        : field.onChange,
       onKeyDown: (e) => handleCellKeyDown(e, row, col),
     };
   };
@@ -113,45 +121,7 @@ const Receptions = ({ token, t, data, setReceptions, selected_orders, onRefresh 
 
   const handleSaveChanges = async () => {
     if (data.length > 0) {
-      const is_valid = await verify(data);
-      if (is_valid) {
-        saveDataReception();
-      } else {
-        Swal.fire({
-          title: t.error,
-          text: t.attached_tems_does_not_match_the_orders,
-          icon: 'error',
-          confirmButtonColor: '#dc2626',
-          confirmButtonText: t.close
-        });
-      }
-    }
-  }
-
-  const verify = async (data) => {
-    try {
-      let NumOrdenCompra = [];
-
-      selected_orders.map(o => {
-        NumOrdenCompra.push(`${o.NumOrdenCompra}`);
-      });
-      let CadNroOrdenCompra = NumOrdenCompra.join(",");
-
-      let data_send = {
-        CadNroOrdenCompra: CadNroOrdenCompra,
-        CantItems: data.length,
-        ValToken: token
-      }
-
-      const rs = await axios.post(url_verify, data_send);
-      if (rs.data.estado == 'Ok') {
-        return true;
-      } else {
-        return false;
-      }
-    } catch (error) {
-
-      return false;
+      saveDataReception();
     }
   }
 
@@ -183,10 +153,7 @@ const Receptions = ({ token, t, data, setReceptions, selected_orders, onRefresh 
       });
 
       if (different) {
-        Swal.fire({
-          icon: "error",
-          title: t.save_puschase_receipt_amount_error
-        });
+        swalError(t.error, t.save_puschase_receipt_amount_error, t.close);
         setSaving(false);
         return;
       }
@@ -203,12 +170,19 @@ const Receptions = ({ token, t, data, setReceptions, selected_orders, onRefresh 
     setSaving(false);
   }
 
-  // Guarda solo Origen/H Code/Material/Presentación/Nota, sin exigir Cant. Recibida válida
+  // Guarda solo el campo Nota de cada fila, sin tocar Can. Recibida ni el resto de campos
   // (a diferencia de "Guardar Recepción", no cierra la recepción ni limpia la lista).
+  const buildNoteItems = () => data.map((o) => ({
+    numOrdenCompra: o.NumOrdenCompra,
+    nroCotizacion:  o.NroOrden,
+    codItem:        o.CodItem,
+    nota:           getValues(`orders_${o.id}_note`),
+  }));
+
   const handleSaveNote = async () => {
     setSavingNote(true);
     try {
-      await axiosClient.post(URL_SAVE_ITEMS, { items: buildItems() });
+      await axiosClient.put(URL_SAVE_NOTE, { items: buildNoteItems() });
       swalSuccess(t.save_puschase_receipt_success);
     } catch (error) {
       const apiMsg = error?.response?.data?.mensaje;
@@ -260,8 +234,9 @@ const Receptions = ({ token, t, data, setReceptions, selected_orders, onRefresh 
           type="button"
           onClick={() => setShowExportModal(true)}
           disabled={data.length === 0}
-          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-xs font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-35 disabled:cursor-not-allowed transition"
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-xs font-semibold hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-600 dark:hover:bg-indigo-900/20 disabled:opacity-35 disabled:cursor-not-allowed transition"
         >
+          <IconDownload className="h-3.5 w-3.5" />
           {t.export_list}
         </button>
 
@@ -269,16 +244,18 @@ const Receptions = ({ token, t, data, setReceptions, selected_orders, onRefresh 
           type="button"
           onClick={() => setShowLabelsModal(true)}
           disabled={data.length === 0}
-          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-xs font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-35 disabled:cursor-not-allowed transition"
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-xs font-semibold hover:bg-amber-50 hover:border-amber-300 hover:text-amber-600 dark:hover:bg-amber-900/20 disabled:opacity-35 disabled:cursor-not-allowed transition"
         >
+          <IconTag className="h-3.5 w-3.5" />
           {t.print_labels}
         </button>
 
         <button
           type="button"
           onClick={() => setShowBarcodeModal(true)}
-          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-xs font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-xs font-semibold hover:bg-purple-50 hover:border-purple-300 hover:text-purple-600 dark:hover:bg-purple-900/20 transition"
         >
+          <IconSearchCircle className="h-3.5 w-3.5" />
           {t.barcode}
         </button>
 
@@ -288,8 +265,9 @@ const Receptions = ({ token, t, data, setReceptions, selected_orders, onRefresh 
           type="button"
           onClick={handleReceiveAll}
           disabled={data.length === 0}
-          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-xs font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-35 disabled:cursor-not-allowed transition"
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-xs font-semibold hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-600 dark:hover:bg-emerald-900/20 disabled:opacity-35 disabled:cursor-not-allowed transition"
         >
+          <IconChecks className="h-3.5 w-3.5" />
           {t.receive_all}
         </button>
 
@@ -299,8 +277,9 @@ const Receptions = ({ token, t, data, setReceptions, selected_orders, onRefresh 
           type="button"
           onClick={handleSaveNote}
           disabled={data.length === 0 || savingNote}
-          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-xs font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-35 disabled:cursor-not-allowed transition"
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-xs font-semibold hover:bg-sky-50 hover:border-sky-300 hover:text-sky-600 dark:hover:bg-sky-900/20 disabled:opacity-35 disabled:cursor-not-allowed transition"
         >
+          <IconNotesEdit className="h-3.5 w-3.5" />
           {savingNote ? (t.saving ?? 'Guardando…') : t.save_note}
         </button>
 
@@ -373,7 +352,7 @@ const Receptions = ({ token, t, data, setReceptions, selected_orders, onRefresh 
                     <input type="text" {...registerCell(`orders_${index}_presentacion`, rowIndex, 4)} className={cellInputClass} />
                   </td>
                   <td className={cellTdClass}>
-                    <input type="text" {...registerCell(`orders_${index}_note`, rowIndex, 5)} className={cellInputClass} />
+                    <input type="text" {...registerCell(`orders_${index}_note`, rowIndex, 5, { uppercase: true })} className={cellInputClass} />
                   </td>
                 </tr>
                 );
@@ -391,9 +370,9 @@ const Receptions = ({ token, t, data, setReceptions, selected_orders, onRefresh 
 
       {/* Modal Exportar Lista */}
       <Modal showModal={showExportModal} closeModal={() => setShowExportModal(false)} title={t.export_list} size="w-full max-w-3xl">
-        <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
-          <p className="text-sm text-gray-400">{t.pending_backend_integration}</p>
-        </div>
+        {showExportModal && (
+          <ExportListPdfViewer selected_orders={selected_orders} />
+        )}
       </Modal>
 
       {/* Modal Imprimir Etiquetas */}

@@ -21,6 +21,7 @@ const URL_CONTROLS = 'repuestos/controles?incluirEstados=true';
 const URL_DETAIL   = 'repuestos/detalle';
 const URL_SAVE     = 'repuestos/registrar';
 const URL_UPDATE   = 'repuestos/editar';
+const URL_ADD_NOTE = 'repuestos/agregar-nota-adicional';
 
 const ASYNC_LIMIT     = 20;
 const ASYNC_MIN_CHARS = 2;
@@ -240,14 +241,30 @@ export default function SpareFormPage() {
         blnPedEspecialSinFecha: data.blnPedEspecialSinFecha ? true : false,
         blnPedidoEspecial:      data.blnPedidoEspecial    ? true : false,
         canDias:                data.blnPedidoEspecial ? (Number(data.canDias) || null) : null,
-        notaAdicional:          data.notaAdicional?.trim() || null,
       };
 
       const method = isEdit ? 'put'      : 'post';
       const url    = isEdit ? URL_UPDATE : URL_SAVE;
       await axiosClient[method](url, payload);
 
-      await swalSuccess(isEdit ? 'Repuesto actualizado correctamente' : 'Repuesto registrado correctamente');
+      // La nota adicional tiene su propio endpoint (usuario/fecha los resuelve el
+      // backend por JWT), pero para el usuario es "un campo más" del formulario:
+      // se guarda junto con el resto al tocar un solo botón.
+      const nota = data.notaAdicional?.trim();
+      let noteFailed = false;
+      if (isEdit && nota) {
+        try {
+          await axiosClient.post(URL_ADD_NOTE, { codRepuesto: id, nota });
+        } catch (noteErr) {
+          noteFailed = true;
+        }
+      }
+
+      if (noteFailed) {
+        await swalError(t.warning ?? 'Advertencia', 'El repuesto se guardó, pero no se pudo guardar la nota adicional.');
+      } else {
+        await swalSuccess(isEdit ? 'Repuesto actualizado correctamente' : 'Repuesto registrado correctamente');
+      }
       router.push('/admin/register/spares');
 
     } catch (err) {
@@ -711,39 +728,47 @@ export default function SpareFormPage() {
             {/* col 3 vacía — fila 5 */}
             <div />
 
-            {/* ── FILA 6 — Nota Adicional ─────────────────────────────────── */}
+          </div>{/* fin grid */}
+        </div>{/* fin panel */}
 
-            {/* 14. Historial de Notas + Agregar nota */}
-            <div className="sm:col-span-3">
+        {/* ── Nota Adicional (endpoint propio, solo aplica a repuestos ya guardados) ── */}
+        {isEdit && (
+          <div className="bg-white dark:bg-[#0e1726] border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-6 mt-5">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-3">
+              {t.history ?? 'Historial'}
+            </p>
+            {notesHistory.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-gray-200 dark:border-gray-700 py-6 text-center">
+                <p className="text-xs text-gray-400">{t.no_matches ?? 'Sin notas registradas'}</p>
+              </div>
+            ) : (
+              <div className="max-h-64 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+                {notesHistory.map((n, i) => (
+                  <div key={i} className="px-3 py-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">{n.nomUsuario}</span>
+                      <span className="text-[11px] text-gray-400">{formatDateTime(n.fecha)}</span>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-0.5 whitespace-pre-wrap">{n.nota}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-4">
               <label className="block text-sm font-medium mb-1.5">
                 {t.additional_note ?? 'Nota Adicional'}
               </label>
-
-              {notesHistory.length > 0 && (
-                <div className="mb-2 max-h-40 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
-                  {notesHistory.map((n, i) => (
-                    <div key={i} className="px-3 py-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">{n.nomUsuario}</span>
-                        <span className="text-[11px] text-gray-400">{formatDateTime(n.fecha)}</span>
-                      </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-300 mt-0.5 whitespace-pre-wrap">{n.nota}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
               <textarea
                 tabIndex={16}
-                rows={2}
-                placeholder="Agregar nueva nota..."
+                rows={3}
+                placeholder={t.write_a_note ?? 'Escribe una nota...'}
                 {...register('notaAdicional')}
-                className="form-textarea w-full"
+                className="form-textarea w-full resize-none"
               />
             </div>
-
-          </div>{/* fin grid */}
-        </div>{/* fin panel */}
+          </div>
+        )}
 
         {/* ── Archivos: imágenes y documentos ───────────────────────────────── */}
         { (false) && 

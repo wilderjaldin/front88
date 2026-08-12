@@ -12,7 +12,8 @@ import TableUnassign from "@/app/admin/purchase-order/table-unassign"
 import TableAssigned from "@/app/admin/purchase-order/table-assigned"
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 
-const URL_LIST = 'ordenescompra/listar-pendientes';
+const URL_LIST_ASSIGNED   = 'ordenescompra/listar-pendientes-asignados';
+const URL_LIST_UNASSIGNED = 'ordenescompra/listar-pendientes-no-asignados';
 const URL_ASSIGN_ORDER = 'ordenescompra/asignar-item';
 const URL_UNASSIGN_ORDER = 'ordenescompra/quitar-item';
 const URL_PREVIEW_OC = 'ordenescompra/detalle-items';
@@ -43,17 +44,28 @@ export default function PurchaseOrder() {
   const tabRefs = useRef([]);
 
   const [reload, setReloadState] = useState(false);
+  const [loadedTabs, setLoadedTabs] = useState({});
 
   const setReload = () => {
     setReloadState(!reload);
   }
-  useEffect(() => {
 
-    async function fetchData() {
-      await getData();
-    }
-    fetchData();
+  // Invalida el cache de ambos tabs; el tab activo se recarga de inmediato
+  // y el otro queda pendiente de recarga para la próxima vez que se abra.
+  // Se omite en el montaje inicial (loadedTabs ya arranca vacío) para no
+  // generar una referencia nueva que dispare un fetch duplicado.
+  const isFirstReload = useRef(true);
+  useEffect(() => {
+    if (isFirstReload.current) { isFirstReload.current = false; return; }
+    setLoadedTabs({});
   }, [reload]);
+
+  useEffect(() => {
+    const key = TAB_KEYS[activeTab];
+    if (loadedTabs[key]) return;
+    const fetcher = key === 'assigned' ? fetchAssigned : fetchUnassigned;
+    fetcher().then(() => setLoadedTabs(prev => ({ ...prev, [key]: true })));
+  }, [activeTab, loadedTabs]);
 
   useEffect(() => {
     if (option == "") {
@@ -88,13 +100,19 @@ export default function PurchaseOrder() {
     CodItemsConCambios: o.codItemsConCambios ?? [],
   });
 
-  const getData = async () => {
+  const fetchAssigned = async () => {
     try {
-      const rs = await axiosClient.get(URL_LIST);
+      const rs = await axiosClient.get(URL_LIST_ASSIGNED);
+      setOrdersAssigned((rs.data ?? []).map(mapPendingOrder));
+    } catch (error) {
 
-      setOrdersUnassigned((rs.data.noAsignados ?? []).map(mapPendingOrder));
-      setOrdersAssigned((rs.data.asignados ?? []).map(mapPendingOrder));
+    }
+  }
 
+  const fetchUnassigned = async () => {
+    try {
+      const rs = await axiosClient.get(URL_LIST_UNASSIGNED);
+      setOrdersUnassigned((rs.data ?? []).map(mapPendingOrder));
     } catch (error) {
 
     }
@@ -111,6 +129,7 @@ export default function PurchaseOrder() {
 
       setOrdersUnassigned((rs.data.noAsignados ?? []).map(mapPendingOrder));
       setOrdersAssigned((rs.data.asignados ?? []).map(mapPendingOrder));
+      setLoadedTabs({ pending: true, assigned: true });
       return true;
     } catch (error) {
 
@@ -129,6 +148,7 @@ export default function PurchaseOrder() {
 
       setOrdersUnassigned((rs.data.noAsignados ?? []).map(mapPendingOrder));
       setOrdersAssigned((rs.data.asignados ?? []).map(mapPendingOrder));
+      setLoadedTabs({ pending: true, assigned: true });
       return true;
     } catch (error) {
 
@@ -156,16 +176,6 @@ export default function PurchaseOrder() {
         CadNomPrv: names,
         CadNroCotizacion: cadNroCotizacion,
       });
-
-      try {
-        const rsBk = await axiosClient.post('ordenescompra/detalle-items-bk', {
-          CadNomPrv: names,
-          CadNroCotizacion: cadNroCotizacion,
-        });
-        console.log('detalle-items-bk response:', rsBk.data);
-      } catch (errBk) {
-        console.log('detalle-items-bk error:', errBk?.response?.status, errBk?.response?.data);
-      }
 
       const bloque = (Array.isArray(rs.data) ? rs.data : [])[0] ?? {};
       const detalle = bloque.detalle ?? [];

@@ -5,16 +5,16 @@ import { useTranslation } from "@/app/locales";
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from "next/navigation";
 import { useSelector } from 'react-redux';
-import { getLocale } from '@/store/localeSlice';
 import { selectToken } from '@/store/authSlice';
 import Pendings from "@/app/admin/packaging/pendings"
 import Packaging from "@/app/admin/packaging/packaging"
 
 import axios from 'axios'
+import axiosClient from '@/app/lib/axiosClient';
 import Swal from 'sweetalert2'
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 
-const url_lists_orders = process.env.NEXT_PUBLIC_API_URL + 'embalaje/MostrarRecepcionCompra ';
+const URL_LIST_ORDERS = 'embalaje/listar';
 const url_attach = process.env.NEXT_PUBLIC_API_URL + 'embalaje/AdjuntarItems';
 
 export default function PackagingPage() {
@@ -26,8 +26,7 @@ export default function PackagingPage() {
 
   const [orders, setOrders] = useState([])
   const [packagings, setPackagings] = useState([]);
-  const [types_packagings, setTypePackaging] = useState();
-  const locale = useSelector(getLocale);
+  const [types_packagings, setTypePackaging] = useState([]);
 
   useEffect(() => {
 
@@ -41,20 +40,17 @@ export default function PackagingPage() {
 
   const getLists = async () => {
     try {
-      const rs = await axios.post(url_lists_orders, { Idioma: locale, ValToken: token });
-      if (rs.data.estado == 'Ok') {
-        setOrders(() => rs.data.dato1.map((o, index) => {
-          o.id = index;
-          return o;
-        }));
-        let options = [];
-        rs.data.dato2.map((o, index) => {
-          if (o.CodEmbalaje != 0) {
-            options.push({ value: o.CodEmbalaje, label: o.DesEmbalaje });
-          }
-        });
-        setTypePackaging(options);
-      }
+      const rs = await axiosClient.get(URL_LIST_ORDERS);
+      setOrders((rs.data ?? []).map((o, index) => ({
+        id:             index,
+        NroRecepcion:   o.numRecepcion,
+        NroOrdenCompra: o.numOrdenCompra,
+        NomCliente:     o.cliente,
+        NroOrden:       o.nroCotizacion,
+        DirEntrega:     o.dirEnvio,
+        Transporte:     o.transporte,
+        Monto:          o.monto,
+      })));
     } catch (error) {
 
     }

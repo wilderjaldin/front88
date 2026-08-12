@@ -73,6 +73,7 @@ export default function PurchaseReception() {
         Recepcion1:      o.recepcion1 ?? false,
         Recepcion2:      o.recepcion2 ?? false,
         Recepcion3:      o.recepcion3 ?? false,
+        TieneNota:       o.tieneNota ?? false,
       })));
     } catch (error) {
 

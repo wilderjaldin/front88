@@ -33,6 +33,7 @@ import TableReference from "@/app/admin/revision/quotes/table-reference"
 import BtnPrintQuote from "@/components/BtnPrintQuote"
 import IconDirection from '../icon/icon-direction';
 import IconInfoTriangle from '../icon/icon-info-triangle';
+import AddNoteField from './AddNoteField';
 import axiosClient from '@/app/lib/axiosClient';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
@@ -170,6 +171,48 @@ function SortableRow({ id, index, children, className }) {
     </tr>
   );
 }
+
+const ItemNotesModal = ({ t, item, onUpdated }) => {
+  const [notes, setNotes] = useState(item.NotasAdicionales ?? []);
+
+  const handleSaved = (updatedNotes) => {
+    setNotes(updatedNotes);
+    onUpdated(updatedNotes);
+  };
+
+  const handleError = (error) => {
+    swalError(t.error, error?.response?.data?.mensaje ?? 'No se pudo guardar la nota');
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">{t.history ?? 'Historial'}</p>
+        {notes.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-gray-200 dark:border-gray-700 py-6 text-center">
+            <p className="text-xs text-gray-400">{t.no_matches ?? 'Sin notas registradas'}</p>
+          </div>
+        ) : (
+          <div className="max-h-64 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+            {notes.map((n, i) => (
+              <div key={i} className="px-3 py-2.5 bg-white dark:bg-gray-900">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">{n.nomUsuario}</span>
+                  <span className="text-[11px] text-gray-400">{formatDateTime(n.fecha)}</span>
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-0.5 whitespace-pre-wrap">{n.nota}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="pt-3 border-t border-gray-100 dark:border-gray-700">
+        <AddNoteField t={t} codRepuesto={item.CodRepuesto} onSaved={handleSaved} onError={handleError} />
+      </div>
+    </div>
+  );
+};
 
 const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) => {
 
@@ -1081,7 +1124,19 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
   const showSpareSummary = (item) => {
     setModalTitle(t.spare_summary ?? 'Resumen del Repuesto');
     setModalSize('w-full max-w-md');
-    setModalContent(<SpareSummary close={() => setShowModal(false)} t={t} codRepuesto={item.CodRepuesto} />);
+    setModalContent(
+      <SpareSummary
+        close={() => setShowModal(false)}
+        t={t}
+        codRepuesto={item.CodRepuesto}
+        initialNotes={item.NotasAdicionales ?? []}
+        onNotesUpdated={(updatedNotes) => {
+          setItems(prev => prev.map(i => i.CodItem === item.CodItem
+            ? { ...i, NotasAdicionales: updatedNotes }
+            : i));
+        }}
+      />
+    );
     setShowModal(true);
   };
 
@@ -1089,17 +1144,15 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
     setModalTitle(t.additional_note ?? 'Nota Adicional');
     setModalSize('w-full max-w-md');
     setModalContent(
-      <div className="max-h-96 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
-        {(item.NotasAdicionales ?? []).map((n, i) => (
-          <div key={i} className="px-1 py-2.5">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">{n.nomUsuario}</span>
-              <span className="text-[11px] text-gray-400">{formatDateTime(n.fecha)}</span>
-            </div>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mt-0.5 whitespace-pre-wrap">{n.nota}</p>
-          </div>
-        ))}
-      </div>
+      <ItemNotesModal
+        t={t}
+        item={item}
+        onUpdated={(updatedNotes) => {
+          setItems(prev => prev.map(i => i.CodItem === item.CodItem
+            ? { ...i, NotasAdicionales: updatedNotes }
+            : i));
+        }}
+      />
     );
     setShowModal(true);
   };

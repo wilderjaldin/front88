@@ -4,12 +4,14 @@ import { useTranslation } from "@/app/locales";
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from "next/navigation";
 import { useSelector } from 'react-redux';
-import { getLocale } from '@/store/localeSlice';
 import { selectToken } from '@/store/authSlice';
 import ItemsToDelivery from "@/app/admin/delivery/items-deliver"
+import PendingDelivery from "@/app/admin/delivery/pending-delivery"
 
 import axios from 'axios'
+import axiosClient from '@/app/lib/axiosClient';
 import Swal from 'sweetalert2'
+import { swalSuccess } from '@/app/lib/swal';
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 
 import Modal from '@/components/modal';
@@ -18,12 +20,10 @@ const PdfViewerDelivery = dynamic(() => import('@/app/admin/queries/delivery-rep
   ssr: false,
 });
 
-const url_lists_orders = process.env.NEXT_PUBLIC_API_URL + 'entrega/MostraListaEmbalaje';
+const URL_LIST_DELIVERIES = 'entregas';
 const url_attach = process.env.NEXT_PUBLIC_API_URL + 'entrega/AdjuntarItems';
 const url_cancel = process.env.NEXT_PUBLIC_API_URL + 'entrega/AnularEmbalaje';
 const url_save = process.env.NEXT_PUBLIC_API_URL + 'entrega/GuardarEntrega';
-
-
 
 export default function Delivery() {
 
@@ -31,16 +31,23 @@ export default function Delivery() {
   const searchParams = useSearchParams();
   const token = useSelector(selectToken);
   const t = useTranslation();
-  const locale = useSelector(getLocale);
+
+  const urlPage = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+  const urlSort = searchParams.get("sort") ?? 'delivery';
+  const urlDir  = searchParams.get("dir")  ?? 'desc';
 
   const [orders, setOrders] = useState([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+
+  // Sin fuente todavía: el nuevo GET entregas no trae estas listas de referencia
+  // (antes venían en entrega/MostraListaEmbalaje junto al listado).
   const [users, setUsers] = useState([]);
   const [transports, setTransports] = useState([]);
   const [payment_conditions, setPaymentConditions] = useState([]);
   const [currencies, setCurrencies] = useState([]);
 
   const [seleccionados, setSeleccionados] = useState([])
-  const [isSelectItems, setIsSelectItems] = useState(false);
 
   const [customer, setCustomer] = useState({})
   const [items, setItems] = useState([]);
@@ -51,79 +58,39 @@ export default function Delivery() {
   const [modal_size, setModalSize] = useState('w-full max-w-5xl')
 
   useEffect(() => {
-
-    async function fetchData() {
-      let res = await getLists();
-    }
-    fetchData();
-
-
-  }, []);
+    getLists();
+  }, [urlPage, urlSort, urlDir]);
 
   const getLists = async () => {
+    setLoadingOrders(true);
     try {
-      const rs = await axios.post(url_lists_orders, { Idioma: locale, ValToken: token });
-      if (rs.data.estado == 'Ok') {
-        setOrders(rs.data.dato1);
-        let _users = [];
-        rs.data.dato2.map(o => {
-          if (o.CodUsuario != 0) {
-            _users.push({ value: o.CodUsuario, label: o.NomUsuario });
-          }
-        });
-        setUsers(_users);
-
-        let _trans = [];
-        rs.data.dato3.map(o => {
-          if (o.CodTransporte != "") {
-            _trans.push({ value: o.CodTransporte, label: o.DesTransporte });
-          }
-        });
-        setTransports(_trans);
-
-        let _conditions = [];
-        rs.data.dato4.map(o => {
-          if (o.CodCondPago != "") {
-            _conditions.push({ value: o.CodCondPago, label: o.DesCondPago });
-          }
-        });
-        setPaymentConditions(_conditions);
-
-        let _coins = [];
-        rs.data.dato5.map(o => {
-          if (o.CodMoneda != "") {
-            _coins.push({ value: o.CodMoneda, label: o.DesMoneda });
-          }
-        });
-        setCurrencies(_coins);
-
-      }
+      const rs = await axiosClient.get(URL_LIST_DELIVERIES, {
+        params: { page: urlPage, sort: urlSort, dir: urlDir, codcutomer: 0, to: 0 },
+      });
+      setOrders(rs.data?.datos ?? []);
+      setTotalPages(rs.data?.totalPaginas ?? 1);
     } catch (error) {
 
     }
+    setLoadingOrders(false);
   }
 
-  const toggleSeleccion = (order) => {
-    setSeleccionados((prev) =>
-      prev.includes(order) ? prev.filter((i) => i !== order) : [...prev, order]
-    )
-  }
-
-  const toggleTodos = () => {
-    if (seleccionados.length === orders.length) {
-      setSeleccionados([])
+  const handleSort = (col) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (urlSort === col) {
+      params.set("dir", urlDir === 'asc' ? 'desc' : 'asc');
     } else {
-      setSeleccionados(orders.map((d) => d))
+      params.set("sort", col);
+      params.set("dir", 'desc');
     }
-  }
+    router.push(`?${params.toString()}`, { scroll: false });
+  };
 
-  useEffect(() => {
-    if (seleccionados.length > 0) {
-      setIsSelectItems(false)
-    } else {
-      setIsSelectItems(true);
-    }
-  }, [seleccionados]);
+  const handlePageChange = (newPage) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (newPage > 1) params.set("page", String(newPage)); else params.delete("page");
+    router.push(`?${params.toString()}`, { scroll: false });
+  };
 
   const attachItems = async () => {
     try {
@@ -189,16 +156,9 @@ export default function Delivery() {
           });
           const rs = await axios.post(url_cancel, data_send);
           if (rs.data.estado == 'Ok') {
-            Swal.fire({
-              position: "top-end",
-              icon: "success",
-              title: t.packaging_was_cancel,
-              showConfirmButton: false,
-              timer: 1500
-            }).then(r => {
-              setSeleccionados([])
-              setOrders(rs.data.dato);
-            });
+            swalSuccess(t.packaging_was_cancel);
+            setSeleccionados([])
+            getLists();
           }
         } catch (error) {
 
@@ -211,8 +171,8 @@ export default function Delivery() {
     setShowModal(true)
     setModalSize('w-full max-w-5xl');
     setTimeout(() => {
-      setModalContent(<PdfViewerDelivery order={ {NroEntrega: order_id} } token={token} />);
-    }, 500); // 100ms suele ser suficiente
+      setModalContent(<PdfViewerDelivery order={{ NroEntrega: order_id }} token={token} />);
+    }, 500);
   }
 
   //Guardar Despacho
@@ -220,101 +180,59 @@ export default function Delivery() {
     try {
       const rs = await axios.post(url_save, data_send);
       if (rs.data.estado == 'Ok') {
-        Swal.fire({
-          position: "top-end",
-          icon: "success",
-          title: t.delivery_recorded_success,
-          showConfirmButton: false,
-          timer: 1500
-        }).then(r => {
-          setSeleccionados([])
-          setItems([]);
-          setOrders(rs.data.dato1);
-          if(rs.data.dato2)
-            print(rs.data.dato2);
-        });
-
+        swalSuccess(t.delivery_recorded_success);
+        setSeleccionados([])
+        setItems([]);
+        getLists();
+        if (rs.data.dato2)
+          print(rs.data.dato2);
       }
     } catch (error) {
-      
+
     }
   }
+
   useDynamicTitle(`${t.delivery}`);
+
   return (
     <>
-      <div>
-        <ul className="flex space-x-2 rtl:space-x-reverse">
-          <li>
-            {t.home}
-          </li>
-          <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
-            <span className="font-bold"> {t.delivery} </span>
-          </li>
-        </ul>
-      </div>
+      <ul className="flex space-x-2 rtl:space-x-reverse mb-4 text-sm text-gray-500">
+        <li>{t.home}</li>
+        <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2 text-gray-800 dark:text-gray-100">
+          {t.delivery}
+        </li>
+      </ul>
 
-      <div className="grid grid-cols-12 mt-4 gap-4">
-        <div className="col-span-4">
-          <div className="panel">
-            <h2 className="font-bold text-xl mb-4">{t.pending_delivery}</h2>
-            <div className="table-responsive mt-5">
-              <div className="bg-gray-400 p-4">
-                <div className="flex flex-wrap items-center justify-start gap-2">
-                  <button disabled={isSelectItems} onClick={() => handleCancelPacking()} type="button" className="btn enabled:btn-outline-dark disabled:btn-outline-dark hover:disabled:bg-transparent hover:disabled:text-dark">
-                    {t.cancel_packaging}
-                  </button>
-
-                  <button disabled={isSelectItems} onClick={() => attachItems()} type="button" className="btn enabled:btn-primary disabled:btn-outline-dark hover:disabled:bg-transparent hover:disabled:text-dark">
-                    {t.attach_items}
-                  </button>
-                </div>
-              </div>
-              <table className="table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 table-compact">
-                <thead>
-                  <tr className="relative !bg-gray-400 text-center uppercase">
-                    <th>
-                      <label className="flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          className="border border-dark border-1 bg-white form-checkbox"
-                          checked={seleccionados.length === orders.length}
-                          onChange={toggleTodos}
-                        />
-                      </label>
-                    </th>
-                    <th>{t.packaging_number}</th>
-                    <th>{t.customer}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {orders.map((o, index) => {
-                    return (
-                      <tr key={index} className={`border-b transition-colors ${seleccionados.includes(o) ? 'bg-blue-100' : ''}`}>
-                        <td>
-                          <label className="flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              className="border border-dark border-1 form-checkbox"
-                              checked={seleccionados.includes(o)}
-                              onChange={() => toggleSeleccion(o)}
-                            />
-                          </label>
-                        </td>
-                        <td>{o.NroEmbalaje}</td>
-                        <td>{o.NomCliente}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
+      <div className="grid grid-cols-12 gap-4">
+        <div className="col-span-12 lg:col-span-4">
+          <PendingDelivery
+            t={t}
+            data={orders}
+            loading={loadingOrders}
+            seleccionados={seleccionados}
+            setSeleccionados={setSeleccionados}
+            attachItems={attachItems}
+            handleCancelPacking={handleCancelPacking}
+            page={urlPage}
+            sortColumn={urlSort}
+            sortDir={urlDir}
+            totalPages={totalPages}
+            onSort={handleSort}
+            onPageChange={handlePageChange}
+          />
         </div>
-        <div className="col-span-8">
-          <div className="panel">
-            <h2 className="font-bold text-xl mb-4">{t.items_to_deliver}</h2>
-            <ItemsToDelivery t={t} token={token} customer={customer} users={users} currencies={currencies} transports={transports} payment_conditions={payment_conditions} items={items} saveDelivery={saveDelivery}></ItemsToDelivery>
-          </div>
+        <div className="col-span-12 lg:col-span-8">
+          <ItemsToDelivery
+            t={t}
+            token={token}
+            customer={customer}
+            users={users}
+            currencies={currencies}
+            transports={transports}
+            payment_conditions={payment_conditions}
+            items={items}
+            saveDelivery={saveDelivery}
+          />
         </div>
       </div>
 

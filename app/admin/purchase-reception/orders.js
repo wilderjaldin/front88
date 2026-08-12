@@ -41,6 +41,7 @@ const mapOrder = (o, index) => ({
   Recepcion1:      o.recepcion1 ?? false,
   Recepcion2:      o.recepcion2 ?? false,
   Recepcion3:      o.recepcion3 ?? false,
+  TieneNota:       o.tieneNota ?? false,
 });
 
 // Estados fijos del negocio (no vienen de un catálogo del backend).
@@ -480,7 +481,15 @@ const Orders = ({ t, data, setOrders, attachOrder, loading, onRefresh }) => {
                     <input type="checkbox" className="form-checkbox h-[18px] w-[18px]" checked={selected_orders.includes(o)} onChange={() => toggleRow(o)} />
                   </td>
                   <td className={`${tdClass} text-center font-medium`}>{o.NumOrdenCompra}</td>
-                  <td className={`${tdClass} text-center`}>{o.NroOrden}</td>
+                  <td className={`${tdClass} text-center`}>
+                    <span className="inline-flex items-center justify-center">
+                      <span
+                        title={o.TieneNota ? (t.has_note ?? 'Tiene nota') : undefined}
+                        className={`h-2 w-2 rounded-full mr-1.5 shrink-0 ${o.TieneNota ? 'bg-amber-400 dark:bg-amber-500' : 'invisible'}`}
+                      />
+                      {o.NroOrden}
+                    </span>
+                  </td>
                   <td className={`${tdClass} font-medium truncate`} title={o.NomPrv}>{o.NomPrv}</td>
                   <td className={`${tdClass} text-center`}>{o.Dias}</td>
                   <td className={tdClass}>
