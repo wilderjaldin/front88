@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import dynamic from 'next/dynamic';
 import IconPrinter from '@/components/icon/icon-printer';
 import Modal from '@/components/modal';
@@ -11,19 +11,19 @@ const PdfViewerPacking = dynamic(() => import('@/app/admin/packaging/PdfViewerPa
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
-const BtnPrintPacking = ({ disabled, token, t, order_id, className="", packages=[] }) => {
+const BtnPrintPacking = ({ disabled, t, className = "", packages = [] }) => {
 
   const [show_modal, setShowModal] = useState(false);
   const [modal_title, setModalTitle] = useState('');
   const [modal_content, setModalContent] = useState(null);
   const [modal_size, setModalSize] = useState('w-full max-w-5xl')
 
- 
+
   const print = () => {
     setShowModal(true)
     setModalSize('w-full max-w-2xl');
     setTimeout(() => {
-      setModalContent(<PdfViewerPacking order_id={order_id} token={token} packages={packages} />);
+      setModalContent(<PdfViewerPacking packages={packages} onClose={() => setShowModal(false)} />);
     }, 500); // 100ms suele ser suficiente
   }
 

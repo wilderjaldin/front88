@@ -200,7 +200,7 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
   };
 
   const showEmails = (order_id) => {
-    setModalTitle(''); setModalSize('w-full max-w-3xl'); setShowCloseModal(false);
+    setModalTitle(t.mail_supplier_title ?? 'Mail a Proveedor'); setModalSize('w-full max-w-3xl'); setShowCloseModal(false);
     setModalContent(<MailForm close={() => updateList()} print={print} t={t} token={token} order={order} order_id={order_id} />);
     setShowModal(true);
   };
@@ -213,7 +213,11 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
     }, 300);
   };
 
-  const updateList = () => window.location.reload();
+  const updateList = () => {
+    setShowModal(false);
+    setReload?.();
+    setOrder();
+  };
 
   const generateOrder = async () => {
     try {
@@ -255,7 +259,7 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
         MtoShipping: data.shipping,
         Items,
       });
-      if (rs.data?.numOrdenCompra) router.push('/admin/purchase-reception');
+      if (rs.data?.numOrdenCompra) print(rs.data.numOrdenCompra);
     } catch (error) { console.error(error); }
   };
 

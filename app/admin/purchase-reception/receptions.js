@@ -28,12 +28,9 @@ const cellInputBorderedClass = "h-6 w-full px-1.5 bg-white dark:bg-gray-900 text
 
 // Columnas editables, en orden — define tanto el input como la navegación tipo Excel.
 const ITEM_COLUMNS = [
-  { key: 'amount',       type: 'number', widthPx: 80,  align: 'text-center' },
-  { key: 'origen',       type: 'text',   widthPx: 90 },
-  { key: 'code',         type: 'text',   widthPx: 90 },
-  { key: 'material',     type: 'text',   widthPx: 90 },
-  { key: 'presentacion', type: 'text',   widthPx: 100 },
-  { key: 'note',         type: 'text',   widthPx: 140 },
+  { key: 'amount', type: 'number', widthPx: 80, align: 'text-center' },
+  { key: 'origen', type: 'text',   widthPx: 90 },
+  { key: 'note',   type: 'text',   widthPx: 140 },
 ];
 
 const Receptions = ({ t, data, setReceptions, selected_orders, onRefresh }) => {
@@ -57,9 +54,6 @@ const Receptions = ({ t, data, setReceptions, selected_orders, onRefresh }) => {
     data.map((o) => {
       setValue(`orders_${o.id}_amount`, o.CanRecibida || '');
       setValue(`orders_${o.id}_origen`, o.Origen);
-      setValue(`orders_${o.id}_code`, o.HCode);
-      setValue(`orders_${o.id}_material`, o.Material);
-      setValue(`orders_${o.id}_presentacion`, o.Presentacion);
       setValue(`orders_${o.id}_note`, o.NotaItem);
     });
   }, [data]);
@@ -138,10 +132,10 @@ const Receptions = ({ t, data, setReceptions, selected_orders, onRefresh }) => {
     CanRecibida: getValues(`orders_${o.id}_amount`) || 0,
     DesRepuesto: o.Descripcion,
     Nota: getValues(`orders_${o.id}_note`),
-    Presentacion: getValues(`orders_${o.id}_presentacion`),
-    Material: getValues(`orders_${o.id}_material`),
+    Presentacion: o.Presentacion,
+    Material: o.Material,
     Origen: getValues(`orders_${o.id}_origen`),
-    HCode: getValues(`orders_${o.id}_code`),
+    HCode: o.HCode,
   }));
 
   const saveDataReception = async () => {
@@ -309,9 +303,6 @@ const Receptions = ({ t, data, setReceptions, selected_orders, onRefresh }) => {
                 <th className={`${thClass} text-center`} style={{ width: 56 }}>{t.missing_amount}</th>
                 <th className={`${thClass} text-center`} style={{ width: 80 }}>{t.amount_received}</th>
                 <th className={thClass} style={{ width: 90 }}>Origen</th>
-                <th className={thClass} style={{ width: 90 }}>{t.h_code}</th>
-                <th className={thClass} style={{ width: 90 }}>Material</th>
-                <th className={thClass} style={{ width: 100 }}>{t.presentation}</th>
                 <th className={thClass}>{t.note}</th>
               </tr>
             </thead>
@@ -319,7 +310,7 @@ const Receptions = ({ t, data, setReceptions, selected_orders, onRefresh }) => {
             <tbody>
               {pageData.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="py-10 text-center text-sm text-gray-400">{t.empty_results}</td>
+                  <td colSpan={10} className="py-10 text-center text-sm text-gray-400">{t.empty_results}</td>
                 </tr>
               ) : pageData.map((o, rowIndex) => {
                 const index = o.id ?? data.indexOf(o);
@@ -343,16 +334,7 @@ const Receptions = ({ t, data, setReceptions, selected_orders, onRefresh }) => {
                     <input type="text" {...registerCell(`orders_${index}_origen`, rowIndex, 1)} className={cellInputClass} />
                   </td>
                   <td className={cellTdClass}>
-                    <input type="text" {...registerCell(`orders_${index}_code`, rowIndex, 2)} className={cellInputClass} />
-                  </td>
-                  <td className={cellTdClass}>
-                    <input type="text" {...registerCell(`orders_${index}_material`, rowIndex, 3)} className={cellInputClass} />
-                  </td>
-                  <td className={cellTdClass}>
-                    <input type="text" {...registerCell(`orders_${index}_presentacion`, rowIndex, 4)} className={cellInputClass} />
-                  </td>
-                  <td className={cellTdClass}>
-                    <input type="text" {...registerCell(`orders_${index}_note`, rowIndex, 5, { uppercase: true })} className={cellInputClass} />
+                    <input type="text" {...registerCell(`orders_${index}_note`, rowIndex, 2, { uppercase: true })} className={cellInputClass} />
                   </td>
                 </tr>
                 );

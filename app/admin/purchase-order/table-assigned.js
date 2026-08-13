@@ -1,8 +1,9 @@
 'use client';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pagination } from '@mantine/core';
 import { customFormat } from '@/app/lib/format';
 import IconBackSpace from '@/components/icon/icon-backspace';
+import IconSearch from '@/components/icon/icon-search';
 import axiosClient from '@/app/lib/axiosClient';
 import { swalError, swalConfirm, swalSuccess } from '@/app/lib/swal';
 
@@ -12,10 +13,10 @@ const URL_DESHACER_CAMBIOS = 'ordenescompra/deshacer-cambios';
 const thClass = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap select-none";
 const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-3 py-2";
 
-const TableAssigned = ({ t, orders_assigned, unassignOrder, createPurchaseOrder, setReload }) => {
+const TableAssigned = ({ t, orders_assigned, unassignOrder, createPurchaseOrder, setReload, onSearch, onClear }) => {
 
   const [selected,   setSelected]   = useState([]);
-  const [filter,     setFilter]     = useState('');
+  const [term,       setTerm]       = useState('');
   const [page,       setPage]       = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [undoingRow, setUndoingRow] = useState(null);
@@ -54,18 +55,11 @@ const TableAssigned = ({ t, orders_assigned, unassignOrder, createPurchaseOrder,
     }
   };
 
-  const filteredData = useMemo(() => {
-    if (!filter.trim()) return orders_assigned;
-    const f = filter.trim().toLowerCase();
-    return orders_assigned.filter(o =>
-      (o.NomProveedor ?? '').toLowerCase().includes(f) ||
-      (o.NroOrden?.toString() ?? '').includes(f) ||
-      (o.NomCliente ?? '').toLowerCase().includes(f)
-    );
-  }, [orders_assigned, filter]);
+  const totalPages = Math.ceil(orders_assigned.length / PAGE_SIZE);
+  const pageData    = orders_assigned.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const totalPages = Math.ceil(filteredData.length / PAGE_SIZE);
-  const pageData    = filteredData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const handleSearch = (e) => { e.preventDefault(); onSearch?.(term); };
+  const handleClear  = () => { setTerm(''); onClear?.(); };
 
   const toggleAll = () =>
     setSelected(selected.length === pageData.length ? [] : [...pageData]);
@@ -91,26 +85,29 @@ const TableAssigned = ({ t, orders_assigned, unassignOrder, createPurchaseOrder,
         <div className="flex-1">
           <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
             {t.assigned_purchase_orders}
-            <span className="ml-2 text-sm font-normal text-gray-400">({filteredData.length})</span>
+            <span className="ml-2 text-sm font-normal text-gray-400">({orders_assigned.length})</span>
           </h2>
           <div className="mt-1 h-0.5 w-10 rounded bg-primary/60" />
         </div>
 
-        {/* Filtro local */}
-        <div className="relative">
+        {/* Filtro server-side */}
+        <form onSubmit={handleSearch} className="flex items-center gap-2">
           <input
             type="text"
-            value={filter}
-            onChange={e => { setFilter(e.target.value); setPage(1); }}
+            value={term}
+            onChange={e => setTerm(e.target.value)}
             placeholder={t.filter}
-            className="h-10 w-52 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 pe-8 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="h-10 w-52 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
-          {filter && (
-            <button onClick={() => setFilter('')} className="absolute inset-y-0 end-2 flex items-center text-gray-400 hover:text-gray-600">
-              <IconBackSpace className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+          <button type="submit" className="flex h-10 items-center gap-1.5 rounded-lg px-3 bg-primary/20 text-primary hover:bg-primary/40 transition text-sm">
+            <IconSearch className="h-4 w-4" />
+            {t.search ?? 'Buscar'}
+          </button>
+          <button type="button" onClick={handleClear} className="flex h-10 items-center gap-1.5 rounded-lg px-3 text-sm transition bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">
+            <IconBackSpace className="h-4 w-4" />
+            {t.btn_clear ?? 'Limpiar'}
+          </button>
+        </form>
       </div>
 
       {/* Barra de acciones */}

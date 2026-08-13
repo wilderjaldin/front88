@@ -46,6 +46,9 @@ export default function PurchaseOrder() {
   const [reload, setReloadState] = useState(false);
   const [loadedTabs, setLoadedTabs] = useState({});
 
+  const [termUnassigned, setTermUnassigned] = useState('');
+  const [termAssigned,   setTermAssigned]   = useState('');
+
   const setReload = () => {
     setReloadState(!reload);
   }
@@ -100,23 +103,32 @@ export default function PurchaseOrder() {
     CodItemsConCambios: o.codItemsConCambios ?? [],
   });
 
-  const fetchAssigned = async () => {
+  const fetchAssigned = async (term = termAssigned) => {
     try {
-      const rs = await axiosClient.get(URL_LIST_ASSIGNED);
+      const params = {};
+      if (term.trim()) params.term = term.trim();
+      const rs = await axiosClient.get(URL_LIST_ASSIGNED, { params });
       setOrdersAssigned((rs.data ?? []).map(mapPendingOrder));
     } catch (error) {
 
     }
   }
 
-  const fetchUnassigned = async () => {
+  const fetchUnassigned = async (term = termUnassigned) => {
     try {
-      const rs = await axiosClient.get(URL_LIST_UNASSIGNED);
+      const params = {};
+      if (term.trim()) params.term = term.trim();
+      const rs = await axiosClient.get(URL_LIST_UNASSIGNED, { params });
       setOrdersUnassigned((rs.data ?? []).map(mapPendingOrder));
     } catch (error) {
 
     }
   }
+
+  const searchUnassigned = (term) => { setTermUnassigned(term); fetchUnassigned(term); };
+  const clearUnassigned  = () => { setTermUnassigned('');       fetchUnassigned(''); };
+  const searchAssigned   = (term) => { setTermAssigned(term);   fetchAssigned(term); };
+  const clearAssigned    = () => { setTermAssigned('');         fetchAssigned(''); };
 
   const assignOrder = async (selected_pending) => {
     try {
@@ -293,10 +305,10 @@ export default function PurchaseOrder() {
 
       <div className="animate__animated animate__faster animate__fadeIn">
         {activeTab === 0 && (
-          <TableUnassign t={t} token={token} goToTab={goToTab} orders_unassigned={orders_unassigned} assignOrder={assignOrder}></TableUnassign>
+          <TableUnassign t={t} token={token} goToTab={goToTab} orders_unassigned={orders_unassigned} assignOrder={assignOrder} onSearch={searchUnassigned} onClear={clearUnassigned}></TableUnassign>
         )}
         {activeTab === 1 && (
-          <TableAssigned t={t} token={token} orders_assigned={orders_assigned} unassignOrder={unassignOrder} createPurchaseOrder={createPurchaseOrder} setReload={setReload} ></TableAssigned>
+          <TableAssigned t={t} token={token} orders_assigned={orders_assigned} unassignOrder={unassignOrder} createPurchaseOrder={createPurchaseOrder} setReload={setReload} onSearch={searchAssigned} onClear={clearAssigned} ></TableAssigned>
         )}
       </div>
     </>

@@ -2,46 +2,43 @@
 
 import { useEffect, useState } from 'react';
 import { Document, Page } from 'react-pdf';
-import axios from 'axios';
+import axiosClient from '@/app/lib/axiosClient';
 
 import '@/utils/pdfWorker';
 import { useTranslation } from "@/app/locales";
 
-const url_proforma = process.env.NEXT_PUBLIC_API_URL + 'embalaje/ImprimirPacking';
+const URL_PRINT = 'embalaje/imprimir-embalaje';
 
-
-export default function PdfViewerPacking({ token, onClose, packages = [] }) {
+export default function PdfViewerPacking({ onClose, packages = [] }) {
   const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
   const [numPages, setNumPages] = useState(null);
   const t = useTranslation();
 
   useEffect(() => {
-    if (packages.length == 0 || !token) return;
+    if (packages.length == 0) return;
     let timeout;
+    let objectUrl;
     const loadPdf = async () => {
       try {
         // Espera a que el modal se muestre completamente
         timeout = setTimeout(async () => {
-          let strNroOrden = [];
-          let strNroOrdenCompra = [];
-          let strNroRecepcion = [];
-          packages.map(p => {
-            strNroOrden.push(p.NroOrden);
-            strNroOrdenCompra.push(p.NroOrdenCompra);
-            strNroRecepcion.push(p.NroRecepcion);
-          })
-          const res = await axios.post(
-            url_proforma,
+          // El backend espera valores numéricos únicos, no una lista repetida
+          // por item — se deduplican antes de armar el string.
+          const strNroOrden = [...new Set(packages.map(p => p.NroOrden))];
+          const strNroOrdenCompra = [...new Set(packages.map(p => p.NroOrdenCompra))];
+          const strNroRecepcion = [...new Set(packages.map(p => p.NroRecepcion))];
+          const res = await axiosClient.post(
+            URL_PRINT,
             {
               strNroOrden: strNroOrden.join(','),
               strNroOrdenCompra: strNroOrdenCompra.join(','),
               strNroRecepcion: strNroRecepcion.join(','),
-              ValToken: token
             },
             { responseType: 'blob' }
           );
           const blob = new Blob([res.data], { type: 'application/pdf' });
-          setPdfBlobUrl(URL.createObjectURL(blob));
+          objectUrl = URL.createObjectURL(blob);
+          setPdfBlobUrl(objectUrl);
         }, 100); // Espera 100ms
       } catch (error) {
         console.error('Error al cargar PDF:', error);
@@ -52,9 +49,9 @@ export default function PdfViewerPacking({ token, onClose, packages = [] }) {
 
     return () => {
       clearTimeout(timeout);
-      if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [packages, token]);
+  }, [packages]);
 
   const onLoadSuccess = ({ numPages }) => {
     setNumPages(numPages);

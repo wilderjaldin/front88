@@ -710,6 +710,7 @@
   "cancel_reception" : "Cancel Reception",
   "attach_order" : "Attach order",
   "packaging_type" : "Packaging type",
+  "dimensions" : "Dimensions",
   "save_packaging" : "Save Packaging",
   "print_packaging" : "Print Packaging",
   "days_of_process" : "Days",
