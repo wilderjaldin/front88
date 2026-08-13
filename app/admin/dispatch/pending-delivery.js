@@ -2,6 +2,7 @@
 import React from 'react';
 import { Pagination } from '@mantine/core';
 import IconArrowDown from '@/components/icon/icon-arrow-down';
+import SearchFilter from '@/components/SearchFilter';
 
 const thClass = "text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-2 py-1.5 text-left select-none";
 const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-2 py-1.5";
@@ -39,6 +40,7 @@ const SortableHeader = ({ col, label, sort, dir, onSort, className = '' }) => (
 const PendingDelivery = ({
   t, data = [], seleccionados, setSeleccionados, attachItems, handleCancelPacking,
   page, sortColumn, sortDir, totalPages, onSort, onPageChange, loading,
+  term = '', onSearch, onClear,
 }) => {
 
   const toggleAll = () =>
@@ -47,10 +49,6 @@ const PendingDelivery = ({
     setSeleccionados(prev => prev.includes(row) ? prev.filter(i => i !== row) : [...prev, row]);
 
   const isEmpty = seleccionados.length === 0;
-  // El nuevo endpoint (GET entregas) no trae NroEmbalaje/CodCliente, así que
-  // adjuntar/anular no tienen con qué armar el payload hasta que se confirme
-  // el mapeo de campos contra este shape.
-  const actionsDisabled = true;
 
   return (
     <div>
@@ -58,8 +56,7 @@ const PendingDelivery = ({
         <button
           type="button"
           onClick={attachItems}
-          disabled={isEmpty || actionsDisabled}
-          title={actionsDisabled ? (t.pending_backend_integration ?? 'Pendiente de confirmar el mapeo de campos') : undefined}
+          disabled={isEmpty}
           className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 disabled:opacity-35 disabled:cursor-not-allowed transition"
         >
           {t.attach_items}
@@ -69,8 +66,7 @@ const PendingDelivery = ({
         <button
           type="button"
           onClick={handleCancelPacking}
-          disabled={isEmpty || actionsDisabled}
-          title={actionsDisabled ? (t.pending_backend_integration ?? 'Pendiente de confirmar el mapeo de campos') : undefined}
+          disabled={isEmpty}
           className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100 disabled:opacity-35 disabled:cursor-not-allowed transition dark:bg-red-900/20 dark:text-red-400"
         >
           <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
@@ -78,6 +74,8 @@ const PendingDelivery = ({
           </svg>
           {t.cancel_packaging}
         </button>
+
+        <SearchFilter t={t} value={term} onSearch={onSearch} onClear={onClear} className="ml-auto w-80" />
       </div>
 
       <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0">

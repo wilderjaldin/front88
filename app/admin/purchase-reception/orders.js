@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pagination } from '@mantine/core';
 import Select from 'react-select';
-import IconBackSpace from "@/components/icon/icon-backspace";
+import SearchFilter from '@/components/SearchFilter';
 import IconArrowDown from '@/components/icon/icon-arrow-down';
 import IconSave from '@/components/icon/icon-save';
 import Modal from '@/components/modal';
@@ -76,10 +76,9 @@ const FilterChecklist = ({ title, options, selected, onToggle }) => (
   </div>
 );
 
-const Orders = ({ t, data, setOrders, attachOrder, loading, onRefresh }) => {
+const Orders = ({ t, data, setOrders, attachOrder, loading, onRefresh, onSearch, onClear }) => {
 
   const [selected_orders, setSelectedOrders] = useState([]);
-  const [filter, setFilter] = useState('');
   const [page, setPage] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [savingChanges, setSavingChanges] = useState(false);
@@ -147,15 +146,6 @@ const Orders = ({ t, data, setOrders, attachOrder, loading, onRefresh }) => {
   const filteredData = useMemo(() => {
     let list = data;
 
-    if (filter.trim()) {
-      const f = filter.trim().toLowerCase();
-      list = list.filter(o =>
-        (o.NumOrdenCompra ?? '').toString().toLowerCase().includes(f) ||
-        (o.NroOrden ?? '').toString().toLowerCase().includes(f) ||
-        (o.NomPrv ?? '').toLowerCase().includes(f)
-      );
-    }
-
     if (advFilters.proveedores.length > 0) list = list.filter(o => advFilters.proveedores.includes(String(o.CodPrv)));
     if (advFilters.paises.length > 0) list = list.filter(o => advFilters.paises.includes(o.CodPaisCliente));
     if (advFilters.status.length > 0) list = list.filter(o => advFilters.status.includes(o.NomStatus));
@@ -166,9 +156,9 @@ const Orders = ({ t, data, setOrders, attachOrder, loading, onRefresh }) => {
     if (advFilters.r3) list = list.filter(o => o.Recepcion3);
 
     return list;
-  }, [data, filter, advFilters]);
+  }, [data, advFilters]);
 
-  useEffect(() => { setPage(1); }, [filter, advFilters]);
+  useEffect(() => { setPage(1); }, [data, advFilters]);
 
   const totalPages = Math.ceil(filteredData.length / PAGE_SIZE);
   const pageData    = filteredData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -312,21 +302,8 @@ const Orders = ({ t, data, setOrders, attachOrder, loading, onRefresh }) => {
           <div className="mt-1 h-0.5 w-10 rounded bg-primary/60" />
         </div>
 
-        {/* Filtro local */}
-        <div className="relative">
-          <input
-            type="text"
-            value={filter}
-            onChange={e => setFilter(e.target.value)}
-            placeholder={t.filter}
-            className="h-10 w-52 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 pe-8 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-          />
-          {filter && (
-            <button onClick={() => setFilter('')} className="absolute inset-y-0 end-2 flex items-center text-gray-400 hover:text-gray-600">
-              <IconBackSpace className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+        {/* Filtro server-side */}
+        <SearchFilter t={t} onSearch={onSearch} onClear={onClear} />
       </div>
 
       {/* Barra de acciones */}

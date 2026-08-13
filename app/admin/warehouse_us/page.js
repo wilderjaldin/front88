@@ -50,8 +50,10 @@ export default function WarehouseUs() {
 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [termPending, setTermPending] = useState('');
   const [inWarehouseOrders, setInWarehouseOrders] = useState([]);
   const [loadingInWarehouse, setLoadingInWarehouse] = useState(false);
+  const [termInWarehouse, setTermInWarehouse] = useState('');
   const [attachedItems, setAttachedItems] = useState([]);
   const [loadingItems, setLoadingItems] = useState(false);
 
@@ -61,10 +63,14 @@ export default function WarehouseUs() {
   const [glider, setGlider] = useState({ left: 0, width: 0 });
   const tabRefs = useRef([]);
 
-  const getData = async () => {
+  const [loadedTabs, setLoadedTabs] = useState({});
+
+  const getData = async (term = termPending) => {
     setLoading(true);
     try {
-      const rs = await axiosClient.get(URL_LIST);
+      const params = {};
+      if (term.trim()) params.term = term.trim();
+      const rs = await axiosClient.get(URL_LIST, { params });
       setOrders((rs.data ?? []).map(mapOrder));
     } catch (error) {
 
@@ -73,10 +79,12 @@ export default function WarehouseUs() {
     }
   }
 
-  const getInWarehouseData = async () => {
+  const getInWarehouseData = async (term = termInWarehouse) => {
     setLoadingInWarehouse(true);
     try {
-      const rs = await axiosClient.get(URL_IN_WAREHOUSE);
+      const params = {};
+      if (term.trim()) params.term = term.trim();
+      const rs = await axiosClient.get(URL_IN_WAREHOUSE, { params });
       setInWarehouseOrders((rs.data ?? []).map(mapInWarehouseOrder));
     } catch (error) {
 
@@ -85,10 +93,18 @@ export default function WarehouseUs() {
     }
   }
 
+  const searchPending = (term) => { setTermPending(term); getData(term); };
+  const clearPending  = () => { setTermPending(''); getData(''); };
+  const searchInWarehouse = (term) => { setTermInWarehouse(term); getInWarehouseData(term); };
+  const clearInWarehouse  = () => { setTermInWarehouse(''); getInWarehouseData(''); };
+
+  // Cada tab carga su listado la primera vez que se activa, no al montar la página.
   useEffect(() => {
-    getData();
-    getInWarehouseData();
-  }, []);
+    const key = TAB_KEYS[activeTab];
+    if (key === 'attached' || loadedTabs[key]) return;
+    const fetcher = key === 'in_warehouse' ? getInWarehouseData : getData;
+    fetcher().then(() => setLoadedTabs(prev => ({ ...prev, [key]: true })));
+  }, [activeTab, loadedTabs]);
 
   useEffect(() => {
     const measure = () => {
@@ -171,10 +187,10 @@ export default function WarehouseUs() {
 
       <div className="animate__animated animate__faster animate__fadeIn">
         {activeTab === 0 && (
-          <TablePending t={t} title={t.unreceived_purchase_orders} orders={orders} loading={loading} onRefresh={getData} onViewItems={handleViewItems} />
+          <TablePending t={t} title={t.unreceived_purchase_orders} orders={orders} loading={loading} term={termPending} onRefresh={clearPending} onViewItems={handleViewItems} onSearch={searchPending} onClear={clearPending} />
         )}
         {activeTab === 1 && (
-          <TableInWarehouse t={t} orders={inWarehouseOrders} loading={loadingInWarehouse} onRefresh={getInWarehouseData} onViewItems={handleViewItems} />
+          <TableInWarehouse t={t} orders={inWarehouseOrders} loading={loadingInWarehouse} term={termInWarehouse} onRefresh={clearInWarehouse} onViewItems={handleViewItems} onSearch={searchInWarehouse} onClear={clearInWarehouse} />
         )}
         {activeTab === 2 && (
           attachedItems.length === 0 && !loadingItems ? (

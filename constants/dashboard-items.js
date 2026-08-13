@@ -201,7 +201,7 @@ export const DASHBOARD_GROUPS = [
       },
       {
         key:        'envio',
-        href:       '/admin/delivery',
+        href:       '/admin/dispatch',
         Icon:       IconShipment,
         labelKey:   'shipment',
         permission: PERMISSIONS.DESPACHO,

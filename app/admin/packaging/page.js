@@ -32,6 +32,7 @@ export default function PackagingPage() {
 
   const [orders, setOrders] = useState([])
   const [packagings, setPackagings] = useState([]);
+  const [term, setTerm] = useState('');
 
   useEffect(() => {
     getLists();
@@ -52,9 +53,11 @@ export default function PackagingPage() {
     };
   }, [activeTab, orders.length, packagings.length]);
 
-  const getLists = async () => {
+  const getLists = async (searchTerm = term) => {
     try {
-      const rs = await axiosClient.get(URL_LIST_ORDERS);
+      const params = {};
+      if (searchTerm.trim()) params.term = searchTerm.trim();
+      const rs = await axiosClient.get(URL_LIST_ORDERS, { params });
       setOrders((rs.data ?? []).map((o, index) => ({
         id:             index,
         NroRecepcion:   o.numRecepcion,
@@ -136,6 +139,9 @@ export default function PackagingPage() {
     router.push(`?option=${TAB_KEYS[index]}`, { scroll: false });
   };
 
+  const searchOrders = (searchTerm) => { setTerm(searchTerm); getLists(searchTerm); };
+  const clearOrders  = () => { setTerm('');                    getLists(''); };
+
   useDynamicTitle(`${t.packaging}`);
 
   const tabLabels = [
@@ -179,7 +185,7 @@ export default function PackagingPage() {
 
       <div className="animate__animated animate__faster animate__fadeIn">
         {activeTab === 0 && (
-          <Pendings t={t} token={token} data={orders} attachOrder={attachOrder} onRefresh={getLists} />
+          <Pendings t={t} token={token} data={orders} attachOrder={attachOrder} onRefresh={getLists} onSearch={searchOrders} onClear={clearOrders} />
         )}
         {activeTab === 1 && (
           <Packaging

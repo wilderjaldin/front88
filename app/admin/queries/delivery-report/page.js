@@ -11,7 +11,7 @@ import { swalConfirm, swalError, swalSuccess } from '@/app/lib/swal';
 import Select from 'react-select';
 import { Pagination } from '@mantine/core';
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
-import BtnPrintDelivery from "@/app/admin/queries/delivery-report/BtnPrintDelivery";
+import BtnImprimir from "@/app/admin/queries/delivery-report/BtnImprimir";
 
 const URL_CONTROLES = 'entregas/controles';
 const URL_ENTREGAS  = 'entregas';
@@ -366,7 +366,7 @@ export default function DeliveryReport() {
                             onChange={() => toggleSeleccion(o)}
                           />
                         </label>
-                        <BtnPrintDelivery
+                        <BtnImprimir
                           token={token}
                           t={t}
                           order={o}

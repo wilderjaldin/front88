@@ -1,36 +1,23 @@
 'use client';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pagination } from '@mantine/core';
-import IconBackSpace from '@/components/icon/icon-backspace';
 import IconRefresh from '@/components/icon/icon-refresh';
+import SearchFilter from '@/components/SearchFilter';
 
 const PAGE_SIZE = 20;
 
 const thClass = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap select-none";
 const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-3 py-2";
 
-const TablePending = ({ t, title, orders, loading, onRefresh, onViewItems }) => {
+const TablePending = ({ t, title, orders, loading, term, onRefresh, onViewItems, onSearch, onClear }) => {
 
   const [selected, setSelected] = useState([]);
-  const [filter,   setFilter]   = useState('');
   const [page,     setPage]     = useState(1);
 
   useEffect(() => { setSelected([]); setPage(1); }, [orders]);
 
-  const filteredData = useMemo(() => {
-    if (!filter.trim()) return orders;
-    const f = filter.trim().toLowerCase();
-    return orders.filter(o =>
-      (o.Proveedor ?? '').toLowerCase().includes(f) ||
-      (o.Cliente ?? '').toLowerCase().includes(f) ||
-      (o.NroOrden ?? '').toString().toLowerCase().includes(f) ||
-      (o.NumOrdenCompra ?? '').toString().includes(f) ||
-      (o.Tracking ?? '').toLowerCase().includes(f)
-    );
-  }, [orders, filter]);
-
-  const totalPages = Math.ceil(filteredData.length / PAGE_SIZE);
-  const pageData    = filteredData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.ceil(orders.length / PAGE_SIZE);
+  const pageData    = orders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const toggleAll = () =>
     setSelected(selected.length === pageData.length ? [] : [...pageData]);
@@ -44,25 +31,9 @@ const TablePending = ({ t, title, orders, loading, onRefresh, onViewItems }) => 
         <div className="flex-1">
           <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
             {title}
-            <span className="ml-2 text-sm font-normal text-gray-400">({filteredData.length})</span>
+            <span className="ml-2 text-sm font-normal text-gray-400">({orders.length})</span>
           </h2>
           <div className="mt-1 h-0.5 w-10 rounded bg-primary/60" />
-        </div>
-
-        {/* Filtro local */}
-        <div className="relative">
-          <input
-            type="text"
-            value={filter}
-            onChange={e => { setFilter(e.target.value); setPage(1); }}
-            placeholder={t.filter}
-            className="h-10 w-52 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 pe-8 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-          />
-          {filter && (
-            <button onClick={() => setFilter('')} className="absolute inset-y-0 end-2 flex items-center text-gray-400 hover:text-gray-600">
-              <IconBackSpace className="h-4 w-4" />
-            </button>
-          )}
         </div>
       </div>
 
@@ -93,10 +64,12 @@ const TablePending = ({ t, title, orders, loading, onRefresh, onViewItems }) => 
         </button>
 
         {selected.length > 0 && (
-          <span className="ml-auto inline-flex items-center rounded-full bg-primary/10 dark:bg-primary/20 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
+          <span className="inline-flex items-center rounded-full bg-primary/10 dark:bg-primary/20 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
             {selected.length} seleccionado{selected.length !== 1 ? 's' : ''}
           </span>
         )}
+
+        <SearchFilter t={t} value={term} onSearch={onSearch} onClear={onClear} className="ml-auto" />
       </div>
 
       {/* Tabla */}

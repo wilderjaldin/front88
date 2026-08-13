@@ -33,6 +33,7 @@ export default function PurchaseReception() {
   const [selected_orders, setSelectedOrders] = useState([]);
 
   const [loadingOrders, setLoadingOrders] = useState(false);
+  const [term, setTerm] = useState('');
 
   useEffect(() => {
     getList();
@@ -53,10 +54,12 @@ export default function PurchaseReception() {
     };
   }, [activeTab, orders.length, receptions.length]);
 
-  const getList = async () => {
+  const getList = async (searchTerm = term) => {
     setLoadingOrders(true);
     try {
-      const rs = await axiosClient.get(URL_LIST);
+      const params = {};
+      if (searchTerm.trim()) params.term = searchTerm.trim();
+      const rs = await axiosClient.get(URL_LIST, { params });
 
       setOrders((rs.data ?? []).map((o, index) => ({
         id:              index,
@@ -118,6 +121,9 @@ export default function PurchaseReception() {
     router.push(`?option=${TAB_KEYS[index]}`, { scroll: false });
   };
 
+  const searchOrders = (searchTerm) => { setTerm(searchTerm); getList(searchTerm); };
+  const clearOrders  = () => { setTerm('');                    getList(''); };
+
   useDynamicTitle(`${t.purchase_reception}`);
 
   const tabLabels = [
@@ -170,6 +176,8 @@ export default function PurchaseReception() {
             attachOrder={attachOrder}
             loading={loadingOrders}
             onRefresh={getList}
+            onSearch={searchOrders}
+            onClear={clearOrders}
           />
         )}
         {activeTab === 1 && (

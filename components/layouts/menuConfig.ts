@@ -112,8 +112,14 @@ export const MENU_CONFIG: MenuItem[] = [
   },
   {
     type: 'link',
+    labelKey: 'document_delivery',
+    href: '/admin/document-delivery',
+    icon: 'chat',
+  },
+  {
+    type: 'link',
     labelKey: 'delivery',
-    href: '/admin/delivery',
+    href: '/admin/dispatch',
     icon: 'chat',
   },
 

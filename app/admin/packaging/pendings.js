@@ -4,8 +4,8 @@ import { Pagination } from '@mantine/core';
 import Swal from 'sweetalert2';
 import axios from 'axios';
 import { swalSuccess, swalError } from '@/app/lib/swal';
-import IconBackSpace from '@/components/icon/icon-backspace';
 import IconArrowDown from '@/components/icon/icon-arrow-down';
+import SearchFilter from '@/components/SearchFilter';
 
 // Contrato legacy (ValToken) sin confirmar todavía para modernizar — se deja intacto,
 // solo se refresca el listado real (embalaje/listar) después de un cancel exitoso.
@@ -46,29 +46,19 @@ const SortableHeader = ({ col, label, sort, dir, onSort, className = '' }) => (
   </th>
 );
 
-const Pendings = ({ t, token, data = [], attachOrder, onRefresh }) => {
+const Pendings = ({ t, token, data = [], attachOrder, onRefresh, onSearch, onClear }) => {
 
   const [selected, setSelected] = useState([]);
-  const [filter, setFilter] = useState('');
   const [sortColumn, setSortColumn] = useState('NroOrden');
   const [sortDir, setSortDir] = useState('desc');
   const [page, setPage] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [canceling, setCanceling] = useState(false);
 
-  useEffect(() => { setPage(1); }, [filter]);
+  useEffect(() => { setPage(1); }, [data]);
 
   const filteredData = useMemo(() => {
-    const f = filter.trim().toLowerCase();
-    let list = !f ? data : data.filter(o =>
-      String(o.NroOrden ?? '').toLowerCase().includes(f) ||
-      String(o.NroOrdenCompra ?? '').toLowerCase().includes(f) ||
-      String(o.NomCliente ?? '').toLowerCase().includes(f) ||
-      String(o.NroRecepcion ?? '').toLowerCase().includes(f) ||
-      String(o.DirEntrega ?? '').toLowerCase().includes(f)
-    );
-
-    list = [...list].sort((a, b) => {
+    let list = [...data].sort((a, b) => {
       const av = a[sortColumn] ?? '';
       const bv = b[sortColumn] ?? '';
       const cmp = typeof av === 'number' && typeof bv === 'number'
@@ -78,7 +68,7 @@ const Pendings = ({ t, token, data = [], attachOrder, onRefresh }) => {
     });
 
     return list;
-  }, [data, filter, sortColumn, sortDir]);
+  }, [data, sortColumn, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
   const pageData = filteredData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -159,22 +149,7 @@ const Pendings = ({ t, token, data = [], attachOrder, onRefresh }) => {
           {t.cancel_reception}
         </button>
 
-        <div className="flex-1 min-w-[160px]">
-          <div className="relative">
-            <input
-              type="text"
-              className="form-input w-full h-8 text-xs pe-9"
-              placeholder={t.filter}
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-            />
-            {filter && (
-              <div className="absolute inset-y-0 end-0 flex items-center pe-2.5 cursor-pointer text-gray-400 hover:text-gray-600" onClick={() => setFilter('')}>
-                <IconBackSpace className="h-3.5 w-3.5" />
-              </div>
-            )}
-          </div>
-        </div>
+        <SearchFilter t={t} onSearch={onSearch} onClear={onClear} className="ml-auto" />
       </div>
 
       {/* Tabla */}

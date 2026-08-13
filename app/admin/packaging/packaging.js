@@ -177,12 +177,12 @@ const Packaging = ({ token, t, packages, onRefresh, setPackagings }) => {
                 <th className={`${thClass} w-16 bg-slate-200/60 dark:bg-slate-600/30`}>{t.width}</th>
                 <th className={`${thClass} w-16 bg-slate-200/60 dark:bg-slate-600/30`}>{t.height}</th>
                 <th className={`${thClass} w-24 bg-slate-200/60 dark:bg-slate-600/30`}>{t.unit ?? 'Unidad'}</th>
-                <th className={`${thClass} w-7 !px-0 text-center`}>
+                <th className="w-7 !px-0 p-0 text-center bg-primary">
                   <button
                     onClick={addRow}
                     type="button"
                     title={t.add ?? 'Agregar'}
-                    className="inline-flex items-center justify-center h-5 px-2 rounded-md bg-primary text-white hover:bg-primary/90 transition"
+                    className="flex w-full items-center justify-center gap-1 py-1.5 text-white text-[11px] font-semibold hover:bg-white/10 transition"
                   >
                     <IconPlus className="h-3 w-3" /> { t.add }
                   </button>
