@@ -22,6 +22,7 @@ import IconFile from '@/components/icon/icon-file';
 import IconEye from '@/components/icon/icon-eye';
 
 import { PERMISSIONS } from '@/constants/permissions';
+import axiosClient from '@/app/lib/axiosClient';
 
 const thClass = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-2.5 py-2 text-left whitespace-nowrap";
 // Para columnas angostas con encabezado largo: el título puede partirse en 2 líneas
@@ -105,6 +106,36 @@ const DatatablesSpares = ({
   const [view, setView] = useState(isMobile ? 'grid' : 'list');
 
   const [hideCols, setHideCols] = useState(['canDias', 'blnPedidoEspecial', 'canMin', 'desUniMed', 'canStock', 'blnPedEspecialSinFecha', 'fecModifica', 'fecVencimiento', 'codEstado']);
+
+  // ── Modal de imágenes/documentos (se piden on-demand al hacer click, no se
+  // precargan por fila) ──────────────────────────────────────────────────────
+  const [filesModal, setFilesModal] = useState(null); // { type: 'images'|'documents', loading, items }
+  const [zoomImg,    setZoomImg]    = useState(null);
+
+  const openImagesModal = async (s) => {
+    setFilesModal({ type: 'images', loading: true, items: [] });
+    try {
+      const rs = await axiosClient.get(`repuestos/${s.codRepuesto}/imagenes`);
+      setFilesModal({ type: 'images', loading: false, items: rs.data ?? [] });
+    } catch {
+      setFilesModal({ type: 'images', loading: false, items: [] });
+    }
+  };
+
+  // Un solo documento: se abre directo en pestaña nueva. Varios: modal con la lista.
+  const openDocumentsModal = async (s) => {
+    try {
+      const rs = await axiosClient.get(`repuestos/${s.codRepuesto}/documentos`);
+      const docs = rs.data ?? [];
+      if (docs.length <= 1) {
+        if (docs[0]?.urlDocumento) window.open(docs[0].urlDocumento, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      setFilesModal({ type: 'documents', loading: false, items: docs });
+    } catch {
+      setFilesModal({ type: 'documents', loading: false, items: [] });
+    }
+  };
 
   // El header global es sticky en top:0 — el bloque de título/acciones/filtros se
   // engancha justo debajo de su borde inferior para que el usuario no tenga que
@@ -209,16 +240,16 @@ const DatatablesSpares = ({
   // ── Definición de columnas ────────────────────────────────────────────────
   // "core": siempre visibles. El resto se puede ocultar/mostrar desde el dropdown "Columnas".
   const coreCols = [
-    { key: 'files', title: '', width: 26 },
-    { key: 'nroParte', title: t.nro_part, width: 90 },
+    { key: 'files', title: '', width: 20 },
+    { key: 'nroParte', title: t.nro_part, width: 70 },
     { key: 'descripcion', title: t.description, width: 180 },
-    { key: 'proveedor', title: t.supplier, width: 120 },
-    { key: 'marca', title: t.brand, width: 90 },
-    { key: 'aplicacion', title: t.application, width: 90 },
-    { key: 'desTipRepuesto', title: t.spare_part_type, width: 90 },
-    { key: 'desEstado', title: t.status, width: 70 },
-    { key: 'peso', title: `${t.weight} (lb)`, width: 56 },
-    { key: 'costo', title: t.cost, width: 56 },
+    { key: 'proveedor', title: t.supplier, width: 70 },
+    { key: 'marca', title: t.brand, width: 70 },
+    { key: 'aplicacion', title: t.application, width: 70 },
+    { key: 'desTipRepuesto', title: t.spare_part_type, width: 80 },
+    { key: 'desEstado', title: t.status, width: 60 },
+    { key: 'peso', title: `${t.weight} (lb)`, width: 45 },
+    { key: 'costo', title: t.cost, width: 45 },
   ];
 
   // wrapHeader: el título del <th> puede partirse en 2 líneas — así la columna no
@@ -245,9 +276,27 @@ const DatatablesSpares = ({
     switch (key) {
       case 'files':
         return (
-          <div className="flex items-center gap-1">
-            {s.tieneImagen && <IconPhoto className="w-3.5 h-3.5 text-blue-500" />}
-            {s.tieneDocumento && <IconFile className="w-3.5 h-3.5 text-indigo-500" />}
+          <div className="inline-flex items-center gap-1">
+            {s.tieneImagen && (
+              <button
+                type="button"
+                onClick={() => openImagesModal(s)}
+                className="p-1 rounded hover:bg-blue-50 dark:hover:bg-gray-800"
+                title="Ver imágenes"
+              >
+                <IconPhoto className="w-4 h-4 text-blue-500" />
+              </button>
+            )}
+            {s.tieneDocumento && (
+              <button
+                type="button"
+                onClick={() => openDocumentsModal(s)}
+                className="p-1 rounded hover:bg-indigo-50 dark:hover:bg-gray-800"
+                title="Ver documentos"
+              >
+                <IconFile className="w-4 h-4 text-indigo-500" />
+              </button>
+            )}
           </div>
         );
       case 'nroParte':
@@ -567,7 +616,7 @@ const DatatablesSpares = ({
             <table className="border-collapse table-fixed bg-white dark:bg-gray-900">
               <thead className="sticky top-0 z-10">
                 <tr>
-                  <th className="bg-gray-50 dark:bg-gray-800 py-2 w-[54px]"></th>
+                  <th className="bg-gray-50 dark:bg-gray-800 py-2 w-9"></th>
                   {coreCols.map(c => (
                     <th key={c.key} className={thClass} style={{ width: c.width }}>{c.title}</th>
                   ))}
@@ -586,31 +635,31 @@ const DatatablesSpares = ({
                 {data.map((s, index) => (
                   <tr key={index} className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50">
                     <td className="px-1 py-1.5">
-                      <div className="flex gap-0">
+                      <div className="inline-flex items-center gap-1">
                         <button
-                          className="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                          className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
                           onClick={() => handleView(s)}
                           title={t.view ?? 'Ver'}
                         >
-                          <IconEye className="w-3.5 h-3.5 text-gray-600" />
+                          <IconEye className="w-4 h-4 text-gray-600" />
                         </button>
                         {hasPermission(PERMISSIONS.REPUESTOS_MODIFICAR) && (
                           <button
-                            className="p-0.5 rounded hover:bg-blue-50 dark:hover:bg-gray-800"
+                            className="p-1 rounded hover:bg-blue-50 dark:hover:bg-gray-800"
                             onClick={() => handleEdit(s)}
                             title={t.edit ?? 'Editar'}
                           >
-                            <IconPencil className="w-3.5 h-3.5 text-blue-500" />
+                            <IconPencil className="w-4 h-4 text-blue-500" />
                           </button>
                         )}
                         {hasPermission(PERMISSIONS.REPUESTOS_ELIMINAR) && (
                           <button
-                            className="p-0.5 rounded hover:bg-red-50 dark:hover:bg-gray-800"
+                            className="p-1 rounded hover:bg-red-50 dark:hover:bg-gray-800"
                             onClick={() => handleToggleStatus(s)}
                             title={s.codEstado === 'AC' ? (t.delete ?? 'Eliminar') : (t.activate ?? 'Activar')}
                           >
                             {s.codEstado === 'AC'
-                              ? <IconTrash className="w-3.5 h-3.5 text-red-500" />
+                              ? <IconTrash className="w-4 h-4 text-red-500" />
                               : <IconToggleOn className="w-4 h-4 text-gray-400" />}
                           </button>
                         )}
@@ -646,10 +695,18 @@ const DatatablesSpares = ({
               className="group relative rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-150 overflow-hidden"
             >
               <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 dark:border-gray-700">
-                <div className="flex items-center gap-1.5 min-w-0">
+                <div className="flex items-center gap-1 min-w-0">
                   <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{s.nroParte}</h3>
-                  {s.tieneImagen && <IconPhoto className="w-4 h-4 text-blue-500 shrink-0" />}
-                  {s.tieneDocumento && <IconFile className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}
+                  {s.tieneImagen && (
+                    <button type="button" onClick={() => openImagesModal(s)} className="p-0.5 rounded hover:bg-blue-50 dark:hover:bg-gray-800 shrink-0" title="Ver imágenes">
+                      <IconPhoto className="w-4 h-4 text-blue-500" />
+                    </button>
+                  )}
+                  {s.tieneDocumento && (
+                    <button type="button" onClick={() => openDocumentsModal(s)} className="p-0.5 rounded hover:bg-indigo-50 dark:hover:bg-gray-800 shrink-0" title="Ver documentos">
+                      <IconFile className="w-3.5 h-3.5 text-indigo-500" />
+                    </button>
+                  )}
                 </div>
                 <div className="flex gap-0.5 shrink-0">
                   <button className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => handleView(s)} title={t.view ?? 'Ver'}>
@@ -698,6 +755,100 @@ const DatatablesSpares = ({
       {view === 'list' && total > pageSize && (
         <div className="flex justify-center mt-3">
           <Pagination total={Math.ceil(total / pageSize)} value={page} onChange={onPageChange} size="sm" radius="xl" />
+        </div>
+      )}
+
+      {/* Modal de imágenes / documentos (pedidos on-demand al hacer click en el ícono) */}
+      {filesModal && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4"
+          onClick={() => setFilesModal(null)}
+        >
+          <div
+            className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                {filesModal.type === 'images' ? 'Imágenes' : 'Documentos'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setFilesModal(null)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <IconX className="h-4 w-4" />
+              </button>
+            </div>
+
+            {filesModal.loading ? (
+              <p className="text-xs text-gray-400 text-center py-6">Cargando…</p>
+            ) : filesModal.items.length === 0 ? (
+              <p className="text-xs text-gray-400 text-center py-6">Sin archivos</p>
+            ) : filesModal.type === 'images' ? (
+              filesModal.items.length === 1 ? (
+                <img
+                  src={filesModal.items[0].urlImagen}
+                  alt={filesModal.items[0].nombre}
+                  className="w-full rounded-lg cursor-zoom-in"
+                  onClick={() => setZoomImg(filesModal.items[0].urlImagen)}
+                />
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  {filesModal.items.map((img) => (
+                    <button
+                      key={img.codImagen}
+                      type="button"
+                      title={img.nombre}
+                      onClick={() => setZoomImg(img.urlImagen)}
+                      className="aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 hover:border-primary transition"
+                    >
+                      <img src={img.urlImagen} alt={img.nombre} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )
+            ) : (
+              <div className="space-y-2">
+                {filesModal.items.map((doc) => (
+                  <a
+                    key={doc.codDocumento}
+                    href={doc.urlDocumento}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="no-load flex items-center gap-3 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 hover:border-primary hover:bg-primary/5 transition"
+                  >
+                    <div className="flex-shrink-0 h-9 w-9 rounded-lg bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
+                      <IconFile className="h-4 w-4 text-red-400" />
+                    </div>
+                    <span className="text-sm text-gray-700 dark:text-gray-200 truncate">{doc.nombre}</span>
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Zoom de imagen individual, por encima del modal de imágenes */}
+      {zoomImg && (
+        <div
+          className="fixed inset-0 z-[70] bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setZoomImg(null)}
+        >
+          <img
+            src={zoomImg}
+            alt="Vista previa"
+            className="max-h-[90vh] max-w-[90vw] rounded-xl shadow-2xl object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            type="button"
+            onClick={() => setZoomImg(null)}
+            className="absolute top-4 right-4 h-9 w-9 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition text-lg leading-none"
+          >
+            ✕
+          </button>
         </div>
       )}
     </div>

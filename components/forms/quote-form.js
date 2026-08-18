@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from 'react-select';
 import IconFile from '../icon/icon-file';
+import IconPhoto from '../icon/icon-photo';
 import IconMail from '../icon/icon-mail';
 import IconAttachment from '../icon/icon-attachment';
 import IconDiscount from '../icon/icon-discount';
@@ -215,6 +216,92 @@ const ItemNotesModal = ({ t, item, onUpdated }) => {
     </div>
   );
 };
+
+// Imágenes de un ítem — se pide on-demand (repuestos/{codRepuesto}/imagenes) al abrir el modal.
+const ItemFilesModal = ({ codRepuesto }) => {
+  const [loading, setLoading] = useState(true);
+  const [images, setImages] = useState([]);
+  const [zoomImg, setZoomImg] = useState(null);
+
+  useEffect(() => {
+    axiosClient.get(`repuestos/${codRepuesto}/imagenes`)
+      .then(rs => setImages(rs.data ?? []))
+      .catch(() => setImages([]))
+      .finally(() => setLoading(false));
+  }, [codRepuesto]);
+
+  if (loading) return <p className="text-xs text-gray-400 text-center py-6">Cargando…</p>;
+  if (images.length === 0) return <p className="text-xs text-gray-400 text-center py-6">Sin imágenes</p>;
+
+  return (
+    <>
+      {images.length === 1 ? (
+        <img
+          src={images[0].urlImagen}
+          alt={images[0].nombre}
+          className="w-full rounded-lg cursor-zoom-in"
+          onClick={() => setZoomImg(images[0].urlImagen)}
+        />
+      ) : (
+        <div className="grid grid-cols-3 gap-2">
+          {images.map((img) => (
+            <button
+              key={img.codImagen}
+              type="button"
+              title={img.nombre}
+              onClick={() => setZoomImg(img.urlImagen)}
+              className="aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 hover:border-primary transition"
+            >
+              <img src={img.urlImagen} alt={img.nombre} className="w-full h-full object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {zoomImg && (
+        <div
+          className="fixed inset-0 z-[70] bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setZoomImg(null)}
+        >
+          <img
+            src={zoomImg}
+            alt="Vista previa"
+            className="max-h-[90vh] max-w-[90vw] rounded-xl shadow-2xl object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            type="button"
+            onClick={() => setZoomImg(null)}
+            className="absolute top-4 right-4 h-9 w-9 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition text-lg leading-none"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+    </>
+  );
+};
+
+// Documentos de un ítem — ya se pidieron antes de abrir el modal (ver showItemDocuments:
+// si es 1 solo documento se abre directo en pestaña nueva, sin pasar por acá).
+const ItemDocumentsModal = ({ docs }) => (
+  <div className="space-y-2">
+    {docs.map((doc) => (
+      <a
+        key={doc.codDocumento}
+        href={doc.urlDocumento}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="no-load flex items-center gap-3 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 hover:border-primary hover:bg-primary/5 transition"
+      >
+        <div className="flex-shrink-0 h-9 w-9 rounded-lg bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
+          <IconFile className="h-4 w-4 text-red-400" />
+        </div>
+        <span className="text-sm text-gray-700 dark:text-gray-200 truncate">{doc.nombre}</span>
+      </a>
+    ))}
+  </div>
+);
 
 const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) => {
 
@@ -494,6 +581,8 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
     Estado:      d.estado        ?? '',
     ParPrecio:   d.parPrecio     ?? false,
     NotasAdicionales: d.notasAdicionales ?? [],
+    TieneImagen:      d.tieneImagen    ?? false,
+    TieneDocumento:   d.tieneDocumento ?? false,
   }));
 
   const mapOpcion = (o) => ({
@@ -1162,6 +1251,31 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
       />
     );
     setShowModal(true);
+  };
+
+  const showItemImages = (item) => {
+    setModalTitle('Imágenes');
+    setModalSize('w-full max-w-lg');
+    setModalContent(<ItemFilesModal codRepuesto={item.CodRepuesto} />);
+    setShowModal(true);
+  };
+
+  // 1 solo documento: se abre directo en pestaña nueva. Varios: modal con la lista.
+  const showItemDocuments = async (item) => {
+    try {
+      const rs = await axiosClient.get(`repuestos/${item.CodRepuesto}/documentos`);
+      const docs = rs.data ?? [];
+      if (docs.length <= 1) {
+        if (docs[0]?.urlDocumento) window.open(docs[0].urlDocumento, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      setModalTitle('Documentos');
+      setModalSize('w-full max-w-lg');
+      setModalContent(<ItemDocumentsModal docs={docs} />);
+      setShowModal(true);
+    } catch {
+      Swal.fire({ title: 'Error', text: 'No se pudieron cargar los documentos', icon: 'error', confirmButtonColor: '#dc2626' });
+    }
   };
 
   const showReference = async (item) => {
@@ -1838,6 +1952,20 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                                   title={t.additional_note ?? 'Nota Adicional'}
                                   className="text-amber-500 hover:text-amber-600 transition disabled:opacity-50 disabled:cursor-not-allowed">
                                   <IconInfoTriangle className="h-4 w-4" />
+                                </button>
+                              )}
+                              {item.TieneImagen && (
+                                <button onClick={run(() => showItemImages(item))} type="button" disabled={isSubmitting}
+                                  title="Ver imágenes"
+                                  className="text-blue-500 hover:text-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                                  <IconPhoto className="h-4 w-4" />
+                                </button>
+                              )}
+                              {item.TieneDocumento && (
+                                <button onClick={run(() => showItemDocuments(item))} type="button" disabled={isSubmitting}
+                                  title="Ver documentos"
+                                  className="text-indigo-500 hover:text-indigo-600 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                                  <IconFile className="h-4 w-4" />
                                 </button>
                               )}
                             </div>

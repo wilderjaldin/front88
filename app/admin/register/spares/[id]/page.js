@@ -8,8 +8,33 @@ import { useDynamicTitle } from '@/app/hooks/useDynamicTitle';
 import IconArrowBackward from '@/components/icon/icon-arrow-backward';
 import IconEdit from '@/components/icon/icon-edit';
 import IconFile from '@/components/icon/icon-file';
+import IconDollarSignCircle from '@/components/icon/icon-dollar-sign-circle';
+import IconBox from '@/components/icon/icon-box';
+import IconClock from '@/components/icon/icon-clock';
+import IconTag from '@/components/icon/icon-tag';
+import IconUser from '@/components/icon/icon-user';
+import IconTrendingUp from '@/components/icon/icon-trending-up';
+import IconNotes from '@/components/icon/icon-notes';
 
 const URL_DETAIL = 'repuestos/ver';
+
+// ── Paleta de acentos por categoría ─────────────────────────────────────────
+const COLORS = {
+  green:  { stripe: 'bg-green-500',  chipBg: 'bg-green-50 dark:bg-green-900/20',   chipText: 'text-green-600 dark:text-green-400',
+            badge: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', text: 'text-green-600 dark:text-green-400' },
+  red:    { stripe: 'bg-red-500',    chipBg: 'bg-red-50 dark:bg-red-900/20',       chipText: 'text-red-600 dark:text-red-400',
+            badge: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400', text: 'text-red-600 dark:text-red-400' },
+  amber:  { stripe: 'bg-amber-500',  chipBg: 'bg-amber-50 dark:bg-amber-900/20',   chipText: 'text-amber-600 dark:text-amber-400',
+            badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', text: 'text-amber-600 dark:text-amber-400' },
+  blue:   { stripe: 'bg-blue-500',   chipBg: 'bg-blue-50 dark:bg-blue-900/20',     chipText: 'text-blue-600 dark:text-blue-400',
+            badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', text: 'text-blue-600 dark:text-blue-400' },
+  purple: { stripe: 'bg-purple-500', chipBg: 'bg-purple-50 dark:bg-purple-900/20', chipText: 'text-purple-600 dark:text-purple-400',
+            badge: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400', text: 'text-purple-600 dark:text-purple-400' },
+  indigo: { stripe: 'bg-indigo-500', chipBg: 'bg-indigo-50 dark:bg-indigo-900/20', chipText: 'text-indigo-600 dark:text-indigo-400',
+            badge: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400', text: 'text-indigo-600 dark:text-indigo-400' },
+  slate:  { stripe: 'bg-slate-400',  chipBg: 'bg-slate-100 dark:bg-slate-800/40',  chipText: 'text-slate-500 dark:text-slate-400',
+            badge: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400', text: 'text-gray-500 dark:text-gray-400' },
+};
 
 export default function SpareDetail() {
 
@@ -67,6 +92,26 @@ export default function SpareDetail() {
 
   const isActive = spare?.codEstado === 'AC';
 
+  // ── Estadísticas derivadas ────────────────────────────────────────────────
+  const canStock = spare?.canStock ?? 0;
+  const canMin   = spare?.canMin   ?? 0;
+  const stockColor = canStock === 0 ? 'red' : canStock < canMin ? 'amber' : 'green';
+  const stockLabel = canStock === 0 ? 'Sin stock' : canStock < canMin ? 'Stock bajo' : 'Stock normal';
+
+  const vencInfo = (() => {
+    if (!spare?.fecVencimiento) return null;
+    const days = Math.ceil((new Date(spare.fecVencimiento) - new Date()) / 86400000);
+    if (days < 0)   return { label: `${fmtDate(spare.fecVencimiento)} (vencido)`, color: 'red' };
+    if (days <= 30) return { label: `${fmtDate(spare.fecVencimiento)} (${days} días)`, color: 'amber' };
+    return { label: fmtDate(spare.fecVencimiento), color: null };
+  })();
+
+  const pedidoCaption = spare?.blnPedidoEspecial
+    ? (spare?.blnPedEspecialSinFecha ? 'Sin fecha definida' : `${fmt(spare?.canDias)} días de espera`)
+    : 'Sin pedido especial';
+
+  const imgPrincipal = spare?.imagenes?.find(i => i.esPrincipal) ?? spare?.imagenes?.[0] ?? null;
+
   return (
     <div className="pb-10">
 
@@ -86,58 +131,69 @@ export default function SpareDetail() {
 
       {/* ── Hero header ────────────────────────────────────────────────────── */}
       <div className="panel mb-5 overflow-hidden relative">
-        {/* Franja de color izquierda */}
         <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-l-md" />
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pl-4">
-          {/* Info principal */}
           <div className="flex items-center gap-4">
-            {/* Avatar con iniciales del nroParte */}
-            <div className="flex-shrink-0 h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center">
-              <span className="text-primary font-bold text-lg tracking-tight">
-                {spare?.nroParte?.slice(0, 2).toUpperCase() ?? 'SP'}
-              </span>
-            </div>
+            <button
+              type="button"
+              onClick={() => imgPrincipal && setImgActiva(imgPrincipal.urlImagen)}
+              disabled={!imgPrincipal}
+              className={`flex-shrink-0 h-14 w-14 rounded-xl overflow-hidden bg-primary/10 flex items-center justify-center
+                ${imgPrincipal ? 'hover:ring-2 hover:ring-primary/40 transition cursor-pointer' : 'cursor-default'}`}
+            >
+              {imgPrincipal ? (
+                <img src={imgPrincipal.urlImagen} alt={spare?.nroParte} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-primary font-bold text-lg tracking-tight">
+                  {spare?.nroParte?.slice(0, 2).toUpperCase() ?? 'SP'}
+                </span>
+              )}
+            </button>
+
             <div>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Nro. de Parte</p>
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl font-bold text-gray-800 dark:text-gray-100 tracking-tight">
                   {spare?.nroParte ?? '—'}
                 </h1>
                 {spare?.nroParte2 && spare.nroParte2 !== spare.nroParte && (
-                  <span className="text-xs text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full font-mono">
-                    {spare.nroParte2}
+                  <span
+                    title="Número de parte en formato alterno / normalizado"
+                    className="text-xs text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full font-mono"
+                  >
+                    Alt: {spare.nroParte2}
                   </span>
                 )}
-                <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
-                  isActive
-                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                    : 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
-                }`}>
+                <Badge color={isActive ? 'green' : 'red'}>
                   {isActive ? t.active ?? 'Activo' : t.inactive ?? 'Inactivo'}
-                </span>
+                </Badge>
               </div>
-              <p className="text-sm text-gray-500 mt-0.5">{spare?.desRepuesto ?? ''}</p>
-              <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mt-2.5 mb-0.5">Descripción</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300">{spare?.desRepuesto || '—'}</p>
+
+              <div className="flex items-center gap-x-5 gap-y-1.5 mt-2.5 flex-wrap">
                 {spare?.proveedor && (
-                  <span className="text-xs text-gray-400">
-                    <span className="font-medium text-gray-600 dark:text-gray-300">{spare.proveedor}</span>
+                  <span className="text-xs text-gray-500">
+                    <span className="text-gray-400">Proveedor: </span>
+                    <span className="font-medium text-gray-700 dark:text-gray-200">{spare.proveedor}</span>
                   </span>
                 )}
                 {spare?.tipRepuesto && (
-                  <span className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full">
-                    {spare.tipRepuesto}
+                  <span className="text-xs text-gray-500 flex items-center gap-1.5">
+                    Tipo: <Badge color="blue">{spare.tipRepuesto}</Badge>
                   </span>
                 )}
                 {spare?.estado && (
-                  <span className="text-xs bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full">
-                    {spare.estado}
+                  <span className="text-xs text-gray-500 flex items-center gap-1.5">
+                    Estado del producto: <Badge color="amber">{spare.estado}</Badge>
                   </span>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Acciones */}
           <div className="flex items-center gap-2 sm:flex-shrink-0">
             <button
               type="button"
@@ -162,167 +218,130 @@ export default function SpareDetail() {
         </div>
       </div>
 
-      {/* ── KPIs rápidos ───────────────────────────────────────────────────── */}
+      {/* ── Estadísticas ───────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
-
-        <div className="panel py-4 px-5">
-          <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Costo</p>
-          <p className="text-xl font-bold text-gray-800 dark:text-gray-100">
-            ${fmtMoney(spare?.costo)}
-          </p>
-        </div>
-
-        <div className="panel py-4 px-5">
-          <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Peso (lb)</p>
-          <p className="text-xl font-bold text-gray-800 dark:text-gray-100">
-            {fmt(spare?.peso)}
-          </p>
-        </div>
-
-        <div className="panel py-4 px-5">
-          <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Stock</p>
-          <p className="text-xl font-bold text-gray-800 dark:text-gray-100">
-            {fmt(spare?.canStock)}
-          </p>
-        </div>
-
-        <div className="panel py-4 px-5">
-          <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Cant. Mínima</p>
-          <p className="text-xl font-bold text-gray-800 dark:text-gray-100">
-            {fmt(spare?.canMin)}
-            <span className="text-sm font-normal text-gray-400 ml-1">{fmt(spare?.uniMed)}</span>
-          </p>
-        </div>
-
+        <StatCard
+          color="green"
+          icon={<IconDollarSignCircle className="h-5 w-5" />}
+          label="Costo"
+          value={`$${fmtMoney(spare?.costo)}`}
+        />
+        <StatCard
+          color={stockColor}
+          icon={<IconBox className="h-5 w-5" />}
+          label="Stock"
+          value={fmt(spare?.canStock)}
+          caption={`mín. ${fmt(spare?.canMin)} ${fmt(spare?.uniMed)}`}
+          badge={<Badge color={stockColor}>{stockLabel}</Badge>}
+        />
+        <StatCard
+          color="purple"
+          icon={<IconTag className="h-5 w-5" />}
+          label="Peso"
+          value={`${fmt(spare?.peso)} KG`}
+        />
+        <StatCard
+          color="indigo"
+          icon={<IconClock className="h-5 w-5" />}
+          label="Disponibilidad"
+          value={spare?.blnPedidoEspecial ? 'Pedido Especial' : 'Disponible'}
+          caption={pedidoCaption}
+        />
       </div>
 
-      {/* ── Fila inferior: Clasificación + Pedido + Auditoría ──────────────── */}
+      {/* ── Clasificación + Disponibilidad + Registro ───────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-        {/* Clasificación */}
-        <div className="panel">
-          <SectionTitle>Clasificación</SectionTitle>
+        <Panel color="blue" icon={<IconTag className="h-3.5 w-3.5" />} title="Clasificación">
           <dl className="space-y-3">
-            <Field label="Proveedor"       value={fmt(spare?.proveedor)}   />
-            <Field label="Marca"           value={fmt(spare?.marca)}       />
-            <Field label="Aplicación"      value={fmt(spare?.aplicacion)}  />
-            <Field label="Tipo Repuesto"   value={fmt(spare?.tipRepuesto)} />
-            <Field label="Estado"          value={fmt(spare?.estado)}      />
-            <Field label="Est. Nro. Parte" value={fmt(spare?.estNroParte)} />
-            <Field label="Vencimiento"     value={fmtDate(spare?.fecVencimiento)} />
-          </dl>
-        </div>
-
-        {/* Pedido Especial */}
-        <div className="panel">
-          <SectionTitle>Pedido Especial</SectionTitle>
-          <dl className="space-y-3">
+            <Field label="Proveedor"  value={fmt(spare?.proveedor)}   />
+            <Field label="Marca"      value={fmt(spare?.marca)}       />
+            <Field label="Aplicación" value={fmt(spare?.aplicacion)}  />
+            <Field label="Tipo"       value={fmt(spare?.tipRepuesto)} />
+            <Field label="Estado"     value={fmt(spare?.estado)}      />
             <Field
-              label="Pedido Especial"
+              label="Vencimiento"
               value={
-                <BoolBadge val={spare?.blnPedidoEspecial} />
-              }
-            />
-            <Field label="Días" value={fmt(spare?.canDias)} />
-            <Field
-              label="Sin Fecha"
-              value={
-                <BoolBadge val={spare?.blnPedEspecialSinFecha} />
+                vencInfo
+                  ? <span className={vencInfo.color ? COLORS[vencInfo.color].text + ' font-semibold' : ''}>{vencInfo.label}</span>
+                  : '—'
               }
             />
           </dl>
-        </div>
+        </Panel>
 
-        {/* Auditoría */}
-        <div className="panel">
-          <SectionTitle>Registro</SectionTitle>
+        <Panel color="purple" icon={<IconClock className="h-3.5 w-3.5" />} title="Disponibilidad">
           <dl className="space-y-3">
-            <Field label="Registrado por"      value={fmt(spare?.usuarioRegistra)} />
-            <Field label="Fecha registro"      value={fmtDate(spare?.fecRegistra)} />
-            <Field label="Modificado por"      value={fmt(spare?.usuarioModifica)} />
-            <Field label="Fecha modificación"  value={fmtDate(spare?.fecModifica)} />
+            <Field label="Pedido Especial" value={<BoolBadge val={spare?.blnPedidoEspecial} />} />
+            <Field label="Sin Fecha"       value={<BoolBadge val={spare?.blnPedEspecialSinFecha} />} />
+            <Field label="Días de Espera"  value={fmt(spare?.canDias)} />
+            <Field label="Cant. Mínima"    value={`${fmt(spare?.canMin)} ${fmt(spare?.uniMed)}`} />
           </dl>
+        </Panel>
 
-          {/* Placeholder secciones futuras */}
-          <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-700">
-            <p className="text-xs text-gray-400 uppercase tracking-wider mb-3">Próximamente</p>
-            <div className="space-y-2">
-              {['Repuestos similares', 'Cotizar desde aquí'].map(item => (
-                <div key={item}
-                  className="flex items-center gap-2 text-xs text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-lg px-3 py-2">
-                  <span className="h-1.5 w-1.5 rounded-full bg-gray-300 dark:bg-gray-600 flex-shrink-0" />
-                  {item}
-                </div>
-              ))}
-            </div>
+        <Panel color="slate" icon={<IconUser className="h-3.5 w-3.5" />} title="Registro">
+          <dl className="space-y-3">
+            <Field label="Registrado por"     value={fmt(spare?.usuarioRegistra)} />
+            <Field label="Fecha registro"     value={fmtDate(spare?.fecRegistra)} />
+            <Field label="Modificado por"     value={fmt(spare?.usuarioModifica)} />
+            <Field label="Fecha modificación" value={fmtDate(spare?.fecModifica)} />
+          </dl>
+          <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+            <p className="text-[10px] text-gray-400 font-mono tracking-tight">
+              ID {fmt(spare?.codRepuesto)} · Prv {fmt(spare?.codPrv)} · Marca {fmt(spare?.codMarca)} · Aplic {fmt(spare?.codAplicacion)}
+            </p>
           </div>
-        </div>
+        </Panel>
 
       </div>
 
-      {/* ── Historial de Precios + Notas Adicionales ────────────────────────── */}
-      {(spare?.historial?.length > 0 || spare?.notasAdicionales?.length > 0) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-5">
-
-          {spare?.historial?.length > 0 && (
-            <div className="panel">
-              <SectionTitle>Historial de Precios</SectionTitle>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
-                      <th className="pb-2 pr-4">Costo</th>
-                      <th className="pb-2 pr-4">Usuario</th>
-                      <th className="pb-2">Fecha</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                    {spare.historial.map((h) => (
-                      <tr key={h.codRegistro}>
-                        <td className="py-2 pr-4 font-semibold text-gray-800 dark:text-gray-100">
-                          ${fmtMoney(h.costo)}
-                        </td>
-                        <td className="py-2 pr-4 text-gray-600 dark:text-gray-300">
-                          {fmt(h.usuario)}
-                        </td>
-                        <td className="py-2 text-gray-500">
-                          {fmtDateTime(h.fecRegistra)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {spare?.notasAdicionales?.length > 0 && (
-            <div className="panel">
-              <SectionTitle>Notas Adicionales</SectionTitle>
-              <div className="max-h-64 overflow-y-auto rounded-lg border border-gray-100 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
-                {spare.notasAdicionales.map((n, i) => (
-                  <div
-                    key={i}
-                    className={`px-3 py-2.5 ${i % 2 === 0 ? 'bg-white dark:bg-[#0e1726]' : 'bg-gray-50 dark:bg-gray-800/40'}`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">{n.nomUsuario}</span>
-                      <span className="text-[11px] text-gray-400">{fmtDateTime(n.fecha)}</span>
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-0.5 whitespace-pre-wrap">{n.nota}</p>
-                  </div>
+      {/* ── Historial de Precios (a todo el ancho, solo si hay cambios) ─────── */}
+      {spare?.historial?.length > 0 && (
+        <Panel color="green" icon={<IconTrendingUp className="h-3.5 w-3.5" />} title="Historial de Precios" className="mt-5">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+                  <th className="pb-2 pr-4">Costo</th>
+                  <th className="pb-2 pr-4">Usuario</th>
+                  <th className="pb-2">Fecha</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                {spare.historial.map((h) => (
+                  <tr key={h.codRegistro}>
+                    <td className="py-2 pr-4 font-semibold text-gray-800 dark:text-gray-100">${fmtMoney(h.costo)}</td>
+                    <td className="py-2 pr-4 text-gray-600 dark:text-gray-300">{fmt(h.usuario)}</td>
+                    <td className="py-2 text-gray-500">{fmtDateTime(h.fecRegistra)}</td>
+                  </tr>
                 ))}
-              </div>
-            </div>
-          )}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      )}
 
-        </div>
+      {/* ── Notas Adicionales (a todo el ancho, tarjetas compactas que no se
+          estiran — así 1-2 notas cortas no dejan un bloque medio vacío) ────── */}
+      {spare?.notasAdicionales?.length > 0 && (
+        <Panel color="amber" icon={<IconNotes className="h-3.5 w-3.5" />} title="Notas Adicionales" className="mt-5">
+          <div className="flex flex-wrap gap-3">
+            {spare.notasAdicionales.map((n, i) => (
+              <div key={i} className="w-full sm:w-72 rounded-lg bg-gray-50 dark:bg-gray-800/40 px-3 py-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">{n.nomUsuario}</span>
+                  <span className="text-[11px] text-gray-400">{fmtDate(n.fecha)}</span>
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-0.5">{n.nota}</p>
+              </div>
+            ))}
+          </div>
+        </Panel>
       )}
 
       {/* ── Archivos: imágenes y documentos ─────────────────────────────────── */}
       {(spare?.imagenes?.length > 0 || spare?.documentos?.length > 0) && (
-        <div className="panel mt-5">
-          <SectionTitle>Archivos</SectionTitle>
+        <Panel color="indigo" icon={<IconFile className="h-3.5 w-3.5" />} title="Archivos" className="mt-5">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
             {spare?.imagenes?.length > 0 && (
@@ -338,11 +357,6 @@ export default function SpareDetail() {
                       className="group relative aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 hover:border-primary transition"
                     >
                       <img src={img.urlImagen} alt={img.nombre} className="w-full h-full object-cover" />
-                      {img.esPrincipal && (
-                        <span className="absolute top-1 left-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-primary text-white shadow">
-                          Principal
-                        </span>
-                      )}
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition" />
                     </button>
                   ))}
@@ -376,7 +390,7 @@ export default function SpareDetail() {
             )}
 
           </div>
-        </div>
+        </Panel>
       )}
 
       {/* Lightbox */}
@@ -407,12 +421,44 @@ export default function SpareDetail() {
 
 // ── Sub-componentes ───────────────────────────────────────────────────────────
 
-const SectionTitle = ({ children }) => (
-  <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4 pb-2
-    border-b border-gray-100 dark:border-gray-700">
-    {children}
-  </h2>
-);
+const Panel = ({ color = 'blue', icon, title, children, className = '' }) => {
+  const c = COLORS[color] ?? COLORS.blue;
+  return (
+    <div className={`panel overflow-hidden relative ${className}`}>
+      <div className={`absolute left-0 top-0 bottom-0 w-1 ${c.stripe}`} />
+      <div className="pl-3">
+        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-100 dark:border-gray-700">
+          <span className={`flex-shrink-0 h-6 w-6 rounded-md flex items-center justify-center ${c.chipBg} ${c.chipText}`}>
+            {icon}
+          </span>
+          <h2 className="text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+            {title}
+          </h2>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+const StatCard = ({ color = 'blue', icon, label, value, caption, badge }) => {
+  const c = COLORS[color] ?? COLORS.blue;
+  return (
+    <div className="panel py-4 px-5">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-xs text-gray-400 uppercase tracking-wider mb-1 truncate">{label}</p>
+          <p className="text-xl font-bold text-gray-800 dark:text-gray-100 truncate">{value}</p>
+          {caption && <p className="text-[11px] text-gray-400 mt-0.5 truncate">{caption}</p>}
+        </div>
+        <span className={`flex-shrink-0 h-9 w-9 rounded-lg flex items-center justify-center ${c.chipBg} ${c.chipText}`}>
+          {icon}
+        </span>
+      </div>
+      {badge && <div className="mt-2">{badge}</div>}
+    </div>
+  );
+};
 
 const Field = ({ label, value }) => (
   <div className="flex items-start justify-between gap-3">
@@ -421,12 +467,12 @@ const Field = ({ label, value }) => (
   </div>
 );
 
-const BoolBadge = ({ val }) => (
-  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-    val
-      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-      : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
-  }`}>
-    {val ? 'Sí' : 'No'}
+const Badge = ({ color = 'slate', children }) => (
+  <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${(COLORS[color] ?? COLORS.slate).badge}`}>
+    {children}
   </span>
+);
+
+const BoolBadge = ({ val }) => (
+  <Badge color={val ? 'green' : 'slate'}>{val ? 'Sí' : 'No'}</Badge>
 );

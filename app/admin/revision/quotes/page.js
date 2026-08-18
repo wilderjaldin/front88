@@ -144,6 +144,8 @@ export default function Quotes() {
           Estado:      d.estado        ?? '',
           ParPrecio:   d.parPrecio     ?? false,
           NotasAdicionales: d.notasAdicionales ?? [],
+          TieneImagen:      d.tieneImagen    ?? false,
+          TieneDocumento:   d.tieneDocumento ?? false,
         })));
 
         setTracking(seguimiento ?? {});
