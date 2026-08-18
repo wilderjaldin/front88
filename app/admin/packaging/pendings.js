@@ -2,14 +2,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pagination } from '@mantine/core';
 import Swal from 'sweetalert2';
-import axios from 'axios';
 import { swalSuccess, swalError } from '@/app/lib/swal';
 import IconArrowDown from '@/components/icon/icon-arrow-down';
 import SearchFilter from '@/components/SearchFilter';
-
-// Contrato legacy (ValToken) sin confirmar todavía para modernizar — se deja intacto,
-// solo se refresca el listado real (embalaje/listar) después de un cancel exitoso.
-const url_cancel_reception = process.env.NEXT_PUBLIC_API_URL + 'embalaje/AnularRecepcion';
 
 const PAGE_SIZE = 50;
 
@@ -46,7 +41,7 @@ const SortableHeader = ({ col, label, sort, dir, onSort, className = '' }) => (
   </th>
 );
 
-const Pendings = ({ t, token, data = [], attachOrder, onRefresh, onSearch, onClear }) => {
+const Pendings = ({ t, data = [], attachOrder, cancelReception, onSearch, onClear }) => {
 
   const [selected, setSelected] = useState([]);
   const [sortColumn, setSortColumn] = useState('NroOrden');
@@ -101,15 +96,9 @@ const Pendings = ({ t, token, data = [], attachOrder, onRefresh, onSearch, onCle
 
     setCanceling(true);
     try {
-      const data_send = selected.map(o => ({ NroRecepcion: o.NroRecepcion, ValToken: token }));
-      const rs = await axios.post(url_cancel_reception, data_send);
-      if (rs.data.estado === 'Ok') {
-        setSelected([]);
-        await onRefresh?.();
-        swalSuccess(t.the_order_reception_was_cancel);
-      } else {
-        swalError(t.error, t.error, t.close);
-      }
+      await cancelReception(selected);
+      setSelected([]);
+      swalSuccess(t.the_order_reception_was_cancel);
     } catch (error) {
       swalError(t.error, t.error, t.close);
     }

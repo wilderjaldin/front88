@@ -198,7 +198,7 @@ export default function CustomerLayout({ children }) {
 
       {/* ── MODAL EDITAR ─────────────────────────────────────────────────── */}
       <Modal
-        size="w-full max-w-2xl"
+        size="w-full max-w-4xl"
         showModal={showModal}
         closeModal={() => setShowModal(false)}
         title="Editar Cliente"

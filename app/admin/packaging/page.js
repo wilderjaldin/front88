@@ -14,6 +14,7 @@ import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 
 const URL_LIST_ORDERS = 'embalaje/listar';
 const URL_ATTACH_ITEM = 'embalaje/adicionar-item';
+const URL_CANCEL_RECEPTION = 'embalajes/anular-recepcion';
 
 const TAB_KEYS = ['pending', 'packaging'];
 
@@ -53,24 +54,36 @@ export default function PackagingPage() {
     };
   }, [activeTab, orders.length, packagings.length]);
 
+  const mapOrders = (list = []) => list.map((o, index) => ({
+    id:             index,
+    NroRecepcion:   o.numRecepcion,
+    NroOrdenCompra: o.numOrdenCompra,
+    NomCliente:     o.cliente,
+    NroOrden:       o.nroCotizacion,
+    DirEntrega:     o.dirEnvio,
+    Transporte:     o.transporte,
+    Monto:          o.monto,
+  }));
+
   const getLists = async (searchTerm = term) => {
     try {
       const params = {};
       if (searchTerm.trim()) params.term = searchTerm.trim();
       const rs = await axiosClient.get(URL_LIST_ORDERS, { params });
-      setOrders((rs.data ?? []).map((o, index) => ({
-        id:             index,
-        NroRecepcion:   o.numRecepcion,
-        NroOrdenCompra: o.numOrdenCompra,
-        NomCliente:     o.cliente,
-        NroOrden:       o.nroCotizacion,
-        DirEntrega:     o.dirEnvio,
-        Transporte:     o.transporte,
-        Monto:          o.monto,
-      })));
+      setOrders(mapOrders(rs.data));
     } catch (error) {
 
     }
+  }
+
+  const cancelReception = async (selected) => {
+    const data = selected.map(o => ({
+      NumRecepcion:   o.NroRecepcion,
+      NumOrdenCompra: o.NroOrdenCompra,
+      NroCotizacion:  o.NroOrden,
+    }));
+    const rs = await axiosClient.post(URL_CANCEL_RECEPTION, data);
+    setOrders(mapOrders(rs.data));
   }
 
   const attachOrder = async (selected) => {
@@ -185,7 +198,7 @@ export default function PackagingPage() {
 
       <div className="animate__animated animate__faster animate__fadeIn">
         {activeTab === 0 && (
-          <Pendings t={t} token={token} data={orders} attachOrder={attachOrder} onRefresh={getLists} onSearch={searchOrders} onClear={clearOrders} />
+          <Pendings t={t} data={orders} attachOrder={attachOrder} cancelReception={cancelReception} onSearch={searchOrders} onClear={clearOrders} />
         )}
         {activeTab === 1 && (
           <Packaging

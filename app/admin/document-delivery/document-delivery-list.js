@@ -1,8 +1,10 @@
 'use client';
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pagination } from '@mantine/core';
 import IconPrinter from '@/components/icon/icon-printer';
 import IconX from '@/components/icon/icon-x';
+
+const PAGE_SIZE = 50;
 
 const thClass = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap select-none";
 const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-3 py-2";
@@ -16,7 +18,17 @@ const IconForward = ({ className }) => (
   </svg>
 );
 
-const DocumentDeliveryList = ({ t, data = [], loading, page, totalPages, onPageChange, onCancel, onForward, onPrint }) => {
+const DocumentDeliveryList = ({ t, data = [], loading, onCancel, onForward, onPrint }) => {
+  const [page, setPage] = useState(1);
+
+  useEffect(() => { setPage(1); }, [data]);
+
+  const totalPages = Math.max(1, Math.ceil(data.length / PAGE_SIZE));
+  const pageData = useMemo(
+    () => data.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [data, page]
+  );
+
   return (
     <div>
       {/* Tabla */}
@@ -37,9 +49,9 @@ const DocumentDeliveryList = ({ t, data = [], loading, page, totalPages, onPageC
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
               {loading ? (
                 <tr><td colSpan={7} className="py-10 text-center text-sm text-gray-400">{t.loading}</td></tr>
-              ) : data.length === 0 ? (
+              ) : pageData.length === 0 ? (
                 <tr><td colSpan={7} className="py-10 text-center text-sm text-gray-400">{t.empty_results}</td></tr>
-              ) : data.map((o, i) => (
+              ) : pageData.map((o, i) => (
                 <tr key={o.id ?? i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                   <td className={`${tdClass} text-center`}>
                     <div className="flex items-center justify-center gap-1">
@@ -74,7 +86,7 @@ const DocumentDeliveryList = ({ t, data = [], loading, page, totalPages, onPageC
                   <td className={`${tdClass} font-medium`}>{o.Cliente}</td>
                   <td className={tdClass}>{o.Transporte}</td>
                   <td className={tdClass}>{o.DireccionEntrega}</td>
-                  <td className={`${tdClass} text-gray-500`}>{o.Carga}</td>
+                  <td className={`${tdClass} text-gray-500 whitespace-pre-line`}>{o.Carga}</td>
                 </tr>
               ))}
             </tbody>
@@ -84,7 +96,7 @@ const DocumentDeliveryList = ({ t, data = [], loading, page, totalPages, onPageC
 
       {totalPages > 1 && (
         <div className="flex justify-center mt-4">
-          <Pagination total={totalPages} value={page} onChange={onPageChange} size="sm" radius="xl" />
+          <Pagination total={totalPages} value={page} onChange={setPage} size="sm" radius="xl" />
         </div>
       )}
     </div>

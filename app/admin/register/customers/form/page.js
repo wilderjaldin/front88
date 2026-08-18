@@ -9,6 +9,23 @@ import { useTranslation } from '@/app/locales';
 import SelectCountry from '@/components/select-country';
 import SelectCity from '@/components/select-city';
 
+// Casilla como "chip" clickeable — mismo patrón que los checkboxes del form de repuestos.
+// El <label> envuelve el <input>, así que un click en cualquier parte ya lo togglea
+// de forma nativa — no hace falta (ni conviene) un onClick propio encima.
+const ToggleChip = ({ checked, label, disabled, register }) => (
+  <label
+    style={{ height: 42, boxSizing: 'border-box' }}
+    className={`flex items-center gap-2 rounded-lg border px-3 select-none transition-all m-0
+      ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+      ${checked
+        ? 'border-primary bg-primary/5'
+        : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/60 hover:border-primary/60'}`}
+  >
+    <input type="checkbox" disabled={disabled} {...register} className="h-10 w-4 m-0 rounded border-gray-300 accent-primary cursor-pointer disabled:cursor-not-allowed" />
+    <span className="text-sm font-medium">{label}</span>
+  </label>
+);
+
 const URL_CONTROLES  = '/clientes/controles';
 const URL_CIUDADES   = '/ciudades';          // GET /ciudades?codPais=XX
 const URL_REGISTRO   = '/clientes/registro';
@@ -210,14 +227,18 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
 
   return (
     <>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        {/* Columna 1 — Cliente + Dirección (formato US) + IVA
+            Columna 2 — Documento + datos adicionales + Es Revendedor
+            2 columnas independientes, cada una fluye con su propia altura,
+            no hay filas compartidas entre ellas así que no hay riesgo de hueco. */}
+        <div className="flex flex-col lg:flex-row items-start gap-x-6 gap-y-4">
 
-          {/* ── Columna izquierda ── */}
-          <div className="space-y-4">
+          {/* Columna 1 */}
+          <div className="flex-1 w-full flex flex-col gap-4">
 
-            {/* Nombre cliente */}
+            {/* Cliente */}
             <div>
               <label className="block text-sm font-medium mb-1">
                 Cliente <span className="text-red-500">*</span>
@@ -236,23 +257,6 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                 className="form-input w-full"
               />
               <FieldError error={errors.nomCliente} />
-            </div>
-
-            {/* Dirección */}
-            <div>
-              <label className="block text-sm font-medium mb-1">Dir. Oficina Central</label>
-              <input
-                {...register('dirCliente', {
-                  maxLength: { value: 150, message: 'Máximo 150 caracteres' },
-                  pattern: {
-                    value: /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ0-9\s\.\,\-\#\/\(\)]+$/,
-                    message: 'Solo se permiten caracteres válidos para una dirección',
-                  },
-                })}
-                placeholder="Ej: Av. Flores 545, Edificio Torres"
-                className="form-input w-full"
-              />
-              <FieldError error={errors.dirCliente} />
             </div>
 
             {/* País */}
@@ -279,6 +283,23 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
               />
             </div>
 
+            {/* Dirección (calle) */}
+            <div>
+              <label className="block text-sm font-medium mb-1">Dir. Oficina Central</label>
+              <input
+                {...register('dirCliente', {
+                  maxLength: { value: 150, message: 'Máximo 150 caracteres' },
+                  pattern: {
+                    value: /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ0-9\s\.\,\-\#\/\(\)]+$/,
+                    message: 'Solo se permiten caracteres válidos para una dirección',
+                  },
+                })}
+                placeholder="Ej: Av. Flores 545, Edificio Torres"
+                className="form-input w-full"
+              />
+              <FieldError error={errors.dirCliente} />
+            </div>
+
             {/* Ciudad */}
             <div>
               <label className="block text-sm font-medium mb-1">
@@ -299,7 +320,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
               />
             </div>
 
-            {/* Estado y ZIP — aparece con animación suave al seleccionar US */}
+            {/* Estado y Código Postal — aparece con animación suave al seleccionar US */}
             <div
               className={`grid grid-cols-2 gap-3 overflow-hidden transition-all duration-300 ease-in-out
                 ${isUS ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}
@@ -324,7 +345,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">
-                    ZIP <span className="text-red-500">*</span>
+                    Código Postal <span className="text-red-500">*</span>
                   </label>
                   <input
                     {...register('zip', {
@@ -341,49 +362,84 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                 </div>
             </div>
 
+            {/* % IVA */}
+            <div>
+              <label className="block text-sm font-medium mb-1">% IVA</label>
+              {/* Altura fijada por inline style en ambos (input y chip): .form-input trae su propio
+                  padding/line-height que nunca calzó pixel-a-pixel contra clases de altura (h-[42px]
+                  ni items-stretch) frente al chip, que arma la suya solo con utilidades. Un style
+                  height explícito en los dos deja el resultado 100% determinista. */}
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  {...register('pctIva', {
+                    min: { value: 0,   message: 'Mínimo 0'   },
+                    max: { value: 100, message: 'Máximo 100' },
+                  })}
+                  disabled={watchNoIva}
+                  style={{ height: 42, boxSizing: 'border-box' }}
+                  className="form-input w-20 disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+                <ToggleChip
+                  checked={watchNoIva}
+                  label="No Considerar IVA"
+                  register={register('noConsiderarIva')}
+                />
+              </div>
+              <FieldError error={errors.pctIva} />
+            </div>
+
           </div>
 
-          {/* ── Columna derecha ── */}
-          <div className="space-y-4">
+          {/* Columna 2 */}
+          <div className="flex-1 w-full flex flex-col gap-4">
 
-            {/* Documento — tipo encima, número debajo con placeholder dinámico */}
-            <div>
-              <label className="block text-sm font-medium mb-1">Num. NIT / CI</label>
-              <Controller
-                name="tipDocumento"
-                control={control}
-                render={({ field }) => (
-                  <Select
-                    {...field}
-                    options={docTypes}
-                    placeholder="Seleccionar tipo..."
-                    classNamePrefix="select"
-                    className="w-full mb-2"
-                    isClearable
-                    instanceId="doctype"
-                    menuPosition="fixed"
-                    menuShouldScrollIntoView={false}
-                  />
-                )}
-              />
-              <input
-                {...register('numNit', {
-                  maxLength: { value: 45, message: 'Máximo 45 caracteres' },
-                  pattern: {
-                    value: /^[0-9\-]*$/,
-                    message: 'Solo se permiten números y el carácter -',
-                  },
-                  validate: v => {
-                    const tipo = watch('tipDocumento');
-                    if (tipo && !v?.trim()) return 'El número de documento es requerido';
-                    return true;
-                  },
-                })}
-                placeholder={watchTipDoc ? `Nro. de ${watchTipDoc.label}` : 'Número de documento'}
-                disabled={!watchTipDoc}
-                className="form-input w-full disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-              {watchTipDoc && <FieldError error={errors.numNit} />}
+            {/* Tipo de documento + Número — en una sola fila */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium mb-1">Tipo de Documento</label>
+                <Controller
+                  name="tipDocumento"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      {...field}
+                      options={docTypes}
+                      placeholder="Seleccionar..."
+                      classNamePrefix="select"
+                      className="w-full"
+                      isClearable
+                      instanceId="doctype"
+                      menuPosition="fixed"
+                      menuShouldScrollIntoView={false}
+                    />
+                  )}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Num. NIT / CI</label>
+                <input
+                  {...register('numNit', {
+                    maxLength: { value: 45, message: 'Máximo 45 caracteres' },
+                    pattern: {
+                      value: /^[0-9\-]*$/,
+                      message: 'Solo se permiten números y el carácter -',
+                    },
+                    validate: v => {
+                      const tipo = watch('tipDocumento');
+                      if (tipo && !v?.trim()) return 'El número de documento es requerido';
+                      return true;
+                    },
+                  })}
+                  placeholder={watchTipDoc ? `Nro. de ${watchTipDoc.label}` : 'Número de documento'}
+                  disabled={!watchTipDoc}
+                  className="form-input w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+                {watchTipDoc && <FieldError error={errors.numNit} />}
+              </div>
             </div>
 
             {/* Página web */}
@@ -445,48 +501,18 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
               />
             </div>
 
-            {/* % IVA */}
-            <div>
-              <label className="block text-sm font-medium mb-1">% IVA</label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="100"
-                  {...register('pctIva', {
-                    min: { value: 0,   message: 'Mínimo 0'   },
-                    max: { value: 100, message: 'Máximo 100' },
-                  })}
-                  disabled={watchNoIva}
-                  className="form-input w-28 disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    {...register('noConsiderarIva')}
-                    className="h-4 w-4 rounded border-gray-300 accent-primary cursor-pointer"
-                  />
-                  No Considerar IVA
-                </label>
-              </div>
-              <FieldError error={errors.pctIva} />
-            </div>
-
             {/* Es Revendedor */}
-            <div className="flex items-center gap-2 pt-1">
-              <input
-                type="checkbox"
-                id="esRevendedor"
-                {...register('esRevendedor')}
-                className="h-4 w-4 rounded border-gray-300 accent-primary cursor-pointer"
+            <div>
+              <label className="block text-sm font-medium mb-1">&nbsp;</label>
+              <ToggleChip
+                checked={watch('esRevendedor')}
+                label="Es Revendedor"
+                register={register('esRevendedor')}
               />
-              <label htmlFor="esRevendedor" className="text-sm font-medium cursor-pointer select-none">
-                Es Revendedor
-              </label>
             </div>
 
           </div>
+
         </div>
 
         {/* Botones */}

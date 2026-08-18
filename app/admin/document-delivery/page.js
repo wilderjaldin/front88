@@ -11,18 +11,20 @@ const PdfViewerDocumentDelivery = dynamic(() => import('@/app/admin/document-del
   ssr: false,
 });
 
-// Endpoints sin confirmar todavía — se ajustan cuando se defina el contrato real.
-const URL_LIST = 'entregadocumentos/listar';
+const URL_LIST = 'embalajes/listaembalaje-doc';
+// Anular sin confirmar todavía — se ajusta cuando se defina el contrato real.
 const URL_CANCEL = 'entregadocumentos/anular';
 
-// Mapeo optimista de campos — ajustar en cuanto se confirme el shape real del listado.
+// listaembalaje-doc devuelve un arreglo plano (sin paginado de servidor) —
+// numEntrega ocupa la columna "Núm. Despacho" ya existente en la tabla.
 const mapOrder = (o, index) => ({
   id:              index,
   NumEmbalaje:     o.numEmbalaje,
-  NumDespacho:     o.numDespacho,
+  CodPais:         o.codPais,
+  NumDespacho:     o.numEntrega,
   Cliente:         o.cliente,
   Transporte:      o.transporte,
-  DireccionEntrega: o.direccionEntrega ?? o.dirEntrega,
+  DireccionEntrega: o.dirEntrega,
   Carga:           o.carga,
 });
 
@@ -32,23 +34,19 @@ export default function DocumentDelivery() {
 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
 
   const [showModal, setShowModal] = useState(false);
   const [printRow, setPrintRow] = useState(null);
 
   useEffect(() => {
     getList();
-  }, [page]);
+  }, []);
 
   const getList = async () => {
     setLoading(true);
     try {
-      const rs = await axiosClient.get(URL_LIST, { params: { page } });
-      const list = rs.data?.datos ?? (Array.isArray(rs.data) ? rs.data : []);
-      setOrders(list.map(mapOrder));
-      setTotalPages(rs.data?.totalPaginas ?? 1);
+      const rs = await axiosClient.get(URL_LIST);
+      setOrders((rs.data ?? []).map(mapOrder));
     } catch (error) {
 
     } finally {
@@ -98,9 +96,6 @@ export default function DocumentDelivery() {
         t={t}
         data={orders}
         loading={loading}
-        page={page}
-        totalPages={totalPages}
-        onPageChange={setPage}
         onRefresh={getList}
         onCancel={handleCancel}
         onForward={handleForward}

@@ -1,17 +1,17 @@
 ﻿'use client';
-import { useEffect, useState } from 'react';
-import { DataTable } from 'mantine-datatable';
+import { useState } from 'react';
 import { Pagination } from '@mantine/core';
-import { useForm } from 'react-hook-form';
+import SearchFilter from '@/components/SearchFilter';
 
 import IconPencil     from '@/components/icon/icon-pencil';
 import IconListCheck  from '@/components/icon/icon-list-check';
 import IconLayoutGrid from '@/components/icon/icon-layout-grid';
-import IconSearch     from '@/components/icon/icon-search';
-import IconBackSpace  from '@/components/icon/icon-backspace';
 import IconPlus       from '@/components/icon/icon-plus';
 
 import { useDevice } from '@/context/device-context';
+
+const thClass = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap";
+const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-3 py-2 whitespace-nowrap";
 
 const DatatablesSparesSite = ({
   data           = [],
@@ -29,36 +29,24 @@ const DatatablesSparesSite = ({
   const { isMobile }    = useDevice();
   const [view, setView] = useState(isMobile ? 'grid' : 'list');
 
-  const { register, reset, handleSubmit } = useForm({
-    defaultValues: { term: currentFilters.term ?? '' },
-  });
-
-  // Sync form cuando la URL cambia externamente (ej: botón atrás del browser)
-  useEffect(() => {
-    reset({ term: currentFilters.term ?? '' });
-  }, [currentFilters.term]);
-
   return (
     <div>
-      {/* ── HEADER + CONTROLES ─────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      {/* ── Título + acciones + filtro, todo en una fila ─────────────────────── */}
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 
-        {/* Título */}
         <div>
           <h1 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-            Repuestos Site <span>({total})</span>
+            Repuestos Site <span className="font-normal text-gray-400">({total})</span>
           </h1>
           <div className="h-0.5 w-10 rounded bg-primary/60 mt-1" />
         </div>
 
-        {/* Controles */}
-        <div className="flex flex-wrap items-center justify-end gap-3">
-
+        <div className="flex flex-wrap items-center gap-2">
           {/* Toggle list / grid */}
-          <div className="flex h-10 items-center rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-900">
+          <div className="flex h-9 items-center rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-900">
             <button
               type="button"
-              className={`flex h-10 w-10 items-center justify-center transition
+              className={`flex h-9 w-9 items-center justify-center transition
                 ${view === 'list'
                   ? 'bg-primary/10 text-primary'
                   : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
@@ -68,7 +56,7 @@ const DatatablesSparesSite = ({
             </button>
             <button
               type="button"
-              className={`flex h-10 w-10 items-center justify-center transition
+              className={`flex h-9 w-9 items-center justify-center transition
                 ${view === 'grid'
                   ? 'bg-primary/10 text-primary'
                   : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
@@ -78,168 +66,114 @@ const DatatablesSparesSite = ({
             </button>
           </div>
 
-          {/* Form búsqueda */}
-          <form onSubmit={handleSubmit(handleSearch)} className="flex items-center gap-2">
-            <input
-              type="text"
-              placeholder={t.filter ?? 'Filtrar'}
-              {...register('term')}
-              className="h-10 w-64 rounded-lg border border-gray-300 dark:border-gray-700
-                         bg-white dark:bg-gray-900 px-4 text-sm
-                         focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
+          {/* Filtro simple: solo texto, sin otras opciones — mismo componente
+              compacto que se usa en recepción de compra. */}
+          <SearchFilter
+            t={t}
+            value={currentFilters.term}
+            onSearch={(term) => handleSearch({ term })}
+            onClear={handleClear}
+            placeholder={t.filter ?? 'Filtrar'}
+            className="w-64"
+          />
 
-            <button
-              type="submit"
-              className="flex h-10 px-3 items-center gap-2 rounded-lg
-                         bg-primary/20 text-primary hover:bg-primary/40 transition text-sm"
-            >
-              <IconSearch className="h-4 w-4" />
-              {t.search ?? 'Buscar'}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => { reset({ term: '' }); handleClear(); }}
-              className="flex h-10 px-3 items-center gap-2 rounded-lg
-                         bg-gray-200 text-gray-700 hover:bg-gray-300 transition
-                         dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 text-sm"
-            >
-              <IconBackSpace className="h-4 w-4" />
-              {t.btn_clear ?? 'Limpiar'}
-            </button>
-          </form>
-
-          {/* Separador */}
-          <div className="h-10 w-px bg-gray-300 dark:bg-gray-600" />
-
-          {/* Nuevo */}
           <button
             type="button"
             onClick={handleNew}
-            className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2
-                       text-white text-sm font-medium shadow-sm hover:bg-primary/90 transition group"
+            className="flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-white text-xs font-medium shadow-sm hover:bg-primary/90 transition"
           >
-            <IconPlus className="h-4 w-4 transition-transform duration-150 group-hover:rotate-90" />
+            <IconPlus className="h-3.5 w-3.5" />
             {t.btn_add_spare_parts ?? 'Agregar nuevo repuesto'}
           </button>
-
         </div>
       </div>
 
       {/* ── VISTA LIST ─────────────────────────────────────────────────────── */}
       {view === 'list' && (
-        <div className="panel mt-5 overflow-hidden border-0 p-0">
-          <div className="datatables">
-            <DataTable
-              className="table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 whitespace-nowrap"
-              records={data}
-              columns={[
-                {
-                  accessor: 'id',
-                  title: '',
-                  render: (s) => (
-                    <button
-                      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-                      onClick={() => handleEdit(s)}
-                      title={t.btn_edit ?? 'Editar'}
-                    >
-                      <IconPencil className="w-4 h-4 text-blue-500" />
-                    </button>
-                  ),
-                },
-                {
-                  accessor: 'nroParte',
-                  title: t.nro_part ?? 'Nro. Parte',
-                  sortable: false,
-                },
-                {
-                  accessor: 'desRepuesto',
-                  title: t.description ?? 'Descripción',
-                  sortable: false,
-                },
-                {
-                  accessor: 'aplicacion',
-                  title: t.application ?? 'Aplicación',
-                  sortable: false,
-                  render: (s) => s.aplicacion || '—',
-                },
-                {
-                  accessor: 'categoria',
-                  title: t.category ?? 'Categoría',
-                  sortable: false,
-                  render: (s) => s.categoria || '—',
-                },
-                {
-                  accessor: 'hCode',
-                  title: 'H Code',
-                  sortable: false,
-                  render: (s) => s.hCode?.trim() || '—',
-                },
-                {
-                  accessor: 'peso',
-                  title: `${t.weight ?? 'Peso'} (lb)`,
-                  sortable: false,
-                  render: (s) => (s.peso ?? 0).toFixed(2),
-                },
-                {
-                  accessor: 'largo',
-                  title: t.long ?? 'Largo',
-                  sortable: false,
-                  render: (s) => (s.largo ?? 0).toFixed(2),
-                },
-                {
-                  accessor: 'ancho',
-                  title: t.width ?? 'Ancho',
-                  sortable: false,
-                  render: (s) => (s.ancho ?? 0).toFixed(2),
-                },
-                {
-                  accessor: 'alto',
-                  title: t.height ?? 'Alto',
-                  sortable: false,
-                  render: (s) => (s.alto ?? 0).toFixed(2),
-                },
-                {
-                  accessor: 'blnSeo',
-                  title: 'SEO',
-                  sortable: false,
-                  render: (s) =>
-                    s.blnSeo
-                      ? <span className="badge bg-success">{t.yes ?? 'SI'}</span>
-                      : <span className="badge bg-dark">{t.no ?? 'NO'}</span>,
-                },
-                {
-                  accessor: 'fecModifica',
-                  title: t.date ?? 'Fecha',
-                  sortable: false,
-                  render: (s) => (
-                    <div className="text-xs leading-tight">
-                      <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-2 border border-gray-100 dark:border-gray-700">
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">Registrado</span>
-                          <span className="text-gray-500">{s.fecRegistra}</span>
+        <div className="panel mt-5 overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse bg-white dark:bg-gray-900">
+              <thead className="sticky top-0 z-10">
+                <tr>
+                  <th className={`${thClass} w-[50px]`}></th>
+                  <th className={thClass}>{t.nro_part ?? 'Nro. Parte'}</th>
+                  <th className={thClass}>{t.description ?? 'Descripción'}</th>
+                  <th className={thClass}>{t.application ?? 'Aplicación'}</th>
+                  <th className={thClass}>{t.category ?? 'Categoría'}</th>
+                  <th className={thClass}>H Code</th>
+                  <th className={`${thClass} text-right`}>{t.weight ?? 'Peso'} (lb)</th>
+                  <th className={`${thClass} text-right`}>{t.long ?? 'Largo'}</th>
+                  <th className={`${thClass} text-right`}>{t.width ?? 'Ancho'}</th>
+                  <th className={`${thClass} text-right`}>{t.height ?? 'Alto'}</th>
+                  <th className={thClass}>SEO</th>
+                  <th className={thClass}>{t.date ?? 'Fecha'}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                {data.map((s) => (
+                  <tr key={s.id} className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                    <td className={`${tdClass} px-2`}>
+                      <button
+                        className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                        onClick={() => handleEdit(s)}
+                        title={t.btn_edit ?? 'Editar'}
+                      >
+                        <IconPencil className="w-4 h-4 text-blue-500" />
+                      </button>
+                    </td>
+                    <td className={tdClass}>{s.nroParte}</td>
+                    <td className={tdClass}>{s.desRepuesto}</td>
+                    <td className={tdClass}>{s.aplicacion || '—'}</td>
+                    <td className={tdClass}>{s.categoria || '—'}</td>
+                    <td className={tdClass}>{s.hCode?.trim() || '—'}</td>
+                    <td className={`${tdClass} text-right`}>{(s.peso ?? 0).toFixed(2)}</td>
+                    <td className={`${tdClass} text-right`}>{(s.largo ?? 0).toFixed(2)}</td>
+                    <td className={`${tdClass} text-right`}>{(s.ancho ?? 0).toFixed(2)}</td>
+                    <td className={`${tdClass} text-right`}>{(s.alto ?? 0).toFixed(2)}</td>
+                    <td className={tdClass}>
+                      {s.blnSeo
+                        ? <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300">{t.yes ?? 'SI'}</span>
+                        : <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">{t.no ?? 'NO'}</span>
+                      }
+                    </td>
+                    <td className={tdClass}>
+                      <div className="text-[11px] leading-tight space-y-0.5 text-gray-500 dark:text-gray-400">
+                        <div className="flex gap-1">
+                          <span className="text-gray-400 shrink-0">Reg:</span>
+                          <span className="truncate max-w-[110px]">{s.usuarioRegistra || '-'}</span>
+                          <span className="ml-auto text-gray-400 shrink-0">{s.fecRegistra}</span>
                         </div>
-                        <div className="font-medium text-gray-700 dark:text-gray-200">{s.usuarioRegistra}</div>
-                        <div className="border-t border-gray-200 dark:border-gray-600 my-1" />
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">Modificado</span>
-                          <span className="text-gray-500">{s.fecModifica}</span>
+                        <div className="flex gap-1">
+                          <span className="text-gray-400 shrink-0">Mod:</span>
+                          <span className="truncate max-w-[110px]">{s.usuarioModifica || '-'}</span>
+                          <span className="ml-auto text-gray-400 shrink-0">{s.fecModifica}</span>
                         </div>
-                        <div className="font-medium text-gray-700 dark:text-gray-200">{s.usuarioModifica}</div>
                       </div>
-                    </div>
-                  ),
-                },
-              ]}
-              highlightOnHover
-              page={page}
-              onPageChange={onPageChange}
-              totalRecords={total}
-              recordsPerPage={pageSize}
-              paginationText={({ from, to, totalRecords }) => `${from} - ${to} / ${totalRecords}`}
-            />
+                    </td>
+                  </tr>
+                ))}
+                {data.length === 0 && (
+                  <tr>
+                    <td colSpan={12} className="px-3 py-10 text-center text-sm text-gray-400">
+                      {t.no_matches ?? 'Sin resultados'}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
+
+          {total > pageSize && (
+            <div className="flex justify-center py-4 border-t border-gray-100 dark:border-gray-700">
+              <Pagination
+                total={Math.ceil(total / pageSize)}
+                value={page}
+                onChange={onPageChange}
+                size="sm"
+                radius="xl"
+              />
+            </div>
+          )}
         </div>
       )}
 

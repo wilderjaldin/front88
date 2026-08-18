@@ -293,14 +293,11 @@ const Packaging = ({ token, t, packages, onRefresh, setPackagings }) => {
                 <th className={thClass}>{t.description}</th>
                 <th className={`${thClass} text-center`}>{t.qty}</th>
                 <th className={thClass}>Origen</th>
-                <th className={thClass}>{t.h_code}</th>
-                <th className={thClass}>Material</th>
-                <th className={thClass}>{t.presentation}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
               {packages.length === 0 ? (
-                <tr><td colSpan={9} className="py-8 text-center text-xs text-gray-400">{t.no_matches}</td></tr>
+                <tr><td colSpan={6} className="py-8 text-center text-xs text-gray-400">{t.no_matches}</td></tr>
               ) : packages.map((o, index) => (
                 <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
                   <td className={tdClass}>{o.NroOrden}</td>
@@ -309,9 +306,6 @@ const Packaging = ({ token, t, packages, onRefresh, setPackagings }) => {
                   <td className={tdClass}>{o.Descripcion}</td>
                   <td className={`${tdClass} text-center`}>{o.CantRecibida}</td>
                   <td className={tdClass}>{o.Origen}</td>
-                  <td className={tdClass}>{o.HCode}</td>
-                  <td className={tdClass}>{o.Material}</td>
-                  <td className={tdClass}>{o.Presentacion}</td>
                 </tr>
               ))}
             </tbody>
