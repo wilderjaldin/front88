@@ -64,6 +64,8 @@ const URL_UPDATE_ITEM = 'cotizaciondetalle/actualizar-item';
 const URL_SEARCH_REFERENCE = 'referenciasCruzadas/buscar';
 const URL_CHANGE_REPORT      = 'cotizaciondetalle/mostrar-codigo';
 const URL_CHANGE_REPORT_PESO = 'cotizaciondetalle/mostrar-peso';
+const URL_CONSIDERAR_ENVIO_ADUANA = 'cotizaciondetalle/considerar-envio-aduana';
+const URL_CONSIDERAR_ENVIO = 'cotizaciondetalle/considerar-envio';
 const URL_CONTROLES          = 'cotizaciones/controles';
 const URL_MARCAS             = 'cotizacion/marcas';
 const URL_SAVE_SEGUIMIENTO   = 'cotizaciondetalle/registrar-seguimiento';
@@ -467,6 +469,11 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
     TipEnvio:       cotizacion.tipEnvio        ?? '',
     Vendedor:       cotizacion.vendedor        ?? '',
     TieneCopiaAr:   cotizacion.tieneCopiaAr    ?? null,
+    Considerar:             cotizacion.considerar             ?? false,
+    ConsiderarEnvio:        cotizacion.considerarEnvio        ?? false,
+    ConsiderarEnvioAduana:  cotizacion.considerarEnvioAduana  ?? false,
+    Pais:                   cotizacion.pais                   ?? '',
+    MtoFleteInternac:       cotizacion.mtoFleteInternac       ?? 0,
   });
 
   const mapDetalle = (detalle) => (detalle ?? []).map(d => ({
@@ -1223,6 +1230,28 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
     }
   };
 
+  const handleToggleConsiderarEnvioAduana = async () => {
+    const next = order.ConsiderarEnvioAduana ? 0 : 1;
+    setOrder(o => ({ ...o, ConsiderarEnvioAduana: !!next }));
+    try {
+      await axiosClient.post(URL_CONSIDERAR_ENVIO_ADUANA, { nroCotizacion: order.NroOrden, considerarEnvioAduana: next });
+      swalSuccess(t.record_updated);
+    } catch {
+      setOrder(o => ({ ...o, ConsiderarEnvioAduana: !next }));
+    }
+  };
+
+  const handleToggleConsiderarEnvio = async () => {
+    const next = order.ConsiderarEnvio ? 0 : 1;
+    setOrder(o => ({ ...o, ConsiderarEnvio: !!next }));
+    try {
+      await axiosClient.post(URL_CONSIDERAR_ENVIO, { nroCotizacion: order.NroOrden, considerarEnvio: next });
+      swalSuccess(t.record_updated);
+    } catch {
+      setOrder(o => ({ ...o, ConsiderarEnvio: !next }));
+    }
+  };
+
   const labelClass = "text-xs font-medium text-gray-500 dark:text-gray-400 w-28 shrink-0 text-right pr-3";
   const inputClass  = "h-9 flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30";
   const thClass     = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap";
@@ -1590,7 +1619,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                       } },
                     { label: 'Estado',     opts: optsEstado,     val: selEstado,    set: setSelEstado,    url: URL_SAVE_ESTADO,     key: 'estado',     payloadKey: 'codSeguimiento'  },
                   ].map(({ label, opts, val, set, url, key, payloadKey, onSave }) => (
-                    <div key={key} className="flex flex-col gap-1">
+                    <div key={key} className="flex flex-col gap-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-800/30 p-2">
                       <span className="text-xs text-gray-500">{label}</span>
                       <div className="flex items-center gap-1.5">
                         <div className="flex-1">
@@ -1931,10 +1960,68 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                   <span className="text-sm text-gray-500">{t.tax}</span>
                   <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">{customFormat(order.MtoIva)}</span>
                 </div>
-                <div className="flex items-center justify-between py-3">
+                <div className={`flex items-center justify-between py-3 ${order.ConsiderarEnvio ? 'border-b border-gray-100 dark:border-gray-700' : ''}`}>
                   <span className="text-sm font-bold text-gray-800 dark:text-gray-100">Total $us</span>
-                  <span className="text-base font-bold text-primary">{customFormat(order.Total)}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-base font-bold text-primary">{customFormat(order.Total)}</span>
+                    {order.Considerar && (
+                      <button
+                        type="button"
+                        onClick={run(handleToggleConsiderarEnvio)}
+                        disabled={isSubmitting}
+                        title={order.ConsiderarEnvio ? (t.hide_additional_charges ?? 'Ocultar Costos Adicionales') : (t.show_additional_charges ?? 'Mostrar Costos Adicionales')}
+                        className={`h-7 w-7 flex items-center justify-center rounded-lg border transition disabled:opacity-50 ${
+                          order.ConsiderarEnvio
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-gray-300 dark:border-gray-600 text-gray-400 hover:border-primary hover:text-primary hover:bg-primary/5'
+                        }`}
+                      >
+                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                          <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+                        </svg>
+                      </button>
+                    )}
+                  </div>
                 </div>
+
+                {order.Considerar && order.ConsiderarEnvio && (
+                  <div className="py-2 space-y-1.5">
+                    <p className="text-xs font-semibold text-gray-500">
+                      {(t.additional_charges_for ?? 'Costos Adicionales para')} {order.Pais || '—'}
+                    </p>
+                    <div className="flex items-center justify-between pl-2">
+                      <span className="text-xs text-gray-500">{t.freight}:</span>
+                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{customFormat(order.FleteInterno)}</span>
+                    </div>
+                    <div className="flex items-center justify-between pl-2">
+                      {order.ConsiderarEnvioAduana && <span className="text-xs text-gray-500">{t.customs ?? 'Aduana'}:</span>}
+                      <div className="flex items-center gap-1.5 ml-auto">
+                        {order.ConsiderarEnvioAduana && (
+                          <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                            {customFormat(order.MtoFleteInternac)}
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={run(handleToggleConsiderarEnvioAduana)}
+                          disabled={isSubmitting}
+                          title={order.ConsiderarEnvioAduana ? (t.hide_customs ?? 'Ocultar Aduana') : (t.show_customs ?? 'Mostrar Aduana')}
+                          className={`h-5 w-5 flex items-center justify-center rounded border transition disabled:opacity-50 ${
+                            order.ConsiderarEnvioAduana
+                              ? 'border-primary bg-primary/10 text-primary'
+                              : 'border-gray-300 dark:border-gray-600 text-gray-400 hover:border-primary hover:text-primary hover:bg-primary/5'
+                          }`}
+                        >
+                          <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                            <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

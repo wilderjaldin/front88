@@ -7,6 +7,7 @@ import { useTranslation } from '@/app/locales';
 import { useDynamicTitle } from '@/app/hooks/useDynamicTitle';
 import IconArrowBackward from '@/components/icon/icon-arrow-backward';
 import IconEdit from '@/components/icon/icon-edit';
+import IconFile from '@/components/icon/icon-file';
 
 const URL_DETAIL = 'repuestos/ver';
 
@@ -17,8 +18,9 @@ export default function SpareDetail() {
   const t      = useTranslation();
   const id     = Number(params.id);
 
-  const [spare,   setSpare]   = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [spare,     setSpare]     = useState(null);
+  const [loading,   setLoading]   = useState(true);
+  const [imgActiva, setImgActiva] = useState(null);
 
   useDynamicTitle('Detalle Repuesto');
 
@@ -258,36 +260,144 @@ export default function SpareDetail() {
 
       </div>
 
-      {/* ── Historial de Precios ─────────────────────────────────────────── */}
-      {spare?.historial?.length > 0 && (
-        <div className="panel mt-5">
-          <SectionTitle>Historial de Precios</SectionTitle>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
-                  <th className="pb-2 pr-4">Costo</th>
-                  <th className="pb-2 pr-4">Usuario</th>
-                  <th className="pb-2">Fecha</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                {spare.historial.map((h) => (
-                  <tr key={h.codRegistro}>
-                    <td className="py-2 pr-4 font-semibold text-gray-800 dark:text-gray-100">
-                      ${fmtMoney(h.costo)}
-                    </td>
-                    <td className="py-2 pr-4 text-gray-600 dark:text-gray-300">
-                      {fmt(h.usuario)}
-                    </td>
-                    <td className="py-2 text-gray-500">
-                      {fmtDateTime(h.fecRegistra)}
-                    </td>
-                  </tr>
+      {/* ── Historial de Precios + Notas Adicionales ────────────────────────── */}
+      {(spare?.historial?.length > 0 || spare?.notasAdicionales?.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-5">
+
+          {spare?.historial?.length > 0 && (
+            <div className="panel">
+              <SectionTitle>Historial de Precios</SectionTitle>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+                      <th className="pb-2 pr-4">Costo</th>
+                      <th className="pb-2 pr-4">Usuario</th>
+                      <th className="pb-2">Fecha</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                    {spare.historial.map((h) => (
+                      <tr key={h.codRegistro}>
+                        <td className="py-2 pr-4 font-semibold text-gray-800 dark:text-gray-100">
+                          ${fmtMoney(h.costo)}
+                        </td>
+                        <td className="py-2 pr-4 text-gray-600 dark:text-gray-300">
+                          {fmt(h.usuario)}
+                        </td>
+                        <td className="py-2 text-gray-500">
+                          {fmtDateTime(h.fecRegistra)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {spare?.notasAdicionales?.length > 0 && (
+            <div className="panel">
+              <SectionTitle>Notas Adicionales</SectionTitle>
+              <div className="max-h-64 overflow-y-auto rounded-lg border border-gray-100 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+                {spare.notasAdicionales.map((n, i) => (
+                  <div
+                    key={i}
+                    className={`px-3 py-2.5 ${i % 2 === 0 ? 'bg-white dark:bg-[#0e1726]' : 'bg-gray-50 dark:bg-gray-800/40'}`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">{n.nomUsuario}</span>
+                      <span className="text-[11px] text-gray-400">{fmtDateTime(n.fecha)}</span>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-0.5 whitespace-pre-wrap">{n.nota}</p>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </div>
+          )}
+
+        </div>
+      )}
+
+      {/* ── Archivos: imágenes y documentos ─────────────────────────────────── */}
+      {(spare?.imagenes?.length > 0 || spare?.documentos?.length > 0) && (
+        <div className="panel mt-5">
+          <SectionTitle>Archivos</SectionTitle>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            {spare?.imagenes?.length > 0 && (
+              <div>
+                <p className="text-xs text-gray-400 mb-2">Imágenes ({spare.imagenes.length})</p>
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                  {[...spare.imagenes].sort((a, b) => a.orden - b.orden).map((img) => (
+                    <button
+                      key={img.codImagen}
+                      type="button"
+                      onClick={() => setImgActiva(img.urlImagen)}
+                      title={img.nombre}
+                      className="group relative aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 hover:border-primary transition"
+                    >
+                      <img src={img.urlImagen} alt={img.nombre} className="w-full h-full object-cover" />
+                      {img.esPrincipal && (
+                        <span className="absolute top-1 left-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-primary text-white shadow">
+                          Principal
+                        </span>
+                      )}
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {spare?.documentos?.length > 0 && (
+              <div>
+                <p className="text-xs text-gray-400 mb-2">Documentos ({spare.documentos.length})</p>
+                <div className="space-y-2">
+                  {spare.documentos.map((doc) => (
+                    <a
+                      key={doc.codDocumento}
+                      href={doc.urlDocumento}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 hover:border-primary hover:bg-primary/5 transition"
+                    >
+                      <div className="flex-shrink-0 h-9 w-9 rounded-lg bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
+                        <IconFile className="h-4 w-4 text-red-400" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">{doc.nombre}</p>
+                        <p className="text-[11px] text-gray-400">{fmtDateTime(doc.fecRegistra)}</p>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
           </div>
+        </div>
+      )}
+
+      {/* Lightbox */}
+      {imgActiva && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setImgActiva(null)}
+        >
+          <img
+            src={imgActiva}
+            alt="Vista previa"
+            className="max-h-[90vh] max-w-[90vw] rounded-xl shadow-2xl object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            type="button"
+            onClick={() => setImgActiva(null)}
+            className="absolute top-4 right-4 h-9 w-9 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition text-lg leading-none"
+          >
+            ✕
+          </button>
         </div>
       )}
 

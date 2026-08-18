@@ -119,6 +119,11 @@ export default function Quotes() {
           TipEnvio:       cotizacion.tipEnvio        ?? '',
           Vendedor:       cotizacion.vendedor        ?? '',
           TieneCopiaAr:   cotizacion.tieneCopiaAr    ?? null,
+          Considerar:             cotizacion.considerar             ?? false,
+          ConsiderarEnvio:        cotizacion.considerarEnvio        ?? false,
+          ConsiderarEnvioAduana:  cotizacion.considerarEnvioAduana  ?? false,
+          Pais:                   cotizacion.pais                   ?? '',
+          MtoFleteInternac:       cotizacion.mtoFleteInternac       ?? 0,
         });
 
         setItems((detalle ?? []).map(d => ({

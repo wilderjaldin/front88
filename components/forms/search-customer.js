@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 import { useForm } from "react-hook-form";
 import axiosClient from '@/app/lib/axiosClient';
 import Swal from 'sweetalert2';
-import IconBackSpace from '../icon/icon-backspace';
-import IconSearch from '../icon/icon-search';
+import IconSearch from '../icon/icon-search-filled';
+import IconX from '../icon/icon-x';
 import IconInfoCircle from '../icon/icon-info-circle';
 import IconArrowForward from '../icon/icon-arrow-forward';
 
@@ -17,7 +17,8 @@ const SearchCustomerForm = ({ t, close }) => {
   const [customers, setCustomers] = useState([]);
   const [isSearch,  setIsSearch]  = useState(false);
 
-  const { register, reset, handleSubmit, setFocus } = useForm();
+  const { register, reset, handleSubmit, setFocus, watch } = useForm();
+  const query = watch('query');
 
   React.useEffect(() => {
     setFocus("query");
@@ -59,8 +60,8 @@ const SearchCustomerForm = ({ t, close }) => {
 
       {/* Search bar */}
       <form onSubmit={handleSubmit(onSearch)}>
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
+        <div className="flex items-stretch h-10 rounded-lg shadow-sm border border-gray-300 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-900">
+          <div className="relative flex-1 min-w-0">
             <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
               <IconSearch className="h-4 w-4" />
             </span>
@@ -69,27 +70,22 @@ const SearchCustomerForm = ({ t, close }) => {
               autoComplete="off"
               {...register("query", { required: true })}
               placeholder={t.enter_search_customer}
-              className="h-10 w-full rounded-lg border border-gray-300 dark:border-gray-700
-                bg-white dark:bg-gray-900 pl-9 pr-3 text-sm
-                focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="w-full h-full pl-9 pr-8 text-sm bg-transparent border-0 focus:outline-none"
             />
+            {query && (
+              <button
+                type="button"
+                onClick={clear}
+                className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition"
+              >
+                <IconX className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
 
           <button
-            type="button"
-            onClick={clear}
-            title={t.btn_clear}
-            className="flex h-10 items-center justify-center rounded-lg px-3
-              bg-gray-200 text-gray-700 hover:bg-gray-300 transition
-              dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-          >
-            <IconBackSpace className="h-4 w-4" />
-          </button>
-
-          <button
             type="submit"
-            className="flex h-10 items-center gap-1.5 rounded-lg px-4
-              bg-primary/20 text-primary hover:bg-primary/40 transition text-sm font-medium"
+            className="flex items-center gap-1.5 px-4 shrink-0 bg-primary text-white hover:bg-primary/90 transition text-sm font-medium"
           >
             <IconSearch className="h-4 w-4" />
             {t.btn_search}

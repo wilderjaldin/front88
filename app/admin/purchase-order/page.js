@@ -125,6 +125,13 @@ export default function PurchaseOrder() {
     }
   }
 
+  // El backend ya devuelve la lista de asignados actualizada al generar la OC —
+  // se aplica directo, sin volver a pedirla.
+  const applyGeneratedAssigned = (asignados) => {
+    setOrdersAssigned(asignados.map(mapPendingOrder));
+    setLoadedTabs(prev => ({ ...prev, assigned: true }));
+  };
+
   const searchUnassigned = (term) => { setTermUnassigned(term); fetchUnassigned(term); };
   const clearUnassigned  = () => { setTermUnassigned('');       fetchUnassigned(''); };
   const searchAssigned   = (term) => { setTermAssigned(term);   fetchAssigned(term); };
@@ -258,7 +265,7 @@ export default function PurchaseOrder() {
 
   if (items.length > 0) {
     return (
-      <PurchaseOrderDetails setReload={setReload} CadNroOrden={CadNroOrden} token={token} t={t} order={order} items={items} setOrder={() => setItems([])} setItems={setItems} contact={contact} ></PurchaseOrderDetails>
+      <PurchaseOrderDetails setReload={setReload} CadNroOrden={CadNroOrden} token={token} t={t} order={order} items={items} setOrder={() => setItems([])} setItems={setItems} contact={contact} onOrderGenerated={applyGeneratedAssigned} ></PurchaseOrderDetails>
     );
   }
 

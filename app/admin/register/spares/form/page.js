@@ -1,5 +1,5 @@
 ﻿'use client';
-import { useCallback, useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useRouter, useSearchParams } from 'next/navigation';
 import axiosClient from '@/app/lib/axiosClient';
@@ -21,7 +21,6 @@ const URL_CONTROLS = 'repuestos/controles?incluirEstados=true';
 const URL_DETAIL   = 'repuestos/detalle';
 const URL_SAVE     = 'repuestos/registrar';
 const URL_UPDATE   = 'repuestos/editar';
-const URL_ADD_NOTE = 'repuestos/agregar-nota-adicional';
 
 const ASYNC_LIMIT     = 20;
 const ASYNC_MIN_CHARS = 2;
@@ -29,54 +28,6 @@ const ASYNC_MIN_CHARS = 2;
 const formatDateTime = (val) => {
   if (!val) return '—';
   return new Date(val).toLocaleString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-};
-
-// ── Estilos react-select mejorados, compatibles con dark mode ─────────────────
-const selectStyles = {
-  control: (base, state) => ({
-    ...base,
-    backgroundColor: 'var(--select-bg, #fff)',
-    borderColor: state.isFocused
-      ? '#4361ee'
-      : state.selectProps.error
-        ? '#f87171'
-        : 'var(--select-border, #e0e6ed)',
-    borderRadius: '0.5rem',
-    minHeight: '42px',
-    boxShadow: state.isFocused ? '0 0 0 3px rgba(67,97,238,0.12)' : 'none',
-    transition: 'border-color .15s, box-shadow .15s',
-    '&:hover': { borderColor: '#4361ee' },
-  }),
-  menu: (base) => ({
-    ...base,
-    backgroundColor: 'var(--select-bg, #fff)',
-    border: '1px solid var(--select-border, #e0e6ed)',
-    borderRadius: '0.5rem',
-    boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
-    zIndex: 50,
-    overflow: 'hidden',
-  }),
-  menuList: (base) => ({ ...base, padding: '4px' }),
-  option: (base, state) => ({
-    ...base,
-    backgroundColor: state.isSelected
-      ? '#4361ee'
-      : state.isFocused
-        ? 'rgba(67,97,238,0.08)'
-        : 'transparent',
-    color: state.isSelected ? '#fff' : 'inherit',
-    borderRadius: '0.375rem',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    padding: '7px 10px',
-  }),
-  singleValue:        (base) => ({ ...base, color: 'inherit', fontSize: '0.875rem' }),
-  input:              (base) => ({ ...base, color: 'inherit', fontSize: '0.875rem' }),
-  placeholder:        (base) => ({ ...base, color: '#9ca3af', fontSize: '0.875rem' }),
-  clearIndicator:     (base) => ({ ...base, color: '#9ca3af', padding: '5px', '&:hover': { color: '#e7515a' } }),
-  dropdownIndicator:  (base) => ({ ...base, color: '#9ca3af', padding: '5px' }),
-  indicatorSeparator: (base) => ({ ...base, backgroundColor: 'var(--select-border, #e0e6ed)' }),
-  valueContainer:     (base) => ({ ...base, padding: '2px 12px' }),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -103,7 +54,7 @@ export default function SpareFormPage() {
   const [isSaving,    setIsSaving]    = useState(false);
   const [notesHistory, setNotesHistory] = useState([]);
 
-  const [tempToken] = useState(() => crypto.randomUUID());
+  const spareFilesRef = useRef(null);
 
   // ── AsyncSelect helpers ───────────────────────────────────────────────────
   const filterOpts = (options, input) => {
@@ -128,7 +79,7 @@ export default function SpareFormPage() {
 
   // ── Form ──────────────────────────────────────────────────────────────────
   const {
-    register, handleSubmit, control, reset, watch, setValue,
+    register, handleSubmit, control, reset, watch, setValue, setFocus, getValues,
     formState: { errors },
   } = useForm({
     defaultValues: {
@@ -144,14 +95,16 @@ export default function SpareFormPage() {
       costo:                  '0.00',
       canMin:                 1,
       uniMed:                 { value: 'UNI', label: 'UNIDAD' },
-      blnPedEspecialSinFecha: false,
-      blnPedidoEspecial:      false,
+      // Poco Inventario / Pedido especial sin Fecha / Pedido especial forman un grupo
+      // mutuamente excluyente (un solo campo). No Express es independiente (ver abajo).
+      tipoPedido:             '',
       canDias:                0,
+      blnNoExpress:           false,
       notaAdicional:          '',
     }
   });
 
-  const watchPedido = watch('blnPedidoEspecial');
+  const watchTipoPedido = watch('tipoPedido');
 
   // ── Carga inicial ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -201,9 +154,12 @@ export default function SpareFormPage() {
             peso:                   d.peso   ?? '0.00',
             costo:                  d.costo  ?? '0.00',
             canMin:                 d.canMin ?? 1,
-            blnPedEspecialSinFecha: !!d.blnPedEspecialSinFecha,
-            blnPedidoEspecial:      !!d.blnPedidoEspecial,
+            tipoPedido:             d.blnPocoInventario      ? 'poco_inventario'
+                                   : d.blnPedEspecialSinFecha ? 'sin_fecha'
+                                   : d.blnPedidoEspecial      ? 'especial'
+                                   : '',
             canDias:                d.canDias ?? 0,
+            blnNoExpress:           !!d.blnNoExpress,
           });
 
           setNotesHistory(d.notasAdicionales ?? []);
@@ -219,52 +175,72 @@ export default function SpareFormPage() {
   }, []);
 
   // ── Submit ────────────────────────────────────────────────────────────────
+  // Mismo modelo para crear y editar: TODO — datos del repuesto, nota adicional
+  // e imágenes/documentos (nuevos o "sugeridos" reutilizados de otro repuesto) —
+  // va en UN SOLO POST/PUT multipart. Antes edición mandaba 2-3 llamados
+  // encadenados (PUT datos → POST nota → POST/DELETE por archivo); ahora la API
+  // resuelve todo del mismo payload que registro, solo que con codRepuesto.
   const onSubmit = async (data) => {
     setIsSaving(true);
 
     try {
-      const payload = {
-        ...(isEdit && { codRepuesto: id }),
-        ...(!isEdit && { tempToken }),
-        nroParte:               data.nroParte.trim(),
-        desRepuesto:            data.desRepuesto.trim(),
-        codPrv:                 data.codPrv?.value        ? parseInt(data.codPrv.value)        : null,
-        codAplicacion:          data.codAplicacion?.value ? parseInt(data.codAplicacion.value) : null,
-        codMarca:               data.codMarca?.value      ? parseInt(data.codMarca.value)      : null,
-        tipRepuesto:            data.tipRepuesto?.value   || null,
-        estado:                 data.estado?.value        ?? null,
-        estNroParte:            data.estNroParte?.value   ?? 'AC',
-        peso:                   Number(data.peso)         || 0,
-        costo:                  Number(data.costo)        || 0,
-        canMin:                 Number(data.canMin)       || 1,
-        uniMed:                 data.uniMed?.value        ?? 'UNI',
-        blnPedEspecialSinFecha: data.blnPedEspecialSinFecha ? true : false,
-        blnPedidoEspecial:      data.blnPedidoEspecial    ? true : false,
-        canDias:                data.blnPedidoEspecial ? (Number(data.canDias) || null) : null,
+      const tipoPedidoFields = {
+        blnPocoInventario:      data.tipoPedido === 'poco_inventario',
+        blnPedEspecialSinFecha: data.tipoPedido === 'sin_fecha',
+        blnPedidoEspecial:      data.tipoPedido === 'especial',
+        blnNoExpress:           data.blnNoExpress ? true : false,
+        canDias:                data.tipoPedido === 'especial' ? (Number(data.canDias) || null) : null,
       };
 
-      const method = isEdit ? 'put'      : 'post';
-      const url    = isEdit ? URL_UPDATE : URL_SAVE;
-      await axiosClient[method](url, payload);
+      const {
+        imagenes = [], documentos = [],
+        imagenesAsignadas = [], documentosAsignados = [],
+      } = spareFilesRef.current?.getQueuedFiles() ?? {};
 
-      // La nota adicional tiene su propio endpoint (usuario/fecha los resuelve el
-      // backend por JWT), pero para el usuario es "un campo más" del formulario:
-      // se guarda junto con el resto al tocar un solo botón.
+      const form = new FormData();
+      if (isEdit) form.append('codRepuesto', id);
+      form.append('nroParte', data.nroParte.trim());
+      form.append('desRepuesto', data.desRepuesto.trim());
+      if (data.codPrv?.value)        form.append('codPrv', parseInt(data.codPrv.value));
+      if (data.codAplicacion?.value) form.append('codAplicacion', parseInt(data.codAplicacion.value));
+      if (data.codMarca?.value)      form.append('codMarca', parseInt(data.codMarca.value));
+      if (data.tipRepuesto?.value)   form.append('tipRepuesto', data.tipRepuesto.value);
+      if (data.estado?.value)        form.append('estado', data.estado.value);
+      form.append('estNroParte', data.estNroParte?.value ?? 'AC');
+      form.append('peso', Number(data.peso) || 0);
+      form.append('costo', Number(data.costo) || 0);
+      form.append('canMin', Number(data.canMin) || 1);
+      form.append('uniMed', data.uniMed?.value ?? 'UNI');
+      form.append('blnPocoInventario', tipoPedidoFields.blnPocoInventario);
+      form.append('blnPedEspecialSinFecha', tipoPedidoFields.blnPedEspecialSinFecha);
+      form.append('blnPedidoEspecial', tipoPedidoFields.blnPedidoEspecial);
+      form.append('blnNoExpress', tipoPedidoFields.blnNoExpress);
+      if (tipoPedidoFields.canDias != null) form.append('canDias', tipoPedidoFields.canDias);
+
       const nota = data.notaAdicional?.trim();
-      let noteFailed = false;
-      if (isEdit && nota) {
-        try {
-          await axiosClient.post(URL_ADD_NOTE, { codRepuesto: id, nota });
-        } catch (noteErr) {
-          noteFailed = true;
-        }
+      if (nota) form.append('nota', nota);
+
+      imagenes.forEach((file) => form.append('imagenes', file));
+      documentos.forEach(({ file, nombre }) => {
+        form.append('documentos', file);
+        form.append('nombresDocumentos', nombre);
+      });
+      // Archivos "sugeridos" (ya existentes en otro repuesto) elegidos antes de
+      // guardar — se asignan por codArchivo, no se vuelven a subir. Sin confirmar
+      // todavía si el back acepta estos dos campos en el mismo POST/PUT.
+      imagenesAsignadas.forEach((codArchivo) => form.append('imagenesAsignadas', codArchivo));
+      documentosAsignados.forEach((codArchivo) => form.append('documentosAsignados', codArchivo));
+
+      // Content-Type NO se fija a mano: axios necesita generar el boundary del
+      // multipart automáticamente, si no el backend no puede parsear el body.
+      if (isEdit) {
+        await axiosClient.put(URL_UPDATE, form, { headers: { 'Content-Type': undefined } });
+        await swalSuccess('Repuesto actualizado correctamente');
+      } else {
+        await axiosClient.post(URL_SAVE, form, { headers: { 'Content-Type': undefined } });
+        await swalSuccess('Repuesto registrado correctamente');
       }
 
-      if (noteFailed) {
-        await swalError(t.warning ?? 'Advertencia', 'El repuesto se guardó, pero no se pudo guardar la nota adicional.');
-      } else {
-        await swalSuccess(isEdit ? 'Repuesto actualizado correctamente' : 'Repuesto registrado correctamente');
-      }
       router.push('/admin/register/spares');
 
     } catch (err) {
@@ -290,52 +266,11 @@ export default function SpareFormPage() {
       : null;
 
   // ─────────────────────────────────────────────────────────────────────────
+  // .spare-form: los overrides de .form-input/.form-checkbox/.select__* (altura,
+  // radio, color de foco) viven en styles/tailwind.css, scopeados a esta clase —
+  // ya no en un <style> inyectado acá.
   return (
-    <div>
-
-      {/* CSS vars react-select dark mode + overrides de input */}
-      <style>{`
-        :root { --select-bg: #fff; --select-border: #e0e6ed; }
-        .dark  { --select-bg: #1b2e4b; --select-border: #17263c; }
-
-        /* Inputs y textareas: radio consistente con los select */
-        .form-input, .form-textarea {
-          border-radius: 0.5rem !important;
-          min-height: 42px;
-          font-size: 0.875rem;
-          transition: border-color .15s, box-shadow .15s;
-        }
-        .form-input:focus, .form-textarea:focus {
-          border-color: #4361ee !important;
-          box-shadow: 0 0 0 3px rgba(67,97,238,0.12) !important;
-        }
-        .form-input.input-error {
-          border-color: #f87171 !important;
-        }
-
-        /* Checkbox: más moderno */
-        .form-checkbox {
-          width: 17px !important;
-          height: 17px !important;
-          border-radius: 5px !important;
-          border-color: #d1d5db !important;
-          cursor: pointer;
-          transition: all .15s;
-        }
-        .form-checkbox:checked {
-          background-color: #4361ee !important;
-          border-color: #4361ee !important;
-        }
-        .form-checkbox:focus {
-          box-shadow: 0 0 0 3px rgba(67,97,238,0.18) !important;
-        }
-
-        /* Bloqueo visual del form mientras se guarda */
-        .form-saving {
-          pointer-events: none;
-          opacity: 0.65;
-        }
-      `}</style>
+    <div className="spare-form">
 
       {/* Breadcrumb */}
       <ul className="flex space-x-2 rtl:space-x-reverse mb-6">
@@ -388,406 +323,482 @@ export default function SpareFormPage() {
           p-6
           ${isSaving ? 'form-saving' : ''}
         `}>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-5">
+          {/* 3 columnas independientes (flex, no grid) — cada una alta según su propio
+              contenido, sin que una celda más alta le fuerce espacio en blanco a sus
+              vecinas de la misma fila (eso pasaba con CSS Grid + alturas dispares). */}
+          <div className="flex flex-col sm:flex-row gap-x-8 gap-y-6 items-start">
 
-            {/* ── FILA 1 ──────────────────────────────────────────────────── */}
+            {/* ── COLUMNA 1 ──────────────────────────────────────────────────── */}
+            <div className="flex-1 flex flex-col gap-y-6 w-full">
 
-            {/* 1. Nro. Parte */}
-            <div>
-              <label className="block text-sm font-medium mb-1.5">
-                {t.nro_part ?? 'Nro. Parte'} <span className="text-red-500">*</span>
-              </label>
-              <input
-                tabIndex={1}
-                type="text"
-                autoComplete="off"
-                placeholder="Ej: 3415661"
-                {...register('nroParte', {
-                  required:  'Campo requerido',
-                  maxLength: { value: 25, message: 'Máximo 25 caracteres' },
-                })}
-                className={`form-input w-full ${errors.nroParte ? 'input-error' : ''}`}
-              />
-              <FieldError name="nroParte" />
-            </div>
+              {/* 1. Nro. Parte */}
+              <div className="max-w-[50%]">
+                <label className="block text-sm font-medium mb-1.5">
+                  {t.nro_part ?? 'Nro. Parte'} <span className="text-red-500">*</span>
+                </label>
+                <input
+                  tabIndex={1}
+                  type="text"
+                  autoComplete="off"
+                  placeholder="Ej: 3415661"
+                  {...register('nroParte', {
+                    required:  'Campo requerido',
+                    maxLength: { value: 25, message: 'Máximo 25 caracteres' },
+                  })}
+                  className={`form-input w-full ${errors.nroParte ? 'error' : ''}`}
+                />
+                <FieldError name="nroParte" />
+              </div>
 
-            {/* 2. Aplicación */}
-            <div>
-              <label className="block text-sm font-medium mb-1.5">
-                {t.application ?? 'Aplicación'} <span className="text-red-500">*</span>
-              </label>
-              <SelectBrand
-                t={t}
-                name="codAplicacion"
-                control={control}
-                errors={errors}
-                setValue={setValue}
-                brands={brands}
-                current={isEdit ? watch('codAplicacion') : null}
-                required="Seleccione una aplicación"
-                placeholder="Buscar aplicación..."
-                tabIndex={2}
-                instanceId="select-aplicacion"
-                onBrandAdded={({ marcas }) => setBrands(marcas)}
-              />
-              <FieldError name="codAplicacion" />
-            </div>
+              {/* 4. Descripción */}
+              <div>
+                <label className="block text-sm font-medium mb-1.5">
+                  {t.description ?? 'Descripción'} <span className="text-red-500">*</span>
+                </label>
+                <input
+                  tabIndex={5}
+                  type="text"
+                  autoComplete="off"
+                  placeholder="Descripción del repuesto"
+                  {...register('desRepuesto', {
+                    required:  'Campo requerido',
+                    maxLength: { value: 300, message: 'Máximo 300 caracteres' },
+                  })}
+                  className={`form-input w-full ${errors.desRepuesto ? 'error' : ''}`}
+                />
+                <FieldError name="desRepuesto" />
+              </div>
 
-            {/* 3. Peso */}
-            <div>
-              <label className="block text-sm font-medium mb-1.5">
-                {t.weight ?? 'Peso (lb)'}
-              </label>
-              <input
-                tabIndex={3}
-                type="number"
-                step="any"
-                min="0"
-                placeholder="0.00"
-                {...register('peso')}
-                className="form-input w-full"
-              />
-            </div>
-
-            {/* ── FILA 2 ──────────────────────────────────────────────────── */}
-
-            {/* 4. Descripción */}
-            <div>
-              <label className="block text-sm font-medium mb-1.5">
-                {t.description ?? 'Descripción'} <span className="text-red-500">*</span>
-              </label>
-              <input
-                tabIndex={4}
-                type="text"
-                autoComplete="off"
-                placeholder="Descripción del repuesto"
-                {...register('desRepuesto', {
-                  required:  'Campo requerido',
-                  maxLength: { value: 300, message: 'Máximo 300 caracteres' },
-                })}
-                className={`form-input w-full ${errors.desRepuesto ? 'input-error' : ''}`}
-              />
-              <FieldError name="desRepuesto" />
-            </div>
-
-            {/* 5. Tipo de Repuesto */}
-            <div>
-              <label className="block text-sm font-medium mb-1.5">
-                {t.spare_part_type ?? 'Tipo de Repuesto'} <span className="text-red-500">*</span>
-              </label>
-              <Controller
-                name="tipRepuesto"
-                control={control}
-                rules={{ required: 'Seleccione un tipo de repuesto' }}
-                render={({ field }) => (
-                  <Select
-                    tabIndex={5}
-                    options={types}
-                    value={field.value}
-                    onChange={(s) => field.onChange(s ?? null)}
-                    placeholder="Tipo de repuesto"
-                    isClearable
-                    classNamePrefix="select"
-                    styles={selectStyles}
-                    className="w-full"
-                    error={!!errors.tipRepuesto}
-                  />
-                )}
-              />
-              <FieldError name="tipRepuesto" />
-            </div>
-
-            {/* 6. Costo */}
-            <div>
-              <label className="block text-sm font-medium mb-1.5">
-                {t.cost ?? 'Costo'}
-              </label>
-              <input
-                tabIndex={6}
-                type="number"
-                step="any"
-                min="0"
-                placeholder="0.00"
-                {...register('costo')}
-                className="form-input w-full"
-              />
-            </div>
-
-            {/* ── FILA 3 ──────────────────────────────────────────────────── */}
-
-            {/* 7. Proveedor */}
-            <div>
-              <label className="block text-sm font-medium mb-1.5">
-                {t.supplier ?? 'Proveedor'} <span className="text-red-500">*</span>
-              </label>
-              <Controller
-                name="codPrv"
-                control={control}
-                rules={{ required: 'Seleccione un proveedor' }}
-                render={({ field }) => (
-                  <AsyncSelect
-                    tabIndex={7}
-                    loadOptions={loadSuppliers}
-                    defaultOptions={false}
-                    value={field.value}
-                    onChange={(s) => field.onChange(s ?? null)}
-                    placeholder="Buscar proveedor..."
-                    noOptionsMessage={noOptsMsg}
-                    isClearable
-                    cacheOptions
-                    classNamePrefix="select"
-                    styles={selectStyles}
-                    className="w-full"
-                    error={!!errors.codPrv}
-                    formatOptionLabel={(opt) => (
-                      <span>
-                        {opt.label}
-                        {opt.razSoc && opt.razSoc !== opt.label && (
-                          <span className="text-gray-400"> ({opt.razSoc})</span>
-                        )}
-                      </span>
-                    )}
-                  />
-                )}
-              />
-              <FieldError name="codPrv" />
-            </div>
-
-            {/* 8. Marca */}
-            <div>
-              <label className="block text-sm font-medium mb-1.5">
-                {t.brand ?? 'Marca'} <span className="text-red-500">*</span>
-              </label>
-              <SelectBrand
-                t={t}
-                name="codMarca"
-                control={control}
-                errors={errors}
-                setValue={setValue}
-                brands={brands}
-                current={isEdit ? watch('codMarca') : null}
-                required="Seleccione una marca"
-                placeholder="Buscar marca..."
-                tabIndex={8}
-                instanceId="select-marca"
-                onBrandAdded={({ marcas }) => setBrands(marcas)}
-              />
-              <FieldError name="codMarca" />
-            </div>
-
-            {/* 9. Cant. Mínima + Unidad */}
-            <div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium mb-1.5">
-                    {t.min_quantity ?? 'Cant. Mínima'}
-                  </label>
-                  <input
-                    tabIndex={9}
-                    type="number"
-                    min="0"
-                    placeholder="1"
-                    {...register('canMin')}
-                    className="form-input w-full"
-                  />
+              {/* 7. Tipo de Repuesto + Estado — juntos en la misma celda */}
+              <div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5">
+                      {t.spare_part_type ?? 'Tipo de Repuesto'} <span className="text-red-500">*</span>
+                    </label>
+                    <Controller
+                      name="tipRepuesto"
+                      control={control}
+                      rules={{ required: 'Seleccione un tipo de repuesto' }}
+                      render={({ field }) => (
+                        <Select
+                          tabIndex={8}
+                          options={types}
+                          value={field.value}
+                          onChange={(s) => field.onChange(s ?? null)}
+                          placeholder="Tipo de repuesto"
+                          isClearable
+                          classNamePrefix="sf-select"
+                          className={`w-full ${errors.tipRepuesto ? 'react-select-error' : ''}`}
+                        />
+                      )}
+                    />
+                    <FieldError name="tipRepuesto" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5">
+                      {t.status ?? 'Estado'} <span className="text-red-500">*</span>
+                    </label>
+                    <Controller
+                      name="estado"
+                      control={control}
+                      rules={{ required: 'Requerido' }}
+                      render={({ field }) => (
+                        <Select
+                          tabIndex={9}
+                          options={status}
+                          value={field.value}
+                          onChange={(s) => field.onChange(s ?? null)}
+                          placeholder="Seleccionar..."
+                          classNamePrefix="sf-select"
+                          className={`w-full ${errors.estado ? 'react-select-error' : ''}`}
+                        />
+                      )}
+                    />
+                    <FieldError name="estado" />
+                  </div>
                 </div>
+              </div>
+
+              {/* 11. Poco Inventario / Pedido especial sin Fecha / Pedido especial — grupo excluyente */}
+              <div>
+                <div className="flex flex-wrap items-center gap-4">
+
+                  {[
+                    { value: 'poco_inventario', tabIndex: 13, label: t.low_inventory ?? 'Poco Inventario' },
+                    { value: 'sin_fecha',       tabIndex: 14, label: t.abb_special_order_date ?? 'Ped. Esp. S/Fecha' },
+                  ].map((opt) => {
+                    const active = watchTipoPedido === opt.value;
+                    return (
+                      <label
+                        key={opt.value}
+                        className={`flex items-center shrink-0 gap-1 h-[42px] px-2 rounded-lg border cursor-pointer select-none transition m-0
+                          ${active
+                            ? 'border-primary bg-primary/5'
+                            : 'border-gray-400 dark:border-[#17263c] bg-gray-50 dark:bg-[#0b1220] hover:border-primary/60 hover:bg-white dark:hover:bg-[#121e32]'}`}
+                      >
+                        <input
+                          tabIndex={opt.tabIndex}
+                          type="radio"
+                          name="tipoPedido"
+                          checked={active}
+                          onChange={() => {}}
+                          onClick={() => setValue('tipoPedido', active ? '' : opt.value, { shouldDirty: true })}
+                          className="form-radio"
+                        />
+                        <span className="text-sm font-medium">{opt.label}</span>
+                      </label>
+                    );
+                  })}
+
+                  {/* Pedido especial: trae su propio input de días, solo habilitado cuando está elegido */}
+                  <div
+                    className={`flex items-center shrink-0 gap-1.5 h-[42px] px-2 rounded-lg border transition
+                      ${watchTipoPedido === 'especial'
+                        ? 'border-primary bg-primary/5'
+                        : 'border-gray-400 dark:border-[#17263c] bg-gray-50 dark:bg-[#0b1220] hover:border-primary/60 hover:bg-white dark:hover:bg-[#121e32]'}`}
+                  >
+                    <label className="flex items-center gap-1 cursor-pointer select-none m-0">
+                      <input
+                        tabIndex={15}
+                        type="radio"
+                        name="tipoPedido"
+                        checked={watchTipoPedido === 'especial'}
+                        onChange={() => {}}
+                        onClick={() => {
+                          const next = watchTipoPedido === 'especial' ? '' : 'especial';
+                          setValue('tipoPedido', next, { shouldDirty: true });
+                          // El input de días recién se habilita en el próximo render — el
+                          // foco tiene que esperar a que deje de estar disabled.
+                          if (next === 'especial') setTimeout(() => setFocus('canDias'), 0);
+                        }}
+                        className="form-radio"
+                      />
+                      <span className="text-sm font-medium">{t.abb_special_order ?? 'Ped. Especial'}</span>
+                    </label>
+                    <span className="w-px h-5 bg-gray-200 dark:bg-[#17263c] shrink-0" />
+                    <input
+                      tabIndex={16}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={3}
+                      defaultValue={0}
+                      placeholder="0"
+                      disabled={watchTipoPedido !== 'especial'}
+                      {...register('canDias', {
+                        onChange: (e) => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 3); },
+                      })}
+                      className="w-8 text-center text-sm bg-transparent border-0 p-0 focus:outline-none
+                        disabled:opacity-40 disabled:cursor-not-allowed"
+                    />
+                    <span className="text-xs text-gray-400 shrink-0">{t.days ?? 'días'}</span>
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+
+            {/* ── COLUMNA 2 ──────────────────────────────────────────────────── */}
+            <div className="flex-1 flex flex-col gap-y-6 w-full">
+
+              {/* 2. Aplicación */}
+              <div>
+                <label className="block text-sm font-medium mb-1.5">
+                  {t.application ?? 'Aplicación'} <span className="text-red-500">*</span>
+                </label>
+                <SelectBrand
+                  t={t}
+                  name="codAplicacion"
+                  control={control}
+                  errors={errors}
+                  setValue={setValue}
+                  brands={brands}
+                  current={isEdit ? watch('codAplicacion') : null}
+                  required="Seleccione una aplicación"
+                  placeholder="Buscar aplicación..."
+                  tabIndex={2}
+                  instanceId="select-aplicacion"
+                  onBrandAdded={({ marcas }) => setBrands(marcas)}
+                />
+                <FieldError name="codAplicacion" />
+              </div>
+
+              {/* 5. Proveedor + 6. Marca — Marca apilada debajo de Proveedor, en la misma celda */}
+              <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-1.5">
-                    {t.unit ?? 'Unidad'} <span className="text-red-500">*</span>
+                    {t.supplier ?? 'Proveedor'} <span className="text-red-500">*</span>
                   </label>
                   <Controller
-                    name="uniMed"
+                    name="codPrv"
                     control={control}
-                    rules={{ required: 'Requerido' }}
+                    rules={{ required: 'Seleccione un proveedor' }}
                     render={({ field }) => (
-                      <Select
-                        tabIndex={10}
-                        options={units}
+                      <AsyncSelect
+                        tabIndex={6}
+                        loadOptions={loadSuppliers}
+                        defaultOptions={false}
                         value={field.value}
                         onChange={(s) => field.onChange(s ?? null)}
-                        placeholder={t.unit}
-                        classNamePrefix="select"
-                        styles={selectStyles}
-                        className="w-full"
-                        error={!!errors.uniMed}
+                        placeholder="Buscar proveedor..."
+                        noOptionsMessage={noOptsMsg}
+                        isClearable
+                        cacheOptions
+                        classNamePrefix="sf-select"
+                        className={`w-full ${errors.codPrv ? 'react-select-error' : ''}`}
+                        formatOptionLabel={(opt) => (
+                          <span>
+                            {opt.label}
+                            {opt.razSoc && opt.razSoc !== opt.label && (
+                              <span className="text-gray-400"> ({opt.razSoc})</span>
+                            )}
+                          </span>
+                        )}
                       />
                     )}
                   />
-                  <FieldError name="uniMed" />
+                  <FieldError name="codPrv" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">
+                    {t.brand ?? 'Marca'} <span className="text-red-500">*</span>
+                  </label>
+                  <SelectBrand
+                    t={t}
+                    name="codMarca"
+                    control={control}
+                    errors={errors}
+                    setValue={setValue}
+                    brands={brands}
+                    current={isEdit ? watch('codMarca') : null}
+                    required="Seleccione una marca"
+                    placeholder="Buscar marca..."
+                    tabIndex={7}
+                    instanceId="select-marca"
+                    onBrandAdded={({ marcas }) => setBrands(marcas)}
+                  />
+                  <FieldError name="codMarca" />
                 </div>
               </div>
-            </div>
 
-            {/* ── FILA 4 ──────────────────────────────────────────────────── */}
-
-            {/* 10. Estado */}
-            <div>
-              <label className="block text-sm font-medium mb-1.5">
-                {t.status ?? 'Estado'} <span className="text-red-500">*</span>
-              </label>
-              <Controller
-                name="estado"
-                control={control}
-                rules={{ required: 'Requerido' }}
-                render={({ field }) => (
-                  <Select
-                    tabIndex={11}
-                    options={status}
-                    value={field.value}
-                    onChange={(s) => field.onChange(s ?? null)}
-                    placeholder="Seleccionar..."
-                    classNamePrefix="select"
-                    styles={selectStyles}
-                    className="w-full"
-                    error={!!errors.estado}
-                  />
-                )}
-              />
-              <FieldError name="estado" />
-            </div>
-
-            {/* 11. Estado Código */}
-            <div>
-              <label className="block text-sm font-medium mb-1.5">
-                {t.status_code ?? 'Estado Código'}
-              </label>
-              <Controller
-                name="estNroParte"
-                control={control}
-                render={({ field }) => (
-                  <Select
-                    tabIndex={12}
-                    options={status_code}
-                    value={field.value}
-                    onChange={(s) => field.onChange(s ?? null)}
-                    placeholder="Seleccionar..."
-                    classNamePrefix="select"
-                    styles={selectStyles}
-                    className="w-full"
-                  />
-                )}
-              />
-            </div>
-
-            {/* col 3 vacía — fila 4 */}
-            <div />
-
-            {/* ── FILA 5 — Pedido Especial ────────────────────────────────── */}
-
-            {/* 12. Pedido especial sin fecha */}
-            <div>
-              <label className="block text-sm font-medium mb-1.5 invisible select-none">
-                &nbsp;
-              </label>
-              <label className="flex items-center gap-2.5 cursor-pointer select-none h-[42px]">
-                <input
-                  tabIndex={13}
-                  type="checkbox"
-                  {...register('blnPedEspecialSinFecha')}
-                  className="form-checkbox"
+              {/* 9. Estado Código */}
+              <div className="max-w-[50%]">
+                <label className="block text-sm font-medium mb-1.5">
+                  {t.status_code ?? 'Estado Código'}
+                </label>
+                <Controller
+                  name="estNroParte"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      tabIndex={10}
+                      options={status_code}
+                      value={field.value}
+                      onChange={(s) => field.onChange(s ?? null)}
+                      placeholder="Seleccionar..."
+                      classNamePrefix="sf-select"
+                      className="w-full"
+                    />
+                  )}
                 />
-                <span className="text-sm font-medium">
-                  {t.order_special_without_date ?? 'Pedido especial sin Fecha'}
-                </span>
-              </label>
+              </div>
+
             </div>
 
-            {/* 13. Pedido especial + días */}
-            <div>
-              <label className="block text-sm font-medium mb-1.5">
-                {t.special_order ?? 'Pedido especial'}
-              </label>
-              <div className="flex">
-                <div className="flex items-center px-3
-                  bg-white dark:bg-[#1b2e4b]
-                  border border-r-0 border-white-light dark:border-[#17263c]
-                  rounded-l-lg">
+            {/* ── COLUMNA 3 ──────────────────────────────────────────────────── */}
+            <div className="flex-1 flex flex-col gap-y-6 w-full">
+
+              {/* 3. Peso + Costo */}
+              <div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5">
+                      {t.weight ?? 'Peso (lb)'}
+                    </label>
+                    <input
+                      tabIndex={3}
+                      type="number"
+                      step="any"
+                      min="0"
+                      placeholder="0.00"
+                      {...register('peso')}
+                      className="form-input w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5">
+                      {t.cost ?? 'Costo'}
+                    </label>
+                    <input
+                      tabIndex={4}
+                      type="number"
+                      step="any"
+                      min="0"
+                      placeholder="0.00"
+                      {...register('costo')}
+                      className="form-input w-full"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 10. Cant. Mínima + Unidad */}
+              <div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5">
+                      {t.min_quantity ?? 'Cant. Mínima'}
+                    </label>
+                    <input
+                      tabIndex={11}
+                      type="number"
+                      min="0"
+                      placeholder="1"
+                      {...register('canMin')}
+                      className="form-input w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5">
+                      {t.unit ?? 'Unidad'} <span className="text-red-500">*</span>
+                    </label>
+                    <Controller
+                      name="uniMed"
+                      control={control}
+                      rules={{ required: 'Requerido' }}
+                      render={({ field }) => (
+                        <Select
+                          tabIndex={12}
+                          options={units}
+                          value={field.value}
+                          onChange={(s) => field.onChange(s ?? null)}
+                          placeholder={t.unit}
+                          classNamePrefix="sf-select"
+                          className={`w-full ${errors.uniMed ? 'react-select-error' : ''}`}
+                        />
+                      )}
+                    />
+                    <FieldError name="uniMed" />
+                  </div>
+                </div>
+              </div>
+
+              {/* 11. No Express — checkbox suelto, no forma parte del grupo excluyente "Pedidos" */}
+              <div>
+                <label className="flex items-center gap-2.5 cursor-pointer select-none h-[42px] m-0">
                   <input
-                    tabIndex={14}
+                    tabIndex={17}
                     type="checkbox"
-                    {...register('blnPedidoEspecial')}
+                    {...register('blnNoExpress')}
                     className="form-checkbox"
                   />
-                </div>
-                <input
-                  tabIndex={15}
-                  type="number"
-                  step="any"
-                  min="0"
-                  defaultValue={0}
-                  placeholder="0"
-                  disabled={!watchPedido}
-                  {...register('canDias')}
-                  className="form-input ltr:rounded-l-none rtl:rounded-r-none flex-1
-                    disabled:pointer-events-none disabled:bg-[#f3f4f6] disabled:opacity-60
-                    dark:disabled:bg-[#1b2e4b] disabled:cursor-not-allowed"
-                />
+                  <span className="text-sm font-medium">
+                    {t.no_express ?? 'No Express'}
+                  </span>
+                </label>
               </div>
+
             </div>
 
-            {/* col 3 vacía — fila 5 */}
-            <div />
-
-          </div>{/* fin grid */}
+          </div>{/* fin columnas */}
         </div>{/* fin panel */}
 
-        {/* ── Nota Adicional (endpoint propio, solo aplica a repuestos ya guardados) ── */}
-        {isEdit && (
-          <div className="bg-white dark:bg-[#0e1726] border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-6 mt-5">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-3">
-              {t.history ?? 'Historial'}
-            </p>
-            {notesHistory.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-gray-200 dark:border-gray-700 py-6 text-center">
-                <p className="text-xs text-gray-400">{t.no_matches ?? 'Sin notas registradas'}</p>
-              </div>
-            ) : (
-              <div className="max-h-64 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
-                {notesHistory.map((n, i) => (
-                  <div key={i} className="px-3 py-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">{n.nomUsuario}</span>
-                      <span className="text-[11px] text-gray-400">{formatDateTime(n.fecha)}</span>
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-0.5 whitespace-pre-wrap">{n.nota}</p>
+        {/* ── Nota Adicional + Archivos, en 2 columnas para reducir el alto total ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start mt-6">
+
+          {/* Nota Adicional (endpoint propio; en registro nuevo se envía tras crear el id) */}
+          <div className="bg-white dark:bg-[#0e1726] border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-6">
+            {isEdit && (
+              <>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-3">
+                  {t.history ?? 'Historial'}
+                </p>
+                {notesHistory.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-gray-200 dark:border-gray-700 py-6 text-center">
+                    <p className="text-xs text-gray-400">{t.no_matches ?? 'Sin notas registradas'}</p>
                   </div>
-                ))}
-              </div>
+                ) : (
+                  <div className="max-h-64 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+                    {notesHistory.map((n, i) => (
+                      <div
+                        key={i}
+                        className={`px-3 py-2.5 ${i % 2 === 0 ? 'bg-white dark:bg-[#0e1726]' : 'bg-gray-50 dark:bg-[#0b1220]'}`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">{n.nomUsuario}</span>
+                          <span className="text-[11px] text-gray-400">{formatDateTime(n.fecha)}</span>
+                        </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-0.5 whitespace-pre-wrap">{n.nota}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
 
-            <div className="mt-4">
+            <div className={isEdit ? 'mt-4' : ''}>
               <label className="block text-sm font-medium mb-1.5">
                 {t.additional_note ?? 'Nota Adicional'}
               </label>
               <textarea
-                tabIndex={16}
-                rows={3}
+                tabIndex={18}
+                rows={2}
                 placeholder={t.write_a_note ?? 'Escribe una nota...'}
                 {...register('notaAdicional')}
                 className="form-textarea w-full resize-none"
               />
             </div>
           </div>
-        )}
 
-        {/* ── Archivos: imágenes y documentos ───────────────────────────────── */}
-        { (false) && 
-        <div className="mt-5">
-          <SpareFiles
-            mode={isEdit ? 'edit' : 'new'}
-            codRepuesto={isEdit ? id : null}
-            tempToken={!isEdit ? tempToken : null}
-          />
+          {/* Archivos: imágenes y documentos (colapsado por defecto para no sobrecargar el form) */}
+          <div className="bg-white dark:bg-[#0e1726] border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm overflow-hidden">
+            <div className="px-6 py-4 flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                {t.files ?? 'Archivos'} <span className="text-xs text-gray-400 font-normal">({t.optional ?? 'opcional'})</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => spareFilesRef.current?.openSuggested()}
+                className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs font-medium
+                  text-primary hover:bg-primary/10 transition"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
+                </svg>
+                Archivos sugeridos
+              </button>
+            </div>
+            {/* Ya no es colapsable: al quedar en una columna angosta al lado de la Nota
+                Adicional (en vez de ocupar el ancho completo debajo de todo el form),
+                mostrarlo siempre abierto no agrega bulto vertical extra. */}
+            <div className="px-6 pb-6">
+              <SpareFiles
+                ref={spareFilesRef}
+                mode={isEdit ? 'edit' : 'new'}
+                codRepuesto={isEdit ? id : null}
+                getSuggestParams={() => {
+                  const v = getValues();
+                  return {
+                    nroParte: v.nroParte?.trim() || null,
+                    codMarca: v.codMarca?.value  || null,
+                    codPrv:   v.codPrv?.value    || null,
+                  };
+                }}
+              />
+            </div>
+          </div>
+
         </div>
-        }
 
         {/* ── Acciones ──────────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-end gap-3 mt-5">
+        <div className="flex items-center justify-end gap-3 mt-6">
 
           {/* Botón Cancelar */}
           <button
             type="button"
-            tabIndex={18}
+            tabIndex={19}
             disabled={isSaving}
             onClick={() => router.push('/admin/register/spares')}
             className="inline-flex items-center gap-2 h-10 px-5 rounded-lg
@@ -805,7 +816,7 @@ export default function SpareFormPage() {
           {/* Botón Guardar/Actualizar */}
           <button
             type="submit"
-            tabIndex={19}
+            tabIndex={20}
             disabled={isSaving}
             className="inline-flex items-center gap-2 h-10 px-6 rounded-lg
               text-sm font-semibold text-white

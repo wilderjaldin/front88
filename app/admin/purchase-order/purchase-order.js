@@ -7,9 +7,9 @@ import { useForm } from 'react-hook-form';
 import DivideQuantity from "@/app/admin/purchase-order/divide-quantity";
 import MailForm from "@/app/admin/purchase-order/MailForm";
 import ChangeSupplier from "@/app/admin/purchase-order/change-supplier";
-import BtnPrintProforma from "@/components/BtnPrintProforma";
 import dynamic from 'next/dynamic';
 const PdfViewerOrder = dynamic(() => import('@/app/admin/purchase-order/PdfViewerOrder'), { ssr: false });
+const PdfViewerPreviewOC = dynamic(() => import('@/app/admin/purchase-order/PdfViewerPreviewOC'), { ssr: false });
 
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -18,7 +18,18 @@ import { customFormat } from '@/app/lib/format';
 import Modal from '@/components/modal';
 import { useRouter } from 'next/navigation';
 import IconRepartir from '@/components/icon/icon-repartir';
-import { swalError, swalConfirm } from '@/app/lib/swal';
+import { swalError, swalConfirm, swalSuccessModal } from '@/app/lib/swal';
+
+// Endpoints — ordenescompra/*
+// URL_GENERATE (generar-oc) se llama desde PdfViewerPreviewOC con el mismo payload que URL_PREVIEW.
+const URL_PREVIEW = 'ordenescompra/preview-oc';
+const URL_OPCIONES_PROVEEDOR = 'ordenescompra/opciones-proveedor';
+const URL_UPDATE_ORDER = 'ordenescompra/actualizar';
+const URL_VERIFICAR_REVERSION = (numCorrelativo) => `ordenescompra/dividir-cantidad/${numCorrelativo}/verificar-reversion`;
+const URL_REVERTIR_DIVISION = (numCorrelativo) => `ordenescompra/dividir-cantidad/${numCorrelativo}/revertir`;
+const URL_RESTABLECER_PROVEEDOR_ORIGINAL = 'ordenescompra/restablecer-proveedor-original';
+// Contrato legacy sin confirmar todavía para modernizar.
+const URL_PRINT_PROFORMA = process.env.NEXT_PUBLIC_API_URL + 'ordcompradetalle/BorradorOrdenCompra';
 
 const ICON_CHECK = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
@@ -26,13 +37,6 @@ const swalSuccess = (title) => Swal.fire({
   html: `<div style="display:flex;align-items:center;gap:8px;padding:0">${ICON_CHECK}<p style="color:#fff;font-size:13px;font-weight:600;margin:0;line-height:1.3;text-align:left">${title}</p></div>`,
   backdrop: false, position: 'top-end', padding: '10px 14px', background: '#16a34a', showConfirmButton: false, timer: 2000, timerProgressBar: true,
 });
-
-const url_generate      = 'ordenescompra/generar-oc';
-const URL_OPCIONES_PROVEEDOR = 'ordenescompra/opciones-proveedor';
-const url_update_order  = 'ordenescompra/actualizar';
-const URL_VERIFICAR_REVERSION = (numCorrelativo) => `ordenescompra/dividir-cantidad/${numCorrelativo}/verificar-reversion`;
-const URL_REVERTIR_DIVISION   = (numCorrelativo) => `ordenescompra/dividir-cantidad/${numCorrelativo}/revertir`;
-const URL_RESTABLECER_PROVEEDOR_ORIGINAL = 'ordenescompra/restablecer-proveedor-original';
 
 const mapDetalleItem = (d) => ({
   CodRepuesto:           d.codRepuesto,
@@ -58,7 +62,6 @@ const mapDetalleItem = (d) => ({
   CodPrvOriginal:        d.codProveedorOriginal ?? null,
   NomPrvOriginal:        d.razSocOriginal ?? '',
 });
-const url_print_proforma = process.env.NEXT_PUBLIC_API_URL + 'ordcompradetalle/BorradorOrdenCompra';
 
 const thClass = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap";
 const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-3 py-2";
@@ -81,7 +84,7 @@ const IconSwap = (props) => (
   </svg>
 );
 
-const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, setItems, contact, setReload, bloqueado = false }) => {
+const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, setItems, contact, setReload, onOrderGenerated, bloqueado = false }) => {
   const router = useRouter();
 
   const [show_modal,         setShowModal]       = useState(false);
@@ -99,7 +102,7 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
   });
 
   const toggleSelect = (item) =>
-    setSelected(prev => prev.includes(item) ? prev.filter(i => i.NroOrden !== item.NroOrden) : [...prev, item]);
+    setSelected(prev => prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item]);
 
   const toggleAll = () =>
     setSelected(selected.length === items.length ? [] : items.map(d => d));
@@ -122,7 +125,7 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
       Swal.fire({ title: t.error, text: t.not_disisible, icon: 'error', confirmButtonColor: '#dc2626', confirmButtonText: t.close });
       return;
     }
-    if (item?.isDivide == 1) {
+    if (item?.isDivide == 1 || item?.EsDividido || item?.NumCorrelativo != null) {
       Swal.fire({ title: t.error, text: `${t.has_already_been_divided}`, icon: 'error', confirmButtonColor: '#dc2626', confirmButtonText: t.close });
       return;
     }
@@ -201,24 +204,43 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
 
   const showEmails = (order_id) => {
     setModalTitle(t.mail_supplier_title ?? 'Mail a Proveedor'); setModalSize('w-full max-w-3xl'); setShowCloseModal(false);
-    setModalContent(<MailForm close={() => updateList()} print={print} t={t} token={token} order={order} order_id={order_id} />);
+    setModalContent(<MailForm close={() => updateList(order_id)} print={print} t={t} token={token} order={order} order_id={order_id} />);
     setShowModal(true);
   };
 
   const print = (order_id) => {
-    setShowModal(true); setModalSize('w-full max-w-2xl'); setShowCloseModal(false);
+    setModalTitle(t.purchase_order_generated ?? 'Orden de Compra Generada'); setModalSize('w-full max-w-5xl'); setShowCloseModal(false);
+    setShowModal(true);
     let o = { NroOrdenCompra: order_id };
     setTimeout(() => {
-      setModalContent(<PdfViewerOrder order={o} token={token} onClose={() => { setShowModal(false); showEmails(order_id); }} />);
+      setModalContent(
+        <PdfViewerOrder
+          order={o}
+          token={token}
+          onSendMessage={() => { setShowModal(false); showEmails(order_id); }}
+          onClose={() => updateList(order_id)}
+        />
+      );
     }, 300);
   };
 
-  const updateList = () => {
+  // Cierre del paso final (enviar/no enviar mensaje, o "Cerrar" directo desde el PDF
+  // de la OC generada) — siempre confirma que el proceso de compra terminó, con el
+  // número de OC como referencia para el usuario.
+  const updateList = (orderId) => {
     setShowModal(false);
+    swalSuccessModal(
+      t.the_purchase_order_was_generated,
+      orderId
+        ? `${t.nro_purchase_order ?? 'Nro. Orden de Compra'}: #${orderId}${order?.NomPrv ? ` — ${order.NomPrv}` : ''}`
+        : ''
+    );
     setReload?.();
     setOrder();
   };
 
+  // Vista previa en PDF de la OC — mismo payload que URL_GENERATE, con costoReal/costoInc
+  // tomados del input "Costo Real" de cada fila en vez del valor original del sistema.
   const generateOrder = async () => {
     try {
       let different_quantities = false;
@@ -232,6 +254,7 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
         if (itemIndex === -1) return null;
         const canComprada = getValues(`items.${itemIndex}.quantity_purchased`);
         if (canComprada < i.CantFaltante) different_quantities = true;
+        const costoReal = getValues(`items.${itemIndex}.real_cost`) || i.CostoReal;
         return {
           codRepuesto: i.CodRepuesto,
           codItem: i.CodItem,
@@ -242,10 +265,10 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
           canFaltante: i.CantFaltante,
           canComprada,
           costo: i.CostoSistema,
-          costoReal: i.CostoReal,
+          costoReal,
           origenCompra: i.OrigenCompra,
           costoSis: i.CostoSistema,
-          costoInc: i.CostoReal,
+          costoInc: costoReal,
         };
       }).filter(Boolean);
 
@@ -253,14 +276,35 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
         Swal.fire({ title: t.error, text: t.different_quantities_purchase_order, icon: 'error', confirmButtonColor: '#dc2626', confirmButtonText: t.close });
         return;
       }
-      const rs = await axiosClient.post(url_generate, {
+
+      const payload = {
         NomPrv: order.NomPrv,
         MtoOtros: data.others,
         MtoShipping: data.shipping,
         Items,
-      });
-      if (rs.data?.numOrdenCompra) print(rs.data.numOrdenCompra);
-    } catch (error) { console.error(error); }
+      };
+
+      const res = await axiosClient.post(URL_PREVIEW, payload, { responseType: 'blob' });
+
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const pdfBlobUrl = URL.createObjectURL(blob);
+
+      setModalTitle(t.purchase_order_preview ?? 'Vista Previa OC'); setModalSize('w-full max-w-5xl'); setShowCloseModal(false);
+      setModalContent(
+        <PdfViewerPreviewOC
+          t={t}
+          pdfBlobUrl={pdfBlobUrl}
+          payload={payload}
+          onClose={() => setShowModal(false)}
+          onGenerated={(order_id) => print(order_id)}
+          onOrderGenerated={onOrderGenerated}
+        />
+      );
+      setShowModal(true);
+    } catch (error) {
+      const apiMsg = error?.response?.data?.mensaje;
+      swalError(t.error ?? 'Error', apiMsg ?? t.error, t.close ?? 'Cerrar');
+    }
   };
 
   const undoChangeProveedor = async () => {
@@ -319,7 +363,7 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
           origenCompra:  item.OrigenCompra ?? '',
         })),
       };
-      const rs = await axiosClient.put(url_update_order, payload);
+      const rs = await axiosClient.put(URL_UPDATE_ORDER, payload);
       if (rs.status === 200) {
         swalSuccess(t.record_updated);
       }
@@ -499,9 +543,15 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
                         </button>
                         <button
                           type="button"
-                          disabled={bloqueado || !item.PuedeDividirCantidad}
+                          disabled={bloqueado || !item.PuedeDividirCantidad || item.isDivide == 1 || item.EsDividido || item.NumCorrelativo != null}
                           onClick={() => divideQuantity(item)}
-                          title={!item.PuedeDividirCantidad ? (t.divide_quantity_not_available ?? 'Este ítem no admite dividir cantidad') : t.divide_quantity}
+                          title={
+                            (item.isDivide == 1 || item.EsDividido || item.NumCorrelativo != null)
+                              ? (t.has_already_been_divided ?? 'Este ítem ya fue dividido')
+                              : !item.PuedeDividirCantidad
+                                ? (t.divide_quantity_not_available ?? 'Este ítem no admite dividir cantidad')
+                                : t.divide_quantity
+                          }
                           className="p-1.5 rounded-lg text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/20 transition disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                         >
                           <IconRepartir className="h-4 w-4 rotate-180" />
@@ -564,23 +614,13 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
           {/* Botones */}
           <div className="flex flex-wrap items-center gap-2">
             {!isExisting && (
-              <>
-                <BtnPrintProforma
-                  selected={selected}
-                  disabled={isSelect || bloqueado}
-                  token={token}
-                  order={order}
-                  t={t}
-                  className="h-9 flex items-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 px-4 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 transition disabled:opacity-40 disabled:cursor-not-allowed"
-                />
-                <button
-                  disabled={isSelect || bloqueado}
-                  onClick={generateOrder}
-                  className="h-9 flex items-center gap-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white px-4 text-sm font-medium transition disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  {t.generate_purchase_order}
-                </button>
-              </>
+              <button
+                disabled={isSelect || bloqueado}
+                onClick={generateOrder}
+                className="h-9 flex items-center gap-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white px-4 text-sm font-medium transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {t.generate_purchase_order}
+              </button>
             )}
             <button
               disabled={!isExisting || bloqueado || updating}

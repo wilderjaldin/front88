@@ -6,7 +6,7 @@ import { IRootState } from '@/store/theme';
 import { toggleTheme, toggleSidebar, resetLanguageList } from '@/store/themeConfigSlice';
 import Dropdown from '@/components/dropdown';
 import IconMenu from '@/components/icon/icon-menu';
-import IconSearch from '@/components/icon/icon-search';
+import IconSearch from '@/components/icon/icon-search-filled';
 import IconXCircle from '@/components/icon/icon-x-circle';
 import IconSun from '@/components/icon/icon-sun';
 import IconMoon from '@/components/icon/icon-moon';

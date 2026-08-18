@@ -864,7 +864,8 @@ input[type="radio"]:checked + span {
 }
 
 /* 🔸 Selects con error visual */
-.react-select-error .select__control {
+.react-select-error .select__control,
+.react-select-error .sf-select__control {
   border-color: #dc2626 !important;
   box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.3);
 }
@@ -909,4 +910,136 @@ label.required::after {
 
 .menu-item:hover{
   background:#f3f4f6;
+}
+
+/* Formulario de repuestos (app/admin/register/spares/form/page.js) — mismo
+   alto/radio/color entre <input>, checkboxes/radios y los <Select>/<AsyncSelect>
+   propios de esta página (classNamePrefix="sf-select" — deliberadamente distinto
+   del "select" genérico que usa <SelectBrand/>, para no pisarle el borde recto
+   que necesita al lado del botón "+"). Reutiliza .form-input.error y
+   .react-select-error .sf-select__control ya existentes arriba para el error. */
+.spare-form {
+  --select-bg: #f9fafb;
+  --select-border: #9ca3af;
+}
+.dark .spare-form {
+  --select-bg: #0b1220;
+  --select-border: #17263c;
+}
+/* Relleno gris sutil en reposo (en vez de blanco puro sobre panel blanco)
+   para que el formulario no se vea tan "todo blanco"; al enfocar pasa a
+   blanco, dando además una pista visual de qué campo está activo. */
+.spare-form .form-input,
+.spare-form .form-textarea {
+  border-radius: 0.5rem;
+  min-height: 42px;
+  background-color: #f9fafb;
+  transition: border-color .15s, box-shadow .15s, background-color .15s;
+}
+.dark .spare-form .form-input,
+.dark .spare-form .form-textarea {
+  background-color: #0b1220;
+}
+.spare-form .form-input:focus,
+.spare-form .form-textarea:focus {
+  border-color: #4361ee;
+  background-color: #fff;
+  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.12);
+}
+.dark .spare-form .form-input:focus,
+.dark .spare-form .form-textarea:focus {
+  background-color: #121e32;
+}
+.spare-form .form-checkbox,
+.spare-form .form-radio {
+  width: 17px;
+  height: 17px;
+  border-color: #d1d5db;
+  cursor: pointer;
+  transition: all .15s;
+}
+.spare-form .form-checkbox {
+  border-radius: 5px;
+}
+.spare-form .form-checkbox:checked,
+.spare-form .form-radio:checked {
+  background-color: #4361ee;
+  border-color: #4361ee;
+}
+.spare-form .form-checkbox:focus,
+.spare-form .form-radio:focus {
+  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.18);
+}
+.spare-form .form-saving {
+  pointer-events: none;
+  opacity: 0.65;
+}
+.spare-form .sf-select__control {
+  background-color: var(--select-bg);
+  border-color: var(--select-border);
+  border-radius: 0.5rem;
+  min-height: 42px;
+  box-shadow: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.spare-form .sf-select__control:hover {
+  border-color: #4361ee;
+}
+.spare-form .sf-select__control--is-focused {
+  border-color: #4361ee;
+  background-color: #fff;
+  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.12);
+}
+.dark .spare-form .sf-select__control--is-focused {
+  background-color: #121e32;
+}
+.spare-form .sf-select__menu {
+  /* El menú flotante se mantiene blanco/oscuro nítido, no gris — es una
+     superficie elevada, no un campo "en reposo". */
+  background-color: #fff;
+  border: 1px solid var(--select-border);
+  border-radius: 0.5rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.10);
+}
+.dark .spare-form .sf-select__menu {
+  background-color: #121e32;
+}
+.spare-form .sf-select__menu-list {
+  padding: 4px;
+}
+.spare-form .sf-select__option {
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  padding: 7px 10px;
+}
+.spare-form .sf-select__option--is-selected {
+  background-color: #4361ee;
+  color: #fff;
+}
+.spare-form .sf-select__option--is-focused:not(.select__option--is-selected) {
+  background-color: rgba(67, 97, 238, 0.08);
+}
+.spare-form .sf-select__single-value,
+.spare-form .sf-select__input-container {
+  color: inherit;
+  font-size: 0.875rem;
+}
+.spare-form .sf-select__placeholder {
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+.spare-form .sf-select__clear-indicator,
+.spare-form .sf-select__dropdown-indicator {
+  color: #9ca3af;
+  padding: 5px;
+}
+.spare-form .sf-select__clear-indicator:hover {
+  color: #e7515a;
+}
+.spare-form .sf-select__indicator-separator {
+  background-color: var(--select-border);
+}
+.spare-form .sf-select__value-container {
+  padding: 2px 12px;
 }

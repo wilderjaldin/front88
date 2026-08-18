@@ -36,6 +36,17 @@ export const swalConfirm = (title, msg = '', { confirmText = 'Sí', cancelText =
   confirmButtonColor: confirmColor, reverseButtons: true,
 });
 
+// A diferencia de swalSuccess (toast, se autocierra), esta es una alerta centrada
+// con botón de confirmar — para avisos importantes que el usuario debe leer y cerrar.
+export const swalSuccessModal = (title, msg = '', confirmText = 'Cerrar') => Swal.fire({
+  html: `<div style="padding:12px 0 6px">
+    <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#86efac,#16a34a);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 8px 24px rgba(22,163,74,0.3)">${ICON_CHECK}</div>
+    <h2 style="color:#1e293b;font-size:17px;font-weight:700;margin:0 0 ${msg ? '10px' : '0'};line-height:1.3">${title}</h2>
+    ${msg ? `<p style="color:#64748b;font-size:13px;margin:0">${msg}</p>` : ''}
+  </div>`,
+  showConfirmButton: true, confirmButtonText: confirmText, confirmButtonColor: '#16a34a',
+});
+
 export const swalInfo = (title, msg = '', confirmText = 'Entendido') => Swal.fire({
   html: `<div style="padding:12px 0 6px">
     <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#fde68a,#f59e0b);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 8px 24px rgba(245,158,11,0.3)">${ICON_INFO}</div>
