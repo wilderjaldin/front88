@@ -3,28 +3,22 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "@/app/locales";
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from "next/navigation";
-import { useSelector } from 'react-redux';
-import { selectToken } from '@/store/authSlice';
 import ItemsToDelivery from "@/app/admin/dispatch/items-deliver"
 import PendingDelivery from "@/app/admin/dispatch/pending-delivery"
 
-import axios from 'axios'
 import axiosClient from '@/app/lib/axiosClient';
 import Swal from 'sweetalert2'
 import { swalSuccess, swalError } from '@/app/lib/swal';
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 
 import Modal from '@/components/modal';
-import dynamic from 'next/dynamic';
-const PdfViewerDelivery = dynamic(() => import('@/app/admin/queries/delivery-report/PdfViewerDelivery'), {
-  ssr: false,
-});
+import { downloadInvoice, downloadPackingList } from '@/app/lib/embalajeReports';
 
 const URL_LIST_DELIVERIES = 'entregas';
 const URL_ATTACH_ITEMS = 'entregas/adjuntar-items';
 const URL_CONTROLS = 'entregas/controles';
-const url_cancel = process.env.NEXT_PUBLIC_API_URL + 'entrega/AnularEmbalaje';
-const url_save = process.env.NEXT_PUBLIC_API_URL + 'entrega/GuardarEntrega';
+const URL_SAVE_DISPATCH = 'entregas/guardar-despacho';
+const URL_CANCEL_PACKING = 'embalajes/anular';
 
 const TAB_KEYS = ['pending', 'dispatch'];
 
@@ -32,7 +26,6 @@ export default function Dispatch() {
 
   const router = useRouter();
   const searchParams = useSearchParams();
-  const token = useSelector(selectToken);
   const t = useTranslation();
 
   const urlPage = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
@@ -60,9 +53,8 @@ export default function Dispatch() {
   const [items, setItems] = useState([]);
 
   const [show_modal, setShowModal] = useState(false);
-  const [modal_title, setModalTitle] = useState('');
-  const [modal_content, setModalContent] = useState(null);
-  const [modal_size, setModalSize] = useState('w-full max-w-5xl')
+  const [printOrder, setPrintOrder] = useState(null);
+  const [downloadingReport, setDownloadingReport] = useState(false);
 
   useEffect(() => {
     getLists();
@@ -210,48 +202,69 @@ export default function Dispatch() {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          let data_send = [];
-          seleccionados.map(o => {
-            data_send.push({
-              NroEmbalaje: o.nroEmbalaje,
-              ValToken: token
-            });
-          });
-          const rs = await axios.post(url_cancel, data_send);
-          if (rs.data.estado == 'Ok') {
-            swalSuccess(t.packaging_was_cancel);
-            setSeleccionados([])
-            getLists();
-          }
+          const data_send = seleccionados.map(o => o.nroEmbalaje);
+          await axiosClient.post(URL_CANCEL_PACKING, data_send);
+          swalSuccess(t.packaging_was_cancel);
+          setSeleccionados([])
+          getLists();
         } catch (error) {
-
+          const apiMsg = error?.response?.data?.mensaje;
+          swalError(t.error, apiMsg ?? t.error, t.close);
         }
       }
     });
   }
 
-  const print = (order_id) => {
-    setShowModal(true)
-    setModalSize('w-full max-w-5xl');
-    setTimeout(() => {
-      setModalContent(<PdfViewerDelivery order={{ NroEntrega: order_id }} token={token} />);
-    }, 500);
+  // Los reportes son por embalaje (embalajes/{numEmbalaje}/...) — se asume un solo
+  // embalaje por despacho, que es el caso visto hasta ahora. Si se llegan a despachar
+  // varios embalajes juntos, esto solo cubre el primero.
+  const print = (numDespacho, numEmbalaje) => {
+    setPrintOrder({ NumDespacho: numDespacho, NumEmbalaje: numEmbalaje });
+    setShowModal(true);
   }
+
+  const closePrintModal = () => {
+    setShowModal(false);
+    setPrintOrder(null);
+    // El despacho recién guardado ya no debe aparecer como pendiente.
+    getLists();
+  }
+
+  const handleDownloadInvoice = async () => {
+    setDownloadingReport(true);
+    try {
+      await downloadInvoice(printOrder.NumEmbalaje, printOrder.NumDespacho);
+    } catch (error) {
+      console.error('Error al imprimir invoice:', error);
+    } finally {
+      setDownloadingReport(false);
+    }
+  };
+
+  const handleDownloadPackingList = async () => {
+    setDownloadingReport(true);
+    try {
+      await downloadPackingList(printOrder.NumEmbalaje, printOrder.NumDespacho);
+    } catch (error) {
+      console.error('Error al imprimir lista de empaque:', error);
+    } finally {
+      setDownloadingReport(false);
+    }
+  };
 
   //Guardar Despacho
   const saveDelivery = async (data_send) => {
     try {
-      const rs = await axios.post(url_save, data_send);
-      if (rs.data.estado == 'Ok') {
-        swalSuccess(t.delivery_recorded_success);
-        setSeleccionados([])
-        setItems([]);
-        getLists();
-        if (rs.data.dato2)
-          print(rs.data.dato2);
-      }
+      const rs = await axiosClient.post(URL_SAVE_DISPATCH, data_send);
+      swalSuccess(t.delivery_recorded_success);
+      setSeleccionados([])
+      setItems([]);
+      getLists();
+      if (rs.data?.numEntrega)
+        print(rs.data.numEntrega, data_send[0]?.nroEmbalaje);
     } catch (error) {
-
+      const apiMsg = error?.response?.data?.mensaje;
+      swalError(t.error, apiMsg ?? t.error, t.close);
     }
   }
 
@@ -320,7 +333,6 @@ export default function Dispatch() {
         {activeTab === 1 && (
           <ItemsToDelivery
             t={t}
-            token={token}
             customer={customer}
             sellers={sellers}
             deliverers={deliverers}
@@ -330,7 +342,44 @@ export default function Dispatch() {
         )}
       </div>
 
-      <Modal size={modal_size} closeModal={() => setShowModal(false)} openModal={() => setShowModal(true)} showModal={show_modal} title={modal_title} content={modal_content}></Modal>
+      <Modal
+        size="w-full max-w-lg"
+        closeModal={closePrintModal}
+        openModal={() => setShowModal(true)}
+        showModal={show_modal}
+        content={
+          printOrder && (
+            <div className="py-10 text-center text-sm text-gray-600 dark:text-gray-300">
+              {t.delivery_recorded_success}
+              <div className="mt-1 text-xs text-gray-400">
+                {t.nro_packaging}: {printOrder.NumEmbalaje} — {t.nro_dispatch}: {printOrder.NumDespacho}
+              </div>
+            </div>
+          )
+        }
+        headerActions={
+          printOrder && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={downloadingReport}
+                onClick={handleDownloadInvoice}
+                className="btn btn-primary btn-sm rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {t.export_invoice}
+              </button>
+              <button
+                type="button"
+                disabled={downloadingReport}
+                onClick={handleDownloadPackingList}
+                className="btn btn-primary btn-sm rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {t.export_packing_list}
+              </button>
+            </div>
+          )
+        }
+      />
     </>
   );
 }

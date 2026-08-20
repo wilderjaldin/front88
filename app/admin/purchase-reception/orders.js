@@ -458,14 +458,17 @@ const Orders = ({ t, data, setOrders, attachOrder, loading, onRefresh, onSearch,
                     <input type="checkbox" className="form-checkbox h-[18px] w-[18px]" checked={selected_orders.includes(o)} onChange={() => toggleRow(o)} />
                   </td>
                   <td className={`${tdClass} text-center font-medium`}>{o.NumOrdenCompra}</td>
-                  <td className={`${tdClass} text-center`}>
-                    <span className="inline-flex items-center justify-center">
+                  <td className={`${tdClass} text-center overflow-hidden`}>
+                    {/* flex (no inline-flex) + min-w-0 en el contenedor y en el texto: los flex items
+                        no se encogen por debajo de su contenido por defecto, así que sin min-w-0 el
+                        texto largo seguía desbordándose en vez de pasar a varias líneas. */}
+                    <div className="flex items-start justify-center gap-1 min-w-0">
                       <span
                         title={o.TieneNota ? (t.has_note ?? 'Tiene nota') : undefined}
-                        className={`h-2 w-2 rounded-full mr-1.5 shrink-0 ${o.TieneNota ? 'bg-amber-400 dark:bg-amber-500' : 'invisible'}`}
+                        className={`mt-1 h-2 w-2 rounded-full shrink-0 ${o.TieneNota ? 'bg-amber-400 dark:bg-amber-500' : 'invisible'}`}
                       />
-                      {o.NroOrden}
-                    </span>
+                      <span className="break-words min-w-0">{o.NroOrden}</span>
+                    </div>
                   </td>
                   <td className={`${tdClass} font-medium truncate`} title={o.NomPrv}>{o.NomPrv}</td>
                   <td className={`${tdClass} text-center`}>{o.Dias}</td>

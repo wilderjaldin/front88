@@ -3,8 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "@/app/locales";
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from "next/navigation";
-import { useSelector } from 'react-redux';
-import { selectToken } from '@/store/authSlice';
 import Pendings from "@/app/admin/packaging/pendings"
 import Packaging from "@/app/admin/packaging/packaging"
 
@@ -12,9 +10,10 @@ import axiosClient from '@/app/lib/axiosClient';
 import { swalError } from '@/app/lib/swal';
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 
-const URL_LIST_ORDERS = 'embalaje/listar';
-const URL_ATTACH_ITEM = 'embalaje/adicionar-item';
+const URL_LIST_ORDERS = 'embalajes/listar';
+const URL_ATTACH_ITEM = 'embalajes/adicionar-item';
 const URL_CANCEL_RECEPTION = 'embalajes/anular-recepcion';
+const URL_SAVE_ITEMS = 'embalajes/guardar-items';
 
 const TAB_KEYS = ['pending', 'packaging'];
 
@@ -22,7 +21,6 @@ export default function PackagingPage() {
 
   const router = useRouter();
   const searchParams = useSearchParams();
-  const token = useSelector(selectToken);
   const t = useTranslation();
 
   const option = searchParams.get("option") || "";
@@ -86,6 +84,12 @@ export default function PackagingPage() {
     setOrders(mapOrders(rs.data));
   }
 
+  const saveEmbalaje = async (data) => {
+    const rs = await axiosClient.post(URL_SAVE_ITEMS, data);
+    setOrders(mapOrders(rs.data));
+    router.push(`?option=${TAB_KEYS[0]}`, { scroll: false });
+  }
+
   const attachOrder = async (selected) => {
     if (selected.length === 0) return;
 
@@ -128,11 +132,13 @@ export default function PackagingPage() {
         return {
           id:              index,
           CodItem:         o.codItem,
+          CodRepuesto:     o.codRepuesto,
           NroOrden:        o.nroCotizacion,
           NroOrdenCompra:  src?.NroOrdenCompra,
           NroRecepcion:    src?.NroRecepcion,
           NomCliente:      o.cliente,
           NroParteCliente: o.nroParte,
+          NroParteCompra:  o.nroParteCompra,
           Descripcion:     o.desRepuesto,
           CantRecibida:    o.canRecibida,
           Origen:          o.origen,
@@ -203,10 +209,9 @@ export default function PackagingPage() {
         {activeTab === 1 && (
           <Packaging
             t={t}
-            token={token}
             packages={packagings}
             setPackagings={setPackagings}
-            onRefresh={getLists}
+            saveEmbalaje={saveEmbalaje}
           />
         )}
       </div>

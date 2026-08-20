@@ -2,7 +2,7 @@ import React, { Fragment } from "react";
 import { Transition, Dialog, DialogPanel, TransitionChild } from '@headlessui/react';
 import IconX from '@/components/icon/icon-x';
 
-export default function Modal({ closeModal, openModal, title = '', content = null,children, showModal = false, show_buttons = false, size = "w-full max-w-lg", show_close_button = true }) {
+export default function Modal({ closeModal, openModal, title = '', content = null,children, showModal = false, show_buttons = false, size = "w-full max-w-lg", show_close_button = true, headerActions = null }) {
 
 
   return (
@@ -33,18 +33,21 @@ export default function Modal({ closeModal, openModal, title = '', content = nul
                 leaveTo="opacity-0 scale-95"
               >
                 <DialogPanel as="div" className={`panel my-8 ${size} overflow-hidden rounded-lg border-0 p-0 text-black dark:text-white-dark`}>
-                  <div className="flex items-center justify-between bg-[#fbfbfb] px-5 py-3 dark:bg-[#121c2c]">
+                  <div className="flex items-center justify-between gap-3 bg-[#fbfbfb] px-5 py-3 dark:bg-[#121c2c]">
                     <div className="text-lg font-bold">{title}</div>
-                    {(show_close_button) &&
-                      <button type="button" className="text-white-dark hover:text-dark" onClick={closeModal}>
-                        <IconX />
-                      </button>
-                    }
+                    <div className="flex items-center gap-3">
+                      {headerActions}
+                      {(show_close_button) &&
+                        <button type="button" className="text-white-dark hover:text-dark" onClick={closeModal}>
+                          <IconX />
+                        </button>
+                      }
+                    </div>
                   </div>
-                  <div className="p-5">
+                  <div className={`p-5 ${headerActions ? 'max-h-[75vh] overflow-y-auto' : ''}`}>
 
                     <div>
-                      {children ?? content}                      
+                      {children ?? content}
                     </div>
                     {(show_buttons) &&
                       <div className="mt-8 flex items-center justify-end">

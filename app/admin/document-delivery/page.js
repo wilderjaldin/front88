@@ -5,13 +5,10 @@ import axiosClient from '@/app/lib/axiosClient';
 import { swalError, swalSuccess, swalConfirm, swalInfo } from '@/app/lib/swal';
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 import DocumentDeliveryList from "@/app/admin/document-delivery/document-delivery-list";
+import DispatchDataModal from "@/app/admin/document-delivery/DispatchDataModal";
 import Modal from '@/components/modal';
-import dynamic from 'next/dynamic';
-const PdfViewerDocumentDelivery = dynamic(() => import('@/app/admin/document-delivery/PdfViewerDocumentDelivery'), {
-  ssr: false,
-});
 
-const URL_LIST = 'embalajes/listaembalaje-doc';
+const URL_LIST = 'embalajes/listar-embalaje-doc';
 // Anular sin confirmar todavía — se ajusta cuando se defina el contrato real.
 const URL_CANCEL = 'entregadocumentos/anular';
 
@@ -35,8 +32,8 @@ export default function DocumentDelivery() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const [showModal, setShowModal] = useState(false);
-  const [printRow, setPrintRow] = useState(null);
+  const [showDispatchModal, setShowDispatchModal] = useState(false);
+  const [dispatchRow, setDispatchRow] = useState(null);
 
   useEffect(() => {
     getList();
@@ -76,9 +73,9 @@ export default function DocumentDelivery() {
     swalInfo(t.pending_backend_integration ?? 'Acción pendiente de definir con el backend.');
   };
 
-  const handlePrint = (row) => {
-    setPrintRow(row);
-    setShowModal(true);
+  const handleOpenDispatch = (row) => {
+    setDispatchRow(row);
+    setShowDispatchModal(true);
   };
 
   useDynamicTitle(`${t.document_delivery}`);
@@ -99,16 +96,24 @@ export default function DocumentDelivery() {
         onRefresh={getList}
         onCancel={handleCancel}
         onForward={handleForward}
-        onPrint={handlePrint}
+        onOpenDispatch={handleOpenDispatch}
+        onEdit={handleOpenDispatch}
       />
 
       <Modal
-        size="w-full max-w-2xl"
-        showModal={showModal}
-        closeModal={() => setShowModal(false)}
-        openModal={() => setShowModal(true)}
-        title={t.proforma}
-        content={showModal ? <PdfViewerDocumentDelivery row={printRow} onClose={() => setShowModal(false)} /> : null}
+        size="w-full max-w-3xl"
+        showModal={showDispatchModal}
+        closeModal={() => setShowDispatchModal(false)}
+        openModal={() => setShowDispatchModal(true)}
+        title={t.dispatch_data}
+        content={showDispatchModal ? (
+          <DispatchDataModal
+            t={t}
+            row={dispatchRow}
+            onClose={() => setShowDispatchModal(false)}
+            onSaved={() => { setShowDispatchModal(false); getList(); }}
+          />
+        ) : null}
       />
     </>
   );

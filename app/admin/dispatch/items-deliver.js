@@ -30,7 +30,7 @@ const selectStyles = {
 const thClass = "text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-2 py-1.5 text-left select-none";
 const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-2 py-1.5";
 
-const ItemsToDelivery = ({ token, t, customer, sellers = [], deliverers = [], items = [], saveDelivery }) => {
+const ItemsToDelivery = ({ t, customer, sellers = [], deliverers = [], items = [], saveDelivery }) => {
 
   const {
     register,
@@ -44,15 +44,20 @@ const ItemsToDelivery = ({ token, t, customer, sellers = [], deliverers = [], it
   const [saving, setSaving] = useState(false);
   const currentUser = useSelector(selectUser);
 
-  // Por defecto, Entregado Por y Vendedor son el usuario logueado.
+  // Si solo hay una opción, se preselecciona (no tiene sentido obligar a elegir
+  // el único valor posible). Si hay varias, por defecto el usuario logueado.
   useEffect(() => {
-    if (!currentUser?.id || deliverers.length === 0) return;
+    if (deliverers.length === 0) return;
+    if (deliverers.length === 1) { setValue('delivered_by', deliverers[0]); return; }
+    if (!currentUser?.id) return;
     const match = deliverers.find(o => String(o.value) === String(currentUser.id));
     if (match) setValue('delivered_by', match);
   }, [deliverers, currentUser, setValue]);
 
   useEffect(() => {
-    if (!currentUser?.id || sellers.length === 0) return;
+    if (sellers.length === 0) return;
+    if (sellers.length === 1) { setValue('seller', sellers[0]); return; }
+    if (!currentUser?.id) return;
     const match = sellers.find(o => String(o.value) === String(currentUser.id));
     if (match) setValue('seller', match);
   }, [sellers, currentUser, setValue]);
@@ -72,26 +77,29 @@ const ItemsToDelivery = ({ token, t, customer, sellers = [], deliverers = [], it
     items.map(i => {
       data_send.push(
         {
-          CodCliente: customer.CodCliente,
-          CodRecibidoPor: data.received_by,
-          CodEntregadoPor: data.delivered_by?.value,
-          CodVendedor: data.seller?.value,
-          LugEntrega: data.delivery_location,
-          Fecha: formatearFecha(data.date),
-          NroEmbalaje: i.NroEmbalaje,
-          NroOrden: i.NroOrden,
-          CodItem: i.CodItem,
-          CodRepuesto: i.CodRepuesto,
-          NroParte: i.NroParte,
-          Descripcion: i.Descripcion,
-          Cantidad: i.Cantidad,
-          Origen: i.Origen,
-          HCode: i.HCode,
-          Material: i.Material,
-          Presentacion: i.Presentacion,
-          ValToken: token
+          codCliente: customer.CodCliente,
+          codRecibidoPor: data.received_by,
+          codEntregadoPor: data.delivered_by?.value,
+          codVendedor: data.seller?.value,
+          // Transporte/Cond. Pago/Moneda: el form todavía no los pide, se
+          // ajusta cuando se agreguen esos campos.
+          codTipTransporte: '',
+          codCondPago: '',
+          codMoneda: '',
+          lugEntrega: data.delivery_location,
+          fecha: formatearFecha(data.date),
+          nroEmbalaje: i.NroEmbalaje,
+          nroOrden: i.NroOrden,
+          codItem: i.CodItem,
+          codRepuesto: i.CodRepuesto,
+          nroParte: i.NroParte,
+          descripcion: i.Descripcion,
+          cantidad: i.Cantidad,
+          origen: i.Origen,
+          hCode: i.HCode,
+          material: i.Material,
+          presentacion: i.Presentacion,
         }
-
       );
     });
     setSaving(true);
@@ -107,17 +115,18 @@ const ItemsToDelivery = ({ token, t, customer, sellers = [], deliverers = [], it
       <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 shadow-sm">
         <form className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3" onSubmit={handleSubmit(handleSave)}>
           <div>
-            <label className="block text-xs font-medium mb-1" htmlFor="received_by">{t.received_by}</label>
+            <label className="block text-xs font-medium mb-1" htmlFor="received_by">{t.received_by} <span className="text-red-500">*</span></label>
             <input tabIndex={1} type='text' autoComplete='off' {...register("received_by", { required: { value: true, message: t.required_field } })} className="form-input h-[38px] text-xs w-full" />
             {errors.received_by && <span className='text-red-400 text-xs mt-1 block' role="alert">{errors.received_by?.message?.toString()}</span>}
           </div>
 
           <div>
-            <label className="block text-xs font-medium mb-1" htmlFor="date">{t.date}</label>
+            <label className="block text-xs font-medium mb-1" htmlFor="date">{t.date} <span className="text-red-500">*</span></label>
             <Controller
               control={control}
               name="date"
               defaultValue={new Date()}
+              rules={{ required: { value: true, message: t.required_field } }}
               render={({ field: { onChange, value } }) => (
                 <DatePicker
                   onChange={onChange}
@@ -128,10 +137,11 @@ const ItemsToDelivery = ({ token, t, customer, sellers = [], deliverers = [], it
                 />
               )}
             />
+            {errors.date && <span className='text-red-400 text-xs mt-1 block' role="alert">{errors.date?.message?.toString()}</span>}
           </div>
 
           <div>
-            <label className="block text-xs font-medium mb-1" htmlFor="delivered_by">{t.delivered_by}</label>
+            <label className="block text-xs font-medium mb-1" htmlFor="delivered_by">{t.delivered_by} <span className="text-red-500">*</span></label>
             <Controller
               name="delivered_by"
               control={control}
@@ -155,7 +165,7 @@ const ItemsToDelivery = ({ token, t, customer, sellers = [], deliverers = [], it
           </div>
 
           <div>
-            <label className="block text-xs font-medium mb-1" htmlFor="seller">{t.seller}</label>
+            <label className="block text-xs font-medium mb-1" htmlFor="seller">{t.seller} <span className="text-red-500">*</span></label>
             <Controller
               name="seller"
               control={control}
@@ -179,8 +189,9 @@ const ItemsToDelivery = ({ token, t, customer, sellers = [], deliverers = [], it
           </div>
 
           <div className="sm:col-span-2">
-            <label className="block text-xs font-medium mb-1" htmlFor="delivery_location">{t.delivery_place}</label>
-            <input tabIndex={4} type='text' autoComplete='off' {...register("delivery_location", { required: false })} className="form-input h-[38px] text-xs w-full" />
+            <label className="block text-xs font-medium mb-1" htmlFor="delivery_location">{t.delivery_place} <span className="text-red-500">*</span></label>
+            <input tabIndex={4} type='text' autoComplete='off' {...register("delivery_location", { required: { value: true, message: t.required_field } })} className="form-input h-[38px] text-xs w-full" />
+            {errors.delivery_location && <span className='text-red-400 text-xs mt-1 block' role="alert">{errors.delivery_location?.message?.toString()}</span>}
           </div>
         </form>
       </div>

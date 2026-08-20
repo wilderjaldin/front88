@@ -1,8 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 
-import { useForm } from "react-hook-form"
-import axios from 'axios'
+import { useForm, Controller } from "react-hook-form"
 import axiosClient from '@/app/lib/axiosClient';
 import Select from 'react-select';
 import IconSave from '@/components/icon/icon-save';
@@ -11,9 +10,7 @@ import IconX from '@/components/icon/icon-x';
 import BtnPrintPacking from "@/app/admin/packaging/BtnPrintPacking"
 import { swalSuccess, swalError } from '@/app/lib/swal';
 
-const URL_CONTROLS = 'embalaje/controles';
-// Contrato legacy (ValToken) sin confirmar todavía para modernizar.
-const url_save = process.env.NEXT_PUBLIC_API_URL + 'embalaje/GuardarEmbalaje';
+const URL_CONTROLS = 'embalajes/controles';
 
 const thClass = "text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-2 py-1.5 text-left select-none";
 const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-2 py-1.5";
@@ -33,7 +30,7 @@ const selectStyles = {
   menu: (base) => ({ ...base, fontSize: '0.75rem', zIndex: 30 }),
 };
 
-const Packaging = ({ token, t, packages, onRefresh, setPackagings }) => {
+const Packaging = ({ t, packages, saveEmbalaje, setPackagings }) => {
 
   const [current_row, setCurrentRow] = useState(1);
   const [rows, setRows] = useState([]);
@@ -45,6 +42,7 @@ const Packaging = ({ token, t, packages, onRefresh, setPackagings }) => {
 
   const {
     register,
+    control,
     reset,
     setValue,
     getValues,
@@ -71,12 +69,27 @@ const Packaging = ({ token, t, packages, onRefresh, setPackagings }) => {
     clearErrors(`packaging.${r.id}.type_packaging`)
   }
 
-  const handleWeightUnitChange = (value, r) => {
-    setValue(`packaging.${r.id}.weight_unit`, (value?.value) ?? null);
+  // Kilogramo <-> Centímetro (métrico) y Libra <-> Pulgada (imperial) van
+  // siempre emparejados — cambiar uno ajusta el otro automáticamente.
+  const matchByLabel = (options, label) =>
+    options.find(o => (o.label || '').toUpperCase() === label);
+
+  const handleWeightUnitChange = (value, r, onChange) => {
+    onChange(value ?? null);
+    if (!value) return;
+    const label = (value.label || '').toUpperCase();
+    const targetLabel = label === 'KILOGRAMO' ? 'CENTIMETRO' : label === 'LIBRA' ? 'PULGADA' : null;
+    const match = targetLabel && matchByLabel(lengthUnits, targetLabel);
+    if (match) setValue(`packaging.${r.id}.dimension_unit`, match);
   }
 
-  const handleDimensionUnitChange = (value, r) => {
-    setValue(`packaging.${r.id}.dimension_unit`, (value?.value) ?? null);
+  const handleDimensionUnitChange = (value, r, onChange) => {
+    onChange(value ?? null);
+    if (!value) return;
+    const label = (value.label || '').toUpperCase();
+    const targetLabel = label === 'CENTIMETRO' ? 'KILOGRAMO' : label === 'PULGADA' ? 'LIBRA' : null;
+    const match = targetLabel && matchByLabel(weightUnits, targetLabel);
+    if (match) setValue(`packaging.${r.id}.weight_unit`, match);
   }
 
   useEffect(() => {
@@ -87,8 +100,8 @@ const Packaging = ({ token, t, packages, onRefresh, setPackagings }) => {
       setValue(`packaging.${r.id}.weight`, getValues(`packaging.${r.id}.weight`) || "0.0");
       setValue(`packaging.${r.id}.height`, getValues(`packaging.${r.id}.height`) || "0.0");
       setValue(`packaging.${r.id}.type_packaging`, getValues(`packaging.${r.id}.type_packaging`) || null);
-      setValue(`packaging.${r.id}.weight_unit`, getValues(`packaging.${r.id}.weight_unit`) || weightUnits[0]?.value || null);
-      setValue(`packaging.${r.id}.dimension_unit`, getValues(`packaging.${r.id}.dimension_unit`) || lengthUnits[0]?.value || null);
+      setValue(`packaging.${r.id}.weight_unit`, getValues(`packaging.${r.id}.weight_unit`) || weightUnits[0] || null);
+      setValue(`packaging.${r.id}.dimension_unit`, getValues(`packaging.${r.id}.dimension_unit`) || lengthUnits[0] || null);
     });
   }, [rows, weightUnits, lengthUnits]);
 
@@ -111,23 +124,23 @@ const Packaging = ({ token, t, packages, onRefresh, setPackagings }) => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      let dimensions = [];
+      let dimensiones = [];
       let isEmpty = false;
       rows.map(r => {
         if (getValues(`packaging.${r.id}.type_packaging`) == null) {
           isEmpty = true;
           setError(`packaging.${r.id}.type_packaging`, { type: 'custom', message: t.required_field });
         }
-        dimensions.push(
+        dimensiones.push(
           {
-            TipEmbalaje: getValues(`packaging.${r.id}.type_packaging`),
-            Cantidad: getValues(`packaging.${r.id}.amount`),
-            Peso: getValues(`packaging.${r.id}.weight`),
-            UniPeso: getValues(`packaging.${r.id}.weight_unit`),
-            Largo: getValues(`packaging.${r.id}.long`),
-            Ancho: getValues(`packaging.${r.id}.width`),
-            Alto: getValues(`packaging.${r.id}.height`),
-            UniLongitud: getValues(`packaging.${r.id}.dimension_unit`),
+            tipEmbalaje: getValues(`packaging.${r.id}.type_packaging`),
+            cantidad:    getValues(`packaging.${r.id}.amount`),
+            peso:        getValues(`packaging.${r.id}.weight`),
+            uniMedPeso:  getValues(`packaging.${r.id}.weight_unit`)?.value,
+            largo:       getValues(`packaging.${r.id}.long`),
+            ancho:       getValues(`packaging.${r.id}.width`),
+            alto:        getValues(`packaging.${r.id}.height`),
+            uniMedDim:   getValues(`packaging.${r.id}.dimension_unit`)?.value,
           })
       });
 
@@ -136,25 +149,30 @@ const Packaging = ({ token, t, packages, onRefresh, setPackagings }) => {
         return;
       }
 
-      if (dimensions.length == 0) {
+      if (dimensiones.length == 0) {
         swalError(t.error, t.packaging_dimensions_empty, t.close);
         return;
       }
 
-      const items = packages.map(p => ({ ...p, ValToken: token }));
-      let data_send = { Dimensiones: dimensions, Items: items };
+      const items = packages.map(p => ({
+        numRecepcion:   p.NroRecepcion,
+        numOrdenCompra: p.NroOrdenCompra,
+        nroCotizacion:  p.NroOrden,
+        codItem:        p.CodItem,
+        codRepuesto:    p.CodRepuesto,
+        nroParte:       p.NroParteCliente,
+        nroParteCompra: p.NroParteCompra,
+        desRepuesto:    p.Descripcion,
+        cantidad:       p.CantRecibida,
+        origen:         p.Origen,
+      }));
 
-      const rs = await axios.post(url_save, data_send);
-      if (rs.data.estado == 'Ok') {
-        swalSuccess(t.packaging_successfully_saved);
-        setPackagings([]);
-        setRows([{ id: 1 }]);
-        setCurrentRow(2);
-        reset();
-        await onRefresh?.();
-      } else {
-        swalError(t.error, t.packaging_error_saved, t.close);
-      }
+      await saveEmbalaje({ items, dimensiones });
+      swalSuccess(t.packaging_successfully_saved);
+      setPackagings([]);
+      setRows([{ id: 1 }]);
+      setCurrentRow(2);
+      reset();
     } catch (error) {
       swalError(t.error, t.packaging_error_saved, t.close);
     }
@@ -215,16 +233,22 @@ const Packaging = ({ token, t, packages, onRefresh, setPackagings }) => {
                     <input type="text" autoComplete="off" {...register(`packaging.${r.id}.weight`)} className="form-input h-[34px] text-xs w-full" />
                   </td>
                   <td className="p-1.5 pr-4 bg-slate-50 dark:bg-slate-800/40">
-                    <Select
-                      isSearchable={false}
-                      instanceId={`weight-unit-select-${r.id}`}
-                      menuPosition={'fixed'}
-                      menuShouldScrollIntoView={false}
-                      options={weightUnits}
-                      {...register(`packaging.${r.id}.weight_unit`)}
-                      onChange={(event) => handleWeightUnitChange(event, r)}
-                      styles={selectStyles}
-                      placeholder={t.select_option}
+                    <Controller
+                      name={`packaging.${r.id}.weight_unit`}
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          {...field}
+                          isSearchable={false}
+                          instanceId={`weight-unit-select-${r.id}`}
+                          menuPosition={'fixed'}
+                          menuShouldScrollIntoView={false}
+                          options={weightUnits}
+                          onChange={(value) => handleWeightUnitChange(value, r, field.onChange)}
+                          styles={selectStyles}
+                          placeholder={t.select_option}
+                        />
+                      )}
                     />
                   </td>
                   <td className="p-1.5 bg-slate-100/70 dark:bg-slate-700/25">
@@ -237,16 +261,22 @@ const Packaging = ({ token, t, packages, onRefresh, setPackagings }) => {
                     <input type="text" autoComplete="off" {...register(`packaging.${r.id}.height`)} className="form-input h-[34px] text-xs w-full" />
                   </td>
                   <td className="p-1.5 bg-slate-100/70 dark:bg-slate-700/25">
-                    <Select
-                      isSearchable={false}
-                      instanceId={`dimension-unit-select-${r.id}`}
-                      menuPosition={'fixed'}
-                      menuShouldScrollIntoView={false}
-                      options={lengthUnits}
-                      {...register(`packaging.${r.id}.dimension_unit`)}
-                      onChange={(event) => handleDimensionUnitChange(event, r)}
-                      styles={selectStyles}
-                      placeholder={t.select_option}
+                    <Controller
+                      name={`packaging.${r.id}.dimension_unit`}
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          {...field}
+                          isSearchable={false}
+                          instanceId={`dimension-unit-select-${r.id}`}
+                          menuPosition={'fixed'}
+                          menuShouldScrollIntoView={false}
+                          options={lengthUnits}
+                          onChange={(value) => handleDimensionUnitChange(value, r, field.onChange)}
+                          styles={selectStyles}
+                          placeholder={t.select_option}
+                        />
+                      )}
                     />
                   </td>
                   <td className="p-0.5 text-center">

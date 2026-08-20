@@ -40,6 +40,7 @@ const Receptions = ({ t, data, setReceptions, selected_orders, onRefresh }) => {
   const [savingNote, setSavingNote] = useState(false);
 
   const [showExportModal, setShowExportModal] = useState(false);
+  const [exportPdfBlobUrl, setExportPdfBlobUrl] = useState(null);
   const [showLabelsModal, setShowLabelsModal] = useState(false);
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
   const [barcodeText, setBarcodeText] = useState('');
@@ -350,10 +351,26 @@ const Receptions = ({ t, data, setReceptions, selected_orders, onRefresh }) => {
         </div>
       )}
 
-      {/* Modal Exportar Lista */}
-      <Modal showModal={showExportModal} closeModal={() => setShowExportModal(false)} title={t.export_list} size="w-full max-w-3xl">
+      {/* Modal Exportar Lista — ancho ajustado al contenido del PDF, no un tamaño fijo. */}
+      <Modal
+        showModal={showExportModal}
+        closeModal={() => { setShowExportModal(false); setExportPdfBlobUrl(null); }}
+        title={t.export_list}
+        size="w-fit max-w-[95vw]"
+        headerActions={
+          exportPdfBlobUrl && (
+            <a
+              href={exportPdfBlobUrl}
+              download="recepcion.pdf"
+              className="no-load btn btn-primary btn-sm rounded"
+            >
+              {t.download_pdf}
+            </a>
+          )
+        }
+      >
         {showExportModal && (
-          <ExportListPdfViewer selected_orders={selected_orders} />
+          <ExportListPdfViewer selected_orders={selected_orders} onLoaded={setExportPdfBlobUrl} />
         )}
       </Modal>
 

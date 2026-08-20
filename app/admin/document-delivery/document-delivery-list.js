@@ -1,8 +1,9 @@
 'use client';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pagination } from '@mantine/core';
-import IconPrinter from '@/components/icon/icon-printer';
 import IconX from '@/components/icon/icon-x';
+import IconPencil from '@/components/icon/icon-pencil';
+import BtnImprimir from '@/app/admin/document-delivery/BtnImprimir';
 
 const PAGE_SIZE = 50;
 
@@ -18,7 +19,7 @@ const IconForward = ({ className }) => (
   </svg>
 );
 
-const DocumentDeliveryList = ({ t, data = [], loading, onCancel, onForward, onPrint }) => {
+const DocumentDeliveryList = ({ t, data = [], loading, onCancel, onForward, onOpenDispatch, onEdit }) => {
   const [page, setPage] = useState(1);
 
   useEffect(() => { setPage(1); }, [data]);
@@ -55,18 +56,16 @@ const DocumentDeliveryList = ({ t, data = [], loading, onCancel, onForward, onPr
                 <tr key={o.id ?? i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                   <td className={`${tdClass} text-center`}>
                     <div className="flex items-center justify-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => onPrint?.(o)}
-                        title={t.print ?? 'Imprimir'}
+                      <BtnImprimir
+                        t={t}
+                        row={o}
+                        onOpenDispatch={onOpenDispatch}
                         className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-sky-50 text-sky-600 hover:bg-sky-100 dark:bg-sky-900/20 dark:text-sky-400 dark:hover:bg-sky-900/30 transition"
-                      >
-                        <IconPrinter className="h-3.5 w-3.5" />
-                      </button>
+                      />
                       <button
                         type="button"
                         onClick={() => onCancel?.(o)}
-                        title={t.cancel_reception ?? 'Anular'}
+                        title={t.cancel_packaging}
                         className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30 transition"
                       >
                         <IconX className="h-3.5 w-3.5" />
@@ -74,10 +73,19 @@ const DocumentDeliveryList = ({ t, data = [], loading, onCancel, onForward, onPr
                       <button
                         type="button"
                         onClick={() => onForward?.(o)}
-                        title={t.forward ?? 'Reenviar'}
+                        title={t.confirm_documentation}
                         className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/30 transition"
                       >
                         <IconForward className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onEdit?.(o)}
+                        disabled={!o.NumDespacho}
+                        title={t.edit}
+                        className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:text-indigo-400 dark:hover:bg-indigo-900/30 transition disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:bg-indigo-50 dark:disabled:hover:bg-indigo-900/20"
+                      >
+                        <IconPencil className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </td>

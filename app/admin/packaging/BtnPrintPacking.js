@@ -14,23 +14,45 @@ import 'react-pdf/dist/Page/TextLayer.css';
 const BtnPrintPacking = ({ disabled, t, className = "", packages = [] }) => {
 
   const [show_modal, setShowModal] = useState(false);
-  const [modal_title, setModalTitle] = useState('');
   const [modal_content, setModalContent] = useState(null);
-  const [modal_size, setModalSize] = useState('w-full max-w-5xl')
+  const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
 
+  const closeModal = () => {
+    setShowModal(false);
+    setModalContent(null);
+    setPdfBlobUrl(null);
+  };
 
   const print = () => {
-    setShowModal(true)
-    setModalSize('w-full max-w-2xl');
+    setShowModal(true);
+    setPdfBlobUrl(null);
     setTimeout(() => {
-      setModalContent(<PdfViewerPacking packages={packages} onClose={() => setShowModal(false)} />);
+      setModalContent(<PdfViewerPacking packages={packages} onLoaded={setPdfBlobUrl} />);
     }, 500); // 100ms suele ser suficiente
   }
 
   return (
     <>
       <button disabled={disabled} onClick={() => print()} title='Imprimir' className={`${className}`}>{ t.print_packaging } <IconPrinter className='ml-2'></IconPrinter></button>
-      <Modal size={modal_size} closeModal={() => setShowModal(false)} openModal={() => setShowModal(true)} showModal={show_modal} title={modal_title} content={modal_content}></Modal>
+      <Modal
+        size="w-full max-w-2xl"
+        closeModal={closeModal}
+        openModal={() => setShowModal(true)}
+        showModal={show_modal}
+        content={modal_content}
+        headerActions={
+          <div className="flex items-center gap-2">
+            {pdfBlobUrl && (
+              <a href={pdfBlobUrl} download="embalaje.pdf" className="no-load btn btn-primary btn-sm rounded">
+                {t.download_pdf}
+              </a>
+            )}
+            <button type="button" onClick={closeModal} className="btn btn-success btn-sm rounded">
+              {t.btn_close}
+            </button>
+          </div>
+        }
+      />
     </>
   );
 };

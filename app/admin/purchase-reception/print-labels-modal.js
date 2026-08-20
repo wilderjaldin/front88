@@ -2,16 +2,18 @@
 import React, { useEffect, useState } from 'react';
 import axiosClient from '@/app/lib/axiosClient';
 import { swalError } from '@/app/lib/swal';
+import { downloadBlob } from '@/app/lib/downloadBlob';
 
-// TODO: endpoint pendiente de confirmar por backend.
 const URL_LABELS_DATA = 'recepcion/etiquetas';
-// TODO: endpoint pendiente de confirmar por backend.
-const URL_GEN_LABELS_PDF = 'recepcion/etiquetas/pdf';
+const URL_GEN_LABELS_PDF = {
+  pendientes: 'recepcion/etiquetas/pendientes/pdf',
+  recibidas:  'recepcion/etiquetas/recibidas/pdf',
+};
 
 const thClass = "text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-2 py-1 text-left whitespace-nowrap select-none";
 const tdClass = "text-[11px] text-gray-700 dark:text-gray-300 px-2 py-1";
 
-const LabelsSection = ({ t, title, rows, loading, selected, onToggleRow, onToggleAll, format, onFormatChange, values, onValueChange, onGenPdf }) => {
+const LabelsSection = ({ t, title, rows, loading, selected, onToggleRow, onToggleAll, format, onFormatChange, values, onValueChange, onGenPdf, generating }) => {
   const allChecked = rows.length > 0 && selected.length === rows.length;
 
   return (
@@ -34,11 +36,10 @@ const LabelsSection = ({ t, title, rows, loading, selected, onToggleRow, onToggl
           <button
             type="button"
             onClick={onGenPdf}
-            disabled
-            title={t.pending_backend_integration}
-            className="inline-flex items-center h-7 px-3 rounded-lg bg-gray-100 text-gray-400 text-xs font-semibold cursor-not-allowed dark:bg-gray-800 dark:text-gray-500 transition"
+            disabled={selected.length === 0 || generating}
+            className="inline-flex items-center h-7 px-3 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-primary transition"
           >
-            {t.gen_pdf}
+            {generating ? (t.saving ?? 'Generando…') : t.gen_pdf}
           </button>
         </div>
       </div>
@@ -64,7 +65,7 @@ const LabelsSection = ({ t, title, rows, loading, selected, onToggleRow, onToggl
               ) : rows.length === 0 ? (
                 <tr><td colSpan={8} className="py-6 text-center text-xs text-gray-400">{t.no_matches}</td></tr>
               ) : rows.map((r, i) => (
-                <tr key={r.codRepuesto ?? i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                <tr key={r.codItem ?? i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
                   <td className={`${tdClass} text-center`}>
                     <input type="checkbox" className="form-checkbox h-3.5 w-3.5" checked={selected.includes(i)} onChange={() => onToggleRow(i)} />
                   </td>
@@ -76,7 +77,7 @@ const LabelsSection = ({ t, title, rows, loading, selected, onToggleRow, onToggl
                   <td className={tdClass}>
                     <input
                       type="number" min={0}
-                      value={values[i]?.imprimir ?? r.canFaltante ?? 0}
+                      value={values[i]?.imprimir ?? r.canImprimir ?? r.canFaltante ?? 0}
                       onChange={(e) => onValueChange(i, 'imprimir', e.target.value)}
                       className="h-7 w-16 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-1 text-center text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/40"
                     />
@@ -84,7 +85,7 @@ const LabelsSection = ({ t, title, rows, loading, selected, onToggleRow, onToggl
                   <td className={tdClass}>
                     <input
                       type="number" min={1}
-                      value={values[i]?.copias ?? 1}
+                      value={values[i]?.copias ?? r.numCopias ?? 1}
                       onChange={(e) => onValueChange(i, 'copias', e.target.value)}
                       className="h-7 w-14 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-1 text-center text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/40"
                     />
@@ -110,6 +111,8 @@ const PrintLabelsModal = ({ t, selected_orders = [], close }) => {
   const [formatRecibidas,  setFormatRecibidas]  = useState('pequeno');
   const [valuesPendientes, setValuesPendientes] = useState({});
   const [valuesRecibidas,  setValuesRecibidas]  = useState({});
+  const [generatingPendientes, setGeneratingPendientes] = useState(false);
+  const [generatingRecibidas,  setGeneratingRecibidas]  = useState(false);
 
   useEffect(() => { getData(); }, []);
 
@@ -136,8 +139,34 @@ const PrintLabelsModal = ({ t, selected_orders = [], close }) => {
   const setValue = (setValues) => (i, field, value) =>
     setValues(prev => ({ ...prev, [i]: { ...prev[i], [field]: value } }));
 
-  const genPdf = () => {
-    swalError(t.error, t.pending_backend_integration, t.close);
+  const buildItems = (rows, selected, values) => selected.map(i => {
+    const r = rows[i];
+    return {
+      numOrdenCompra: r.numOrdenCompra,
+      nroCotizacion:  r.nroCotizacion,
+      codItem:        r.codItem,
+      nroParte:       r.nroParte,
+      imprimir:       Number(values[i]?.imprimir ?? r.canImprimir ?? r.canFaltante ?? 0),
+      copias:         Number(values[i]?.copias ?? r.numCopias ?? 1),
+    };
+  });
+
+  const genPdf = async (section, rows, selected, values, format, setGenerating) => {
+    if (selected.length === 0) return;
+    setGenerating(true);
+    try {
+      const res = await axiosClient.post(
+        URL_GEN_LABELS_PDF[section],
+        { formatoMediano: format === 'mediano', items: buildItems(rows, selected, values) },
+        { responseType: 'blob' }
+      );
+      downloadBlob(res.data, `etiquetas-${section}.pdf`);
+    } catch (error) {
+      const apiMsg = error?.response?.data?.mensaje;
+      swalError(t.error, apiMsg ?? t.error, t.close);
+    } finally {
+      setGenerating(false);
+    }
   };
 
   return (
@@ -154,7 +183,8 @@ const PrintLabelsModal = ({ t, selected_orders = [], close }) => {
         onFormatChange={setFormatPendientes}
         values={valuesPendientes}
         onValueChange={setValue(setValuesPendientes)}
-        onGenPdf={genPdf}
+        onGenPdf={() => genPdf('pendientes', pendientes, selPendientes, valuesPendientes, formatPendientes, setGeneratingPendientes)}
+        generating={generatingPendientes}
       />
 
       <LabelsSection
@@ -169,7 +199,8 @@ const PrintLabelsModal = ({ t, selected_orders = [], close }) => {
         onFormatChange={setFormatRecibidas}
         values={valuesRecibidas}
         onValueChange={setValue(setValuesRecibidas)}
-        onGenPdf={genPdf}
+        onGenPdf={() => genPdf('recibidas', recibidas, selRecibidas, valuesRecibidas, formatRecibidas, setGeneratingRecibidas)}
+        generating={generatingRecibidas}
       />
 
       <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
