@@ -10,9 +10,11 @@ import IconMail from '@/components/icon/icon-mail';
 import '@/utils/pdfWorker';
 import { useTranslation } from "@/app/locales";
 
+const URL_PREVIEW_EXCEL = 'ordenescompra/preview-oc-excel';
+
 const btnBase = "h-8 inline-flex items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed";
 
-export default function PdfViewerOrder({ order, token, onClose, onSendMessage }) {
+export default function PdfViewerOrder({ order, token, payload, onClose, onSendMessage }) {
   const [pdfBlobUrl,   setPdfBlobUrl]   = useState(null);
   const [pdfFilename,  setPdfFilename]  = useState('orden-compra.pdf');
   const [numPages,     setNumPages]     = useState(null);
@@ -51,12 +53,13 @@ export default function PdfViewerOrder({ order, token, onClose, onSendMessage })
     setNumPages(numPages);
   };
 
-  // Endpoint sin confirmar todavía — se ajusta cuando se defina el contrato real.
+  // Mismo endpoint que la Vista Previa OC (ordenescompra/{nro}/excel no existe en
+  // el backend) — reutiliza el payload con el que se generó la orden.
   const handleDownloadExcel = async () => {
-    if (!nro) return;
+    if (!payload) return;
     setDownloadingExcel(true);
     try {
-      const res = await axiosClient.get(`ordenescompra/${nro}/excel`, { responseType: 'blob' });
+      const res = await axiosClient.post(URL_PREVIEW_EXCEL, payload, { responseType: 'blob' });
       const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -93,7 +96,7 @@ export default function PdfViewerOrder({ order, token, onClose, onSendMessage })
         <button
           type="button"
           onClick={handleDownloadExcel}
-          disabled={downloadingExcel}
+          disabled={downloadingExcel || !payload}
           className={`${btnBase} border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30`}
         >
           <IconDownload className="h-3.5 w-3.5" />
@@ -107,7 +110,7 @@ export default function PdfViewerOrder({ order, token, onClose, onSendMessage })
             className={`${btnBase} bg-sky-600 hover:bg-sky-700 text-white`}
           >
             <IconMail className="h-3.5 w-3.5" />
-            {t.send_message ?? 'Enviar Mensaje'}
+            {t.mail_supplier_title ?? 'Mail a Proveedor'}
           </button>
         )}
 

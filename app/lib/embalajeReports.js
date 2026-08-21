@@ -37,3 +37,13 @@ export const downloadInvoice = async (numEmbalaje, numDespacho) => {
   const res = await axiosClient.get(`embalajes/${numEmbalaje}/invoice/pdf`, { responseType: 'blob' });
   saveBlob(res.data, `D${numDespacho}.pdf`);
 };
+
+// tipos: subconjunto de ['etiqueta', 'invoice', 'lista-empaque', 'recibo-entrega'].
+// El backend combina esos reportes en un único PDF (QuestPDF Document.Merge).
+export const downloadCombinedReports = async (numEmbalaje, numDespacho, tipos) => {
+  const res = await axiosClient.get(`embalajes/${numEmbalaje}/reportes/pdf`, {
+    params: { tipos: tipos.join(',') },
+    responseType: 'blob',
+  });
+  saveBlob(res.data, `REP${numDespacho || numEmbalaje}.pdf`);
+};

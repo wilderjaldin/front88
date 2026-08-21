@@ -111,7 +111,15 @@ export default function DocumentDelivery() {
             t={t}
             row={dispatchRow}
             onClose={() => setShowDispatchModal(false)}
-            onSaved={() => { setShowDispatchModal(false); getList(); }}
+            onSaved={(list) => {
+              setShowDispatchModal(false);
+              swalSuccess(t.delivery_recorded_success);
+              // guardar-despacho devuelve la lista de pendientes actualizada; el
+              // shape de actualizar-despacho todavía no está confirmado, así que
+              // si no viene un array se hace un refetch completo por las dudas.
+              if (Array.isArray(list)) setOrders(list.map(mapOrder));
+              else getList();
+            }}
           />
         ) : null}
       />

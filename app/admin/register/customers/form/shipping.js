@@ -6,7 +6,7 @@ import { useTranslation } from '@/app/locales';
 import axiosClient from '@/app/lib/axiosClient';
 import SelectCountry from '@/components/select-country';
 import SelectCity from '@/components/select-city';
-import Swal from 'sweetalert2';
+import { swalSuccess, swalError } from '@/app/lib/swal';
 
 // ── URLs ──────────────────────────────────────────────────────────────────────
 const URL_PAISES   = `/clientes/paises`;
@@ -151,20 +151,17 @@ const ShippingForm = ({
 
     try {
       const res = await axiosClient.post(urlGuardar, payload);
-      Swal.fire({
-        title: t.success, icon: 'success',
-        confirmButtonColor: '#15803d',
-        text: isNew ? t.shipping_address_success_save : t.record_updated,
-        confirmButtonText: t.close,
-      }).then(() => { onSaved(res.data ?? []); onCancel(); });
+      swalSuccess(isNew ? t.shipping_address_success_save : t.record_updated);
+      onSaved(res.data ?? []);
+      onCancel();
     } catch (err) {
       const apiErrors = err?.response?.data?.errors;
       if (err?.response?.status === 400 && apiErrors) {
         const msgs = Object.values(apiErrors).flat().join('\n');
-        Swal.fire({ title: t.error, text: msgs, icon: 'error', confirmButtonColor: '#dc2626', confirmButtonText: t.close });
+        swalError(t.error, msgs, t.close);
         return;
       }
-      Swal.fire({ title: t.error, text: t.shipping_address_error_server, icon: 'error', confirmButtonColor: '#dc2626', confirmButtonText: t.close });
+      swalError(t.error, t.shipping_address_error_server, t.close);
     }
   };
 

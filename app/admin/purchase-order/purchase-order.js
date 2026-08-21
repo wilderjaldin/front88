@@ -217,6 +217,7 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
         <PdfViewerOrder
           order={o}
           token={token}
+          payload={buildOrderPayload()}
           onSendMessage={() => { setShowModal(false); showEmails(order_id); }}
           onClose={() => updateList(order_id)}
         />
@@ -239,50 +240,56 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
     setOrder();
   };
 
+  // Payload reconstruible en cualquier momento a partir del estado actual del form
+  // — lo usan tanto la Vista Previa como la vista de "Orden de Compra Generada"
+  // (esta última para poder descargar el Excel sin depender de un valor que solo
+  // viviría en memoria durante la llamada a generateOrder).
+  const buildOrderPayload = () => {
+    const data = getValues();
+    const Items = selected.map(i => {
+      // Referencia exacta (no por CodItem): un ítem dividido genera varias filas
+      // con el mismo CodItem pero distinto proveedor/costo, así que buscar por
+      // CodItem siempre encontraría la primera y arrastraría su cantidad a todas.
+      const itemIndex = items.indexOf(i);
+      if (itemIndex === -1) return null;
+      const canComprada = getValues(`items.${itemIndex}.quantity_purchased`);
+      const costoReal = getValues(`items.${itemIndex}.real_cost`) || i.CostoReal;
+      return {
+        codRepuesto: i.CodRepuesto,
+        codItem: i.CodItem,
+        nroCotizacion: i.NroOrden,
+        nroParte: i.NroParteCliente,
+        nroParteCompra: i.NroParteCompra,
+        desRepuesto: i.Descripcion,
+        canFaltante: i.CantFaltante,
+        canComprada,
+        costo: i.CostoSistema,
+        costoReal,
+        origenCompra: i.OrigenCompra,
+        costoSis: i.CostoSistema,
+        costoInc: costoReal,
+      };
+    }).filter(Boolean);
+
+    return { NomPrv: order.NomPrv, MtoOtros: data.others, MtoShipping: data.shipping, Items };
+  };
+
   // Vista previa en PDF de la OC — mismo payload que URL_GENERATE, con costoReal/costoInc
   // tomados del input "Costo Real" de cada fila en vez del valor original del sistema.
   const generateOrder = async () => {
     try {
-      let different_quantities = false;
-      const data = getValues();
-
-      const Items = selected.map(i => {
-        // Referencia exacta (no por CodItem): un ítem dividido genera varias filas
-        // con el mismo CodItem pero distinto proveedor/costo, así que buscar por
-        // CodItem siempre encontraría la primera y arrastraría su cantidad a todas.
+      const different_quantities = selected.some(i => {
         const itemIndex = items.indexOf(i);
-        if (itemIndex === -1) return null;
-        const canComprada = getValues(`items.${itemIndex}.quantity_purchased`);
-        if (canComprada < i.CantFaltante) different_quantities = true;
-        const costoReal = getValues(`items.${itemIndex}.real_cost`) || i.CostoReal;
-        return {
-          codRepuesto: i.CodRepuesto,
-          codItem: i.CodItem,
-          nroCotizacion: i.NroOrden,
-          nroParte: i.NroParteCliente,
-          nroParteCompra: i.NroParteCompra,
-          desRepuesto: i.Descripcion,
-          canFaltante: i.CantFaltante,
-          canComprada,
-          costo: i.CostoSistema,
-          costoReal,
-          origenCompra: i.OrigenCompra,
-          costoSis: i.CostoSistema,
-          costoInc: costoReal,
-        };
-      }).filter(Boolean);
+        if (itemIndex === -1) return false;
+        return getValues(`items.${itemIndex}.quantity_purchased`) < i.CantFaltante;
+      });
 
       if (different_quantities) {
         Swal.fire({ title: t.error, text: t.different_quantities_purchase_order, icon: 'error', confirmButtonColor: '#dc2626', confirmButtonText: t.close });
         return;
       }
 
-      const payload = {
-        NomPrv: order.NomPrv,
-        MtoOtros: data.others,
-        MtoShipping: data.shipping,
-        Items,
-      };
+      const payload = buildOrderPayload();
 
       const res = await axiosClient.post(URL_PREVIEW, payload, { responseType: 'blob' });
 

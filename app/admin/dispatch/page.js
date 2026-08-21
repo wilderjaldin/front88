@@ -18,7 +18,7 @@ const URL_LIST_DELIVERIES = 'entregas';
 const URL_ATTACH_ITEMS = 'entregas/adjuntar-items';
 const URL_CONTROLS = 'entregas/controles';
 const URL_SAVE_DISPATCH = 'entregas/guardar-despacho';
-const URL_CANCEL_PACKING = 'embalajes/anular';
+const URL_CANCEL_PACKING = 'embalajes/anular-recepcion';
 
 const TAB_KEYS = ['pending', 'dispatch'];
 
