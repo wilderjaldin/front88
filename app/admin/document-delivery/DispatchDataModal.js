@@ -372,11 +372,10 @@ const DispatchDataModal = ({ t, row, onClose, onSaved }) => {
         </div>
 
         <div>
-          <label className="block text-xs font-medium mb-1" htmlFor="delivery_address">{t.delivery_address} <span className="text-red-500">*</span></label>
+          <label className="block text-xs font-medium mb-1" htmlFor="delivery_address">{t.delivery_address}</label>
           <Controller
             name="delivery_address"
             control={control}
-            rules={{ required: { value: true, message: t.required_select } }}
             render={({ field }) => (
               <Select
                 {...field}

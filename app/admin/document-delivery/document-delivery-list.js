@@ -89,8 +89,8 @@ const DocumentDeliveryList = ({ t, data = [], loading, onCancel, onForward, onOp
                       </button>
                     </div>
                   </td>
-                  <td className={`${tdClass} text-center font-medium`}>{o.NumEmbalaje}</td>
-                  <td className={`${tdClass} text-center`}>{o.NumDespacho}</td>
+                  <td className={`${tdClass} text-center font-medium`}>{o.NumEmbalaje ? `EM-${o.NumEmbalaje}` : ''}</td>
+                  <td className={`${tdClass} text-center`}>{o.NumDespacho ? `DE-${o.NumDespacho}` : ''}</td>
                   <td className={`${tdClass} font-medium`}>{o.Cliente}</td>
                   <td className={tdClass}>{o.Transporte}</td>
                   <td className={tdClass}>{o.DireccionEntrega}</td>

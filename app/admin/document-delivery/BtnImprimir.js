@@ -46,6 +46,8 @@ const BtnImprimir = ({ t, row, className = "", onOpenDispatch }) => {
 
   const label = (rt) => rt.staticLabel ?? t[rt.labelKey];
 
+  // "Uno por uno": el modal se queda abierto para poder bajar otro reporte
+  // sin tener que volver a abrirlo.
   const runDownloads = async (keys) => {
     setDownloading(true);
     try {
@@ -53,7 +55,6 @@ const BtnImprimir = ({ t, row, className = "", onOpenDispatch }) => {
         const rt = REPORT_TYPES.find(r => r.key === key);
         if (rt) await rt.download(row);
       }
-      setShowModal(false);
     } catch (error) {
       console.error('Error al imprimir reportes:', error);
     } finally {
