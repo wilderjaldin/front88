@@ -23,6 +23,7 @@ import IconEye from '@/components/icon/icon-eye';
 
 import { PERMISSIONS } from '@/constants/permissions';
 import axiosClient from '@/app/lib/axiosClient';
+import { useStickyTop } from '@/app/hooks/useStickyTop';
 
 const thClass = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-2.5 py-2 text-left whitespace-nowrap";
 // Para columnas angostas con encabezado largo: el título puede partirse en 2 líneas
@@ -137,19 +138,11 @@ const DatatablesSpares = ({
     }
   };
 
-  // El header global es sticky en top:0 — el bloque de título/acciones/filtros se
-  // engancha justo debajo de su borde inferior para que el usuario no tenga que
-  // volver a subir para cambiar de vista o tocar un filtro con la lista larga.
-  const [stickyTop, setStickyTop] = useState(0);
-  useEffect(() => {
-    const updateStickyTop = () => {
-      const header = document.getElementById('site-header');
-      setStickyTop(header?.getBoundingClientRect().height ?? 0);
-    };
-    updateStickyTop();
-    window.addEventListener('resize', updateStickyTop);
-    return () => window.removeEventListener('resize', updateStickyTop);
-  }, []);
+  // El header global es sticky en top:0 (salvo en modo "Estática") — el bloque
+  // de título/acciones/filtros se engancha justo debajo de su borde inferior
+  // para que el usuario no tenga que volver a subir para cambiar de vista o
+  // tocar un filtro con la lista larga.
+  const stickyTop = useStickyTop();
 
   const options_status = useMemo(() => [
     { value: '', label: t.all },

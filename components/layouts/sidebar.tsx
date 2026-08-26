@@ -10,6 +10,16 @@ import IconCaretsDown from '@/components/icon/icon-carets-down';
 import IconCaretDown from '@/components/icon/icon-caret-down';
 import IconMenuChat from '@/components/icon/menu/icon-menu-chat';
 import IconMenuInvoice from '@/components/icon/menu/icon-menu-invoice';
+import IconMenuUsers from '@/components/icon/menu/icon-menu-users';
+import IconMenuForms from '@/components/icon/menu/icon-menu-forms';
+import IconMenuCharts from '@/components/icon/menu/icon-menu-charts';
+import IconMenuApps from '@/components/icon/menu/icon-menu-apps';
+import IconMenuTodo from '@/components/icon/menu/icon-menu-todo';
+import IconMenuWidgets from '@/components/icon/menu/icon-menu-widgets';
+import IconMenuDocumentation from '@/components/icon/menu/icon-menu-documentation';
+import IconMenuScrumboard from '@/components/icon/menu/icon-menu-scrumboard';
+import IconMenuDatatables from '@/components/icon/menu/icon-menu-datatables';
+import IconMenuMailbox from '@/components/icon/menu/icon-menu-mailbox';
 import { usePathname } from 'next/navigation';
 import { useTranslation } from '@/app/locales';
 import { useVisibleMenu } from '@/app/hooks/useVisibleMenu';
@@ -18,6 +28,16 @@ import { MenuItem } from '@/components/layouts/menuConfig';
 const ICON_MAP = {
   invoice: IconMenuInvoice,
   chat: IconMenuChat,
+  users: IconMenuUsers,
+  forms: IconMenuForms,
+  charts: IconMenuCharts,
+  apps: IconMenuApps,
+  todo: IconMenuTodo,
+  widgets: IconMenuWidgets,
+  documentation: IconMenuDocumentation,
+  scrumboard: IconMenuScrumboard,
+  datatables: IconMenuDatatables,
+  mailbox: IconMenuMailbox,
 };
 
 const Sidebar = () => {
@@ -120,7 +140,11 @@ const Sidebar = () => {
         <div className="h-full bg-white dark:bg-black">
           <div className="flex items-center justify-between px-4 py-3">
             <Link href="/" className="main-logo flex shrink-0 items-center">
-              <img className="ml-[5px] w-24 flex-none" src="/assets/images/logo.png" alt="logo" />
+              <img
+                className="ml-[5px] w-24 flex-none"
+                src={themeConfig.isDarkMode || semidark ? '/assets/images/logo_white.png' : '/assets/images/logo.png'}
+                alt="logo"
+              />
               <span className="align-middle text-2xl font-semibold ltr:ml-1.5 rtl:mr-1.5 dark:text-white-light lg:inline"></span>
             </Link>
             <button

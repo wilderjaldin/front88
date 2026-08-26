@@ -6,17 +6,23 @@ import IconDownload from '@/components/icon/icon-download';
 import Modal from '@/components/modal';
 import { swalError } from '@/app/lib/swal';
 import {
-  downloadLabel, downloadPackingList, downloadDeliveryReceipt, downloadInvoice, downloadCombinedReports,
+  downloadLabel, downloadPackingList, downloadDeliveryReceipt, downloadInvoice, downloadNafta, downloadCombinedReports,
 } from '@/app/lib/embalajeReports';
 
-// "tipo" es el valor que espera el endpoint combinado (?tipos=...). NAFTA no está
-// en esta lista: sin endpoint todavía, se muestra deshabilitado aparte.
+// "tipo" es el valor que espera el endpoint combinado (?tipos=...).
 const REPORT_TYPES = [
-  { key: 'label',            tipo: 'etiqueta',        labelKey: 'label_print',      download: (row) => downloadLabel(row.NumEmbalaje) },
-  { key: 'invoice',          tipo: 'invoice',          labelKey: 'invoice',          download: (row) => downloadInvoice(row.NumEmbalaje, row.NumDespacho) },
-  { key: 'packing_list',     tipo: 'lista-empaque',    labelKey: 'packing_list',     download: (row) => downloadPackingList(row.NumEmbalaje, row.NumDespacho) },
-  { key: 'delivery_receipt', tipo: 'recibo-entrega',   labelKey: 'delivery_receipt', download: (row) => downloadDeliveryReceipt(row.NumEmbalaje) },
+  { key: 'label',            tipo: 'etiqueta',      labelKey: 'label_print',      download: (row) => downloadLabel(row.NumEmbalaje) },
+  { key: 'invoice',          tipo: 'invoice',        labelKey: 'invoice',          download: (row) => downloadInvoice(row.NumEmbalaje, row.NumDespacho) },
+  { key: 'packing_list',     tipo: 'lista-empaque',  labelKey: 'packing_list',     download: (row) => downloadPackingList(row.NumEmbalaje, row.NumDespacho) },
+  { key: 'delivery_receipt', tipo: 'recibo-entrega', labelKey: 'delivery_receipt', download: (row) => downloadDeliveryReceipt(row.NumEmbalaje) },
 ];
+
+// NAFTA solo aplica a envíos con destino Chile, Perú o USA — el resto de países
+// ni siquiera muestra la opción. Endpoint de descarga sin confirmar todavía.
+const NAFTA_COUNTRIES = ['CL', 'PE', 'US'];
+const NAFTA_TYPE = { key: 'nafta', tipo: 'nafta', staticLabel: 'NAFTA', download: (row) => downloadNafta(row.NumEmbalaje) };
+const isNaftaAvailable = (row) => NAFTA_COUNTRIES.includes((row?.CodPais || '').toUpperCase());
+const ALL_TYPES = [...REPORT_TYPES, NAFTA_TYPE];
 
 const tabBtnClass = (active) =>
   `relative z-10 px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
@@ -45,6 +51,8 @@ const BtnImprimir = ({ t, row, className = "", onOpenDispatch }) => {
   };
 
   const label = (rt) => rt.staticLabel ?? t[rt.labelKey];
+  const naftaAvailable = isNaftaAvailable(row);
+  const selectableTypes = naftaAvailable ? ALL_TYPES : REPORT_TYPES;
 
   // "Uno por uno": el modal se queda abierto para poder bajar otro reporte
   // sin tener que volver a abrirlo.
@@ -52,7 +60,7 @@ const BtnImprimir = ({ t, row, className = "", onOpenDispatch }) => {
     setDownloading(true);
     try {
       for (const key of keys) {
-        const rt = REPORT_TYPES.find(r => r.key === key);
+        const rt = ALL_TYPES.find(r => r.key === key);
         if (rt) await rt.download(row);
       }
     } catch (error) {
@@ -67,7 +75,7 @@ const BtnImprimir = ({ t, row, className = "", onOpenDispatch }) => {
     if (keys.length === 0) return;
     setDownloading(true);
     try {
-      const tipos = keys.map(key => REPORT_TYPES.find(rt => rt.key === key)?.tipo).filter(Boolean);
+      const tipos = keys.map(key => ALL_TYPES.find(rt => rt.key === key)?.tipo).filter(Boolean);
       await downloadCombinedReports(row.NumEmbalaje, row.NumDespacho, tipos);
       setShowModal(false);
     } catch (error) {
@@ -126,9 +134,13 @@ const BtnImprimir = ({ t, row, className = "", onOpenDispatch }) => {
                     {label(rt)}
                   </button>
                 ))}
-                {/* NAFTA solo aplica a ciertos envíos (ej. destino US/México/Canadá) —
-                    condición sin confirmar todavía, se deja siempre deshabilitado. */}
-                <button disabled className={reportButtonClass}>
+                {/* NAFTA solo aplica a envíos con destino Chile, Perú o USA. */}
+                <button
+                  disabled={downloading || !naftaAvailable}
+                  onClick={() => runDownloads(['nafta'])}
+                  title={naftaAvailable ? undefined : (t.nafta_unavailable_hint ?? 'Solo disponible para Chile, Perú y USA')}
+                  className={reportButtonClass}
+                >
                   NAFTA
                 </button>
               </div>
@@ -138,7 +150,7 @@ const BtnImprimir = ({ t, row, className = "", onOpenDispatch }) => {
             {mode === 'custom' && (
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-2">
-                  {REPORT_TYPES.map(rt => (
+                  {selectableTypes.map(rt => (
                     <label
                       key={rt.key}
                       className="flex items-center gap-2 h-10 px-3 rounded-lg border border-gray-300 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-300 cursor-pointer hover:border-primary/60 transition select-none"
@@ -169,12 +181,14 @@ const BtnImprimir = ({ t, row, className = "", onOpenDispatch }) => {
             {mode === 'all' && (
               <div className="space-y-3">
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {t.download_all_hint ?? 'Descarga los reportes disponibles: Etiqueta, Invoice, Lista Empaque y Recibo Entrega (NAFTA no está disponible).'}
+                  {naftaAvailable
+                    ? (t.download_all_hint_nafta ?? 'Descarga los reportes disponibles: Etiqueta, Invoice, Lista Empaque, Recibo Entrega y NAFTA.')
+                    : (t.download_all_hint ?? 'Descarga los reportes disponibles: Etiqueta, Invoice, Lista Empaque y Recibo Entrega (NAFTA no está disponible).')}
                 </p>
                 <button
                   type="button"
                   disabled={downloading}
-                  onClick={() => runCombinedDownload(REPORT_TYPES.map(rt => rt.key))}
+                  onClick={() => runCombinedDownload(selectableTypes.map(rt => rt.key))}
                   className="w-full h-10 inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition"
                 >
                   <IconDownload className="h-3.5 w-3.5" />

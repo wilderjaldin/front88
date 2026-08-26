@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import axiosClient from '@/app/lib/axiosClient';
 import { swalError, swalSuccess } from '@/app/lib/swal';
 import { useDynamicTitle } from '@/app/hooks/useDynamicTitle';
+import { useStickyTop } from '@/app/hooks/useStickyTop';
 import IconSearch from '@/components/icon/icon-search-filled';
 import IconPlus from '@/components/icon/icon-plus';
 import IconX from '@/components/icon/icon-x';
@@ -45,18 +46,10 @@ export default function SuppliersPage() {
   const [controles, setControles] = useState({ paises: [], docTypes: [] });
   const [showNewModal, setShowNewModal] = useState(false);
 
-  // El header global es sticky en top:0 — el bloque de título/acciones/filtros se
-  // engancha justo debajo de su borde inferior, mismo patrón que clientes/repuestos.
-  const [stickyTop, setStickyTop] = useState(0);
-  useEffect(() => {
-    const updateStickyTop = () => {
-      const header = document.getElementById('site-header');
-      setStickyTop(header?.getBoundingClientRect().height ?? 0);
-    };
-    updateStickyTop();
-    window.addEventListener('resize', updateStickyTop);
-    return () => window.removeEventListener('resize', updateStickyTop);
-  }, []);
+  // El header global es sticky en top:0 (salvo en modo "Estática") — el bloque
+  // de título/acciones/filtros se engancha justo debajo de su borde inferior,
+  // mismo patrón que clientes/repuestos.
+  const stickyTop = useStickyTop();
 
   useEffect(() => {
     axiosClient.get(`${URL_BASE}/controles`)

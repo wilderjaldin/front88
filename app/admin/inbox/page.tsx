@@ -5,11 +5,10 @@ import { useForm } from "react-hook-form";
 import { useTranslation } from "@/app/locales";
 import Select from "react-select";
 import { Pagination } from "@mantine/core";
-import axios from "axios";
 import axiosClient from "@/app/lib/axiosClient";
 import { swalSuccess, swalError, swalConfirm } from "@/app/lib/swal";
 import { useDispatch, useSelector } from "react-redux";
-import { selectUser, selectToken } from "@/store/authSlice";
+import { selectUser } from "@/store/authSlice";
 import { selectTotalNoLeidos, setTotalNoLeidos, decrementTotalNoLeidos } from "@/store/notificationsSlice";
 import { getHubConnection } from "@/app/lib/signalr";
 import { customFormat } from "@/app/lib/format";
@@ -22,20 +21,25 @@ import IconPlus from "@/components/icon/icon-plus";
 import IconXCircle from "@/components/icon/icon-x-circle";
 import IconX from "@/components/icon/icon-x";
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
+import { useStickyTop } from "@/app/hooks/useStickyTop";
 
 const URL_LISTAR        = "inbox/listar";
 const URL_DETALLE       = "inbox/detalle";
 const URL_USUARIOS      = "usuarios/mensaje";
-const URL_MARCAR_VISTO  = "seguimiento/marcar-visto";
 const URL_ARCHIVAR      = "inbox/archivar";
 const URL_RESPONDER     = "inbox/responder";
-const url_iniciar_msg   = process.env.NEXT_PUBLIC_API_URL + "inbox/IniciarMsg";
+const URL_INICIAR_MSG   = "inbox/iniciar";
 
 const STATUS_TABS = [
   { value: "unread",   label: "No leídos" },
   { value: "read",     label: "Leídos" },
   { value: "archived", label: "Archivados" },
 ];
+
+// Misma tabla que usa components/NotificationsProvider.tsx (y app/admin/revision/quotes/page.js)
+// para elegir el sub-form según la categoría de la cotización — la necesitamos acá
+// para que el número de cotización del detalle sea un link real hacia la cotización.
+const CATEGORY_OPTION: Record<string, string> = { NR: "quotes", SC: "quotes-without-code", MA: "manual" };
 
 function getInitials(name: string = ""): string {
   return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
@@ -53,7 +57,6 @@ function avatarColor(name: string = ""): string {
 
 export default function Inbox() {
   const currentUser = useSelector(selectUser);
-  const token       = useSelector(selectToken);
   const t           = useTranslation();
   useDynamicTitle(t.inbox);
 
@@ -111,7 +114,7 @@ export default function Inbox() {
 
   const hasActiveFilters = urlQuote !== 0 || urlUser !== 0;
 
-  const [stickyTop, setStickyTop] = useState(0);
+  const stickyTop = useStickyTop();
 
   const threadRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -180,17 +183,6 @@ export default function Inbox() {
     return () => conn.off("nuevaMensaje", onNuevaMensaje);
   }, [urlMessage]);
 
-  // El header global es sticky/fixed en top:0 — el panel de detalle debe engancharse justo debajo, a ras de su borde inferior
-  useEffect(() => {
-    const updateStickyTop = () => {
-      const header = document.getElementById("site-header");
-      setStickyTop(header?.getBoundingClientRect().height ?? 0);
-    };
-    updateStickyTop();
-    window.addEventListener("resize", updateStickyTop);
-    return () => window.removeEventListener("resize", updateStickyTop);
-  }, []);
-
   const fetchList = async () => {
     try {
       const params: Record<string, number | string> = { page: urlPage };
@@ -212,28 +204,23 @@ export default function Inbox() {
     } catch {}
   };
 
-  const markAsRead = async (codMensaje: number) => {
-    try {
-      await axiosClient.post(URL_MARCAR_VISTO, { codMensaje });
-      let wasUnread = false;
-      setMailList(prev => prev.map(m => {
-        if (m.codMensaje !== codMensaje) return m;
-        wasUnread = m.visto === false;
-        return { ...m, visto: true };
-      }));
-      if (wasUnread) dispatch(decrementTotalNoLeidos());
-    } catch {}
-  };
-
   const loadDetail = async (codMensaje: number) => {
     setRespuesta("");
     setLoadingDetail(true);
     try {
       const item = mailList.find((m: any) => m.codMensaje === codMensaje);
-      if (item && !item.visto) await markAsRead(codMensaje);
+      const wasUnread = item ? item.visto === false : false;
+
       const rs = await axiosClient.get(`${URL_DETALLE}/${codMensaje}`);
       setSelectedMail(rs.data?.encabezado ?? null);
       setDetails(rs.data?.detalle ?? []);
+
+      // El GET de detalle ya marca el mensaje como leído en el backend — reflejar
+      // eso acá: punto azul de la lista, badge de "No leídos" del tab y del header.
+      if (wasUnread) {
+        setMailList(prev => prev.map(m => m.codMensaje === codMensaje ? { ...m, visto: true } : m));
+        dispatch(decrementTotalNoLeidos());
+      }
     } catch {} finally { setLoadingDetail(false); }
   };
 
@@ -249,19 +236,14 @@ export default function Inbox() {
 
   const onNewMessage = async (data: any) => {
     try {
-      const rs = await axios.post(url_iniciar_msg, {
-        CodUsuarioDestino: data.user,
-        NroOrden:          data.nro_order || 0,
-        Mensaje:           data.message,
-        ValToken:          token,
+      await axiosClient.post(URL_INICIAR_MSG, {
+        codUsuarioDestino: data.user,
+        nroCotizacion:     data.nro_order || 0,
+        desMensaje:        data.message,
       });
-      if (rs.data.estado === "OK") {
-        setShowNewMsgModal(false);
-        swalSuccess("Mensaje enviado");
-        await fetchList();
-      } else {
-        swalError(t.error ?? "Error", "No se pudo enviar el mensaje.");
-      }
+      setShowNewMsgModal(false);
+      swalSuccess("Mensaje enviado");
+      await fetchList();
     } catch (error: any) {
       const apiMsg = error?.response?.data?.mensaje;
       swalError(t.error ?? "Error", apiMsg ?? "No se pudo enviar el mensaje.");
@@ -562,7 +544,18 @@ export default function Inbox() {
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-x-6 gap-y-1 mt-2">
-                  <MetaItem label={t.quote}  value={selectedMail.nroCotizacion} />
+                  <MetaItem
+                    label={t.quote}
+                    value={selectedMail.nroCotizacion}
+                    onClick={
+                      selectedMail.nroCotizacion && selectedMail.codCliente
+                        ? () => {
+                            const option = CATEGORY_OPTION[selectedMail.categoria] ?? "quotes";
+                            router.push(`/admin/revision/quotes?customer=${selectedMail.codCliente}&option=${option}&id=${selectedMail.nroCotizacion}`);
+                          }
+                        : undefined
+                    }
+                  />
                   <MetaItem label="Total"    value={selectedMail.total != null ? `US$ ${customFormat(selectedMail.total)}` : null} />
                   <MetaItem label="Creado"     value={selectedMail.fecRegistra} />
                   <MetaItem label="Modificado" value={selectedMail.fecModifica} />
@@ -717,12 +710,22 @@ export default function Inbox() {
   );
 }
 
-function MetaItem({ label, value }: { label: string; value: any }) {
+function MetaItem({ label, value, onClick }: { label: string; value: any; onClick?: () => void }) {
   const isEmpty = value === null || value === undefined || value === "";
   return (
     <div className="space-y-0.5">
       <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{label}</p>
-      <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{isEmpty ? "—" : value}</p>
+      {!isEmpty && onClick ? (
+        <button
+          type="button"
+          onClick={onClick}
+          className="text-sm font-semibold text-primary dark:text-blue-400 underline underline-offset-2 hover:opacity-80"
+        >
+          {value}
+        </button>
+      ) : (
+        <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{isEmpty ? "—" : value}</p>
+      )}
     </div>
   );
 }

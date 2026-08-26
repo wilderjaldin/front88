@@ -91,7 +91,18 @@ const DocumentDeliveryList = ({ t, data = [], loading, onCancel, onForward, onOp
                   </td>
                   <td className={`${tdClass} text-center font-medium`}>{o.NumEmbalaje ? `EM-${o.NumEmbalaje}` : ''}</td>
                   <td className={`${tdClass} text-center`}>{o.NumDespacho ? `DE-${o.NumDespacho}` : ''}</td>
-                  <td className={`${tdClass} font-medium`}>{o.Cliente}</td>
+                  <td className={`${tdClass} font-medium`}>
+                    <div className="flex items-center gap-2">
+                      {o.CodPais && (
+                        <img
+                          src={`/assets/flags/${o.CodPais.toLowerCase()}.svg`}
+                          alt={o.CodPais}
+                          className="h-3.5 w-5 rounded-sm object-cover shrink-0"
+                        />
+                      )}
+                      <span>{o.Cliente}</span>
+                    </div>
+                  </td>
                   <td className={tdClass}>{o.Transporte}</td>
                   <td className={tdClass}>{o.DireccionEntrega}</td>
                   <td className={`${tdClass} text-gray-500 whitespace-pre-line`}>{o.Carga}</td>

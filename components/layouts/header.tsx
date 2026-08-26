@@ -43,7 +43,7 @@ import { usePermissions } from "@/app/hooks/usePermissions";
 import { PERMISSIONS } from "@/constants/permissions";
 
 const URL_USUARIOS = "usuarios/mensaje";
-const URL_INICIAR_MSG = "inbox/IniciarMsg";
+const URL_INICIAR_MSG = "inbox/iniciar";
 
 const Header = () => {
   useAuthGuard();
@@ -170,12 +170,13 @@ const Header = () => {
   }
   const handleInitMessage = async (data: any) => {
     try {
-      const rs = await axiosClient.post(URL_INICIAR_MSG, { CodUsuarioDestino: data.user, NroOrden: data.nro_order || 0, Mensaje: data.message });
-
-      if (rs.data.estado == 'OK') {
-        swalSuccess(t.message_successfully_saved);
-        setShowModal(false);
-      }
+      await axiosClient.post(URL_INICIAR_MSG, {
+        codUsuarioDestino: data.user,
+        nroCotizacion:     data.nro_order || 0,
+        desMensaje:        data.message,
+      });
+      swalSuccess(t.message_successfully_saved);
+      setShowModal(false);
     } catch (error) {
 
     }
@@ -206,7 +207,11 @@ const Header = () => {
           <div className="relative flex w-full items-center bg-white px-5 py-2.5 dark:bg-black">
             <div className="horizontal-logo flex items-center justify-between ltr:mr-2 rtl:ml-2 lg:hidden">
               <Link href="/admin/dashboard" className="main-logo flex shrink-0 items-center">
-                <img className="inline w-24 ltr:-ml-1 rtl:-mr-1" src="/assets/images/logo.png" alt="logo" />
+                <img
+                  className="inline w-24 ltr:-ml-1 rtl:-mr-1"
+                  src={themeConfig.isDarkMode || themeConfig.semidark ? '/assets/images/logo_white.png' : '/assets/images/logo.png'}
+                  alt="logo"
+                />
                 <span className="hidden align-middle text-2xl  font-semibold  transition-all duration-300 ltr:ml-1.5 rtl:mr-1.5 dark:text-white-light md:inline"></span>
               </Link>
               <button
@@ -248,7 +253,7 @@ const Header = () => {
                       </select>
                     </div>
                     <button type="submit" className="btn btn-primary appearance-none peer-focus:text-primary ltr:right-auto rtl:left-auto">
-                      <IconSearch className="font-bold mx-auto" />
+                      <IconSearch className="h-4 w-4 mx-auto" />
                     </button>
 
                     <Link href={"/admin/dashboard"} target='_blank' className="no-load ml-10 appearance-none peer-focus:text-black ltr:right-auto rtl:left-auto">

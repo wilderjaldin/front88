@@ -6,13 +6,15 @@ import SelectCountry from '@/components/select-country';
 import SelectCity from '@/components/select-city';
 import Select from 'react-select';
 import Loading from '@/components/layouts/loading';
+import IconMail from '@/components/icon/icon-mail';
 import axiosClient from "@/app/lib/axiosClient";
-import Swal from 'sweetalert2';
+import { swalSuccess, swalSuccessModal, swalError } from '@/app/lib/swal';
 
 // ── URLs ──────────────────────────────────────────────────────────────────────
 const URL_REGISTRO_USUARIO = "/usuarios/registro";
 const URL_EDITAR_USUARIO   = "/usuarios/editar";
 const URL_CIUDADES         = "/usuarios/ciudades";
+const URL_PROBAR_SMTP      = "/usuarios/probar-smtp";
 
 const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countries }) => {
   const [isLoading,     setLoading]       = useState(false);
@@ -21,7 +23,12 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
 
   const [cities,          setCities]         = useState([]);
   const [current_country, setCurrentCountry] = useState('');
-  const [smtp_email,      setSMTPEmail]      = useState('');
+
+  // ── Prueba de conexión SMTP (stateless — no depende de que el usuario ya exista) ──
+  const [testingSmtp, setTestingSmtp] = useState(false);
+  // Combinación correo+password sobre la que la última prueba dio "Ok". Si
+  // cualquiera de los dos cambia después, deja de contar como verificado.
+  const [verifiedSmtp, setVerifiedSmtp] = useState(null);
 
   const isEdit = mode === "edit";
 
@@ -70,15 +77,14 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
               password_system: '', password_smtp: '' });
       setCities([]);
       setCurrentCountry('');
-      setSMTPEmail('');
+      setVerifiedSmtp(null);
       return;
     }
 
     reset({
       rol:             user?.rol      ?? null,
-      login:           user?.Username ?? "",
+      login:           user?.username ?? user?.correo ?? "",
       name:            user?.nombre   ?? '',
-      emailUser:       user?.correo   ?? '',
       country:         user?.pais     ?? '',
       city:            null,
       report:          user?.idioma          ?? 'ES',
@@ -89,11 +95,17 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
       password_smtp:   '',
     });
 
-    if (user?.correo) {
-      const email = `${user.correo}@daxparts.com`;
-      setValue('email', email);
-      setSMTPEmail(email);
+    // corElectronico es exclusivo del SMTP y siempre es @daxparts.com; si el
+    // detalle no lo trae todavía, cae al viejo derivado desde correo (username local-part).
+    const smtpEmail = user?.corElectronico || (user?.correo ? `${user.correo}@daxparts.com` : '');
+    if (smtpEmail) {
+      setValue('email', smtpEmail);
+      setValue('smtpUser', smtpEmail.split('@')[0] ?? '');
     }
+
+    // Si el backend ya tiene la conexión verificada para lo que hay guardado,
+    // reflejarlo de entrada (password vacío = "no cambiada" en este load).
+    setVerifiedSmtp(user?.smtpVerificado && smtpEmail ? { email: smtpEmail, password: '' } : null);
 
     setCurrentCountry(user?.pais ?? '');
 
@@ -102,9 +114,62 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
     }
   }, [user]);
 
+  // ── Prueba de conexión SMTP ────────────────────────────────────────────────
+  // El backend responde 200 siempre, con { exitoso, mensaje } — el mensaje viene
+  // técnico/en inglés (ej. "No se pudo conectar: 535: Authentication Failed"),
+  // así que acá lo traducimos a algo entendible en vez de mostrarlo tal cual.
+  const translateSmtpError = (rawMessage = '') => {
+    const msg = rawMessage.toLowerCase();
+    if (msg.includes('535') || msg.includes('authentication') || msg.includes('usuario o contraseña')) {
+      return 'Usuario o contraseña incorrectos';
+    }
+    if (msg.includes('econnrefused') || msg.includes('timeout') || msg.includes('getaddrinfo') || msg.includes('enotfound')) {
+      return 'No se pudo conectar con el servidor de correo';
+    }
+    return 'No se pudo verificar la conexión SMTP';
+  };
+
+  const testSmtp = async () => {
+    const email    = watch('email');
+    const password = watch('password_smtp');
+
+    if (!email) {
+      swalError(t.error, "Ingresa el correo primero", t.close);
+      return;
+    }
+
+    setTestingSmtp(true);
+    try {
+      const rs = await axiosClient.post(URL_PROBAR_SMTP, { corElectronico: email, pwdMail: password });
+
+      if (rs.data?.exitoso) {
+        setVerifiedSmtp({ email, password });
+        swalSuccess('Conexión exitosa');
+      } else {
+        setVerifiedSmtp(null);
+        swalError(t.error, translateSmtpError(rs.data?.mensaje), t.close);
+      }
+    } catch (error) {
+      setVerifiedSmtp(null);
+      const message = error.request ? "No se pudo conectar con el servidor" : "No se pudo verificar la conexión SMTP";
+      swalError(t.error, message, t.close);
+    } finally {
+      setTestingSmtp(false);
+    }
+  };
+
   // ── Submit ────────────────────────────────────────────────────────────────
   const onSubmit = async (data) => {
     try {
+      // Solo cuenta como verificado si el correo/contraseña no cambiaron desde
+      // la última prueba exitosa (si Editar no cambió ninguno de los dos, el
+      // backend deja el flag guardado tal cual, sin importar lo que mandemos acá).
+      const smtpVerificado = !!(
+        verifiedSmtp &&
+        verifiedSmtp.email === data.email &&
+        verifiedSmtp.password === data.password_smtp
+      );
+
       const data_user = {
         codRol:         data.rol ?? null,
         nomUsuario:     data.name,
@@ -118,6 +183,7 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
         codEstado:      data.status,
         blnSeguimiento: data.blnSeguimiento ?? false,
         blnMensaje:     data.blnMensaje     ?? false,
+        smtpVerificado,
       };
 
       let rs;
@@ -127,13 +193,8 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
         rs = await axiosClient.post(URL_REGISTRO_USUARIO, data_user);
       }
 
-      Swal.fire({
-        title: t.success,
-        icon: 'success',
-        confirmButtonColor: '#15803d',
-        text: t.customer_success_save,
-        confirmButtonText: t.close,
-      }).then(() => {
+      const successText = isEdit ? "El usuario fue actualizado correctamente" : "El usuario fue registrado correctamente";
+      swalSuccessModal(t.success, successText, t.close).then(() => {
         updateList(rs.data);
         action_cancel();
       });
@@ -141,12 +202,9 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
     } catch (error) {
       const message =
         error.response?.data?.message ??
-        (error.request ? "No se pudo conectar con el servidor" : t.customer_error_save);
+        (error.request ? "No se pudo conectar con el servidor" : "Ocurrió un error al guardar el usuario");
 
-      Swal.fire({
-        title: t.error, text: message, icon: 'error',
-        confirmButtonColor: '#dc2626', confirmButtonText: t.close,
-      });
+      swalError(t.error, message, t.close);
     }
   };
 
@@ -178,6 +236,13 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
     setValue("password_system", pwd.split('').sort(() => 0.5 - Math.random()).join(''));
   };
 
+  // Verificado solo cuenta si corresponde al correo/contraseña actuales del form
+  const isSmtpVerified = !!(
+    verifiedSmtp &&
+    verifiedSmtp.email === watch('email') &&
+    verifiedSmtp.password === watch('password_smtp')
+  );
+
   return (
     <>
       {isLoading && <Loading />}
@@ -189,9 +254,8 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
           {/* 🔹 FILA 1 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-            {/* 🔐 ACCESO AL SISTEMA */}
+            {/* ACCESO AL SISTEMA */}
             <div className="space-y-3 bg-gray-50 p-4 rounded-xl border">
-              <h3 className="text-sm font-semibold text-gray-700 border-b pb-1">🔐 Acceso al Sistema</h3>
 
               {/* NOMBRE */}
               <div className="grid grid-cols-[140px_1fr] items-start gap-3">
@@ -227,35 +291,20 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
                 </div>
               </div>
 
-              {/* CORREO */}
+              {/* CORREO (login) — puede ser cualquier dominio: gmail.com, propio.com, etc. */}
               <div className="grid grid-cols-[140px_1fr] items-start gap-3">
                 <label className="form-label required text-right pt-2">Correo</label>
                 <div>
-                  <div className="flex">
-                    <input
-                      type="text"
-                      placeholder="usuario"
-                      className="form-input rounded-r-none"
-                      {...register("emailUser", {
-                        required: "Campo requerido",
-                        pattern: { value: /^[a-zA-Z0-9._]+$/, message: "Solo letras, números, punto y guión bajo" },
-                      })}
-                      onBlur={(e) => {
-                        const username = e.target.value.trim();
-                        if (username) {
-                          setValue("email", `${username}@daxparts.com`, { shouldValidate: true });
-                          setValue("login", username);
-                          setSMTPEmail(`${username}@daxparts.com`);
-                        }
-                      }}
-                    />
-                    <span className="inline-flex items-center px-3 text-gray-500 bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg text-sm">
-                      @daxparts.com
-                    </span>
-                  </div>
-                  {errors.emailUser && <span className="text-red-400 block text-xs mt-1">{errors.emailUser?.message?.toString()}</span>}
-                  <input type="hidden" {...register("email", { required: { value: true, message: t.required_field } })} />
-                  {errors.email && <span className="text-red-400 block text-xs mt-1">{errors.email?.message?.toString()}</span>}
+                  <input
+                    type="email"
+                    placeholder="usuario@dominio.com"
+                    className="form-input"
+                    {...register("login", {
+                      required: "Campo requerido",
+                      pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "Correo inválido" },
+                    })}
+                  />
+                  {errors.login && <span className="text-red-400 block text-xs mt-1">{errors.login?.message?.toString()}</span>}
                 </div>
               </div>
 
@@ -317,15 +366,56 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
 
             {/* 📧 CONFIGURACIÓN SMTP */}
             <div className="space-y-3 bg-gray-50 p-4 rounded-xl border">
-              <h3 className="text-sm font-semibold text-gray-700 border-b pb-1">📧 Configuración SMTP</h3>
+              <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 border-b pb-1">
+                <IconMail className="h-4 w-4 shrink-0" />
+                Configuración SMTP
+              </h3>
+
+              {isEdit && !isSmtpVerified && (
+                <div className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs bg-amber-50 text-amber-700 border border-amber-200">
+                  ⚠️ La conexión SMTP no ha sido verificada. Usa "Probar Conexión" antes de guardar.
+                </div>
+              )}
+
               <div>
-                <label className="form-label">Correo SMTP</label>
-                <label className='form-input bg-gray-100'>{smtp_email || "---"}</label>
-                <p className="text-xs text-gray-500 mt-1">Este correo también se utiliza para acceder al sistema.</p>
+                <label className="form-label required">Correo SMTP</label>
+                <div className="flex">
+                  <input
+                    type="text"
+                    placeholder="usuario"
+                    className="form-input rounded-r-none"
+                    {...register("smtpUser", {
+                      required: "Campo requerido",
+                      pattern: { value: /^[a-zA-Z0-9._]+$/, message: "Solo letras, números, punto y guión bajo" },
+                    })}
+                    onChange={(e) => {
+                      const username = e.target.value.trim();
+                      setValue("email", username ? `${username}@daxparts.com` : '', { shouldValidate: true });
+                    }}
+                  />
+                  <span className="inline-flex items-center px-3 text-gray-500 bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg text-sm">
+                    @daxparts.com
+                  </span>
+                </div>
+                {errors.smtpUser && <span className="text-red-400 block text-xs mt-1">{errors.smtpUser?.message?.toString()}</span>}
+                <input type="hidden" {...register("email", { required: { value: true, message: t.required_field } })} />
               </div>
               <div>
                 <label className="form-label">Contraseña del Correo (SMTP)</label>
                 <input type="text" {...register("password_smtp")} className="form-input" />
+              </div>
+              <div className="flex items-center gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={testSmtp}
+                  disabled={testingSmtp}
+                  className="text-xs bg-gray-700 text-white px-3 py-1.5 rounded-md hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {testingSmtp ? "Probando…" : "Probar Conexión"}
+                </button>
+                {isSmtpVerified && (
+                  <span className="text-xs text-green-600 font-medium">✓ Conexión verificada</span>
+                )}
               </div>
             </div>
 
@@ -336,55 +426,60 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
 
             <div className="space-y-3 bg-gray-50 p-4 rounded-xl border">
 
-              <div>
-                <label className="form-label required">{t.country}</label>
-                <SelectCountry
-                  setValue={setValue}
-                  current={current_country}
-                  t={t}
-                  options={countries}
-                  control={control}
-                  errors={errors}
-                  onChange={changeCountry}
-                  setLoading={setLoading}
-                />
+              <div className="grid grid-cols-[140px_1fr] items-start gap-3">
+                <label className="form-label required text-right pt-2">{t.country}</label>
+                <div>
+                  <SelectCountry
+                    setValue={setValue}
+                    current={current_country}
+                    t={t}
+                    options={countries}
+                    control={control}
+                    errors={errors}
+                    onChange={changeCountry}
+                    setLoading={setLoading}
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="form-label required">{t.city}</label>
-                <SelectCity
-                  t={t}
-                  control={control}
-                  errors={errors}
-                  cities={cities}
-                  isLoading={loadingCities}
-                  setValue={setValue}
-                  selectedCountry={watch('country')}
-                  onCityAdded={({ newCity, ciudades }) => {
-                    setCities(ciudades);
-                    setValue('city', newCity, { shouldValidate: false });
-                  }}
-                  instanceId="select-city-user"
-                />
+              <div className="grid grid-cols-[140px_1fr] items-start gap-3">
+                <label className="form-label required text-right pt-2">{t.city}</label>
+                <div>
+                  <SelectCity
+                    t={t}
+                    control={control}
+                    errors={errors}
+                    cities={cities}
+                    isLoading={loadingCities}
+                    setValue={setValue}
+                    selectedCountry={watch('country')}
+                    onCityAdded={({ newCity, ciudades }) => {
+                      setCities(ciudades);
+                      setValue('city', newCity, { shouldValidate: false });
+                    }}
+                    instanceId="select-city-user"
+                  />
+                </div>
               </div>
             </div>
 
-            {/* ⚙️ PREFERENCIAS */}
+            {/* PREFERENCIAS */}
             <div className="space-y-3 bg-gray-50 p-4 rounded-xl border">
-              <h3 className="text-sm font-semibold text-gray-700 border-b pb-1">⚙️ Preferencias</h3>
-              <div>
-                <label className="form-label">{t.show_reports_in}</label>
-                <Controller
-                  name="report"
-                  control={control}
-                  render={({ field }) => (
-                    <Select
-                      options={options_reports}
-                      value={options_reports.find(o => o.value === field.value) ?? null}
-                      onChange={(selected) => field.onChange(selected?.value)}
-                    />
-                  )}
-                />
+              <div className="grid grid-cols-[140px_1fr] items-start gap-3">
+                <label className="form-label text-right pt-2">{t.show_reports_in}</label>
+                <div>
+                  <Controller
+                    name="report"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        options={options_reports}
+                        value={options_reports.find(o => o.value === field.value) ?? null}
+                        onChange={(selected) => field.onChange(selected?.value)}
+                      />
+                    )}
+                  />
+                </div>
               </div>
               <div className="pt-1">
                 <label className="form-label mb-2">Notificaciones</label>

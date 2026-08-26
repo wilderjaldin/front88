@@ -17,11 +17,15 @@ export type MenuItemChild = {
   rol?: string;           // si se define, solo visible para ese rol exacto
 };
 
+export type MenuIcon =
+  | 'invoice' | 'chat' | 'users' | 'forms' | 'charts' | 'apps'
+  | 'todo' | 'widgets' | 'documentation' | 'scrumboard' | 'datatables' | 'mailbox';
+
 export type MenuItem =
   | {
     type: 'dropdown';
     labelKey: string;
-    icon: 'invoice' | 'chat';
+    icon: MenuIcon;
     permission?: string;  // permiso del padre (opcional, adicional al filtro de hijos)
     permissionCountry?: string;
     children: MenuItemChild[];
@@ -30,7 +34,7 @@ export type MenuItem =
     type: 'link';
     labelKey: string;
     href: string;
-    icon: 'invoice' | 'chat';
+    icon: MenuIcon;
     permission?: string;
     permissionCountry?: string;
   };
@@ -40,7 +44,7 @@ export const MENU_CONFIG: MenuItem[] = [
   {
     type: 'dropdown',
     labelKey: 'admin',
-    icon: 'invoice',
+    icon: 'users',
     children: [
       { labelKey: 'users', href: '/admin/users', permission: PERMISSIONS.VER_USUARIOS },
       { labelKey: 'roles', href: '/admin/roles', permission: PERMISSIONS.VER_ROLES },
@@ -51,7 +55,7 @@ export const MENU_CONFIG: MenuItem[] = [
   {
     type: 'dropdown',
     labelKey: 'register',
-    icon: 'invoice',
+    icon: 'forms',
     children: [
       { labelKey: 'spare_parts', href: '/admin/register/spares' },
       { labelKey: 'spare_parts_site', href: '/admin/register/spares-site' },
@@ -75,7 +79,7 @@ export const MENU_CONFIG: MenuItem[] = [
   {
     type: 'dropdown',
     labelKey: 'revision',
-    icon: 'invoice',
+    icon: 'charts',
     children: [
       { labelKey: 'orders_in_process', href: '/admin/revision/orders-process' },
       { labelKey: 'authorize_purchase', href: '/admin/revision/authorize-purchase' },
@@ -96,38 +100,38 @@ export const MENU_CONFIG: MenuItem[] = [
     href: '/admin/warehouse_us',
     permission: PERMISSIONS.MOSTRAR_ALMACEN,
     permissionCountry: 'US',
-    icon: 'chat',
+    icon: 'apps',
   },
   {
     type: 'link',
     labelKey: 'purchase_reception',
     href: '/admin/purchase-reception',
-    icon: 'chat',
+    icon: 'todo',
   },
   {
     type: 'link',
     labelKey: 'packaging',
     href: '/admin/packaging',
-    icon: 'chat',
+    icon: 'widgets',
   },
   {
     type: 'link',
     labelKey: 'document_delivery',
     href: '/admin/document-delivery',
-    icon: 'chat',
+    icon: 'documentation',
   },
   {
     type: 'link',
     labelKey: 'delivery',
     href: '/admin/dispatch',
-    icon: 'chat',
+    icon: 'scrumboard',
   },
 
   // ── CONSULTAS ────────────────────────────────────────────────────────────
   {
     type: 'dropdown',
     labelKey: 'query',
-    icon: 'invoice',
+    icon: 'datatables',
     children: [
       { labelKey: 'spare_parts_to_be_quoted', href: '/admin/queries/spare-parts-quotation' },
       { labelKey: 'spare_parts_to_be_identified', href: '/admin/queries/spare-parts-identified' },
@@ -144,6 +148,6 @@ export const MENU_CONFIG: MenuItem[] = [
     type: 'link',
     labelKey: 'inbox',
     href: '/admin/inbox',
-    icon: 'chat',
+    icon: 'mailbox',
   },
 ];

@@ -1043,3 +1043,108 @@ label.required::after {
 .spare-form .sf-select__value-container {
   padding: 2px 12px;
 }
+
+/* Formulario de usuarios (app/admin/users/form.js) — mismo patrón que .spare-form:
+   fondo gris sutil en reposo / blanco al enfocar, altura pareja entre <input> y
+   <Select> (classNamePrefix="usr-select", propio para no chocar con otros Select
+   genéricos que comparten la página). */
+.user-form {
+  --select-bg: #f9fafb;
+  --select-border: #9ca3af;
+}
+.dark .user-form {
+  --select-bg: #0b1220;
+  --select-border: #17263c;
+}
+.user-form .form-input,
+.user-form .form-textarea {
+  border-radius: 0.5rem;
+  height: 38px;
+  background-color: #f9fafb;
+  transition: border-color .15s, box-shadow .15s, background-color .15s;
+}
+.dark .user-form .form-input,
+.dark .user-form .form-textarea {
+  background-color: #0b1220;
+}
+.user-form .form-input:focus,
+.user-form .form-textarea:focus {
+  border-color: #4361ee;
+  background-color: #fff;
+  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.12);
+}
+.dark .user-form .form-input:focus,
+.dark .user-form .form-textarea:focus {
+  background-color: #121e32;
+}
+.user-form .form-input:disabled {
+  cursor: not-allowed;
+  opacity: .7;
+}
+.user-form .usr-select__control {
+  background-color: var(--select-bg);
+  border-color: var(--select-border);
+  border-radius: 0.5rem;
+  min-height: 38px;
+  box-shadow: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.user-form .usr-select__control:hover {
+  border-color: #4361ee;
+}
+.user-form .usr-select__control--is-focused {
+  border-color: #4361ee;
+  background-color: #fff;
+  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.12);
+}
+.dark .user-form .usr-select__control--is-focused {
+  background-color: #121e32;
+}
+.user-form .usr-select__menu {
+  background-color: #fff;
+  border: 1px solid var(--select-border);
+  border-radius: 0.5rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.10);
+}
+.dark .user-form .usr-select__menu {
+  background-color: #121e32;
+}
+.user-form .usr-select__menu-list {
+  padding: 4px;
+}
+.user-form .usr-select__option {
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  padding: 7px 10px;
+}
+.user-form .usr-select__option--is-selected {
+  background-color: #4361ee;
+  color: #fff;
+}
+.user-form .usr-select__option--is-focused:not(.usr-select__option--is-selected) {
+  background-color: rgba(67, 97, 238, 0.08);
+}
+.user-form .usr-select__single-value,
+.user-form .usr-select__input-container {
+  color: inherit;
+  font-size: 0.875rem;
+}
+.user-form .usr-select__placeholder {
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+.user-form .usr-select__clear-indicator,
+.user-form .usr-select__dropdown-indicator {
+  color: #9ca3af;
+  padding: 5px;
+}
+.user-form .usr-select__clear-indicator:hover {
+  color: #e7515a;
+}
+.user-form .usr-select__indicator-separator {
+  background-color: var(--select-border);
+}
+.user-form .usr-select__value-container {
+  padding: 2px 12px;
+}

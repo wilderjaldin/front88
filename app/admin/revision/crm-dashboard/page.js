@@ -1,5 +1,5 @@
 "use client";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useTranslation } from "@/app/locales";
@@ -11,6 +11,7 @@ import { customFormat } from '@/app/lib/format';
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 import Link from "next/link";
 import Modal from '@/components/modal';
+import SearchFilter from '@/components/SearchFilter';
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false });
 
@@ -188,14 +189,6 @@ export default function CRMDashboard() {
   const [edits, setEdits] = useState({});
   const [selected, setSelected] = useState(new Set());
 
-  // ── Input de filtro (ref — evita re-render en cada tecla) ──
-  const inputTermRef = useRef(null);
-
-  // Sincronizar input cuando la URL cambia (ej: botón atrás / Limpiar)
-  useEffect(() => {
-    if (inputTermRef.current) inputTermRef.current.value = searchParams.get('term') ?? '';
-  }, [searchParams]);
-
   // ── Batch ──
   const [batchSaving, setBatchSaving] = useState(false);
   const [batchClosing, setBatchClosing] = useState(false);
@@ -278,8 +271,7 @@ export default function CRMDashboard() {
   }, [optsOportunidad, rows]);
 
   // ── Filtros server-side ──
-  const handleBuscar = () => {
-    const term = inputTermRef.current?.value ?? '';
+  const handleBuscar = (term) => {
     const params = new URLSearchParams(searchParams.toString());
     if (term) params.set('term', term); else params.delete('term');
     params.set('page', '1');
@@ -438,39 +430,13 @@ export default function CRMDashboard() {
 
             {/* Filtros + acciones en bloque */}
             <div className="flex flex-wrap items-end gap-x-4 gap-y-2 px-4 py-3 border-b border-gray-100 dark:border-gray-700/60 bg-gray-50/50 dark:bg-gray-800/30">
-              <div className="flex flex-col gap-1">
-                <label className="text-[11px] font-medium text-gray-500 dark:text-gray-400">Buscar</label>
-                <input
-                  ref={inputTermRef}
-                  defaultValue={urlTerm}
-                  onKeyDown={e => e.key === 'Enter' && handleBuscar()}
-                  type="text"
-                  placeholder="Cliente, país, Nro. orden..."
-                  className="form-input text-xs py-1 px-2 h-[30px] w-64"
-                />
-              </div>
-              <div className="flex items-end gap-2">
-                <button
-                  onClick={handleBuscar}
-                  className="h-[30px] px-3 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 flex items-center gap-1.5 transition-colors"
-                >
-                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
-                  </svg>
-                  Buscar
-                </button>
-                {urlTerm && (
-                  <button
-                    onClick={handleLimpiarFiltros}
-                    className="h-[30px] px-3 text-xs font-medium border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-300 rounded hover:bg-gray-50 dark:hover:bg-gray-600 flex items-center gap-1.5 transition-colors"
-                  >
-                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M18 6L6 18M6 6l12 12" />
-                    </svg>
-                    Limpiar
-                  </button>
-                )}
-              </div>
+              <SearchFilter
+                value={urlTerm}
+                onSearch={handleBuscar}
+                onClear={handleLimpiarFiltros}
+                placeholder="Cliente, país, Nro. orden..."
+                className="w-72"
+              />
 
               <div className="ml-auto flex items-center gap-3">
                 {total > 0 && selectedCount === 0 && (

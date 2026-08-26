@@ -1,3 +1,4 @@
+'use client';
 import Footer from '@/components/layouts/footer';
 import Header from '@/components/layouts/header';
 import Overlay from '@/components/layouts/overlay';
@@ -11,8 +12,11 @@ import '@mantine/core/styles.css';
 import { MantineProvider } from '@mantine/core';
 import ImpersonationBanner from "@/components/ImpersonationBanner";
 import NotificationsProvider from "@/components/layouts/NotificationsProviderLazy";
+import { useSelector } from 'react-redux';
+import { IRootState } from '@/store/theme';
 
 export default function DefaultLayout({ children }: { children: React.ReactNode }) {
+  const themeConfig = useSelector((state: IRootState) => state.themeConfig);
   return (
     <MantineProvider
       theme={{
@@ -34,7 +38,7 @@ export default function DefaultLayout({ children }: { children: React.ReactNode 
         {/* BEGIN APP SETTING LAUNCHER */}
         {/* END APP SETTING LAUNCHER */}
         <ImpersonationBanner/>
-        <div className={`navbar-sticky main-container min-h-screen text-black dark:text-white-dark`}>
+        <div className={`${themeConfig.navbar} main-container min-h-screen text-black dark:text-white-dark`}>
           {/* BEGIN SIDEBAR */}
           <Sidebar />
           {/* END SIDEBAR */}

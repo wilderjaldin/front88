@@ -132,7 +132,18 @@ const PendingDelivery = ({
                     </span>
                   </td>
                   <td className={tdClass}>{o.fecEntrega}</td>
-                  <td className={tdClass}>{o.cliente}</td>
+                  <td className={tdClass}>
+                    <div className="flex items-center gap-2">
+                      {o.codPais && (
+                        <img
+                          src={`/assets/flags/${o.codPais.toLowerCase()}.svg`}
+                          alt={o.codPais}
+                          className="h-3.5 w-5 rounded-sm object-cover shrink-0"
+                        />
+                      )}
+                      <span>{o.cliente}</span>
+                    </div>
+                  </td>
                   <td className={tdClass}>{o.recibidoPor}</td>
                   <td className={tdClass}>{o.entregadoPor}</td>
                 </tr>

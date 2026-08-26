@@ -22,8 +22,7 @@ import { PERMISSIONS } from "@/constants/permissions";
 const URL_LISTAR_USUARIOS  = "/usuarios/listar";
 const URL_DETALLE_USUARIO  = "/usuarios/detalle";
 const URL_STATUS_USUARIO   = "/usuarios/status";
-const URL_ROLES            = "/roles";
-const URL_PAISES           = "/usuarios/paises";
+const URL_CONTROLES        = "/usuarios/controles";
 
 export default function Users() {
 
@@ -55,18 +54,13 @@ export default function Users() {
   const [term,         setTerm]         = useState('');
   const [formMode,     setFormMode]     = useState("create");
   const [forbidden,    setForbidden]    = useState(false);
+  const [controlesLoaded, setControlesLoaded] = useState(false);
 
   const active = searchParams.get("active") || 0;
 
   const { register, reset, handleSubmit, formState: { errors } } = useForm({
     defaultValues: { query: term, show_inactive: (active == 1) ? true : false }
   });
-
-  // Carga inicial: roles + países una sola vez al montar
-  useEffect(() => {
-    loadRoles();
-    loadCountries();
-  }, []);
 
   useEffect(() => {
     const currentPage = Number(searchParams.get("page")) || 1;
@@ -77,12 +71,17 @@ export default function Users() {
     getUsers(page, term);
   }, [page, term]);
 
-  const loadCountries = async () => {
+  // Roles + países: se cargan juntos y solo la primera vez que se abre el modal
+  // de usuario, para no repetir la llamada cada vez que se abre el formulario.
+  const loadControles = async () => {
+    if (controlesLoaded) return;
     try {
-      const rs = await axiosClient.get(URL_PAISES);
-      setCountries(rs.data ?? []);
+      const rs = await axiosClient.get(URL_CONTROLES);
+      setRoles(rs.data?.roles ?? []);
+      setCountries(rs.data?.paises ?? []);
+      setControlesLoaded(true);
     } catch (error) {
-      console.error("Error cargando países", error);
+      console.error("Error cargando roles/países", error);
     }
   };
 
@@ -94,7 +93,7 @@ export default function Users() {
   const handlePageChange = (p) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("page", p.toString());
-    router.push(`?${params.toString()}`);
+    router.push(`?${params.toString()}`, { scroll: false });
   };
 
   const getUsers = async (page = 1, searchTerm = term) => {
@@ -109,15 +108,6 @@ export default function Users() {
       } else {
         console.error("Error cargando usuarios", error);
       }
-    }
-  };
-
-  const loadRoles = async () => {
-    try {
-      const rs = await axiosClient.get(URL_ROLES);
-      setRoles(rs.data.map(r => ({ value: r.codRol, label: r.nomRol })));
-    } catch (error) {
-      console.error(error);
     }
   };
 
@@ -165,6 +155,7 @@ export default function Users() {
   };
 
   const addUser = () => {
+    loadControles();
     setModalType("user");
     setSelectedUser(null);
     setModalTitle("Registrar un nuevo usuario");
@@ -174,6 +165,7 @@ export default function Users() {
 
   const editUser = async (user) => {
     try {
+      loadControles();
       const rs = await axiosClient.get(URL_DETALLE_USUARIO, { params: { codUsuario: user.codUsuario } });
       setModalType("user");
       setSelectedUser(rs.data);
@@ -192,6 +184,7 @@ export default function Users() {
   };
 
   const handleCountries = (user) => {
+    loadControles();
     setSelectedUser(user);
     setModalType('countries');
     setModalTitle('Países Permitidos');
@@ -223,6 +216,7 @@ export default function Users() {
         addUser={addUser}
         editUser={editUser}
         page={page}
+        term={term}
         data={users}
         t={t}
         total={total}
