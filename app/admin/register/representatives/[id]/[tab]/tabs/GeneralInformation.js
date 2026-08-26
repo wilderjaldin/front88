@@ -7,34 +7,31 @@ import RepresentanteFormPage from '../../../form/page';
 import IconPencil from '@/components/icon/icon-pencil';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function Field({ label, value }) {
+function getInitials(name = '') {
+  return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+}
+
+function Field({ label, value, className = '' }) {
   return (
-    <div className="space-y-0.5">
-      <p className="text-xs text-gray-400 uppercase tracking-wide">{label}</p>
-      <div className="text-sm font-medium text-gray-700 dark:text-gray-200">{value ?? '—'}</div>
+    <div className={`space-y-0.5 min-w-0 ${className}`}>
+      <p className="text-[10px] text-gray-400 uppercase tracking-wide">{label}</p>
+      <div className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">{value ?? '—'}</div>
     </div>
   );
 }
 
-function Card({ label, color = 'primary', children }) {
-  const border = {
-    primary:   'border-primary/20',
-    secondary: 'border-secondary/20',
-    info:      'border-info/20',
-    warning:   'border-warning/20',
-  }[color] ?? 'border-gray-200';
-  const text = {
-    primary:   'text-primary',
-    secondary: 'text-secondary',
-    info:      'text-info',
-    warning:   'text-warning',
-  }[color] ?? 'text-gray-700';
-
+// Todas las secciones viven en un único panel continuo (divide-y) en vez de
+// cards sueltas en una grilla de 2 columnas — así la lectura va de arriba
+// hacia abajo en un solo carril, sin tener que ir de un lado al otro de la
+// pantalla para comparar secciones relacionadas que antes quedaban una al
+// lado de la otra.
+function Section({ label, children }) {
   return (
-    <div className={`rounded-xl border bg-white dark:bg-gray-900 shadow-sm p-5 space-y-4 ${border}`}>
-      <h3 className={`text-sm font-semibold border-b border-gray-100 dark:border-gray-700 pb-2 ${text}`}>
-        {label}
-      </h3>
+    <div className="px-5 py-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <div className="h-4 w-1 rounded-full bg-primary shrink-0" />
+        <h3 className="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">{label}</h3>
+      </div>
       {children}
     </div>
   );
@@ -62,11 +59,11 @@ function ReadOnlyView({ r, canEdit, onEdit }) {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm divide-y divide-gray-100 dark:divide-gray-800">
 
-        <Card label="Identificación" color="primary">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2"><Field label="Razón Social" value={r.razSoc} /></div>
+        <Section label="Identificación">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3">
+            <Field label="Razón Social" value={r.razSoc} className="col-span-2" />
             <Field label="Doc. Factura"         value={r.docFactura} />
             <Field label="NIT / Identificación" value={r.nitEmp} />
             <Field label="Estado" value={
@@ -77,22 +74,17 @@ function ReadOnlyView({ r, canEdit, onEdit }) {
                   </span>
                 : null
             } />
-          </div>
-        </Card>
-
-        <Card label="Ubicación" color="secondary">
-          <div className="grid grid-cols-2 gap-4">
             <Field label="País"               value={r.pais    ?? r.codPais}   />
             <Field label="Ciudad"             value={r.ciudad  ?? r.codCiudad} />
             {r.estadoEmp && <Field label="Estado / Provincia" value={r.estadoEmp} />}
             {r.codZipEmp && <Field label="Código ZIP"         value={r.codZipEmp} />}
-            <div className="col-span-2"><Field label="Dirección" value={r.dirEmp} /></div>
+            <Field label="Dirección" value={r.dirEmp} className="col-span-2 sm:col-span-4" />
           </div>
-        </Card>
+        </Section>
 
-        <Card label="Contacto" color="info">
-          <div className="grid grid-cols-2 gap-4">
-            {r.nomContacto && <div className="col-span-2"><Field label="Nombre de Contacto" value={r.nomContacto} /></div>}
+        <Section label="Contacto">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3">
+            {r.nomContacto && <Field label="Nombre de Contacto" value={r.nomContacto} className="col-span-2" />}
             <Field label="Teléfono" value={r.telEmp} />
             <Field label="Email"    value={r.corEle} />
             <Field label="WhatsApp" value={r.numCelWp
@@ -105,46 +97,62 @@ function ReadOnlyView({ r, canEdit, onEdit }) {
               : null
             } />
             <Field label="Sitio Web" value={r.dirWeb
-              ? <a href={r.dirWeb} target="_blank" rel="noreferrer" className="text-primary hover:underline truncate block max-w-[160px]">{r.dirWeb}</a>
+              ? <a href={r.dirWeb} target="_blank" rel="noreferrer" className="text-primary hover:underline truncate block">{r.dirWeb}</a>
               : null
             } />
           </div>
-        </Card>
+        </Section>
 
-        <Card label="Condiciones Comerciales" color="warning">
-          <div className="grid grid-cols-2 gap-4">
+        <Section label="Condiciones Comerciales">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3">
             <Field label="Moneda"  value={r.nomMoneda ?? r.tipMoneda} />
             <Field label="% Fee"   value={r.porFee != null ? `${Number(r.porFee).toFixed(2)}%` : null} />
-            {r.nomDestinoEntrega && (
-              <div className="col-span-2"><Field label="Destino Entrega" value={r.nomDestinoEntrega} /></div>
-            )}
             <Field label="IVA en precio" value={
               <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium
                 ${r.blnIvaEnPrecio ? 'bg-success/10 text-success' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}`}>
                 {r.blnIvaEnPrecio ? 'Sí' : 'No'}
               </span>
             } />
-            <div className="space-y-0.5">
-              <p className="text-xs text-gray-400 uppercase tracking-wide">Es Representante</p>
-              <span className={`inline-block px-3 py-1 rounded-lg text-xs font-bold border
+            <Field label="Es Representante" value={
+              <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium
                 ${r.blnEsRepresentante
-                  ? 'bg-primary/[0.07] border-primary/30 text-primary dark:bg-primary/15'
-                  : 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'}`}>
+                  ? 'bg-primary/10 text-primary'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}`}>
                 {r.blnEsRepresentante ? 'Sí' : 'No'}
               </span>
-            </div>
+            } />
+            {r.nomDestinoEntrega && (
+              <Field label="Destino Entrega" value={r.nomDestinoEntrega} className="col-span-2 sm:col-span-4" />
+            )}
           </div>
-        </Card>
+        </Section>
 
-        <div className="lg:col-span-2">
-          <Card label="Parámetros" color="secondary">
-            <div className="grid grid-cols-3 gap-4">
-              <Field label="Sin Factura"  value={r.parSFac != null ? Number(r.parSFac).toFixed(2) : null} />
-              <Field label="Facturado"    value={r.parPor  != null ? Number(r.parPor).toFixed(2)  : null} />
-              <Field label="Importación"  value={r.parImp  != null ? Number(r.parImp).toFixed(2)  : null} />
+        <Section label="Usuario Asignado">
+          {r.usuario ? (
+            <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
+                  {getInitials(r.usuario.nomUsuario)}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{r.usuario.nomUsuario ?? '—'}</p>
+                  <p className="text-xs text-gray-400 truncate">{r.usuario.logUsuario ?? '—'}</p>
+                </div>
+              </div>
+              <Field label="Correo" value={r.usuario.corElectronico} />
             </div>
-          </Card>
-        </div>
+          ) : (
+            <p className="text-sm text-gray-400">Sin usuario asignado</p>
+          )}
+        </Section>
+
+        <Section label="Parámetros">
+          <div className="grid grid-cols-3 gap-x-6 gap-y-3">
+            <Field label="Sin Factura"  value={r.parSFac != null ? Number(r.parSFac).toFixed(2) : null} />
+            <Field label="Facturado"    value={r.parPor  != null ? Number(r.parPor).toFixed(2)  : null} />
+            <Field label="Importación"  value={r.parImp  != null ? Number(r.parImp).toFixed(2)  : null} />
+          </div>
+        </Section>
 
       </div>
     </div>
@@ -153,17 +161,30 @@ function ReadOnlyView({ r, canEdit, onEdit }) {
 
 // ── Vista edición inline ──────────────────────────────────────────────────────
 function EditView({ representante, onSaved, onCancel }) {
-  const [controles,       setControles]       = useState(null);
-  const [loadingControles, setLoadingControles] = useState(true);
+  const [controles,   setControles]   = useState(null);
+  const [formData,    setFormData]    = useState(null);
+  const [loadingData, setLoadingData] = useState(true);
 
+  // Datos propios del formulario (endpoint /editar), no los de /detalle que ya
+  // trae `representante` — así el form no depende de la forma que tenga la vista
+  // de solo lectura si esta cambia con el tiempo.
   useEffect(() => {
-    axiosClient.get('/representantes/controles')
-      .then(res => setControles(res.data))
-      .catch(() => setControles({}))
-      .finally(() => setLoadingControles(false));
+    Promise.all([
+      axiosClient.get('/representantes/controles'),
+      axiosClient.get(`/representantes/editar/${representante.codEmp}`),
+    ])
+      .then(([ctrlRes, formRes]) => {
+        setControles(ctrlRes.data ?? {});
+        setFormData(formRes.data ?? representante);
+      })
+      .catch(() => {
+        setControles({});
+        setFormData(representante);
+      })
+      .finally(() => setLoadingData(false));
   }, []);
 
-  if (loadingControles) {
+  if (loadingData) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -180,7 +201,7 @@ function EditView({ representante, onSaved, onCancel }) {
         </div>
       </div>
       <RepresentanteFormPage
-        representante={representante}
+        representante={formData}
         controles={controles ?? {}}
         onCancel={onCancel}
         onSaved={onSaved}
@@ -190,12 +211,15 @@ function EditView({ representante, onSaved, onCancel }) {
 }
 
 // ── Componente principal ──────────────────────────────────────────────────────
-export default function GeneralInformation({ representante, isAdmin, isRepresentante }) {
+export default function GeneralInformation({ representante, isAdmin }) {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const { setRepresentante, basePath } = useRepresentative();
 
-  const canEdit   = isAdmin || isRepresentante;
+  // Un representante no edita los datos de la empresa que representa — eso lo
+  // pide a un administrador. Solo isAdmin puede entrar en modo edición (esto
+  // también bloquea el acceso directo por URL con ?edit=1, no solo el botón).
+  const canEdit   = isAdmin;
   const isEditing = canEdit && searchParams.get('edit') === '1';
   const baseUrl   = `${basePath}/general`;
 

@@ -15,6 +15,7 @@ const URL_REGISTRO_USUARIO = "/usuarios/registro";
 const URL_EDITAR_USUARIO   = "/usuarios/editar";
 const URL_CIUDADES         = "/usuarios/ciudades";
 const URL_PROBAR_SMTP      = "/usuarios/probar-smtp";
+const ROL_REPRESENTANTE_ID = 3; // hardcodeado también en el backend (usuarios/detalle)
 
 const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countries }) => {
   const [isLoading,     setLoading]       = useState(false);
@@ -31,6 +32,9 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
   const [verifiedSmtp, setVerifiedSmtp] = useState(null);
 
   const isEdit = mode === "edit";
+  // No se puede reasignar el rol de un usuario que ya es Representante — ese
+  // vínculo se maneja desde el módulo de representantes, no desde acá.
+  const isRepresentante = isEdit && Number(user?.rol) === ROL_REPRESENTANTE_ID;
 
   const options_reports = useMemo(() => [
     { value: 'ES', label: t.spanish },
@@ -275,18 +279,24 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
               <div className="grid grid-cols-[140px_1fr] items-start gap-3">
                 <label className="form-label required text-right pt-2">Rol</label>
                 <div>
-                  <Controller
-                    name="rol"
-                    control={control}
-                    rules={{ required: { value: true, message: t.required_select } }}
-                    render={({ field }) => (
-                      <Select
-                        options={roles}
-                        value={roles.find(r => r.value === field.value) ?? null}
-                        onChange={(selected) => field.onChange(selected?.value)}
-                      />
-                    )}
-                  />
+                  {isRepresentante ? (
+                    <div className="text-sm font-medium text-gray-700 dark:text-gray-200 pt-2">
+                      {roles.find(r => Number(r.value) === ROL_REPRESENTANTE_ID)?.label ?? 'Representante'}
+                    </div>
+                  ) : (
+                    <Controller
+                      name="rol"
+                      control={control}
+                      rules={{ required: { value: true, message: t.required_select } }}
+                      render={({ field }) => (
+                        <Select
+                          options={roles}
+                          value={roles.find(r => Number(r.value) === Number(field.value)) ?? null}
+                          onChange={(selected) => field.onChange(selected?.value)}
+                        />
+                      )}
+                    />
+                  )}
                   {errors.rol && <span className='block text-red-400 text-xs mt-1'>{errors.rol?.message?.toString()}</span>}
                 </div>
               </div>

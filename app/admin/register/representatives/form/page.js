@@ -12,10 +12,10 @@ import Select from 'react-select';
 import Swal from 'sweetalert2';
 
 const URL_CIUDADES  = (codPais) => `/representantes/ciudades/${codPais}`;
+const URL_USUARIOS_POR_PAIS = '/usuarios/por-pais';
 const URL_CONTROLES = '/representantes/controles';
-const URL_DETAIL    = '/representantes/detalle';
 const URL_SAVE      = '/representantes/registrar';
-const URL_EDIT      = '/representantes/editar';
+const URL_EDIT      = '/representantes/editar'; // GET /editar/{id} carga los datos del form; PUT /editar guarda
 const URL_LIST      = '/admin/register/representatives';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -45,8 +45,10 @@ export default function RepresentanteFormPage({
   const [paises,          setPaises]          = useState([]);
   const [monedas,         setMonedas]         = useState([]);
   const [ciudades,        setCiudades]        = useState([]);
+  const [usuarios,        setUsuarios]        = useState([]);
   const [loadingPaises,   setLoadingPaises]   = useState(true);
   const [loadingCiudades, setLoadingCiudades] = useState(false);
+  const [loadingUsuarios, setLoadingUsuarios] = useState(false);
   const [loadingInit,     setLoadingInit]     = useState(true);
   const [codPaisActual,   setCodPaisActual]   = useState('');
 
@@ -56,7 +58,7 @@ export default function RepresentanteFormPage({
   } = useForm({
     defaultValues: {
       razSoc: '', nitEmp: '', docFactura: '',
-      country: null, city: null, estadoEmp: '', codZipEmp: '',
+      country: null, city: null, usuario: '', estadoEmp: '', codZipEmp: '',
       dirEmp: '', nomContacto: '', telEmp: '', corEle: '',
       numCelWp: '', dirWeb: '', tipMoneda: null, porFee: '',
       blnIvaEnPrecio: false, blnEsRepresentante: false, nomDestinoEntrega: '',
@@ -84,6 +86,7 @@ export default function RepresentanteFormPage({
         docFactura:         repres.docFactura          ?? '',
         country:            paisObj,
         city:               null,
+        usuario:            '',
         estadoEmp:          repres.estadoEmp           ?? '',
         codZipEmp:          repres.codZipEmp           ?? '',
         dirEmp:             repres.dirEmp              ?? '',
@@ -101,7 +104,12 @@ export default function RepresentanteFormPage({
         parPor:             repres.parPor  != null ? Number(repres.parPor).toFixed(2)  : '',
         parImp:             repres.parImp  != null ? Number(repres.parImp).toFixed(2)  : '',
       });
-      if (repres.codPais) cargarCiudades(repres.codPais, repres.codCiudad ?? null);
+      if (repres.codPais) {
+        cargarCiudades(repres.codPais, repres.codCiudad ?? null);
+        // /editar/{id} trae codUsuario plano; /detalle/{id} (fallback si /editar falla)
+        // lo trae anidado en usuario.codUsuario — se contempla cualquiera de las dos formas.
+        cargarUsuarios(repres.codPais, repres.codUsuario ?? repres.usuario?.codUsuario ?? null);
+      }
     }
   };
 
@@ -111,11 +119,11 @@ export default function RepresentanteFormPage({
         if (isEmbedded) {
           populateForm(ctrlProp ?? {}, repProp);
         } else {
-          const [ctrlRes, detailRes] = await Promise.all([
+          const [ctrlRes, formRes] = await Promise.all([
             axiosClient.get(URL_CONTROLES),
-            isEdit ? axiosClient.get(`${URL_DETAIL}/${id}`) : Promise.resolve(null),
+            isEdit ? axiosClient.get(`${URL_EDIT}/${id}`) : Promise.resolve(null),
           ]);
-          populateForm(ctrlRes.data ?? {}, detailRes?.data ?? null);
+          populateForm(ctrlRes.data ?? {}, formRes?.data ?? null);
         }
       } catch {
         Swal.fire({ title: 'Error', text: 'No se pudieron cargar los datos', icon: 'error',
@@ -146,9 +154,32 @@ export default function RepresentanteFormPage({
     }
   };
 
+  const cargarUsuarios = async (codPais, preselectCodUsuario = null) => {
+    setLoadingUsuarios(true);
+    setUsuarios([]);
+    setValue('usuario', '');
+    try {
+      const res   = await axiosClient.get(URL_USUARIOS_POR_PAIS, { params: { codPais } });
+      const lista = (res.data ?? []).map(u => ({ value: u.codUsuario, label: u.nomUsuario }));
+      setUsuarios(lista);
+      if (preselectCodUsuario != null && lista.some(u => u.value === preselectCodUsuario)) {
+        setValue('usuario', preselectCodUsuario, { shouldValidate: false });
+      }
+    } catch {
+      setUsuarios([]);
+    } finally {
+      setLoadingUsuarios(false);
+    }
+  };
+
   const handleCountryChange = (selected) => {
-    if (selected?.value) cargarCiudades(selected.value, null);
-    else { setCiudades([]); setValue('city', null); }
+    if (selected?.value) {
+      cargarCiudades(selected.value, null);
+      cargarUsuarios(selected.value, null);
+    } else {
+      setCiudades([]); setValue('city', null);
+      setUsuarios([]); setValue('usuario', '');
+    }
   };
 
   const onSubmit = async (data) => {
@@ -159,6 +190,7 @@ export default function RepresentanteFormPage({
       docFactura:         data.docFactura           || null,
       codPais:            data.country?.value       ?? '',
       codCiudad:          data.city?.value          ?? '',
+      codUsuario:         data.usuario ? Number(data.usuario) : null,
       estadoEmp:          data.estadoEmp            || '',
       codZipEmp:          data.codZipEmp            || null,
       dirEmp:             data.dirEmp,
@@ -234,7 +266,7 @@ export default function RepresentanteFormPage({
           />
         </F>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-4">
           <F label="Doc." error={errors.docFactura}>
             <input
               {...register('docFactura', { maxLength: { value: 4, message: 'Máx. 4' } })}
@@ -282,6 +314,47 @@ export default function RepresentanteFormPage({
             />
           </div>
         </div>
+
+        <F label="Usuario Relacionado" required error={errors.usuario}>
+          {!selectedCountry ? (
+            <p className="text-xs text-gray-400 py-1">Selecciona un país primero</p>
+          ) : loadingUsuarios ? (
+            <div className="flex items-center gap-2 text-xs text-gray-400 py-1">
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              Cargando usuarios…
+            </div>
+          ) : usuarios.length === 0 ? (
+            <p className="text-xs text-gray-400 py-1">No hay usuarios para este país</p>
+          ) : (
+            <Controller
+              name="usuario"
+              control={control}
+              rules={{ validate: v => !!v || t.required_field }}
+              render={({ field }) => (
+                <div className="flex flex-wrap items-center gap-2">
+                  {usuarios.map(u => (
+                    <label key={u.value}
+                      className={`flex items-center shrink-0 gap-1 h-[42px] px-2 rounded-lg border cursor-pointer select-none transition m-0
+                        ${field.value === u.value
+                          ? 'border-primary bg-primary/5'
+                          : 'border-gray-400 dark:border-[#17263c] bg-gray-50 dark:bg-[#0b1220] hover:border-primary/60 hover:bg-white dark:hover:bg-[#121e32]'}`}
+                    >
+                      <input
+                        type="radio"
+                        checked={field.value === u.value}
+                        onChange={() => {}}
+                        onClick={() => field.onChange(u.value)}
+                        className="form-radio h-4 w-4"
+                      />
+                      <span className="text-sm font-medium">{u.label}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            />
+          )}
+        </F>
+
         {isUS && (
           <div className="grid grid-cols-2 gap-4">
             <F label="Estado / Provincia" error={errors.estadoEmp}>
@@ -398,22 +471,22 @@ export default function RepresentanteFormPage({
 
       {/* Opciones */}
       <Section label="Opciones" />
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center gap-3">
 
-        <label className="flex items-center gap-2 cursor-pointer select-none group">
+        <label className="flex items-center shrink-0 gap-2 h-[42px] px-3 rounded-lg border border-gray-400 dark:border-[#17263c] bg-gray-50 dark:bg-[#0b1220] cursor-pointer select-none transition hover:border-primary/60 hover:bg-white dark:hover:bg-[#121e32]">
           <input type="checkbox" id="blnIvaEnPrecio" {...register('blnIvaEnPrecio')}
             className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
-          <span className="text-sm text-gray-600 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200 transition">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
             Incluir IVA en precio
           </span>
         </label>
 
-        <label className="flex items-center gap-2 cursor-pointer select-none group">
-          <span className="text-sm font-bold text-gray-700 dark:text-gray-200 group-hover:text-primary transition">
-            Es Representante
-          </span>
+        <label className="flex items-center shrink-0 gap-2 h-[42px] px-3 rounded-lg border border-gray-400 dark:border-[#17263c] bg-gray-50 dark:bg-[#0b1220] cursor-pointer select-none transition hover:border-primary/60 hover:bg-white dark:hover:bg-[#121e32]">
           <input type="checkbox" id="blnEsRepresentante" {...register('blnEsRepresentante')}
             className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+            Es Representante
+          </span>
         </label>
 
       </div>
@@ -519,9 +592,9 @@ export default function RepresentanteFormPage({
 
 function Section({ label }) {
   return (
-    <div className="flex items-center gap-3">
-      <span className="h-px flex-1 bg-gray-100 dark:bg-gray-800" />
-      <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">{label}</span>
+    <div className="flex items-center gap-3 pt-1">
+      <div className="h-5 w-1 rounded-full bg-primary shrink-0" />
+      <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200">{label}</h3>
       <span className="h-px flex-1 bg-gray-100 dark:bg-gray-800" />
     </div>
   );
