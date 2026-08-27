@@ -3,21 +3,14 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Pagination } from '@mantine/core';
 import IconX from '@/components/icon/icon-x';
 import IconPencil from '@/components/icon/icon-pencil';
+import IconFile from '@/components/icon/icon-file';
+import IconCheck from '@/components/icon/icon-check';
 import BtnImprimir from '@/app/admin/document-delivery/BtnImprimir';
 
 const PAGE_SIZE = 50;
 
 const thClass = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap select-none";
 const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-3 py-2";
-
-// Reenviar / acción del tercer ícono (flecha circular azul en la referencia) —
-// sin definir todavía qué hace, se deja el ícono a la espera de confirmación.
-const IconForward = ({ className }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-    <path d="M3 3v5h5" />
-  </svg>
-);
 
 const DocumentDeliveryList = ({ t, data = [], loading, onCancel, onForward, onOpenDispatch, onEdit }) => {
   const [page, setPage] = useState(1);
@@ -73,10 +66,14 @@ const DocumentDeliveryList = ({ t, data = [], loading, onCancel, onForward, onOp
                       <button
                         type="button"
                         onClick={() => onForward?.(o)}
+                        disabled={!o.NumDespacho}
                         title={t.confirm_documentation}
-                        className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/30 transition"
+                        className="relative inline-flex items-center justify-center h-6 w-6 rounded-md bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:hover:bg-emerald-900/30 transition disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:bg-emerald-50 dark:disabled:hover:bg-emerald-900/20"
                       >
-                        <IconForward className="h-3.5 w-3.5" />
+                        <IconFile className="h-3.5 w-3.5" />
+                        <span className="absolute -bottom-0.5 -right-0.5 flex items-center justify-center h-2.5 w-2.5 rounded-full bg-emerald-600 dark:bg-emerald-400 ring-1 ring-white dark:ring-gray-900">
+                          <IconCheck className="h-1.5 w-1.5 text-white dark:text-gray-900" />
+                        </span>
                       </button>
                       <button
                         type="button"

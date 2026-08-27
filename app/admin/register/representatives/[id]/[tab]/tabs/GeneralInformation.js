@@ -127,23 +127,30 @@ function ReadOnlyView({ r, canEdit, onEdit }) {
           </div>
         </Section>
 
-        <Section label="Usuario Asignado">
-          {r.usuario ? (
-            <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
-              <div className="flex items-center gap-2.5">
-                <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
-                  {getInitials(r.usuario.nomUsuario)}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{r.usuario.nomUsuario ?? '—'}</p>
-                  <p className="text-xs text-gray-400 truncate">{r.usuario.logUsuario ?? '—'}</p>
-                </div>
+        <Section label="Usuarios Asignados">
+          {(() => {
+            // Una empresa ahora puede tener varios usuarios asignados — se
+            // contempla el array nuevo (usuarios) y, por compatibilidad, el
+            // objeto único viejo (usuario).
+            const asignados = Array.isArray(r.usuarios) ? r.usuarios : (r.usuario ? [r.usuario] : []);
+            return asignados.length > 0 ? (
+              <div className="flex flex-wrap gap-x-8 gap-y-3">
+                {asignados.map((u, i) => (
+                  <div key={u.codUsuario ?? i} className="flex items-center gap-2.5">
+                    <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
+                      {getInitials(u.nomUsuario)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{u.nomUsuario ?? '—'}</p>
+                      <p className="text-xs text-gray-400 truncate">{u.corElectronico ?? u.logUsuario ?? '—'}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <Field label="Correo" value={r.usuario.corElectronico} />
-            </div>
-          ) : (
-            <p className="text-sm text-gray-400">Sin usuario asignado</p>
-          )}
+            ) : (
+              <p className="text-sm text-gray-400">Sin usuarios asignados</p>
+            );
+          })()}
         </Section>
 
         <Section label="Parámetros">

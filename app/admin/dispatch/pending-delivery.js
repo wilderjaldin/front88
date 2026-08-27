@@ -38,7 +38,7 @@ const SortableHeader = ({ col, label, sort, dir, onSort, className = '' }) => (
 );
 
 const PendingDelivery = ({
-  t, data = [], seleccionados, setSeleccionados, attachItems, handleCancelPacking,
+  t, data = [], seleccionados, setSeleccionados, attachItems, handleCancelDispatch,
   page, sortColumn, sortDir, totalPages, onSort, onPageChange, loading,
   term = '', onSearch, onClear,
 }) => {
@@ -65,14 +65,14 @@ const PendingDelivery = ({
 
         <button
           type="button"
-          onClick={handleCancelPacking}
+          onClick={handleCancelDispatch}
           disabled={isEmpty}
           className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100 disabled:opacity-35 disabled:cursor-not-allowed transition dark:bg-red-900/20 dark:text-red-400"
         >
           <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
-          {t.cancel_packaging}
+          {t.cancel_dispatch}
         </button>
 
         <SearchFilter t={t} value={term} onSearch={onSearch} onClear={onClear} className="ml-auto w-80" />

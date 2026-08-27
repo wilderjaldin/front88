@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "@/app/locales";
 import axiosClient from '@/app/lib/axiosClient';
-import { swalError, swalSuccess, swalConfirm, swalInfo } from '@/app/lib/swal';
+import { swalError, swalSuccess, swalConfirm } from '@/app/lib/swal';
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 import DocumentDeliveryList from "@/app/admin/document-delivery/document-delivery-list";
 import DispatchDataModal from "@/app/admin/document-delivery/DispatchDataModal";
@@ -11,6 +11,7 @@ import Modal from '@/components/modal';
 const URL_LIST = 'embalajes/listar-embalaje-doc';
 // Anular sin confirmar todavía — se ajusta cuando se defina el contrato real.
 const URL_CANCEL = 'entregadocumentos/anular';
+const URL_CONFIRM_DOC = (numEmbalaje) => `embalajes/documentado/${numEmbalaje}`;
 
 // listaembalaje-doc devuelve un arreglo plano (sin paginado de servidor) —
 // numEntrega ocupa la columna "Núm. Despacho" ya existente en la tabla.
@@ -69,8 +70,15 @@ export default function DocumentDelivery() {
     }
   };
 
-  const handleForward = () => {
-    swalInfo(t.pending_backend_integration ?? 'Acción pendiente de definir con el backend.');
+  const handleForward = async (row) => {
+    try {
+      const rs = await axiosClient.post(URL_CONFIRM_DOC(row.NumEmbalaje));
+      swalSuccess(t.record_updated ?? 'Documentación confirmada');
+      setOrders((rs.data ?? []).map(mapOrder));
+    } catch (error) {
+      const apiMsg = error?.response?.data?.mensaje;
+      swalError(t.error, apiMsg ?? t.error, t.close);
+    }
   };
 
   const handleOpenDispatch = (row) => {

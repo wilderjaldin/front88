@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useSelector } from 'react-redux';
 import { selectUser } from '@/store/authSlice';
 import { useTranslation } from '@/app/locales';
@@ -9,6 +10,7 @@ import IconUser from '@/components/icon/icon-user';
 import IconUsers from '@/components/icon/icon-users';
 import IconChartSquare from '@/components/icon/icon-chart-square';
 import IconSettings from '@/components/icon/icon-settings';
+import IconHome from '@/components/icon/icon-home';
 
 const URL_DASHBOARD = 'usuarios/dashboard';
 
@@ -36,8 +38,14 @@ export default function UserDashboard() {
   };
 
   const usuario     = data?.usuario ?? {};
+  const empresa      = data?.empresa ?? null; // solo viene para usuarios con rol Representante
   const paises       = data?.paisesPermitidos ?? [];
-  const cotizaciones = data?.cotizaciones ?? { pendientes: 0, enProceso: 0, finalizadas: 0, anuladas: 0, total: 0 };
+  const cotizacionesVacias = { pendientes: 0, enProceso: 0, finalizadas: 0, anuladas: 0, total: 0 };
+  // El backend ahora separa "creadas" (las que este usuario originó) de
+  // "asignadas" (las que le tocan a él trabajar) — antes era un solo bloque
+  // que en la práctica era lo mismo que "asignadas".
+  const cotizacionesCreadas   = data?.cotizaciones?.creadas   ?? cotizacionesVacias;
+  const cotizacionesAsignadas = data?.cotizaciones?.asignadas ?? cotizacionesVacias;
   const ordenes      = data?.ordenes ?? { completadas: 0, anuladas: 0, total: 0 };
   const clientes      = data?.clientes ?? 0;
   const auditoria     = data?.auditoria ?? {};
@@ -45,26 +53,26 @@ export default function UserDashboard() {
   const initials = (usuario.nomUsuario ?? user?.name ?? '')
     .split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
-  const pct = (value) => cotizaciones.total > 0 ? `${Math.round((value / cotizaciones.total) * 100)}%` : '—';
+  const pct = (value, total) => total > 0 ? `${Math.round((value / total) * 100)}%` : '—';
 
   const kpiCards = [
     {
       label:  'Cotizaciones Pendientes',
-      value:  cotizaciones.pendientes,
+      value:  cotizacionesAsignadas.pendientes,
       icon:   <IconChartSquare className="h-7 w-7" />,
       light:  'bg-warning/10 text-warning',
       border: 'border-warning/30',
     },
     {
       label:  'En Proceso',
-      value:  cotizaciones.enProceso,
+      value:  cotizacionesAsignadas.enProceso,
       icon:   <IconChartSquare className="h-7 w-7" />,
       light:  'bg-info/10 text-info',
       border: 'border-info/30',
     },
     {
       label:  'Cotizaciones Finalizadas',
-      value:  cotizaciones.finalizadas,
+      value:  cotizacionesAsignadas.finalizadas,
       icon:   <IconChartSquare className="h-7 w-7" />,
       light:  'bg-success/10 text-success',
       border: 'border-success/30',
@@ -78,13 +86,15 @@ export default function UserDashboard() {
     },
   ];
 
-  const quotesBreakdown = [
-    { label: 'Pendientes',  value: cotizaciones.pendientes,  color: 'text-warning',  dot: 'bg-warning'  },
-    { label: 'En Proceso',  value: cotizaciones.enProceso,   color: 'text-info',     dot: 'bg-info'     },
-    { label: 'Finalizadas', value: cotizaciones.finalizadas, color: 'text-success',  dot: 'bg-success'  },
-    { label: 'Anuladas',    value: cotizaciones.anuladas,    color: 'text-danger',   dot: 'bg-danger'   },
-    { label: 'Total',       value: cotizaciones.total,       color: 'text-gray-700 dark:text-gray-200 font-bold', dot: 'bg-gray-400' },
+  const breakdownFor = (c) => [
+    { label: 'Pendientes',  value: c.pendientes,  color: 'text-warning',  dot: 'bg-warning'  },
+    { label: 'En Proceso',  value: c.enProceso,   color: 'text-info',     dot: 'bg-info'     },
+    { label: 'Finalizadas', value: c.finalizadas, color: 'text-success',  dot: 'bg-success'  },
+    { label: 'Anuladas',    value: c.anuladas,    color: 'text-danger',   dot: 'bg-danger'   },
+    { label: 'Total',       value: c.total,       color: 'text-gray-700 dark:text-gray-200 font-bold', dot: 'bg-gray-400' },
   ];
+  const creadasBreakdown   = breakdownFor(cotizacionesCreadas);
+  const asignadasBreakdown = breakdownFor(cotizacionesAsignadas);
 
   const ordersBreakdown = [
     { label: 'Completadas', value: ordenes.completadas, color: 'text-success', dot: 'bg-success' },
@@ -104,36 +114,29 @@ export default function UserDashboard() {
     <div className="space-y-6 pb-8">
 
       {/* ── HERO BANNER ──────────────────────────────────────────────────────── */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary to-[#4f46e5] p-6 text-white shadow-lg">
-        {/* decorative circles */}
-        <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-white/5" />
-        <div className="pointer-events-none absolute -bottom-14 -right-4 h-40 w-40 rounded-full bg-white/5" />
-
-        <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-5">
-          {/* Avatar */}
-          <div className="h-16 w-16 rounded-full bg-white/20 backdrop-blur flex items-center justify-center text-white font-bold text-2xl uppercase shrink-0 ring-4 ring-white/30">
-            {initials}
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <p className="text-white/70 text-sm mb-0.5">Bienvenido de nuevo</p>
-            <h1 className="text-xl sm:text-2xl font-bold truncate">{usuario.nomUsuario ?? user?.name ?? '—'}</h1>
-            <span className="inline-block mt-1.5 text-xs font-medium bg-white/20 px-2.5 py-0.5 rounded-full">
-              {usuario.rol ?? user?.rol ?? '—'}
-            </span>
-          </div>
-
-          {usuario.codPais && (
-            <div className="flex items-center gap-2 sm:ml-auto shrink-0">
-              <img
-                src={`/assets/flags/${usuario.codPais.toLowerCase()}.svg`}
-                alt={usuario.codPais}
-                className="h-8 w-8 rounded-md object-cover shadow ring-2 ring-white/30"
-              />
-              <span className="text-sm font-medium opacity-90">{usuario.nomPais ?? usuario.codPais}</span>
-            </div>
-          )}
+      <div className="panel flex flex-col sm:flex-row items-start sm:items-center gap-5 border border-primary/20">
+        {/* Avatar */}
+        <div className="h-16 w-16 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-2xl uppercase shrink-0 ring-4 ring-primary/10">
+          {initials}
         </div>
+
+        <div className="flex-1 min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white truncate">{usuario.nomUsuario ?? user?.name ?? '—'}</h1>
+          <span className="inline-block mt-1.5 text-xs font-medium bg-primary/10 text-primary px-2.5 py-0.5 rounded-full">
+            {usuario.rol ?? user?.rol ?? '—'}
+          </span>
+        </div>
+
+        {usuario.codPais && (
+          <div className="flex items-center gap-2 sm:ml-auto shrink-0">
+            <img
+              src={`/assets/flags/${usuario.codPais.toLowerCase()}.svg`}
+              alt={usuario.codPais}
+              className="h-8 w-8 rounded-md object-cover shadow ring-2 ring-gray-100 dark:ring-gray-700"
+            />
+            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">{usuario.nomPais ?? usuario.codPais}</span>
+          </div>
+        )}
       </div>
 
       {/* ── KPI CARDS ────────────────────────────────────────────────────────── */}
@@ -154,95 +157,170 @@ export default function UserDashboard() {
         ))}
       </div>
 
-      {/* ── ROW 2: PERFIL + PAÍSES ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      {/* ── ROW 2: PERFIL (usuario + SMTP + países, agrupado en sub-secciones) ── */}
+      <div className="panel space-y-4">
+        <SectionHeader icon={<IconUser className="h-4 w-4" />} title="Datos del Usuario" />
 
-        {/* Datos del usuario (3/5) */}
-        <div className="lg:col-span-3 panel space-y-5">
-          <SectionHeader icon={<IconUser className="h-4 w-4" />} title="Datos del Usuario" />
-
-          <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-            <DataRow label="Nombre"   value={usuario.nomUsuario ?? '—'} />
-            <DataRow label="Usuario"  value={usuario.logUsuario ?? '—'} />
-            <DataRow label="Rol"      value={usuario.rol        ?? '—'} />
-            <DataRow label="País"     value={usuario.nomPais    ?? '—'} />
-            <DataRow label="Ciudad"   value={usuario.nomCiudad  ?? '—'} />
-            <DataRow label="Estado"   value={
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6">
+          <div>
+            <DataRow label="Nombre" value={usuario.nomUsuario ?? '—'} />
+            <DataRow label="Rol"    value={usuario.rol        ?? '—'} className="mt-4" />
+          </div>
+          <div>
+            <DataRow label="País"   value={usuario.nomPais   ?? '—'} />
+            <DataRow label="Ciudad" value={usuario.nomCiudad ?? '—'} className="mt-4" />
+          </div>
+          <div>
+            <DataRow label="Correo de Acceso" value={usuario.logUsuario ?? '—'} />
+            <DataRow label="Estado" value={
               <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
                 usuario.codEstado === 'AC' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
               }`}>
                 {usuario.estado ?? '—'}
               </span>
-            } />
+            } className="mt-4" />
+          </div>
+          <div>
+            <DataRow label="Correo SMTP" value={usuario.corElectronico ?? '—'} />
+            <DataRow label="Estado SMTP" value={
+              !usuario.tienePwdMail ? (
+                <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                  Sin configurar
+                </span>
+              ) : usuario.smtpVerificado ? (
+                <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
+                  Verificado
+                </span>
+              ) : (
+                <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning">
+                  No verificado
+                </span>
+              )
+            } className="mt-4" />
           </div>
         </div>
 
-        {/* Países permitidos (2/5) */}
-        <div className="lg:col-span-2 panel space-y-5">
-          <SectionHeader icon={<IconUsers className="h-4 w-4" />} title="Países Permitidos" />
-
-          <div className="rounded-lg border border-gray-100 dark:border-gray-700 overflow-hidden">
-            {paises.length === 0 ? (
-              <div className="flex items-center justify-center h-[120px] text-sm text-gray-400 flex-col gap-1">
-                <span className="text-xs uppercase tracking-wide">Sin países asignados</span>
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-2 p-3">
-                {paises.map((p) => (
-                  <span
-                    key={p.value}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 pl-1.5 pr-3 py-1 text-xs font-medium text-gray-600 dark:text-gray-300"
-                  >
-                    <img
-                      src={`/assets/flags/${p.value.toLowerCase()}.svg`}
-                      alt={p.label}
-                      className="h-4 w-5 rounded-sm object-cover shrink-0"
-                      onError={e => { e.currentTarget.style.display = 'none'; }}
-                    />
-                    {p.label}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
+        <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
+          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">
+            {paises.length === 1 ? 'País Habilitado' : 'Países Habilitados'}
+          </p>
+          {paises.length === 0 ? (
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-200">—</div>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {paises.map((p) => (
+                <span
+                  key={p.value}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 pl-1.5 pr-2.5 py-0.5 text-xs font-medium text-gray-600 dark:text-gray-300"
+                >
+                  <img
+                    src={`/assets/flags/${p.value.toLowerCase()}.svg`}
+                    alt={p.label}
+                    className="h-3.5 w-[18px] rounded-sm object-cover shrink-0"
+                    onError={e => { e.currentTarget.style.display = 'none'; }}
+                  />
+                  {p.label}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
-
       </div>
 
-      {/* ── ROW 3: COTIZACIONES + ÓRDENES DE COMPRA ─────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      {/* ── MI EMPRESA (solo para usuarios con empresa representada) ─────────── */}
+      {empresa && (
+        <div className="panel space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <SectionHeader icon={<IconHome className="h-4 w-4" />} title="Mi Empresa" />
+            <Link href="/admin/register/representative/general" className="no-load text-xs font-medium text-primary hover:underline shrink-0">
+              Ver detalle →
+            </Link>
+          </div>
 
-        {/* Detalle cotizaciones (3/5) */}
-        <div className="lg:col-span-3 panel space-y-4">
-          <SectionHeader icon={<IconChartSquare className="h-4 w-4" />} title="Cotizaciones" />
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6">
+            <div>
+              <DataRow label="Razón Social" value={empresa.razSoc ?? '—'} />
+              <DataRow label="NIT"          value={empresa.nitEmp ?? '—'} className="mt-4" />
+              <DataRow label="Estado" value={
+                <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                  empresa.codEstado === 'AC' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
+                }`}>
+                  {empresa.codEstado === 'AC' ? 'Activo' : 'Inactivo'}
+                </span>
+              } className="mt-4" />
+            </div>
+            <div>
+              <DataRow label="País"      value={empresa.nomPais   ?? '—'} />
+              <DataRow label="Ciudad"    value={empresa.nomCiudad ?? '—'} className="mt-4" />
+              <DataRow label="Dirección" value={empresa.dirEmp    ?? '—'} className="mt-4" />
+            </div>
+            <div>
+              <DataRow label="Teléfono" value={empresa.telEmp ?? '—'} />
+              <DataRow label="Email"    value={empresa.corEle ?? '—'} className="mt-4" />
+            </div>
+            <div>
+              <DataRow label="Moneda" value={empresa.nomMoneda ?? '—'} />
+              <DataRow label="% Fee"  value={empresa.porFee != null ? `${Number(empresa.porFee).toFixed(2)}%` : '—'} className="mt-4" />
+            </div>
+          </div>
+        </div>
+      )}
 
+      {/* ── ROW 3: COTIZACIONES CREADAS / ASIGNADAS / ÓRDENES DE COMPRA ──────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <div className="panel space-y-4">
+          <SectionHeader icon={<IconChartSquare className="h-4 w-4" />} title="Cotizaciones Creadas" />
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 dark:border-gray-700">
                 <th className="pb-2 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Estado</th>
-                <th className="pb-2 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide">Cantidad</th>
+                <th className="pb-2 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide">Cant.</th>
                 <th className="pb-2 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide pr-2">%</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
-              {quotesBreakdown.map((row) => (
+              {creadasBreakdown.map((row) => (
                 <tr key={row.label}>
                   <td className="py-2.5 flex items-center gap-2">
                     <span className={`h-2 w-2 rounded-full shrink-0 ${row.dot}`} />
                     <span className={`text-sm ${row.color}`}>{row.label}</span>
                   </td>
                   <td className={`py-2.5 text-right font-semibold ${row.color}`}>{row.value}</td>
-                  <td className="py-2.5 text-right text-gray-400 pr-2 text-xs">{row.label === 'Total' ? '' : pct(row.value)}</td>
+                  <td className="py-2.5 text-right text-gray-400 pr-2 text-xs">{row.label === 'Total' ? '' : pct(row.value, cotizacionesCreadas.total)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
 
-        {/* Órdenes de Compra (2/5) */}
-        <div className="lg:col-span-2 panel space-y-4">
-          <SectionHeader icon={<IconChartSquare className="h-4 w-4" />} title="Órdenes de Compra" />
+        <div className="panel space-y-4">
+          <SectionHeader icon={<IconChartSquare className="h-4 w-4" />} title="Cotizaciones Asignadas" />
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 dark:border-gray-700">
+                <th className="pb-2 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Estado</th>
+                <th className="pb-2 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide">Cant.</th>
+                <th className="pb-2 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide pr-2">%</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+              {asignadasBreakdown.map((row) => (
+                <tr key={row.label}>
+                  <td className="py-2.5 flex items-center gap-2">
+                    <span className={`h-2 w-2 rounded-full shrink-0 ${row.dot}`} />
+                    <span className={`text-sm ${row.color}`}>{row.label}</span>
+                  </td>
+                  <td className={`py-2.5 text-right font-semibold ${row.color}`}>{row.value}</td>
+                  <td className="py-2.5 text-right text-gray-400 pr-2 text-xs">{row.label === 'Total' ? '' : pct(row.value, cotizacionesAsignadas.total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
+        <div className="panel space-y-4">
+          <SectionHeader icon={<IconChartSquare className="h-4 w-4" />} title="Órdenes de Compra" />
           <table className="w-full text-sm">
             <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
               {ordersBreakdown.map((row) => (
@@ -270,26 +348,6 @@ export default function UserDashboard() {
         </div>
       </div>
 
-      {/* ── REPORTES PLACEHOLDER ─────────────────────────────────────────────── */}
-      <div className="panel space-y-4">
-        <SectionHeader icon={<IconChartSquare className="h-4 w-4" />} title="Reportes" />
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {['Ventas', 'Metas', 'Avance'].map((rep) => (
-            <div
-              key={rep}
-              className="rounded-xl border border-dashed border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 p-6 flex flex-col items-center justify-center gap-2 text-center"
-            >
-              <div className="h-10 w-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                <IconChartSquare className="h-5 w-5 text-gray-400" />
-              </div>
-              <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">{rep}</p>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">Próximamente</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
     </div>
   );
 }
@@ -303,11 +361,11 @@ function SectionHeader({ icon, title }) {
   );
 }
 
-function DataRow({ label, value }) {
+function DataRow({ label, value, className = '' }) {
   return (
-    <div className="space-y-0.5">
+    <div className={`space-y-0.5 min-w-0 ${className}`}>
       <p className="text-xs text-gray-400 uppercase tracking-wide">{label}</p>
-      <div className="text-sm font-medium text-gray-700 dark:text-gray-200">{value}</div>
+      <div className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">{value}</div>
     </div>
   );
 }

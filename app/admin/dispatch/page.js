@@ -8,7 +8,7 @@ import PendingDelivery from "@/app/admin/dispatch/pending-delivery"
 
 import axiosClient from '@/app/lib/axiosClient';
 import Swal from 'sweetalert2'
-import { swalSuccess, swalError } from '@/app/lib/swal';
+import { swalSuccess, swalError, swalConfirm } from '@/app/lib/swal';
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 
 import Modal from '@/components/modal';
@@ -19,6 +19,8 @@ const URL_ATTACH_ITEMS = 'entregas/adjuntar-items';
 const URL_CONTROLS = 'entregas/controles';
 const URL_SAVE_DISPATCH = 'entregas/guardar-despacho';
 const URL_CANCEL_PACKING = 'embalajes/anular-recepcion';
+const URL_CANCEL_DISPATCH = 'entregas/anular-despacho';
+const URL_LISTAR_DESPACHO = 'entregas/listar-despacho'; // llamada de prueba — no se usa en la UI todavía
 
 const TAB_KEYS = ['pending', 'dispatch'];
 
@@ -93,6 +95,14 @@ export default function Dispatch() {
       setTotalPages(rs.data?.totalPaginas ?? 1);
     } catch (error) {
 
+    }
+    // Llamada de prueba pedida para verificar que el backend responde —
+    // no alimenta ninguna UI todavía, solo se loguea en consola.
+    try {
+      const rsDespacho = await axiosClient.get(URL_LISTAR_DESPACHO);
+      console.log('[TEST] entregas/listar-despacho →', rsDespacho.data);
+    } catch (error) {
+      console.log('[TEST] entregas/listar-despacho → error', error?.response?.status, error?.response?.data);
     }
     setLoadingOrders(false);
   }
@@ -215,6 +225,22 @@ export default function Dispatch() {
     });
   }
 
+  const handleCancelDispatch = async () => {
+    const result = await swalConfirm(t.question_cancel_dispatch, '', { confirmText: t.yes, cancelText: t.close, confirmColor: '#dc2626' });
+    if (result.isConfirmed) {
+      try {
+        const data_send = seleccionados.map(o => ({ numEntrega: o.numEntrega }));
+        await axiosClient.post(URL_CANCEL_DISPATCH, data_send);
+        swalSuccess(t.dispatch_was_cancel);
+        setSeleccionados([])
+        getLists();
+      } catch (error) {
+        const apiMsg = error?.response?.data?.mensaje;
+        swalError(t.error, apiMsg ?? t.error, t.close);
+      }
+    }
+  }
+
   // Los reportes son por embalaje (embalajes/{numEmbalaje}/...) — se asume un solo
   // embalaje por despacho, que es el caso visto hasta ahora. Si se llegan a despachar
   // varios embalajes juntos, esto solo cubre el primero.
@@ -319,6 +345,7 @@ export default function Dispatch() {
             setSeleccionados={setSeleccionados}
             attachItems={attachItems}
             handleCancelPacking={handleCancelPacking}
+            handleCancelDispatch={handleCancelDispatch}
             page={urlPage}
             sortColumn={urlSort}
             sortDir={urlDir}

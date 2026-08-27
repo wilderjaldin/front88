@@ -58,7 +58,7 @@ export default function RepresentanteFormPage({
   } = useForm({
     defaultValues: {
       razSoc: '', nitEmp: '', docFactura: '',
-      country: null, city: null, usuario: '', estadoEmp: '', codZipEmp: '',
+      country: null, city: null, selectedUsuarios: [], estadoEmp: '', codZipEmp: '',
       dirEmp: '', nomContacto: '', telEmp: '', corEle: '',
       numCelWp: '', dirWeb: '', tipMoneda: null, porFee: '',
       blnIvaEnPrecio: false, blnEsRepresentante: false, nomDestinoEntrega: '',
@@ -86,7 +86,7 @@ export default function RepresentanteFormPage({
         docFactura:         repres.docFactura          ?? '',
         country:            paisObj,
         city:               null,
-        usuario:            '',
+        selectedUsuarios:   [],
         estadoEmp:          repres.estadoEmp           ?? '',
         codZipEmp:          repres.codZipEmp           ?? '',
         dirEmp:             repres.dirEmp              ?? '',
@@ -106,9 +106,19 @@ export default function RepresentanteFormPage({
       });
       if (repres.codPais) {
         cargarCiudades(repres.codPais, repres.codCiudad ?? null);
-        // /editar/{id} trae codUsuario plano; /detalle/{id} (fallback si /editar falla)
-        // lo trae anidado en usuario.codUsuario — se contempla cualquiera de las dos formas.
-        cargarUsuarios(repres.codPais, repres.codUsuario ?? repres.usuario?.codUsuario ?? null);
+        // Ahora una empresa puede tener varios usuarios asignados. Se contempla
+        // el nuevo campo en array (codUsuarios / usuarios[]) y, por las dudas,
+        // las formas viejas de un solo usuario (codUsuario / usuario.codUsuario).
+        const preselectUsuarios = Array.isArray(repres.codUsuarios)
+          ? repres.codUsuarios
+          : Array.isArray(repres.usuarios)
+            ? repres.usuarios.map(u => u?.codUsuario ?? u)
+            : repres.codUsuario != null
+              ? [repres.codUsuario]
+              : repres.usuario?.codUsuario != null
+                ? [repres.usuario.codUsuario]
+                : [];
+        cargarUsuarios(repres.codPais, preselectUsuarios);
       }
     }
   };
@@ -154,16 +164,17 @@ export default function RepresentanteFormPage({
     }
   };
 
-  const cargarUsuarios = async (codPais, preselectCodUsuario = null) => {
+  const cargarUsuarios = async (codPais, preselectCodUsuarios = []) => {
     setLoadingUsuarios(true);
     setUsuarios([]);
-    setValue('usuario', '');
+    setValue('selectedUsuarios', []);
     try {
       const res   = await axiosClient.get(URL_USUARIOS_POR_PAIS, { params: { codPais } });
       const lista = (res.data ?? []).map(u => ({ value: u.codUsuario, label: u.nomUsuario }));
       setUsuarios(lista);
-      if (preselectCodUsuario != null && lista.some(u => u.value === preselectCodUsuario)) {
-        setValue('usuario', preselectCodUsuario, { shouldValidate: false });
+      if (preselectCodUsuarios.length > 0) {
+        const validos = lista.filter(u => preselectCodUsuarios.includes(u.value)).map(u => u.value);
+        if (validos.length > 0) setValue('selectedUsuarios', validos, { shouldValidate: false });
       }
     } catch {
       setUsuarios([]);
@@ -175,10 +186,10 @@ export default function RepresentanteFormPage({
   const handleCountryChange = (selected) => {
     if (selected?.value) {
       cargarCiudades(selected.value, null);
-      cargarUsuarios(selected.value, null);
+      cargarUsuarios(selected.value, []);
     } else {
       setCiudades([]); setValue('city', null);
-      setUsuarios([]); setValue('usuario', '');
+      setUsuarios([]); setValue('selectedUsuarios', []);
     }
   };
 
@@ -190,7 +201,7 @@ export default function RepresentanteFormPage({
       docFactura:         data.docFactura           || null,
       codPais:            data.country?.value       ?? '',
       codCiudad:          data.city?.value          ?? '',
-      codUsuario:         data.usuario ? Number(data.usuario) : null,
+      codUsuarios:        (data.selectedUsuarios ?? []).map(Number),
       estadoEmp:          data.estadoEmp            || '',
       codZipEmp:          data.codZipEmp            || null,
       dirEmp:             data.dirEmp,
@@ -315,7 +326,7 @@ export default function RepresentanteFormPage({
           </div>
         </div>
 
-        <F label="Usuario Relacionado" required error={errors.usuario}>
+        <F label="Usuarios Relacionados" required error={errors.selectedUsuarios}>
           {!selectedCountry ? (
             <p className="text-xs text-gray-400 py-1">Selecciona un país primero</p>
           ) : loadingUsuarios ? (
@@ -327,30 +338,39 @@ export default function RepresentanteFormPage({
             <p className="text-xs text-gray-400 py-1">No hay usuarios para este país</p>
           ) : (
             <Controller
-              name="usuario"
+              name="selectedUsuarios"
               control={control}
-              rules={{ validate: v => !!v || t.required_field }}
-              render={({ field }) => (
-                <div className="flex flex-wrap items-center gap-2">
-                  {usuarios.map(u => (
-                    <label key={u.value}
-                      className={`flex items-center shrink-0 gap-1 h-[42px] px-2 rounded-lg border cursor-pointer select-none transition m-0
-                        ${field.value === u.value
-                          ? 'border-primary bg-primary/5'
-                          : 'border-gray-400 dark:border-[#17263c] bg-gray-50 dark:bg-[#0b1220] hover:border-primary/60 hover:bg-white dark:hover:bg-[#121e32]'}`}
-                    >
-                      <input
-                        type="radio"
-                        checked={field.value === u.value}
-                        onChange={() => {}}
-                        onClick={() => field.onChange(u.value)}
-                        className="form-radio h-4 w-4"
-                      />
-                      <span className="text-sm font-medium">{u.label}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
+              rules={{ validate: v => (Array.isArray(v) && v.length > 0) || t.required_field }}
+              render={({ field }) => {
+                const selected = field.value ?? [];
+                const toggle = (value) => {
+                  field.onChange(
+                    selected.includes(value)
+                      ? selected.filter(v => v !== value)
+                      : [...selected, value]
+                  );
+                };
+                return (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {usuarios.map(u => (
+                      <label key={u.value}
+                        className={`flex items-center shrink-0 gap-1 h-[42px] px-2 rounded-lg border cursor-pointer select-none transition m-0
+                          ${selected.includes(u.value)
+                            ? 'border-primary bg-primary/5'
+                            : 'border-gray-400 dark:border-[#17263c] bg-gray-50 dark:bg-[#0b1220] hover:border-primary/60 hover:bg-white dark:hover:bg-[#121e32]'}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected.includes(u.value)}
+                          onChange={() => toggle(u.value)}
+                          className="form-checkbox h-4 w-4 rounded"
+                        />
+                        <span className="text-sm font-medium">{u.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                );
+              }}
             />
           )}
         </F>
