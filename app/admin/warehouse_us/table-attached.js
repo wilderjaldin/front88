@@ -66,28 +66,32 @@ const TableAttached = ({ t, items, loading }) => {
               <tr>
                 <th className={`${thClass} text-center`}>{t.nro_order}</th>
                 <th className={thClass}>{t.customer}</th>
-                <th className={thClass}>Nro. Parte</th>
+                <th className={thClass}>{t.nro_part}</th>
+                <th className={thClass}>{t.nro_part_customer}</th>
                 <th className={thClass}>{t.description ?? 'Descripción'}</th>
-                <th className={`${thClass} text-center`}>{t.quantity}</th>
+                <th className={`${thClass} text-center`}>{t.amount_received}</th>
+                <th className={thClass}>{t.note}</th>
               </tr>
             </thead>
 
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="py-10 text-center text-sm text-gray-400">{t.loading ?? 'Cargando...'}</td>
+                  <td colSpan={7} className="py-10 text-center text-sm text-gray-400">{t.loading ?? 'Cargando...'}</td>
                 </tr>
               ) : pageData.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-10 text-center text-sm text-gray-400">{t.empty_results}</td>
+                  <td colSpan={7} className="py-10 text-center text-sm text-gray-400">{t.empty_results}</td>
                 </tr>
               ) : pageData.map((o, i) => (
                 <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                   <td className={`${tdClass} text-center font-medium`}>{o.NroOrden}</td>
                   <td className={tdClass}>{o.Cliente}</td>
                   <td className={`${tdClass} text-primary`}>{o.NroParte}</td>
+                  <td className={tdClass}>{o.NroParteCliente}</td>
                   <td className={tdClass}>{o.Descripcion}</td>
                   <td className={`${tdClass} text-center`}>{o.CanRecibida}</td>
+                  <td className={tdClass}>{o.NotaItem}</td>
                 </tr>
               ))}
             </tbody>

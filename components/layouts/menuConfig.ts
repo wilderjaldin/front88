@@ -63,7 +63,6 @@ export const MENU_CONFIG: MenuItem[] = [
       { labelKey: 'spare_parts_in_lot_supplier', href: '/admin/register/spares-suppliers' },
       { labelKey: 'reference_part_change', href: '/admin/register/reference-change-part' },
       { labelKey: 'reference_change_part_in_lot', href: '/admin/register/reference-change-part-lot' },
-      { labelKey: 'Repuestos Proveedor', href: '/admin/register/customers' },
       { labelKey: 'customers', href: '/admin/register/customers' },
       { labelKey: 'suppliers', href: '/admin/register/suppliers' },
       { labelKey: 'freight_supplier', href: '/admin/register/supplier-freight' },

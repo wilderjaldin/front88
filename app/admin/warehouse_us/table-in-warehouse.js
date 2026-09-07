@@ -110,7 +110,18 @@ const TableInWarehouse = ({ t, orders, loading, term, onRefresh, onViewItems, on
                     <input type="checkbox" className="form-checkbox" checked={selected.includes(o)} onChange={() => toggleRow(o)} />
                   </td>
                   <td className={`${tdClass} text-center font-medium`}>{o.NroOrden}</td>
-                  <td className={tdClass}>{o.Cliente}</td>
+                  <td className={tdClass}>
+                    <div className="flex items-center gap-2">
+                      {o.CodPais && (
+                        <img
+                          src={`/assets/flags/${o.CodPais.toLowerCase()}.svg`}
+                          alt={o.CodPais}
+                          className="h-3.5 w-5 rounded-sm object-cover shrink-0"
+                        />
+                      )}
+                      <span>{o.Cliente}</span>
+                    </div>
+                  </td>
                   <td className={tdClass}>
                     {o.Estado ? (
                       <span className="inline-flex items-center rounded-full bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">

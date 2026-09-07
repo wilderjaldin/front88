@@ -130,8 +130,16 @@ const TableItems = ({
 
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900">
           <div>
-            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
               Referencias cruzadas
+              <span className="px-2 py-0.5 text-xs bg-primary/10 text-primary rounded-full font-medium">
+                {items.length} {items.length === 1 ? 'registro' : 'registros'}
+              </span>
+              {selected_items.length > 0 && (
+                <span className="px-2 py-0.5 text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-full font-medium">
+                  {selected_items.length} seleccionado{selected_items.length !== 1 ? 's' : ''}
+                </span>
+              )}
             </p>
             <div className="h-0.5 w-8 rounded bg-primary/60 mt-0.5" />
           </div>
@@ -308,9 +316,19 @@ const TableItems = ({
       <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
 
         <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900">
-          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
-            {t.options_for_nro_part ?? 'Repuestos'}{' '}
-            <span className="font-bold text-primary">[{NroParte}]</span>
+          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+            <span>
+              {t.options_for_nro_part ?? 'Repuestos'}{' '}
+              <span className="font-bold text-primary">[{NroParte}]</span>
+            </span>
+            <span className="px-2 py-0.5 text-xs bg-primary/10 text-primary rounded-full font-medium">
+              {options.length} {options.length === 1 ? 'registro' : 'registros'}
+            </span>
+            {selected_options.length > 0 && (
+              <span className="px-2 py-0.5 text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-full font-medium">
+                {selected_options.length} seleccionado{selected_options.length !== 1 ? 's' : ''}
+              </span>
+            )}
           </p>
           <div className="h-0.5 w-8 rounded bg-primary/60 mt-0.5" />
         </div>

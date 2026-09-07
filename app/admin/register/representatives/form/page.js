@@ -83,7 +83,7 @@ export default function RepresentanteFormPage({
       reset({
         razSoc:             repres.razSoc             ?? '',
         nitEmp:             repres.nitEmp             ?? '',
-        docFactura:         repres.docFactura          ?? '',
+        docFactura:         repres.docFactura?.trim()  ?? '',
         country:            paisObj,
         city:               null,
         selectedUsuarios:   [],
@@ -198,7 +198,7 @@ export default function RepresentanteFormPage({
       ...(isEdit ? { codEmp: Number(id) } : {}),
       razSoc:             data.razSoc,
       nitEmp:             data.nitEmp,
-      docFactura:         data.docFactura           || null,
+      docFactura:         data.docFactura?.trim()    || null,
       codPais:            data.country?.value       ?? '',
       codCiudad:          data.city?.value          ?? '',
       codUsuarios:        (data.selectedUsuarios ?? []).map(Number),
@@ -280,7 +280,7 @@ export default function RepresentanteFormPage({
         <div className="grid grid-cols-3 gap-4">
           <F label="Doc." error={errors.docFactura}>
             <input
-              {...register('docFactura', { maxLength: { value: 4, message: 'Máx. 4' } })}
+              {...register('docFactura')}
               className="form-input w-full uppercase" placeholder="NIT"
             />
           </F>
@@ -524,7 +524,7 @@ export default function RepresentanteFormPage({
             className="rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
             {t.btn_cancel}
           </button>
-          <button type="button" onClick={handleSubmit(onSubmit)} disabled={isSubmitting}
+          <button type="button" onClick={handleSubmit(onSubmit)} disabled={isSubmitting || loadingUsuarios || loadingCiudades}
             className="inline-flex items-center gap-2 h-10 px-6 rounded-lg text-sm font-semibold text-white bg-primary hover:bg-primary/90 shadow-md shadow-primary/25 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none transition-all duration-150">
             {isSubmitting ? (
               <>
@@ -587,7 +587,7 @@ export default function RepresentanteFormPage({
             className="rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
             {t.btn_cancel}
           </button>
-          <button type="button" onClick={handleSubmit(onSubmit)} disabled={isSubmitting}
+          <button type="button" onClick={handleSubmit(onSubmit)} disabled={isSubmitting || loadingUsuarios || loadingCiudades}
             className="inline-flex items-center gap-2 h-10 px-6 rounded-lg text-sm font-semibold text-white bg-primary hover:bg-primary/90 shadow-md shadow-primary/25 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none transition-all duration-150">
             {isSubmitting ? (
               <>

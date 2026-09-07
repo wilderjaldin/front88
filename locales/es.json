@@ -712,6 +712,8 @@
   "question_cancel_dispatch" : "¿Seguro de anular el despacho seleccionado(s)?",
   "print_documents" : "Imprimir Documentos",
   "confirm_documentation" : "Confirmar Documentación",
+  "question_confirm_documentation" : "¿Desea continuar?",
+  "question_confirm_documentation_detail" : "Pasará a la etapa de Despacho/Entrega",
   "attach_items" : "Adjuntar Items",
   "packaging_number" : "Num. Embalaje",
   "delivery_date" : "Fec. Entrega",

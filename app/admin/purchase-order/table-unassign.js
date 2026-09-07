@@ -114,7 +114,18 @@ const TableUnassigned = ({ t, orders_unassigned, assignOrder, goToTab, onSearch,
                   <td className={`${tdClass} text-center`}>{o.NroItems}</td>
                   <td className={`${tdClass} text-right`}>{customFormat(o.Monto)}</td>
                   <td className={`${tdClass} text-center`}>{o.Dias}</td>
-                  <td className={`${tdClass} text-gray-500`}>{o.NomCliente}</td>
+                  <td className={`${tdClass} text-gray-500`}>
+                    <div className="flex items-center gap-2">
+                      {o.CodPais && (
+                        <img
+                          src={`/assets/flags/${o.CodPais.toLowerCase()}.svg`}
+                          alt={o.CodPais}
+                          className="h-3.5 w-5 rounded-sm object-cover shrink-0"
+                        />
+                      )}
+                      <span>{o.NomCliente}</span>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -98,6 +98,7 @@ export default function PurchaseOrder() {
     Monto: o.total,
     Dias: o.dias,
     NomCliente: o.nomCliente,
+    CodPais: o.codPais,
     TieneDivididos: o.tieneDivididos ?? false,
     TieneCambioProveedor: o.tieneCambioProveedor ?? false,
     CodItemsConCambios: o.codItemsConCambios ?? [],

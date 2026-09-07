@@ -4,14 +4,12 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useForm, Controller } from "react-hook-form";
 import { useTranslation } from "@/app/locales";
-import { useSelector } from 'react-redux';
-import { selectToken } from '@/store/authSlice';
 import axiosClient from '@/app/lib/axiosClient';
 import { swalConfirm, swalError, swalSuccess } from '@/app/lib/swal';
 import Select from 'react-select';
 import { Pagination } from '@mantine/core';
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
-import BtnImprimir from "@/app/admin/queries/delivery-report/BtnImprimir";
+import BtnImprimir from "@/app/admin/document-delivery/BtnImprimir";
 
 const URL_CONTROLES = 'entregas/controles';
 const URL_ENTREGAS  = 'entregas';
@@ -52,7 +50,6 @@ const SortableHeader = ({ col, label, sort, dir, onSort, className = '' }) => (
 
 export default function DeliveryReport() {
   const t            = useTranslation();
-  const token        = useSelector(selectToken);
   const router       = useRouter();
   const pathname     = usePathname();
   const searchParams = useSearchParams();
@@ -367,9 +364,8 @@ export default function DeliveryReport() {
                           />
                         </label>
                         <BtnImprimir
-                          token={token}
                           t={t}
-                          order={o}
+                          row={{ NumEmbalaje: o.nroEmbalaje, NumDespacho: o.numEntrega, CodPais: o.codPais }}
                           className="h-7 w-7 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
                         />
                       </div>
@@ -388,7 +384,18 @@ export default function DeliveryReport() {
                     </td>
                     <td className={`${tdClass} text-gray-400`}>{o.fecEntrega}</td>
                     <td className={`${tdClass} text-gray-400`}>{o.destino}</td>
-                    <td className={tdClass}>{o.cliente}</td>
+                    <td className={tdClass}>
+                      <div className="flex items-center gap-2">
+                        {o.codPais && (
+                          <img
+                            src={`/assets/flags/${o.codPais.toLowerCase()}.svg`}
+                            alt={o.codPais}
+                            className="h-3.5 w-5 rounded-sm object-cover shrink-0"
+                          />
+                        )}
+                        <span>{o.cliente}</span>
+                      </div>
+                    </td>
                     <td className={`${tdClass} text-gray-500`}>{o.recibidoPor || '—'}</td>
                     <td className={tdClass}>{o.entregadoPor}</td>
                   </tr>

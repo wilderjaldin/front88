@@ -158,6 +158,10 @@ const DatatablesSpares = ({
   // ── AsyncSelect: filtra en memoria, sin requests adicionales ────────────
   const ASYNC_LIMIT = 20;
   const ASYNC_MIN_CHARS = 2;
+  // Con pocos proveedores alcanza con mostrar la lista completa en un Select normal;
+  // pasado ese umbral se vuelve más práctico filtrar por teclado (AsyncSelect).
+  const SUPPLIER_ASYNC_THRESHOLD = 70;
+  const suppliersNeedsAsync = suppliers.length > SUPPLIER_ASYNC_THRESHOLD;
 
   const filterOptions = (options, inputValue) => {
     const term = inputValue.trim().toLowerCase();
@@ -493,21 +497,34 @@ const DatatablesSpares = ({
           <Controller
             name="supplier"
             control={control}
-            render={({ field }) => (
-              <AsyncSelect
-                loadOptions={loadSuppliers}
-                defaultOptions={false}
-                value={field.value}
-                onChange={(s) => field.onChange(s ?? null)}
-                placeholder={`${t.search}...`}
-                noOptionsMessage={({ inputValue }) =>
-                  inputValue.length < ASYNC_MIN_CHARS ? `${ASYNC_MIN_CHARS}+` : t.no_matches}
-                isClearable
-                cacheOptions
-                menuPortalTarget={portalTarget}
-                styles={compactSelectStylesWidth('270px')}
-              />
-            )}
+            render={({ field }) =>
+              suppliersNeedsAsync ? (
+                <AsyncSelect
+                  loadOptions={loadSuppliers}
+                  defaultOptions={false}
+                  value={field.value}
+                  onChange={(s) => field.onChange(s ?? null)}
+                  placeholder={`${t.search}...`}
+                  noOptionsMessage={({ inputValue }) =>
+                    inputValue.length < ASYNC_MIN_CHARS ? `${ASYNC_MIN_CHARS}+` : t.no_matches}
+                  isClearable
+                  cacheOptions
+                  menuPortalTarget={portalTarget}
+                  styles={compactSelectStylesWidth('270px')}
+                />
+              ) : (
+                <Select
+                  options={suppliers}
+                  value={field.value}
+                  onChange={(s) => field.onChange(s ?? null)}
+                  placeholder={`${t.search}...`}
+                  noOptionsMessage={() => t.no_matches}
+                  isClearable
+                  menuPortalTarget={portalTarget}
+                  styles={compactSelectStylesWidth('270px')}
+                />
+              )
+            }
           />
         </div>
 

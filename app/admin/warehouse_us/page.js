@@ -30,15 +30,18 @@ const mapOrder = (o) => ({
 const mapInWarehouseOrder = (o) => ({
   NroOrden: o.nroCotizacion,
   Cliente:  o.cliente,
+  CodPais:  o.codPais,
   Estado:   o.estadoOrden,
 });
 
 const mapAttachedItem = (d) => ({
-  NroOrden:    d.nroCotizacion,
-  Cliente:     d.cliente,
-  NroParte:    d.nroParte,
-  Descripcion: d.desRepuesto,
-  CanRecibida: d.canRecibida,
+  NroOrden:        d.nroCotizacion,
+  Cliente:         d.cliente,
+  NroParte:        d.nroParteCompra,
+  NroParteCliente: d.nroParte,
+  Descripcion:     d.desRepuesto,
+  CanRecibida:     d.canRecibida,
+  NotaItem:        d.notaItem,
 });
 
 export default function WarehouseUs() {

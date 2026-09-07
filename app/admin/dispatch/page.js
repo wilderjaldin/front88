@@ -14,13 +14,12 @@ import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 import Modal from '@/components/modal';
 import { downloadInvoice, downloadPackingList } from '@/app/lib/embalajeReports';
 
-const URL_LIST_DELIVERIES = 'entregas';
 const URL_ATTACH_ITEMS = 'entregas/adjuntar-items';
 const URL_CONTROLS = 'entregas/controles';
 const URL_SAVE_DISPATCH = 'entregas/guardar-despacho';
 const URL_CANCEL_PACKING = 'embalajes/anular-recepcion';
 const URL_CANCEL_DISPATCH = 'entregas/anular-despacho';
-const URL_LISTAR_DESPACHO = 'entregas/listar-despacho'; // llamada de prueba — no se usa en la UI todavía
+const URL_LISTAR_DESPACHO = 'entregas/listar-despacho';
 
 const TAB_KEYS = ['pending', 'dispatch'];
 
@@ -89,20 +88,12 @@ export default function Dispatch() {
     try {
       const params = { page: urlPage, sort: urlSort, dir: urlDir, codcutomer: 0, to: 0 };
       if (urlTerm.trim()) params.term = urlTerm.trim();
-      const rs = await axiosClient.get(URL_LIST_DELIVERIES, { params });
+      const rs = await axiosClient.get(URL_LISTAR_DESPACHO, { params });
       setOrders(rs.data?.datos ?? []);
       setTotalOrders(rs.data?.total ?? 0);
       setTotalPages(rs.data?.totalPaginas ?? 1);
     } catch (error) {
 
-    }
-    // Llamada de prueba pedida para verificar que el backend responde —
-    // no alimenta ninguna UI todavía, solo se loguea en consola.
-    try {
-      const rsDespacho = await axiosClient.get(URL_LISTAR_DESPACHO);
-      console.log('[TEST] entregas/listar-despacho →', rsDespacho.data);
-    } catch (error) {
-      console.log('[TEST] entregas/listar-despacho → error', error?.response?.status, error?.response?.data);
     }
     setLoadingOrders(false);
   }

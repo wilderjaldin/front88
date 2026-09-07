@@ -1,6 +1,8 @@
 'use client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useSelector } from 'react-redux';
+import { selectUser } from '@/store/authSlice';
 import axiosClient from '@/app/lib/axiosClient';
 import { swalError, swalSuccess } from '@/app/lib/swal';
 import { useDynamicTitle } from '@/app/hooks/useDynamicTitle';
@@ -28,6 +30,11 @@ export default function SuppliersPage() {
   const t             = useTranslation();
   const { hasPermission } = usePermissions();
   const { isMobile }  = useDevice();
+  const user          = useSelector(selectUser);
+
+  // Solo se intenta una vez por carga de página — si el usuario luego elige
+  // "Todos" explícitamente, no debe volver a imponerse el país por defecto.
+  const defaultCountryApplied = useRef(false);
 
   const [view, setView] = useState(isMobile ? 'grid' : 'list');
 
@@ -88,7 +95,21 @@ export default function SuppliersPage() {
       setSuppliers(res.data.data ?? []);
       setTotal(res.data.total ?? 0);
 
-      if (currentPage === 1 && res.data.paises) setPaises(res.data.paises);
+      if (currentPage === 1 && res.data.paises) {
+        setPaises(res.data.paises);
+
+        // País por defecto = país del usuario logueado, si aparece en el listado.
+        if (!defaultCountryApplied.current && !currentPais && user?.countryCode) {
+          defaultCountryApplied.current = true;
+          const match = res.data.paises.find(
+            (p) => p.codPais?.trim().toUpperCase() === user.countryCode?.trim().toUpperCase()
+          );
+          if (match) {
+            pushFilters({ page: 1, pais: match.codPais });
+            return;
+          }
+        }
+      }
     } catch {
       swalError('Error', 'No se pudieron cargar los proveedores');
     } finally {

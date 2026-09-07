@@ -1017,7 +1017,7 @@ label.required::after {
   background-color: #4361ee;
   color: #fff;
 }
-.spare-form .sf-select__option--is-focused:not(.select__option--is-selected) {
+.spare-form .sf-select__option--is-focused:not(.sf-select__option--is-selected) {
   background-color: rgba(67, 97, 238, 0.08);
 }
 .spare-form .sf-select__single-value,

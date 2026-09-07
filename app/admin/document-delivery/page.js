@@ -71,6 +71,18 @@ export default function DocumentDelivery() {
   };
 
   const handleForward = async (row) => {
+    const detalle = [
+      row.NumEmbalaje ? `${t.nro_packaging} ${row.NumEmbalaje}` : '',
+      row.NumDespacho ? `${t.nro_dispatch} ${row.NumDespacho}` : '',
+    ].filter(Boolean).join(' · ');
+
+    const result = await swalConfirm(
+      t.question_confirm_documentation ?? '¿Desea continuar?',
+      `${detalle ? `${detalle}<br/>` : ''}${t.question_confirm_documentation_detail ?? 'Pasará a la etapa de Despacho/Entrega'}`,
+      { confirmText: t.yes ?? 'Sí', cancelText: t.btn_cancel ?? 'Cancelar' }
+    );
+    if (!result.isConfirmed) return;
+
     try {
       const rs = await axiosClient.post(URL_CONFIRM_DOC(row.NumEmbalaje));
       swalSuccess(t.record_updated ?? 'Documentación confirmada');
