@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import axiosClient from '@/app/lib/axiosClient';
 import { swalSuccess, swalError } from '@/app/lib/swal';
 import Modal from '@/components/modal';
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import IconPlusProps from '@/components/icon/icon-plus';
 import IconPencil from '@/components/icon/icon-pencil';
 import ShippingForm from '@/app/admin/register/customers/form/shipping';

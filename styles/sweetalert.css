@@ -10,11 +10,34 @@ body.swal2-toast-shown .swal2-container.toast {
 }
 
 .dark .swal2-popup {
-    background: #0e1726;
+    background: #111c30;
+    border: 1px solid #33415c;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+
+/* Backdrop más marcado para que el modal se despegue del fondo oscuro. */
+.dark .swal2-container {
+    background-color: rgba(0, 0, 0, 0.55) !important;
 }
 
 .dark .swal2-popup .swal2-title {
-    color: #888ea8;
+    color: #f1f5f9;
+}
+.dark .swal2-popup .swal2-html-container {
+    color: #cbd5e1;
+}
+
+/* Helpers de app/lib/swal.js: el HTML trae colores inline pensados para modo
+   claro. En oscuro se pisan acá (se excluye el toast verde de swalSuccess). */
+.dark .swal2-popup:not(.swal2-toast) {
+    background: #111c30 !important;
+}
+.dark .swal2-popup:not(.swal2-toast) h2 {
+    color: #f1f5f9 !important;
+}
+.dark .swal2-popup:not(.swal2-toast) .swal2-html-container p,
+.dark .swal2-popup:not(.swal2-toast) .swal2-html-container {
+    color: #cbd5e1 !important;
 }
 
 .swal2-popup .swal2-title {

@@ -2,8 +2,8 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import AsyncSelect from 'react-select/async';
-import Select from 'react-select';
+import AsyncSelect from '@/components/ui/AsyncSelect';
+import Select from '@/components/ui/Select';
 import { customFormat } from '@/app/lib/format';
 import axiosClient from '@/app/lib/axiosClient';
 import Swal from 'sweetalert2';

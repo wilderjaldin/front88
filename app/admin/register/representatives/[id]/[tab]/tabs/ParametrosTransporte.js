@@ -13,6 +13,7 @@ import IconTrashLines from '@/components/icon/icon-trash-lines';
 import IconListCheck from '@/components/icon/icon-list-check';
 import IconLayoutGrid from '@/components/icon/icon-layout-grid';
 import IconSave from '@/components/icon/icon-save';
+import { useTranslation } from '@/app/locales';
 
 const BASE = '/parametrostransporterepresentante';
 const PAGE_SIZE = 20;
@@ -58,43 +59,43 @@ function CostRow({ label, value }) {
   );
 }
 
-function ParamCard({ row, canEdit, canDelete, onEdit, onDelete }) {
+function ParamCard({ row, canEdit, canDelete, onEdit, onDelete, t }) {
   return (
     <div className="rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
 
       <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
         <div className="flex gap-3 text-[11px] text-gray-400">
-          <span>Aduana <strong className="text-gray-600 dark:text-gray-300">{fmt(row.porAduana)}%</strong></span>
-          <span>Peso mín. <strong className="text-gray-600 dark:text-gray-300">{fmt(row.pesoMinimo)}</strong></span>
+          <span>{t.customs} <strong className="text-gray-600 dark:text-gray-300">{fmt(row.porAduana)}%</strong></span>
+          <span>{t.min_weight} <strong className="text-gray-600 dark:text-gray-300">{fmt(row.pesoMinimo)}</strong></span>
         </div>
       </div>
 
       <div className="grid grid-cols-2 divide-x divide-gray-100 dark:divide-gray-700">
         <div className="px-4 py-3 space-y-1">
           <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-2">Standard</p>
-          <CostRow label="Días bodega"  value={row.diasBodegaStandard  ?? 0} />
-          <CostRow label="Días ship."   value={row.diasShipingStandard ?? 0} />
-          <CostRow label="Días aduana"  value={row.diasAduanaStandard  ?? 0} />
+          <CostRow label={t.warehouse_days}  value={row.diasBodegaStandard  ?? 0} />
+          <CostRow label={t.shipping_days}   value={row.diasShipingStandard ?? 0} />
+          <CostRow label={t.customs_days}  value={row.diasAduanaStandard  ?? 0} />
           <CostRow label="$/lb"         value={fmt(row.pesoKgShipingStandard)} />
-          <CostRow label="Costo fijo"   value={fmt(row.costoFijoStandard)} />
-          <CostRow label="Costo mín."   value={fmt(row.costoMinimoStandard)} />
+          <CostRow label={t.fixed_cost}   value={fmt(row.costoFijoStandard)} />
+          <CostRow label={t.min_cost}   value={fmt(row.costoMinimoStandard)} />
         </div>
         <div className="px-4 py-3 space-y-1">
           <p className="text-[10px] font-bold text-cyan-500 uppercase tracking-wider mb-2">Express</p>
-          <CostRow label="Días bodega"  value={row.diasBodegaExpress  ?? 0} />
-          <CostRow label="Días ship."   value={row.diasShipingExpress ?? 0} />
-          <CostRow label="Días aduana"  value={row.diasAduanaExpress  ?? 0} />
+          <CostRow label={t.warehouse_days}  value={row.diasBodegaExpress  ?? 0} />
+          <CostRow label={t.shipping_days}   value={row.diasShipingExpress ?? 0} />
+          <CostRow label={t.customs_days}  value={row.diasAduanaExpress  ?? 0} />
           <CostRow label="$/lb"         value={fmt(row.pesoKgShipingExpress)} />
-          <CostRow label="Costo fijo"   value={fmt(row.costoFijoExpress)} />
-          <CostRow label="Costo mín."   value={fmt(row.costoMinimoExpress)} />
+          <CostRow label={t.fixed_cost}   value={fmt(row.costoFijoExpress)} />
+          <CostRow label={t.min_cost}   value={fmt(row.costoMinimoExpress)} />
         </div>
       </div>
 
       <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
         <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider mb-2">Marítimo</p>
         <div className="grid grid-cols-2 gap-2">
-          <CostRow label="Días ship." value={row.diasShipingMaritimo ?? 0} />
-          <CostRow label="Peso ship. (lb)" value={fmt(row.pesoShipingMaritimo)} />
+          <CostRow label={t.shipping_days} value={row.diasShipingMaritimo ?? 0} />
+          <CostRow label={t.shipping_weight_lb} value={fmt(row.pesoShipingMaritimo)} />
         </div>
       </div>
 
@@ -119,7 +120,7 @@ function ParamCard({ row, canEdit, canDelete, onEdit, onDelete }) {
 }
 
 // ── Formulario ────────────────────────────────────────────────────────────────
-function TransporteForm({ codEmp, representante, editingRow, onSaved, onCancel }) {
+function TransporteForm({ codEmp, representante, editingRow, onSaved, onCancel, t }) {
   const isEdit = !!editingRow;
 
   const DEFAULTS = {
@@ -187,7 +188,7 @@ function TransporteForm({ codEmp, representante, editingRow, onSaved, onCancel }
         : await axiosClient.post(`${BASE}/registro`, payload);
       onSaved(rs.data);
     } catch (err) {
-      Toast.fire({ icon: 'error', title: err?.response?.data?.message ?? err?.response?.data?.mensaje ?? 'Error al guardar' });
+      Toast.fire({ icon: 'error', title: err?.response?.data?.message ?? err?.response?.data?.mensaje ?? t.save_error });
     }
   };
 
@@ -210,10 +211,10 @@ function TransporteForm({ codEmp, representante, editingRow, onSaved, onCancel }
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <FField label="% Aduana">
+        <FField label={t.customs_pct}>
           <input type="number" step="0.01" min="0" {...register('porAduana')} className="form-input w-full" />
         </FField>
-        <FField label="Peso mínimo (lb)">
+        <FField label={t.min_weight_lb}>
           <input type="number" step="0.01" min="0" {...register('pesoMinimo')} className="form-input w-full" />
         </FField>
       </div>
@@ -228,22 +229,22 @@ function TransporteForm({ codEmp, representante, editingRow, onSaved, onCancel }
             <span className="h-px flex-1 bg-primary/10" />
           </div>
           <div className="grid grid-cols-3 gap-3">
-            <FField label="Días Bodega">
+            <FField label={t.warehouse_days}>
               <input type="number" min="0" {...register('diasBodegaStandard')} className="form-input w-full" />
             </FField>
-            <FField label="Días Shipping">
+            <FField label={t.shipping_days}>
               <input type="number" min="0" {...register('diasShipingStandard')} className="form-input w-full" />
             </FField>
-            <FField label="Días Aduana">
+            <FField label={t.customs_days}>
               <input type="number" min="0" {...register('diasAduanaStandard')} className="form-input w-full" />
             </FField>
-            <FField label="$/lb Shipping">
+            <FField label={t.lb_shipping}>
               <input type="number" step="0.01" min="0" {...register('pesoKgShipingStandard')} className="form-input w-full" />
             </FField>
-            <FField label="Costo Fijo">
+            <FField label={t.fixed_cost}>
               <input type="number" step="0.01" min="0" {...register('costoFijoStandard')} className="form-input w-full" />
             </FField>
-            <FField label="Costo Mínimo">
+            <FField label={t.min_cost}>
               <input type="number" step="0.01" min="0" {...register('costoMinimoStandard')} className="form-input w-full" />
             </FField>
           </div>
@@ -257,22 +258,22 @@ function TransporteForm({ codEmp, representante, editingRow, onSaved, onCancel }
             <span className="h-px flex-1 bg-cyan-500/10" />
           </div>
           <div className="grid grid-cols-3 gap-3">
-            <FField label="Días Bodega">
+            <FField label={t.warehouse_days}>
               <input type="number" min="0" {...register('diasBodegaExpress')} className="form-input w-full" />
             </FField>
-            <FField label="Días Shipping">
+            <FField label={t.shipping_days}>
               <input type="number" min="0" {...register('diasShipingExpress')} className="form-input w-full" />
             </FField>
-            <FField label="Días Aduana">
+            <FField label={t.customs_days}>
               <input type="number" min="0" {...register('diasAduanaExpress')} className="form-input w-full" />
             </FField>
-            <FField label="$/lb Shipping">
+            <FField label={t.lb_shipping}>
               <input type="number" step="0.01" min="0" {...register('pesoKgShipingExpress')} className="form-input w-full" />
             </FField>
-            <FField label="Costo Fijo">
+            <FField label={t.fixed_cost}>
               <input type="number" step="0.01" min="0" {...register('costoFijoExpress')} className="form-input w-full" />
             </FField>
-            <FField label="Costo Mínimo">
+            <FField label={t.min_cost}>
               <input type="number" step="0.01" min="0" {...register('costoMinimoExpress')} className="form-input w-full" />
             </FField>
           </div>
@@ -282,10 +283,10 @@ function TransporteForm({ codEmp, representante, editingRow, onSaved, onCancel }
 
       <Divider label="MARÍTIMO" color="text-blue-500" />
       <div className="grid grid-cols-2 gap-4">
-        <FField label="Días Shipping">
+        <FField label={t.shipping_days}>
           <input type="number" min="0" {...register('diasShipingMaritimo')} className="form-input w-full" />
         </FField>
-        <FField label="Peso Shipping (lb)">
+        <FField label={t.shipping_weight_lb}>
           <input type="number" step="0.01" min="0" {...register('pesoShipingMaritimo')} className="form-input w-full" />
         </FField>
       </div>
@@ -294,16 +295,16 @@ function TransporteForm({ codEmp, representante, editingRow, onSaved, onCancel }
         <button type="button" onClick={onCancel}
           className="rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium
                      text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
-          Cancelar
+          {t.btn_cancel}
         </button>
         <button type="button" onClick={handleSubmit(onSubmit)} disabled={isSubmitting}
           className="inline-flex items-center gap-2 h-10 px-6 rounded-lg text-sm font-semibold text-white
                      bg-primary hover:bg-primary/90 shadow-md shadow-primary/25 active:scale-[0.98]
                      disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-150">
           {isSubmitting ? (
-            <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />Guardando...</>
+            <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />{t.saving}</>
           ) : (
-            <><IconSave className="h-4 w-4" />{isEdit ? 'Actualizar' : 'Guardar'}</>
+            <><IconSave className="h-4 w-4" />{isEdit ? t.update : t.save}</>
           )}
         </button>
       </div>
@@ -312,7 +313,7 @@ function TransporteForm({ codEmp, representante, editingRow, onSaved, onCancel }
 }
 
 // ── Vista formulario inline ───────────────────────────────────────────────────
-function FormView({ codEmp, representante, editingRow, onSaved, onCancel }) {
+function FormView({ codEmp, representante, editingRow, onSaved, onCancel, t }) {
   return (
     <div className="mx-auto max-w-4xl bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-[0_4px_20px_rgba(0,0,0,0.08)] overflow-hidden">
       <TransporteForm
@@ -321,6 +322,7 @@ function FormView({ codEmp, representante, editingRow, onSaved, onCancel }) {
         editingRow={editingRow}
         onSaved={onSaved}
         onCancel={onCancel}
+        t={t}
       />
     </div>
   );
@@ -328,6 +330,7 @@ function FormView({ codEmp, representante, editingRow, onSaved, onCancel }) {
 
 // ── Componente principal ──────────────────────────────────────────────────────
 export default function ParametrosTransporte({ representante, isAdmin, isRepresentante }) {
+  const t        = useTranslation();
   const codEmp   = representante?.codEmp;
   const canEdit  = isAdmin || isRepresentante;
   const canAdd   = isAdmin;
@@ -380,29 +383,29 @@ export default function ParametrosTransporte({ representante, isAdmin, isReprese
 
   const handleDelete = (row) => {
     Swal.fire({
-      title: '¿Eliminar parámetro?',
+      title: t.delete_parameter_question,
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#dc2626',
-      confirmButtonText: 'Sí, eliminar',
-      cancelButtonText: 'Cancelar',
+      confirmButtonText: t.yes_delete,
+      cancelButtonText: t.btn_cancel,
       reverseButtons: true,
     }).then(async (result) => {
       if (!result.isConfirmed) return;
       try {
         await axiosClient.post(`${BASE}/status`, { codRegistro: row.codRegistro, codEstado: 'IN' });
-        Toast.fire({ icon: 'success', title: 'Parámetro eliminado' });
+        Toast.fire({ icon: 'success', title: t.parameter_deleted });
         setRows(prev => prev.filter(r => r.codRegistro !== row.codRegistro));
         setTotal(prev => Math.max(0, prev - 1));
       } catch (err) {
-        Toast.fire({ icon: 'error', title: err?.response?.data?.message ?? 'Error al eliminar' });
+        Toast.fire({ icon: 'error', title: err?.response?.data?.message ?? t.delete_error });
       }
     });
   };
 
   const handleSaved = (responseData) => {
     const wasEditing = !!editId;
-    Toast.fire({ icon: 'success', title: wasEditing ? 'Parámetro actualizado' : 'Parámetro registrado' });
+    Toast.fire({ icon: 'success', title: wasEditing ? t.parameter_updated : t.parameter_registered });
     const list = responseData?.data ?? (Array.isArray(responseData) ? responseData : null);
     if (list) {
       setRows(list);
@@ -424,6 +427,7 @@ export default function ParametrosTransporte({ representante, isAdmin, isReprese
         editingRow={null}
         onSaved={handleSaved}
         onCancel={() => router.push(baseUrl)}
+        t={t}
       />
     );
   }
@@ -443,6 +447,7 @@ export default function ParametrosTransporte({ representante, isAdmin, isReprese
         editingRow={formRow}
         onSaved={handleSaved}
         onCancel={() => router.push(baseUrl)}
+        t={t}
       />
     );
   }
@@ -455,7 +460,7 @@ export default function ParametrosTransporte({ representante, isAdmin, isReprese
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-            Parámetros de Transporte
+            {t.transport_parameters}
             <span className="ml-2 text-sm font-normal text-gray-400">({total})</span>
           </h2>
           <div className="h-0.5 w-10 rounded bg-primary/60 mt-1" />
@@ -477,7 +482,7 @@ export default function ParametrosTransporte({ representante, isAdmin, isReprese
             <button type="button" onClick={() => router.push(`${baseUrl}?new=1`)}
               className="group flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-white text-sm font-medium shadow-sm hover:bg-primary/90 transition-all">
               <IconPlus className="h-4 w-4 transition-transform group-hover:rotate-90" />
-              Agregar
+              {t.btn_add}
             </button>
           )}
         </div>
@@ -497,7 +502,7 @@ export default function ParametrosTransporte({ representante, isAdmin, isReprese
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
               d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
           </svg>
-          <p className="text-sm">Sin parámetros de transporte registrados</p>
+          <p className="text-sm">{t.no_transport_parameters}</p>
         </div>
       )}
 
@@ -508,8 +513,8 @@ export default function ParametrosTransporte({ representante, isAdmin, isReprese
             <table className="w-full text-sm whitespace-nowrap">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                 <tr className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  <th className="px-4 py-3 text-right">% Aduana</th>
-                  <th className="px-4 py-3 text-right">Peso Mín.</th>
+                  <th className="px-4 py-3 text-right">{t.customs_pct}</th>
+                  <th className="px-4 py-3 text-right">{t.min_weight}</th>
                   <th className="px-4 py-3 text-center border-l border-gray-200 dark:border-gray-700" colSpan={6}>
                     <span className="text-primary">STANDARD</span>
                   </th>
@@ -519,7 +524,7 @@ export default function ParametrosTransporte({ representante, isAdmin, isReprese
                   <th className="px-4 py-3 text-center border-l border-gray-200 dark:border-gray-700" colSpan={2}>
                     <span className="text-blue-500">MARÍTIMO</span>
                   </th>
-                  {(canEdit || canDelete) && <th className="px-4 py-3 text-center">Acciones</th>}
+                  {(canEdit || canDelete) && <th className="px-4 py-3 text-center">{t.actions}</th>}
                 </tr>
                 <tr className="text-[11px] text-gray-400 bg-gray-50 dark:bg-gray-800/80">
                   <th colSpan={2} />
@@ -603,6 +608,7 @@ export default function ParametrosTransporte({ representante, isAdmin, isReprese
                 canDelete={canDelete}
                 onEdit={(r) => router.push(`${baseUrl}?edit=${r.codRegistro}`)}
                 onDelete={handleDelete}
+                t={t}
               />
             ))}
           </div>

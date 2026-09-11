@@ -9,8 +9,7 @@ import DispatchDataModal from "@/app/admin/document-delivery/DispatchDataModal";
 import Modal from '@/components/modal';
 
 const URL_LIST = 'embalajes/listar-embalaje-doc';
-// Anular sin confirmar todavía — se ajusta cuando se defina el contrato real.
-const URL_CANCEL = 'entregadocumentos/anular';
+const URL_CANCEL = (numEmbalaje) => `embalajes/anular-embalaje/${numEmbalaje}`;
 const URL_CONFIRM_DOC = (numEmbalaje) => `embalajes/documentado/${numEmbalaje}`;
 
 // listaembalaje-doc devuelve un arreglo plano (sin paginado de servidor) —
@@ -61,9 +60,9 @@ export default function DocumentDelivery() {
     if (!result.isConfirmed) return;
 
     try {
-      await axiosClient.post(URL_CANCEL, { numEmbalaje: row.NumEmbalaje });
+      const rs = await axiosClient.post(URL_CANCEL(row.NumEmbalaje));
       swalSuccess(t.record_updated ?? 'Registro anulado');
-      getList();
+      setOrders((rs.data ?? []).map(mapOrder));
     } catch (error) {
       const apiMsg = error?.response?.data?.mensaje;
       swalError(t.error, apiMsg ?? t.error, t.close);

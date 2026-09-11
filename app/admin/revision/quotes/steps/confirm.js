@@ -112,9 +112,9 @@ const ConfirmQuote = ({
     : '-';
 
   const SummaryLine = ({ label, value, accent }) => (
-    <div className="flex items-center justify-between py-2.5 border-b border-dashed border-gray-100 last:border-0">
-      <span className="text-sm text-gray-500">{label}</span>
-      <span className={`text-sm font-semibold ${accent ? 'text-primary' : 'text-gray-800'}`}>{value ?? '-'}</span>
+    <div className="flex items-center justify-between py-2.5 border-b border-dashed border-gray-100 dark:border-gray-700/60 last:border-0">
+      <span className="text-sm text-gray-500 dark:text-gray-400">{label}</span>
+      <span className={`text-sm font-semibold ${accent ? 'text-primary' : 'text-gray-800 dark:text-gray-100'}`}>{value ?? '-'}</span>
     </div>
   );
 
@@ -127,9 +127,9 @@ const ConfirmQuote = ({
           <div className="lg:col-span-3 space-y-4">
 
             {/* Tarjeta Envío */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-5">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-gray-700">{t.shipment} / {t.delivery_place ?? t.delivery_location}</h3>
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-100">{t.shipment} / {t.delivery_place ?? t.delivery_location}</h3>
                 <button
                   type="button"
                   onClick={() => goTo(2)}
@@ -152,9 +152,9 @@ const ConfirmQuote = ({
             </div>
 
             {/* Tarjeta Forma de Pago */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-5">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-gray-700">{t.method_of_payment}</h3>
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-100">{t.method_of_payment}</h3>
                 <button
                   type="button"
                   onClick={() => goTo(3)}
@@ -166,22 +166,22 @@ const ConfirmQuote = ({
 
               {option_payment === 'TB' ? (
                 <div className="space-y-0.5">
-                  <p className="text-sm text-gray-500 mb-2">{t.by_bank_transfer}:</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">{t.by_bank_transfer}:</p>
                   {info_payment.map((banco, i) => (
                     <div key={i} className="flex items-center gap-2 py-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                      <span className="text-sm text-gray-700">{banco}</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">{banco}</span>
                     </div>
                   ))}
-                  <div className="border-t border-gray-100 mt-3 pt-3">
-                    <p className="text-sm font-semibold text-gray-700 mb-2">{t.send_the_receipt}</p>
+                  <div className="border-t border-gray-100 dark:border-gray-700 mt-3 pt-3">
+                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">{t.send_the_receipt}</p>
                     {info_contact.corEle   && <SummaryLine label={t.email}   value={info_contact.corEle}   accent />}
                     {info_contact.numCelWp && <SummaryLine label="WhatsApp"  value={info_contact.numCelWp} accent />}
                   </div>
                 </div>
               ) : (
                 <div className="space-y-0.5">
-                  <p className="text-sm text-gray-500 mb-2">{t.we_will_contact}:</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">{t.we_will_contact}:</p>
                   <SummaryLine label={t.name}  value={contact.name}  />
                   <SummaryLine label={t.email} value={contact.email} />
                   <SummaryLine label={t.phone} value={contact.phone} />
@@ -192,17 +192,17 @@ const ConfirmQuote = ({
 
           {/* Columna derecha — Resumen + Confirmar */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 sticky top-20">
-              <h3 className="text-sm font-semibold text-gray-700 mb-4">{t.verify}</h3>
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-5 sticky top-20">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-100 mb-4">{t.verify}</h3>
               <div className="space-y-0.5 mb-5">
                 <SummaryLine label={t.nro_order ?? t.order_number}   value={summary?.nroCotizacion} />
                 <SummaryLine label={t.nro_pedido ?? t.pedido_number} value={summary?.pedido || '-'} />
                 <SummaryLine label="Items"                           value={summary?.items} />
               </div>
-              <div className="border-t border-gray-100 pt-4 mb-5">
+              <div className="border-t border-gray-100 dark:border-gray-700 pt-4 mb-5">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500">Total</span>
-                  <span className="text-2xl font-bold text-green-600">{total}</span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Total</span>
+                  <span className="text-2xl font-bold text-green-600 dark:text-green-400">{total}</span>
                 </div>
               </div>
 
@@ -217,7 +217,7 @@ const ConfirmQuote = ({
                 <button
                   type="button"
                   onClick={goToQuote}
-                  className="w-full inline-flex items-center justify-center gap-2 h-9 px-4 rounded-xl border border-gray-300 text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 transition"
+                  className="w-full inline-flex items-center justify-center gap-2 h-9 px-4 rounded-xl border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-600 dark:text-gray-300 bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 transition"
                 >
                   {t.modify}
                 </button>

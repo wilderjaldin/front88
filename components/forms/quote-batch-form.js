@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import AsyncSelect from 'react-select/async';
+import AsyncSelect from '@/components/ui/AsyncSelect';
 import Modal from '@/components/modal';
 import OptionsItemsQuote from '@/components/forms/options-items-quote';
 import { customFormat } from '@/app/lib/format';

@@ -14,9 +14,12 @@ import ImpersonationBanner from "@/components/ImpersonationBanner";
 import NotificationsProvider from "@/components/layouts/NotificationsProviderLazy";
 import { useSelector } from 'react-redux';
 import { IRootState } from '@/store/theme';
+import { useRouteAccess } from '@/app/hooks/useRouteAccess';
+import AccessDenied from '@/components/AccessDenied';
 
 export default function DefaultLayout({ children }: { children: React.ReactNode }) {
   const themeConfig = useSelector((state: IRootState) => state.themeConfig);
+  const routeAllowed = useRouteAccess();
   return (
     <MantineProvider
       theme={{
@@ -50,7 +53,7 @@ export default function DefaultLayout({ children }: { children: React.ReactNode 
             {/* BEGIN CONTENT AREA */}
             <div className={`p-6`}>
               <Suspense fallback={<Loading />}>
-                {children}
+                {routeAllowed ? children : <AccessDenied />}
               </Suspense>
             </div>
             {/* END CONTENT AREA */}

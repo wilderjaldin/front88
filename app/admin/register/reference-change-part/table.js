@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Checkbox } from '@mantine/core';
 import { useForm, Controller } from "react-hook-form";
-import AsyncSelect from 'react-select/async';
+import AsyncSelect from '@/components/ui/AsyncSelect';
 import IconSave from '@/components/icon/icon-save';
 import IconTrashLines from '@/components/icon/icon-trash-lines';
 import { customFormat } from '@/app/lib/format';
@@ -236,8 +236,8 @@ const TableItems = ({
                           menuShouldScrollIntoView={false}
                           noOptionsMessage={({ inputValue }) =>
                             (inputValue?.trim().length ?? 0) < ASYNC_MIN
-                              ? `Ingresa ${ASYNC_MIN} caracteres`
-                              : 'Sin resultados'
+                              ? t.type_n_chars.replace('{n}', ASYNC_MIN)
+                              : t.no_results
                           }
                           value={brands.find(o => o.value === field.value) || null}
                           onChange={opt => { field.onChange(opt?.value ?? null); markDirty(item.codRegistro); }}

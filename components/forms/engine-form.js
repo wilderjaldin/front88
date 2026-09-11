@@ -1,7 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import { useForm } from "react-hook-form";
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 
 const EngineForm = ({ t, brands = [], showModal, setDataEngine, close }) => {
 

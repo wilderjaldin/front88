@@ -2,7 +2,7 @@
 // components/forms/add-brand-customer-form.js
 import React from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import axiosClient from '@/app/lib/axiosClient';
 import Swal from 'sweetalert2';
 import { useTranslation } from '@/app/locales';

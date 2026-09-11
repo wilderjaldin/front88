@@ -1,7 +1,10 @@
 'use client';
 import { useLayoutEffect } from 'react';
+import { useSelector } from 'react-redux';
+import { IRootState } from '@/store/theme';
 
-const AUTH_BG = '#f4f6fb';
+const AUTH_BG      = '#f4f6fb';
+const AUTH_BG_DARK = '#060818';
 
 const rings = [
   { w: 320, h: 320, pos: { top: '-8%',    right: '-6%'  }, dur: '28s', dir: 'normal'  },
@@ -39,11 +42,13 @@ const lines = [
 ];
 
 export default function AuthBackground() {
+  const isDark = useSelector((state: IRootState) => state.themeConfig.isDarkMode);
+
   useLayoutEffect(() => {
     const prev = document.body.style.backgroundColor;
-    document.body.style.backgroundColor = AUTH_BG;
+    document.body.style.backgroundColor = isDark ? AUTH_BG_DARK : AUTH_BG;
     return () => { document.body.style.backgroundColor = prev; };
-  }, []);
+  }, [isDark]);
 
   return (
     <>

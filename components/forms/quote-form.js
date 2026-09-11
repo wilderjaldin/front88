@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import IconFile from '../icon/icon-file';
 import IconPhoto from '../icon/icon-photo';
 import IconMail from '../icon/icon-mail';
@@ -303,7 +303,7 @@ const ItemDocumentsModal = ({ docs }) => (
   </div>
 );
 
-const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) => {
+const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, onNewQuote }) => {
 
 
   const router = useRouter();
@@ -816,6 +816,9 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
         router.replace(`${pathname}?${nextSearchParams}`);
         setOrder([]);
         setItems([]);
+        // El estado real vive en el padre (_order_/_items_ son solo props) — sin
+        // esto, el useEffect que sincroniza _order_ vuelve a traer los datos viejos.
+        onNewQuote?.();
       }
     });
 
@@ -1645,7 +1648,9 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                       placeholder={t.select_option}
                       onChange={(sel) => setSelectShare(sel ?? null)}
                       styles={{
-                        control:             b => ({ ...b, minHeight: '36px', height: '36px', fontSize: '13px', borderRadius: '0.5rem 0 0 0.5rem', borderRight: 'none' }),
+                        // !important porque el tema oscuro global de react-select
+                        // (.dark [class*="__control"]) le gana a los estilos del prop.
+                        control:             b => ({ ...b, minHeight: '36px', height: '36px', fontSize: '13px', borderRadius: '0.5rem 0 0 0.5rem', borderColor: '#94a3b8 !important', borderRightWidth: '0 !important', backgroundColor: 'transparent !important', boxShadow: 'none !important' }),
                         valueContainer:      b => ({ ...b, padding: '0 8px' }),
                         indicatorsContainer: b => ({ ...b, height: '36px' }),
                         menu:                b => ({ ...b, minWidth: '200px' }),
@@ -1653,7 +1658,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
                     />
                   </div>
                   <button onClick={run(apply)} type="button" disabled={isSubmitting}
-                    className="h-9 shrink-0 px-3 rounded-r-lg border border-l-0 border-gray-300 bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                    className="h-9 shrink-0 px-3 rounded-r-lg border border-l-0 border-[#94a3b8] bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition disabled:opacity-50 disabled:cursor-not-allowed">
                     {t.apply}
                   </button>
                 </div>
@@ -2037,13 +2042,13 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_ }) 
               <div className="p-4 space-y-3">
                 <div>
                   <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{t.note_to_customer}</label>
-                  <textarea defaultValue={order.NotaCliente} {...registerNoteQuote("note_customer")} rows={1} disabled={blocked}
-                    className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
+                  <textarea defaultValue={order.NotaCliente} {...registerNoteQuote("note_customer")} rows={3} disabled={blocked}
+                    className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 resize-y" />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{t.note_to_user}</label>
-                  <textarea defaultValue={order.NotaUsuario} {...registerNoteQuote("note_user")} rows={1} disabled={blocked}
-                    className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
+                  <textarea defaultValue={order.NotaUsuario} {...registerNoteQuote("note_user")} rows={3} disabled={blocked}
+                    className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 resize-y" />
                 </div>
                 <div className="pt-1 space-y-0.5">
                   <p className="text-[11px] leading-snug text-gray-400 dark:text-gray-500">* El Inventario y disponibilidad de piezas es actualizado constantemente. Sin embargo las mismas pueden ser sujetas a cambio.</p>

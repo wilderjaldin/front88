@@ -8,6 +8,13 @@ export const PERMISSIONS = {
   CREAR_ROLES                   : "B220LAEX",
   CREAR_PERMISOS                : "52BKLW63",
 
+  // ── Acciones sobre usuarios (columna Acciones en Registrar → Usuarios) ──
+  EDITAR_USUARIO                : "79224518",
+  BLOQUEAR_USUARIO              : "70678418",
+  PERMISOS_USUARIO              : "CF4412FD",
+  PAISES_HABILITADOS            : "3D7EC32D",
+  VER_COMO_USUARIO              : "D4C185ED",
+
   // ── Clientes ────────────────────────────────────────────────────
   CREAR_CLIENTE                 : "328C73FB",
   EDITAR_CLIENTE                : "3AB89F88",
@@ -67,8 +74,42 @@ export const PERMISSIONS = {
   REPUESTOS_ELIMINAR            : "18C1DBC7",
   REPUESTOS_POR_VERIFICAR       : "E94D007E",
 
-  // ── Representantes ──────────────────────────────────────────────
-  LISTAR_REPRESENTANTES         : "655L5TJY",
-  MOSTRAR_ALMACEN               : "E3ZQSWNF"
+  // ── Menú Registrar (visibilidad de cada submenú) ───────────────
+  MENU_REPUESTOS                : "D643C291",
+  MENU_REPUESTOS_SITE           : "9F0FCF6D",
+  MENU_REPUESTOS_LOTE           : "1169F573",
+  MENU_REPUESTOS_LOTE_PROVEEDOR : "59D344DD",
+  MENU_REFERENCIA_CAMBIO_PARTE  : "F00EF0CA",
+  MENU_REFERENCIA_CAMBIO_LOTE   : "8FB3833E",
+  MENU_CLIENTES                 : "A4036F24",
+  MENU_PROVEEDORES              : "A20FBD30",
+  MENU_FLETE_PROVEEDOR          : "08E03940",
+  MENU_REPRESENTANTES           : "31FC7ED3",
+  MENU_UTILIDAD                 : "2F9EFA6C",
+  MENU_CATEGORIZACION           : "F5168264",
+  MENU_TIPO_CAMBIO              : "8448405D",
+
+  // ── Menú Revisión (visibilidad de cada submenú) ────────────────
+  MENU_ORDENES_EN_PROCESO       : "2C677A5F",
+  MENU_AUTORIZAR_COMPRA         : "5358EFF3",
+  MENU_PANEL_CRM                : "CE75E1A4",
+
+  // ── Menú Consulta (visibilidad de cada submenú) ────────────────
+  MENU_REPUESTOS_POR_COTIZAR    : "CA557C1A",
+  MENU_REPUESTOS_POR_IDENTIFICAR: "1FCE211D",
+  MENU_ORDENES_REALIZADAS       : "EB93454F",
+  MENU_ORDENES_DE_COMPRA        : "9BF89A2A",
+  MENU_REPORTE_DESPACHO         : "6A1BCB62",
+  MENU_CAMBIAR_COTIZACION       : "33C7C0F3",
+  MENU_CAMBIAR_ASIGNACION       : "87835D87",
+
+  // ── Menú links directos (visibilidad de cada item) ────────────
+  MENU_ORDEN_DE_COMPRA          : "A6C83059",
+  MENU_ALMACEN_USA              : "B619CBE8",
+  MENU_RECEPCION_DE_COMPRA      : "5DCF2E62",
+  MENU_EMBALAJE                 : "2EBE0E9F",
+  MENU_ENTREGA_DOCUMENTOS       : "3F6BC477",
+  MENU_DESPACHO                 : "13FCB0A6",
+  MENU_INBOX                    : "1F30030E",
 
 };

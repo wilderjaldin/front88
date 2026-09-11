@@ -6,7 +6,6 @@ import Swal from "sweetalert2";
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 import Modal from "@/components/modal";
 import { useForm, Controller } from "react-hook-form";
-import Select from "react-select";
 import { useDebounce } from "use-debounce";
 import { Pagination } from "@mantine/core";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -23,9 +22,15 @@ const URL_BASE = "/permisos";
 const PAGE_SIZE = 50;
 
 const TIPO_OPTIONS = [
-  { value: "FT", label: "FRONTEND" },
-  { value: "BK", label: "BACKEND" },
+  { value: "BT", label: "Ambos" },
+  { value: "FT", label: "Interfaz" },
+  { value: "BK", label: "Backend" },
 ];
+const TIPO_DEFAULT = "FT";
+// La API devuelve el tipo con espacios de relleno ("FT ") — hay que recortarlo
+// antes de comparar/usar.
+const normTipo = (v) => (v ?? "").trim();
+const tipoLabel = (v) => TIPO_OPTIONS.find(o => o.value === normTipo(v))?.label ?? normTipo(v);
 
 // Prefijos reconocidos y sus etiquetas para los chips
 const FILTER_KEYS = {
@@ -82,7 +87,7 @@ const FilterChip = ({ filterKey, value, onRemove }) => {
   const label = filterKey === "activo"
     ? (value === "1" ? "Activo: Sí" : "Activo: No")
     : filterKey === "tipo"
-      ? `Tipo: ${value === "FT" ? "Frontend" : value === "BK" ? "Backend" : value}`
+      ? `Tipo: ${tipoLabel(value)}`
       : `${meta.label}: ${value}`;
 
   return (
@@ -131,7 +136,7 @@ export default function PermisosPage() {
   const { register, handleSubmit, control, reset, formState: { errors } } = useForm({
     defaultValues: {
       codigo: "", modulo: "", accion: "",
-      tipo: TIPO_OPTIONS[0], etiqueta: "", activo: true,
+      tipo: TIPO_DEFAULT, etiqueta: "", activo: true,
     },
   });
 
@@ -169,7 +174,7 @@ export default function PermisosPage() {
   // ── Modal ─────────────────────────────────────────────────────────────────
   const openCrear = () => {
     setEditando(null);
-    reset({ codigo: "", modulo: "", accion: "", tipo: TIPO_OPTIONS[0], etiqueta: "", activo: true });
+    reset({ codigo: "", modulo: "", accion: "", tipo: TIPO_DEFAULT, etiqueta: "", activo: true });
     setShowModal(true);
   };
 
@@ -179,7 +184,7 @@ export default function PermisosPage() {
       codigo: permiso.codigo,
       modulo: permiso.modulo,
       accion: permiso.accion,
-      tipo: TIPO_OPTIONS.find(o => o.value === permiso.tipo) ?? TIPO_OPTIONS[0],
+      tipo: TIPO_OPTIONS.some(o => o.value === normTipo(permiso.tipo)) ? normTipo(permiso.tipo) : TIPO_DEFAULT,
       etiqueta: permiso.etiqueta,
       activo: permiso.activo,
     });
@@ -206,7 +211,7 @@ export default function PermisosPage() {
         codigo: data.codigo.trim().toUpperCase(),
         modulo: data.modulo?.trim() || "",
         accion: data.accion?.trim() || "",
-        tipo: data.tipo?.value ?? "FT",
+        tipo: data.tipo ?? TIPO_DEFAULT,
         etiqueta: data.etiqueta.trim(),
         activo: data.activo,
       };
@@ -313,7 +318,7 @@ export default function PermisosPage() {
 
               {/* Hint de sintaxis */}
               <p className="text-[11px] text-gray-400 leading-tight">
-                Prefijos: <span className="font-mono">modulo:</span> <span className="font-mono">accion:</span> <span className="font-mono">tipo:ft</span> <span className="font-mono">tipo:bk</span> <span className="font-mono">activo:1</span>
+                Prefijos: <span className="font-mono">modulo:</span> <span className="font-mono">accion:</span> <span className="font-mono">tipo:ft</span> <span className="font-mono">tipo:bk</span> <span className="font-mono">tipo:bt</span> <span className="font-mono">activo:1</span>
               </p>
             </div>
 
@@ -381,11 +386,14 @@ export default function PermisosPage() {
                     <td className="px-3 py-1 text-xs text-gray-500">{p.modulo || "—"}</td>
                     <td className="px-3 py-1 text-xs text-gray-500">{p.accion || "—"}</td>
                     <td className="px-3 py-1">
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${p.tipo === "FT"
-                          ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
-                          : "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                          normTipo(p.tipo) === "FT"
+                            ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+                            : normTipo(p.tipo) === "BT"
+                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300"
+                              : "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
                         }`}>
-                        {p.tipo === "FT" ? "FRONTEND" : "BACKEND"}
+                        {p.tipoLabel ?? tipoLabel(p.tipo)}
                       </span>
                     </td>
                   </tr>
@@ -477,7 +485,25 @@ export default function PermisosPage() {
               name="tipo"
               control={control}
               render={({ field }) => (
-                <Select options={TIPO_OPTIONS} value={field.value} onChange={field.onChange} classNamePrefix="select" className="w-full" />
+                <div className="flex flex-wrap gap-2">
+                  {TIPO_OPTIONS.map((opt) => (
+                    <label
+                      key={opt.value}
+                      className={`inline-flex items-center gap-2 h-9 px-3 rounded-lg border text-sm cursor-pointer select-none transition
+                        ${field.value === opt.value
+                          ? "border-primary bg-primary/5 text-primary dark:bg-primary/10"
+                          : "border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-primary/50"}`}
+                    >
+                      <input
+                        type="radio"
+                        className="form-radio h-4 w-4"
+                        checked={field.value === opt.value}
+                        onChange={() => field.onChange(opt.value)}
+                      />
+                      {opt.label}
+                    </label>
+                  ))}
+                </div>
               )}
             />
           </div>

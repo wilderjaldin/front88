@@ -71,7 +71,7 @@ export default function ExchangeRate() {
         const res = await axiosClient.put(URL_EDIT, payload);
         setRows(res.data?.data ?? []);
         setTotal(res.data?.total ?? 0);
-        Toast.fire({ icon: 'success', title: 'Tipo de cambio actualizado' });
+        Toast.fire({ icon: 'success', title: t.exchange_rate_updated });
       } else {
         const res = await axiosClient.post(URL_SAVE, payload);
         setRows(res.data?.data ?? []);
@@ -120,11 +120,11 @@ export default function ExchangeRate() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className={`text-sm font-semibold ${isEditing ? 'text-warning' : 'text-primary'}`}>
-                {isEditing ? 'Editando registro' : 'Nuevo registro'}
+                {isEditing ? t.editing_record : t.new_record}
               </h2>
               {isEditing && (
                 <p className="text-xs text-gray-400 mt-0.5">
-                  Solo se puede modificar el valor del tipo de cambio
+                  {t.exchange_rate_edit_hint}
                 </p>
               )}
             </div>
@@ -161,8 +161,8 @@ export default function ExchangeRate() {
               min="0"
               {...register('tipCam', {
                 required: t.required_field,
-                min: { value: 0.0001, message: 'Debe ser mayor a 0' },
-                pattern: { value: /^\d+(\.\d{1,4})?$/, message: 'Máximo 4 decimales' },
+                min: { value: 0.0001, message: t.must_be_greater_than_zero },
+                pattern: { value: /^\d+(\.\d{1,4})?$/, message: t.max_4_decimals },
               })}
               className="form-input w-full"
               placeholder="0.0000"
@@ -214,7 +214,7 @@ export default function ExchangeRate() {
             </div>
           ) : rows.length === 0 ? (
             <div className="flex items-center justify-center py-16 text-sm text-gray-400">
-              Sin registros
+              {t.no_records}
             </div>
           ) : (
             <div className="max-h-[520px] overflow-y-auto">
@@ -222,7 +222,7 @@ export default function ExchangeRate() {
                 <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
                   <tr className="text-xs text-gray-500 uppercase tracking-wide">
                     <th className="px-4 py-3 text-left">{t.date}</th>
-                    <th className="px-4 py-3 text-left">País</th>
+                    <th className="px-4 py-3 text-left">{t.country}</th>
                     <th className="px-4 py-3 text-right">{t.exchange_rate}</th>
                     <th className="px-4 py-3 text-center w-12"></th>
                   </tr>
@@ -267,7 +267,7 @@ export default function ExchangeRate() {
                           <button
                             type="button"
                             onClick={() => openEdit(r)}
-                            title="Editar tipo de cambio"
+                            title={t.edit_exchange_rate}
                             className="p-1.5 rounded-md text-gray-400 hover:bg-warning/10 hover:text-warning transition"
                           >
                             <IconPencilPaper className="h-4 w-4" />

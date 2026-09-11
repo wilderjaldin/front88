@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { useTranslation } from "@/app/locales";
 import { useRouter, useSearchParams } from 'next/navigation';
 import Modal from '@/components/modal';
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import { swalSuccess, swalError, swalConfirm, swalInfo } from '@/app/lib/swal';
 import axiosClient from '@/app/lib/axiosClient';
 import Link from 'next/link';

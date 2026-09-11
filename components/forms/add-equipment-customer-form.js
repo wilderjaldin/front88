@@ -2,7 +2,7 @@
 // components/forms/add-equipment-customer-form.js
 import React from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import AsyncSelect from 'react-select/async';
+import AsyncSelect from '@/components/ui/AsyncSelect';
 import axiosClient from '@/app/lib/axiosClient';
 import Swal from 'sweetalert2';
 import { useTranslation } from '@/app/locales';

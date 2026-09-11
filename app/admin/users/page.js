@@ -212,6 +212,7 @@ export default function Users() {
       </ul>
 
       <DatatablesUsers
+        hasPermission={hasPermission}
         handleCountries={handleCountries}
         addUser={addUser}
         editUser={editUser}

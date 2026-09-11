@@ -2,20 +2,22 @@
 import { useParams } from 'next/navigation';
 import { useRepresentative } from '../../representatives/[id]/RepresentativeContext';
 import { useDynamicTitle } from '@/app/hooks/useDynamicTitle';
+import { useTranslation } from '@/app/locales';
 import GeneralInformation   from '../../representatives/[id]/[tab]/tabs/GeneralInformation';
 import ParametrosTransporte from '../../representatives/[id]/[tab]/tabs/ParametrosTransporte';
 import DireccionesEntrega   from '../../representatives/[id]/[tab]/tabs/DireccionesEntrega';
 
-const TAB_TITLES = {
-  general:    'Mi Perfil | Información General',
-  parameters: 'Mi Perfil | Parámetros de Transporte',
-  address:    'Mi Perfil | Direcciones de Entrega',
-};
-
 export default function RepresentativeOwnTabPage() {
   const { tab } = useParams();
   const ctx     = useRepresentative();
-  useDynamicTitle(TAB_TITLES[tab] ?? 'Mi Perfil');
+  const t       = useTranslation();
+
+  const TAB_TITLES = {
+    general:    `${t.my_profile} | ${t.general_information}`,
+    parameters: `${t.my_profile} | ${t.transport_parameters}`,
+    address:    `${t.my_profile} | ${t.delivery_addresses}`,
+  };
+  useDynamicTitle(TAB_TITLES[tab] ?? t.my_profile);
 
   if (!ctx) return null;
 

@@ -16,9 +16,9 @@ const url_get_user = '/usuarios/permisos';
 const url_update   = '/usuarios/permisos/update';
 
 const TABS = [
-  { key: 'all',        label: 'Todos'       },
-  { key: 'active',     label: 'Activos'     },
-  { key: 'inactive',   label: 'Sin permiso' },
+  { key: 'all',      label: 'Todos'       },
+  { key: 'active',   label: 'Activos'     },
+  { key: 'inactive', label: 'Sin permiso' },
 ];
 
 function FilterTabs({ tabs, active, counts, onChange }) {
@@ -44,29 +44,46 @@ function FilterTabs({ tabs, active, counts, onChange }) {
   );
 }
 
-function PermisoCheck({ permiso, register, checked, accent = 'primary' }) {
-  const styles = {
-    primary: {
-      on:  "border-primary/40 bg-primary/5 dark:bg-primary/10 dark:border-primary/30",
-      off: "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800/50",
-      text: "text-primary font-medium",
-    },
-    amber: {
-      on:  "border-amber-300/60 bg-amber-50/60 dark:bg-amber-900/10 dark:border-amber-700/30",
-      off: "border-gray-200 dark:border-gray-700 hover:border-amber-200 dark:hover:border-amber-800/40 hover:bg-amber-50/30 dark:hover:bg-amber-900/10",
-      text: "text-amber-700 dark:text-amber-400 font-medium",
-    },
-  };
-  const s = styles[accent];
+// Checkbox del encabezado de módulo: marca/desmarca todos sus permisos, con
+// estado "indeterminado" cuando solo algunos están marcados.
+function ModuloCheck({ total, marcados, onToggle }) {
+  const ref = (el) => { if (el) el.indeterminate = marcados > 0 && marcados < total; };
+  return (
+    <input
+      type="checkbox"
+      ref={ref}
+      checked={total > 0 && marcados === total}
+      onChange={(e) => onToggle(e.target.checked)}
+      title="Seleccionar / deseleccionar todo el módulo"
+      className="w-3.5 h-3.5 accent-primary cursor-pointer shrink-0"
+    />
+  );
+}
+
+function PermisoCheck({ permiso, register, checked }) {
+  // Ámbar = viene heredado del rol; primary = permiso individual del usuario.
+  const heredado = permiso.rol === true;
+  const s = heredado
+    ? {
+        on:  "border-amber-300/60 bg-amber-50/60 dark:bg-amber-900/10 dark:border-amber-700/30",
+        off: "border-gray-200 dark:border-gray-700 hover:border-amber-200 dark:hover:border-amber-800/40 hover:bg-amber-50/30 dark:hover:bg-amber-900/10",
+        text: "text-amber-700 dark:text-amber-400 font-medium",
+      }
+    : {
+        on:  "border-primary/40 bg-primary/5 dark:bg-primary/10 dark:border-primary/30",
+        off: "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800/50",
+        text: "text-primary font-medium",
+      };
   return (
     <label className={`flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition-all ${checked ? s.on : s.off}`}>
       <input
         type="checkbox"
         {...register(permiso.codPermiso)}
-        className={`w-4 h-4 shrink-0 ${accent === 'amber' ? 'accent-amber-500' : 'accent-primary'}`}
+        className={`w-4 h-4 shrink-0 ${heredado ? 'accent-amber-500' : 'accent-primary'}`}
       />
       <span className={`text-xs leading-snug ${checked ? s.text : "text-gray-600 dark:text-gray-300"}`}>
         {permiso.etiqueta}
+        {heredado && <span className="ml-1 text-[9px] uppercase tracking-wide text-amber-500/80">rol</span>}
       </span>
     </label>
   );
@@ -78,30 +95,39 @@ export default function UserPermissions() {
   const t      = useTranslation();
   const router = useRouter();
 
-  const [saving,      setSaving]      = useState(false);
-  const [user,        setUser]        = useState(null);
-  const [permissions, setPermissions] = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [error,       setError]       = useState(null);
+  const [saving,  setSaving]  = useState(false);
+  const [user,    setUser]    = useState(null);
+  // La API ahora agrupa: [{ modulo, permisos: [{ codPermiso, etiqueta, rol, usuario, final }] }]
+  const [modulos, setModulos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState(null);
 
-  const [filterRol,        setFilterRol]        = useState('all');
-  const [filterIndividual, setFilterIndividual] = useState('all');
-  const [searchRol,        setSearchRol]        = useState('');
-  const [searchInd,        setSearchInd]        = useState('');
+  const [filterPerm,   setFilterPerm]   = useState('all');
+  const [filterModulo, setFilterModulo] = useState('all');
+  const [searchPerm,   setSearchPerm]   = useState('');
 
-  const { register, handleSubmit, reset, watch } = useForm();
+  const { register, handleSubmit, reset, watch, setValue } = useForm();
   const watchedValues = watch();
+
+  // Lista plana de todos los permisos — para contadores, defaults y el payload.
+  const flatPermisos = useMemo(() => modulos.flatMap(m => m.permisos || []), [modulos]);
+
+  const setAllPermisos = (list, value) => {
+    list.forEach(p => setValue(p.codPermiso, value, { shouldDirty: true }));
+  };
 
   useEffect(() => {
     if (!id) return;
-    const fetch = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
         const { data } = await axiosClient.get(url_get_user, { params: { id } });
         setUser(data.usuario);
-        setPermissions(data.permisos || []);
+        setModulos(data.permisos || []);
         const defaults = {};
-        (data.permisos || []).forEach(p => { defaults[p.codPermiso] = p.final; });
+        (data.permisos || []).forEach(m => (m.permisos || []).forEach(p => {
+          defaults[p.codPermiso] = p.final;
+        }));
         reset(defaults);
       } catch {
         setError('Error al obtener información del usuario');
@@ -109,44 +135,44 @@ export default function UserPermissions() {
         setLoading(false);
       }
     };
-    fetch();
+    fetchData();
   }, [id, reset]);
 
-  // ── Grupos base ───────────────────────────────────────────────────────────
-  const rolPerms        = useMemo(() => permissions.filter(p => p.rol === true),  [permissions]);
-  const individualPerms = useMemo(() => permissions.filter(p => p.rol === false), [permissions]);
+  // ── Contadores ────────────────────────────────────────────────────────────
+  const permCounts = useMemo(() => ({
+    all:      flatPermisos.length,
+    active:   flatPermisos.filter(p =>  !!watchedValues[p.codPermiso]).length,
+    inactive: flatPermisos.filter(p => !watchedValues[p.codPermiso]).length,
+  }), [flatPermisos, watchedValues]);
 
-  // ── Contadores dinámicos (según estado actual del form) ───────────────────
-  const rolCounts = useMemo(() => ({
-    all:      rolPerms.length,
-    active:   rolPerms.filter(p =>  !!watchedValues[p.codPermiso]).length,
-    inactive: rolPerms.filter(p => !watchedValues[p.codPermiso]).length,
-  }), [rolPerms, watchedValues]);
+  const activosRol = useMemo(
+    () => flatPermisos.filter(p => p.rol === true && !!watchedValues[p.codPermiso]).length,
+    [flatPermisos, watchedValues]
+  );
+  const activosInd = useMemo(
+    () => flatPermisos.filter(p => p.rol !== true && !!watchedValues[p.codPermiso]).length,
+    [flatPermisos, watchedValues]
+  );
 
-  const indCounts = useMemo(() => ({
-    all:      individualPerms.length,
-    active:   individualPerms.filter(p =>  !!watchedValues[p.codPermiso]).length,
-    inactive: individualPerms.filter(p => !watchedValues[p.codPermiso]).length,
-  }), [individualPerms, watchedValues]);
+  // ── Módulos con permisos filtrados por tab + módulo + búsqueda ─────────────
+  const modulosFiltrados = useMemo(() => {
+    const q = searchPerm.trim().toLowerCase();
+    return modulos
+      .filter(m => filterModulo === 'all' || m.modulo === filterModulo)
+      .map(m => {
+        let list = m.permisos || [];
+        if (filterPerm === 'active')   list = list.filter(p =>  !!watchedValues[p.codPermiso]);
+        if (filterPerm === 'inactive') list = list.filter(p => !watchedValues[p.codPermiso]);
+        if (q) list = list.filter(p => p.etiqueta.toLowerCase().includes(q));
+        return { ...m, permisos: list };
+      })
+      .filter(m => m.permisos.length > 0);
+  }, [modulos, filterPerm, filterModulo, searchPerm, watchedValues]);
 
-  // ── Listas filtradas ──────────────────────────────────────────────────────
-  const filteredRol = useMemo(() => {
-    let list = rolPerms;
-    if (filterRol === 'active')   list = list.filter(p =>  !!watchedValues[p.codPermiso]);
-    if (filterRol === 'inactive') list = list.filter(p => !watchedValues[p.codPermiso]);
-    const q = searchRol.trim().toLowerCase();
-    if (q) list = list.filter(p => p.etiqueta.toLowerCase().includes(q));
-    return list;
-  }, [rolPerms, filterRol, searchRol, watchedValues]);
-
-  const filteredInd = useMemo(() => {
-    let list = individualPerms;
-    if (filterIndividual === 'active')   list = list.filter(p =>  !!watchedValues[p.codPermiso]);
-    if (filterIndividual === 'inactive') list = list.filter(p => !watchedValues[p.codPermiso]);
-    const q = searchInd.trim().toLowerCase();
-    if (q) list = list.filter(p => p.etiqueta.toLowerCase().includes(q));
-    return list;
-  }, [individualPerms, filterIndividual, searchInd, watchedValues]);
+  const visiblePermisos = useMemo(
+    () => modulosFiltrados.flatMap(m => m.permisos),
+    [modulosFiltrados]
+  );
 
   // ── Submit ────────────────────────────────────────────────────────────────
   const onSubmit = async (formData) => {
@@ -155,7 +181,7 @@ export default function UserPermissions() {
     try {
       await axiosClient.post(url_update, {
         codUsuario: Number(user.codUsuario),
-        permisos: permissions.map(p => ({
+        permisos: flatPermisos.map(p => ({
           codPermiso: p.codPermiso,
           rol: p.rol === true,
           check: !!formData[p.codPermiso],
@@ -199,19 +225,17 @@ export default function UserPermissions() {
           </div>
           <div className="hidden sm:flex items-center gap-4 text-center shrink-0">
             <div>
-              <p className="text-xl font-bold text-amber-500 leading-none">{rolCounts.active}</p>
+              <p className="text-xl font-bold text-amber-500 leading-none">{activosRol}</p>
               <p className="text-[11px] text-gray-400 mt-0.5">Del Rol</p>
             </div>
             <div className="w-px h-8 bg-gray-200 dark:bg-gray-700" />
             <div>
-              <p className="text-xl font-bold text-primary leading-none">{indCounts.active}</p>
+              <p className="text-xl font-bold text-primary leading-none">{activosInd}</p>
               <p className="text-[11px] text-gray-400 mt-0.5">Individuales</p>
             </div>
             <div className="w-px h-8 bg-gray-200 dark:bg-gray-700" />
             <div>
-              <p className="text-xl font-bold text-gray-800 dark:text-gray-100 leading-none">
-                {rolCounts.active + indCounts.active}
-              </p>
+              <p className="text-xl font-bold text-gray-800 dark:text-gray-100 leading-none">{permCounts.active}</p>
               <p className="text-[11px] text-gray-400 mt-0.5">Total activos</p>
             </div>
           </div>
@@ -241,70 +265,91 @@ export default function UserPermissions() {
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
-          {/* ── Permisos del Rol ─────────────────────────────────────────── */}
+          {/* ── Permisos ─────────────────────────────────────────────────── */}
           <div className="panel p-4 space-y-4">
             <div className="flex flex-wrap items-center gap-3">
               <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                Permisos del Rol
+                Permisos
               </h2>
-              <FilterTabs tabs={TABS} active={filterRol} counts={rolCounts} onChange={setFilterRol} />
+              <FilterTabs tabs={TABS} active={filterPerm} counts={permCounts} onChange={setFilterPerm} />
+              <select
+                value={filterModulo}
+                onChange={e => setFilterModulo(e.target.value)}
+                className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
+              >
+                <option value="all">Todos los módulos</option>
+                {modulos.map(m => (
+                  <option key={m.modulo} value={m.modulo}>{m.modulo}</option>
+                ))}
+              </select>
+
+              {/* Marcar / desmarcar todos los permisos visibles (según filtros) */}
+              <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-[11px] font-medium">
+                <button
+                  type="button"
+                  onClick={() => setAllPermisos(visiblePermisos, true)}
+                  disabled={visiblePermisos.length === 0}
+                  className="px-2.5 py-1.5 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-primary/5 hover:text-primary transition disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Marcar todos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAllPermisos(visiblePermisos, false)}
+                  disabled={visiblePermisos.length === 0}
+                  className="px-2.5 py-1.5 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-l border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Desmarcar
+                </button>
+              </div>
+
               <div className="relative ml-auto">
-                <input type="text" value={searchRol} onChange={e => setSearchRol(e.target.value)}
-                  placeholder="Buscar..." className="w-44 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-1.5 pr-8 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40" />
-                {searchRol
-                  ? <button type="button" onClick={() => setSearchRol('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><IconX className="h-3.5 w-3.5" /></button>
+                <input type="text" value={searchPerm} onChange={e => setSearchPerm(e.target.value)}
+                  placeholder="Buscar permiso..." className="w-44 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-1.5 pr-8 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                {searchPerm
+                  ? <button type="button" onClick={() => setSearchPerm('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><IconX className="h-3.5 w-3.5" /></button>
                   : <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400"><IconSearch className="h-3.5 w-3.5" /></span>
                 }
               </div>
             </div>
 
-            {filteredRol.length === 0
-              ? <p className="text-xs text-gray-400 py-2 text-center">Sin resultados.</p>
-              : <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                  {filteredRol.map(p => (
-                    <PermisoCheck
-                      key={p.codPermiso}
-                      permiso={p}
-                      register={register}
-                      checked={!!watchedValues[p.codPermiso]}
-                      accent="amber"
-                    />
-                  ))}
-                </div>
-            }
-          </div>
-
-          {/* ── Permisos Individuales ────────────────────────────────────── */}
-          <div className="panel p-4 space-y-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                Permisos Individuales
-              </h2>
-              <FilterTabs tabs={TABS} active={filterIndividual} counts={indCounts} onChange={setFilterIndividual} />
-              <div className="relative ml-auto">
-                <input type="text" value={searchInd} onChange={e => setSearchInd(e.target.value)}
-                  placeholder="Buscar..." className="w-44 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-1.5 pr-8 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40" />
-                {searchInd
-                  ? <button type="button" onClick={() => setSearchInd('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><IconX className="h-3.5 w-3.5" /></button>
-                  : <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400"><IconSearch className="h-3.5 w-3.5" /></span>
-                }
+            {modulosFiltrados.length === 0 ? (
+              <p className="text-sm text-gray-400 py-4 text-center">
+                {flatPermisos.length === 0 ? 'No existen permisos registrados.' : 'Sin resultados.'}
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {modulosFiltrados.map(m => {
+                  const marcados = m.permisos.filter(p => !!watchedValues[p.codPermiso]).length;
+                  return (
+                    <div key={m.modulo} className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <ModuloCheck
+                          total={m.permisos.length}
+                          marcados={marcados}
+                          onToggle={(v) => setAllPermisos(m.permisos, v)}
+                        />
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                          {m.modulo}
+                        </span>
+                        <span className="text-[10px] text-gray-400 font-medium">({marcados}/{m.permisos.length})</span>
+                        <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                        {m.permisos.map(p => (
+                          <PermisoCheck
+                            key={p.codPermiso}
+                            permiso={p}
+                            register={register}
+                            checked={!!watchedValues[p.codPermiso]}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
-
-            {filteredInd.length === 0
-              ? <p className="text-xs text-gray-400 py-2 text-center">{individualPerms.length === 0 ? 'No hay permisos individuales disponibles.' : 'Sin resultados.'}</p>
-              : <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                  {filteredInd.map(p => (
-                    <PermisoCheck
-                      key={p.codPermiso}
-                      permiso={p}
-                      register={register}
-                      checked={!!watchedValues[p.codPermiso]}
-                      accent="primary"
-                    />
-                  ))}
-                </div>
-            }
+            )}
           </div>
 
           {/* ── Botones ── */}

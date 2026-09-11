@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Checkbox } from '@mantine/core';
 import { useForm, Controller } from 'react-hook-form';
-import AsyncSelect from 'react-select/async';
+import AsyncSelect from '@/components/ui/AsyncSelect';
 import axios from 'axios';
 import IconBackSpace from '@/components/icon/icon-backspace';
 import { customFormat } from '@/app/lib/format';

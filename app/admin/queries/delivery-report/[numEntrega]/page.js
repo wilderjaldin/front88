@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import DatePicker from "react-date-picker";
 import { useTranslation } from "@/app/locales";
 import axiosClient from '@/app/lib/axiosClient';

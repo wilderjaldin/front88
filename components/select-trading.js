@@ -1,7 +1,7 @@
 // components/select-trading.js
 import React, { useState } from 'react';
 import ConditionForm from '@/components/forms/condition-form';
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import IconPlus from '@/components/icon/icon-plus';
 import Modal from '@/components/modal';
 import { Controller } from 'react-hook-form';

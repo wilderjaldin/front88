@@ -137,7 +137,7 @@ export default function RepresentativesPage() {
   const searchParams      = useSearchParams();
   useDynamicTitle(`${t.register} | Representantes`);
 
-  const isAdmin = hasPermission(PERMISSIONS.LISTAR_REPRESENTANTES);
+  const isAdmin = hasPermission(PERMISSIONS.MENU_REPRESENTANTES);
   const isRep   = user?.rol === 'Representante';
 
   // Redirect representante to their own profile

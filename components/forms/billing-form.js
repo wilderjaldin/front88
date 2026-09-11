@@ -7,7 +7,7 @@ import { useForm, SubmitHandler, Controller } from "react-hook-form"
 import { useTranslation } from "@/app/locales";
 import IconPlusProps from '@/components/icon/icon-plus';
 import Modal from '@/components/modal';
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import CurrencyForm from '@/components/forms/currency-form';
 import SelectCurrency from '@/components/select-currency'
 import axios from 'axios'

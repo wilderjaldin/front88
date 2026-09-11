@@ -6,7 +6,7 @@ import axiosClient from '@/app/lib/axiosClient';
 import SelectCountry from '@/components/select-country';
 import SelectCity from '@/components/select-city';
 import { swalSuccess, swalError } from '@/app/lib/swal';
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import IconSave from '@/components/icon/icon-save';
 
 const URL_CIUDADES = '/ciudades';

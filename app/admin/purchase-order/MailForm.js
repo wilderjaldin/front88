@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import axiosClient from '@/app/lib/axiosClient';
-import { swalError } from '@/app/lib/swal';
+import { swalError, swalMailNotSent } from '@/app/lib/swal';
 import { useForm } from "react-hook-form"
 import ContactSupplierForm from '@/app/admin/register/suppliers/[id]/[tab]/tabs/ContactSupplierForm';
 import IconPaperclip from '@/components/icon/icon-paperclip';
@@ -297,7 +297,7 @@ const MailForm = ({ close, t, order, order_id }) => {
         contenidoBase64: await fileToBase64(file),
         ...(cid ? { cid, inline: true } : {}),
       })));
-      await axiosClient.post(URL_SEND_EMAIL, {
+      const rs = await axiosClient.post(URL_SEND_EMAIL, {
         numOrdenCompra: order_id,
         destinoMail: para,
         asuntoMail: data.subject,
@@ -305,6 +305,8 @@ const MailForm = ({ close, t, order, order_id }) => {
         ...(adjuntos.length > 0 ? { adjuntos } : {}),
       });
       close();
+      // La operación se completó; si el correo no salió, avisar aparte.
+      if (rs.data?.correoEnviado === false) swalMailNotSent(t);
     } catch (error) {
       const apiMsg = error?.response?.data?.mensaje;
       swalError(t.error, apiMsg ?? t.message_sent_error ?? 'No se pudo enviar el correo.');

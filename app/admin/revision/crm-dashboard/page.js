@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { useTranslation } from "@/app/locales";
 import axiosClient from '@/app/lib/axiosClient';
 import { swalConfirm, swalError, swalSuccess } from '@/app/lib/swal';
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import { Pagination } from '@mantine/core';
 import { customFormat } from '@/app/lib/format';
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";

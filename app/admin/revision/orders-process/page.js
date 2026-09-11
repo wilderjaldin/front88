@@ -2,15 +2,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Controller, useForm } from 'react-hook-form';
-import Select from 'react-select';
-import AsyncSelect from 'react-select/async';
+import Select from '@/components/ui/Select';
+import AsyncSelect from '@/components/ui/AsyncSelect';
 import axiosClient from '@/app/lib/axiosClient';
-import axios from 'axios';
+import { swalConfirm, swalError, swalSuccess } from '@/app/lib/swal';
 import Link from "next/link";
 import { Pagination } from '@mantine/core';
 import { useTranslation } from "@/app/locales";
 import { useSelector } from 'react-redux';
-import { getLocale } from '@/store/localeSlice';
 import { selectToken } from '@/store/authSlice';
 import { customFormat } from '@/app/lib/format';
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
@@ -21,7 +20,7 @@ import Settings from "./settings";
 
 const URL_PROCESO   = 'ordenesenproceso/proceso';
 const URL_CONTROLES = 'ordenesenproceso/proceso/controles';
-const URL_DELIVERED    = process.env.NEXT_PUBLIC_API_URL + 'revision/EntregarOrden';
+const URL_DELIVERED    = 'ordenesenproceso/entregado';
 const URL_CANCEL_ORDER = 'ordenesenproceso/anular';
 
 const PAGE_SIZE      = 20;
@@ -72,7 +71,6 @@ export default function OrdersProcess() {
   const pathname     = usePathname();
   const searchParams = useSearchParams();
   const token        = useSelector(selectToken);
-  const locale       = useSelector(getLocale);
   const t            = useTranslation();
 
   const option      = searchParams.get("option") || "";
@@ -205,21 +203,46 @@ export default function OrdersProcess() {
   };
   const toggleTodos = () => setSelected(selected.length === orders.length ? [] : [...orders]);
 
-  const refetch = () => { lastKeyRef.current = ''; fetchOrders(); };
+  // Aplica la lista actualizada que devuelven entregado/anular directo, sin
+  // volver a pedirla — mismo shape que ordenesenproceso/proceso (datos/total).
+  const applyUpdatedList = (data) => {
+    setOrders(data?.datos ?? data?.Datos ?? []);
+    setTotal(data?.total  ?? data?.Total  ?? total);
+    setSelected([]);
+  };
 
   const delivered = async () => {
+    const result = await swalConfirm(t.question_deliver_order, '', { confirmText: t.yes, cancelText: t.btn_cancel, confirmColor: '#15803d' });
+    if (!result.isConfirmed) return;
     try {
-      const data = selected.map(o => ({ Idioma: locale, NroOrden: o.nroCotizacion, ValToken: token }));
-      const rs   = await axios.post(URL_DELIVERED, data);
-      if (rs.data.estado === 'Ok') refetch();
-    } catch {}
+      const data_send = selected.map(o => ({ NroCotizacion: o.nroCotizacion }));
+      const rs = await axiosClient.post(URL_DELIVERED, data_send);
+      // El backend puede responder 200 con la lista actualizada, o 200 con
+      // {mensaje, errores} cuando ninguna cotización pudo marcarse como entregada.
+      if (rs.data?.errores) {
+        swalError(rs.data.mensaje ?? t.error, rs.data.errores.map(e => e.mensaje).join('\n'), t.close);
+      } else {
+        applyUpdatedList(rs.data);
+        swalSuccess(t.order_delivered_success);
+      }
+    } catch (error) {
+      const apiMsg = error?.response?.data?.mensaje;
+      swalError(t.error, apiMsg ?? t.error, t.close);
+    }
   };
 
   const cancelOrder = async () => {
+    const result = await swalConfirm(t.question_cancel_order, '', { confirmText: t.yes, cancelText: t.btn_cancel, confirmColor: '#dc2626' });
+    if (!result.isConfirmed) return;
     try {
-      await Promise.all(selected.map(o => axiosClient.post(URL_CANCEL_ORDER, { NroCotizacion: o.nroCotizacion })));
-      refetch();
-    } catch {}
+      const data_send = selected.map(o => ({ NroCotizacion: o.nroCotizacion }));
+      const rs = await axiosClient.post(URL_CANCEL_ORDER, data_send);
+      applyUpdatedList(rs.data);
+      swalSuccess(t.order_cancelled_success);
+    } catch (error) {
+      const apiMsg = error?.response?.data?.mensaje;
+      swalError(t.error, apiMsg ?? t.error, t.close);
+    }
   };
 
   const hasFilters = urlTerm || urlEstado || urlCliente;

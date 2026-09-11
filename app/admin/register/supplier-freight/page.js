@@ -5,7 +5,7 @@ import { useTranslation } from "@/app/locales";
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 import axiosClient from "@/app/lib/axiosClient";
 import Swal from 'sweetalert2';
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import IconTrashLines from "@/components/icon/icon-trash-lines";
 import IconPlus from "@/components/icon/icon-plus";
 import IconPencil from "@/components/icon/icon-pencil";

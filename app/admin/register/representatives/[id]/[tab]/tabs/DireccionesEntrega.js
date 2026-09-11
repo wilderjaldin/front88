@@ -187,7 +187,7 @@ function DireccionForm({ codEmp, representante, editingRow, paises, onSaved, onC
         : await axiosClient.post(`${BASE}/registro`, payload);
       onSaved(rs.data);
     } catch (err) {
-      Toast.fire({ icon: 'error', title: err?.response?.data?.message ?? err?.response?.data?.mensaje ?? 'Error al guardar' });
+      Toast.fire({ icon: 'error', title: err?.response?.data?.message ?? err?.response?.data?.mensaje ?? t.save_error });
     }
   };
 
@@ -210,23 +210,23 @@ function DireccionForm({ codEmp, representante, editingRow, paises, onSaved, onC
       </div>
 
       {/* Nom. Empresa */}
-      <FField label="Nombre Empresa">
-        <input type="text" {...register('nomEmpresa')} className="form-input w-full" placeholder="Nombre de la empresa" />
+      <FField label={t.company_name}>
+        <input type="text" {...register('nomEmpresa')} className="form-input w-full" placeholder={t.company_name_ph} />
       </FField>
 
       {/* Contacto + Email */}
       <div className="grid grid-cols-2 gap-4">
-        <FField label="Nombre Contacto">
+        <FField label={t.contact_name}>
           <input type="text" {...register('nomContacto')} className="form-input w-full" />
         </FField>
-        <FField label="Email">
+        <FField label={t.email}>
           <input type="email" {...register('email')} className="form-input w-full" />
         </FField>
       </div>
 
       {/* País + Ciudad */}
       <div className="grid grid-cols-2 gap-4">
-        <FField label="País">
+        <FField label={t.country}>
           <SelectCountry
             t={t}
             options={paises}
@@ -241,7 +241,7 @@ function DireccionForm({ codEmp, representante, editingRow, paises, onSaved, onC
             }}
           />
         </FField>
-        <FField label="Ciudad">
+        <FField label={t.city}>
           <SelectCity
             t={t}
             cities={cities}
@@ -256,21 +256,21 @@ function DireccionForm({ codEmp, representante, editingRow, paises, onSaved, onC
       </div>
 
       {/* Dirección */}
-      <FField label="Dirección">
+      <FField label={t.address}>
         <input type="text" {...register('direccion')} className="form-input w-full" />
       </FField>
 
       {/* Teléfono + Estado + Cód. Postal */}
       <div className={`grid gap-4 ${isUS ? 'grid-cols-3' : 'grid-cols-1'}`}>
-        <FField label="Teléfono">
+        <FField label={t.phone}>
           <input type="text" {...register('numTelefono')} className="form-input w-full" />
         </FField>
         {isUS && (
           <>
-            <FField label="Estado / Provincia">
+            <FField label={t.state_province}>
               <input type="text" {...register('nomEstado')} className="form-input w-full" />
             </FField>
-            <FField label="Cód. Postal">
+            <FField label={t.zip}>
               <input type="text" {...register('codPostal')} className="form-input w-full" />
             </FField>
           </>
@@ -281,16 +281,16 @@ function DireccionForm({ codEmp, representante, editingRow, paises, onSaved, onC
         <button type="button" onClick={onCancel}
           className="rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium
                      text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
-          Cancelar
+          {t.btn_cancel}
         </button>
         <button type="button" onClick={handleSubmit(onSubmit)} disabled={isSubmitting}
           className="inline-flex items-center gap-2 h-10 px-6 rounded-lg text-sm font-semibold text-white
                      bg-primary hover:bg-primary/90 shadow-md shadow-primary/25 active:scale-[0.98]
                      disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-150">
           {isSubmitting ? (
-            <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />Guardando...</>
+            <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />{t.saving}</>
           ) : (
-            <><IconSave className="h-4 w-4" />{isEdit ? 'Actualizar' : 'Guardar'}</>
+            <><IconSave className="h-4 w-4" />{isEdit ? t.update : t.save}</>
           )}
         </button>
       </div>
@@ -316,6 +316,7 @@ function FormView({ codEmp, representante, editingRow, paises, onSaved, onCancel
 
 // ── Componente principal ──────────────────────────────────────────────────────
 export default function DireccionesEntrega({ representante, isAdmin, isRepresentante }) {
+  const t       = useTranslation();
   const codEmp  = representante?.codEmp;
   const canEdit = isAdmin || isRepresentante;
 
@@ -371,19 +372,19 @@ export default function DireccionesEntrega({ representante, isAdmin, isRepresent
 
   const handleDelete = (row) => {
     Swal.fire({
-      title: '¿Eliminar dirección?',
-      text: row.nomEmpresa || 'Registro',
+      title: t.delete_address_question,
+      text: row.nomEmpresa || t.record,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#dc2626',
-      confirmButtonText: 'Sí, eliminar',
-      cancelButtonText: 'Cancelar',
+      confirmButtonText: t.yes_delete,
+      cancelButtonText: t.btn_cancel,
       reverseButtons: true,
     }).then(async (result) => {
       if (!result.isConfirmed) return;
       try {
         const rs = await axiosClient.post(`${BASE}/status`, { codRegistro: row.codRegistro, codEstado: 'IN' });
-        Toast.fire({ icon: 'success', title: 'Dirección eliminada' });
+        Toast.fire({ icon: 'success', title: t.address_deleted });
         const list = rs.data?.data ?? (Array.isArray(rs.data) ? rs.data : null);
         if (list) {
           setRows(list);
@@ -393,14 +394,14 @@ export default function DireccionesEntrega({ representante, isAdmin, isRepresent
           setTotal(prev => Math.max(0, prev - 1));
         }
       } catch (err) {
-        Toast.fire({ icon: 'error', title: err?.response?.data?.message ?? 'Error al eliminar' });
+        Toast.fire({ icon: 'error', title: err?.response?.data?.message ?? t.delete_error });
       }
     });
   };
 
   const handleSaved = (responseData) => {
     const wasEditing = !!editId;
-    Toast.fire({ icon: 'success', title: wasEditing ? 'Dirección actualizada' : 'Dirección registrada' });
+    Toast.fire({ icon: 'success', title: wasEditing ? t.address_updated : t.address_registered });
     const list = responseData?.data ?? (Array.isArray(responseData) ? responseData : null);
     if (list) {
       setRows(list);
@@ -455,7 +456,7 @@ export default function DireccionesEntrega({ representante, isAdmin, isRepresent
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-            Direcciones de Entrega
+            {t.delivery_addresses}
             <span className="ml-2 text-sm font-normal text-gray-400">({total})</span>
           </h2>
           <div className="h-0.5 w-10 rounded bg-primary/60 mt-1" />
@@ -477,7 +478,7 @@ export default function DireccionesEntrega({ representante, isAdmin, isRepresent
             <button type="button" onClick={() => router.push(`${baseUrl}?new=1`)}
               className="group flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-white text-sm font-medium shadow-sm hover:bg-primary/90 transition-all">
               <IconPlus className="h-4 w-4 transition-transform group-hover:rotate-90" />
-              Agregar
+              {t.btn_add}
             </button>
           )}
         </div>
@@ -497,7 +498,7 @@ export default function DireccionesEntrega({ representante, isAdmin, isRepresent
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
               d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0zM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
           </svg>
-          <p className="text-sm">Sin direcciones de entrega registradas</p>
+          <p className="text-sm">{t.no_delivery_addresses}</p>
         </div>
       )}
 
@@ -508,16 +509,16 @@ export default function DireccionesEntrega({ representante, isAdmin, isRepresent
             <table className="w-full text-sm whitespace-nowrap">
               <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                 <tr className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  <th className="px-4 py-3 text-left">Empresa</th>
-                  <th className="px-4 py-3 text-left">Nombre Contacto</th>
-                  <th className="px-4 py-3 text-left">Dirección</th>
-                  <th className="px-4 py-3 text-left">País</th>
-                  <th className="px-4 py-3 text-left">Ciudad</th>
-                  <th className="px-4 py-3 text-left">Teléfono</th>
-                  <th className="px-4 py-3 text-left">Email</th>
-                  <th className="px-4 py-3 text-left">Estado</th>
-                  <th className="px-4 py-3 text-left">Cód. Postal</th>
-                  {canEdit && <th className="px-4 py-3 text-center">Acciones</th>}
+                  <th className="px-4 py-3 text-left">{t.company}</th>
+                  <th className="px-4 py-3 text-left">{t.contact_name}</th>
+                  <th className="px-4 py-3 text-left">{t.address}</th>
+                  <th className="px-4 py-3 text-left">{t.country}</th>
+                  <th className="px-4 py-3 text-left">{t.city}</th>
+                  <th className="px-4 py-3 text-left">{t.phone}</th>
+                  <th className="px-4 py-3 text-left">{t.email}</th>
+                  <th className="px-4 py-3 text-left">{t.state_province}</th>
+                  <th className="px-4 py-3 text-left">{t.zip}</th>
+                  {canEdit && <th className="px-4 py-3 text-center">{t.actions}</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">

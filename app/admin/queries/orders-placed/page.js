@@ -3,8 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Controller, useForm } from 'react-hook-form';
-import Select from 'react-select';
-import AsyncSelect from 'react-select/async';
+import Select from '@/components/ui/Select';
+import AsyncSelect from '@/components/ui/AsyncSelect';
 import axiosClient from '@/app/lib/axiosClient';
 import { customFormat } from '@/app/lib/format';
 import { Pagination } from '@mantine/core';
@@ -374,7 +374,18 @@ export default function OrdersPlaced() {
                     </td>
                     <td className={`${tdClass} text-center`}>{o.nroItems}</td>
                     <td className={`${tdClass} text-right font-medium`}>{customFormat(o.totalSus)}</td>
-                    <td className={`${tdClass} text-gray-500`}>{o.nomPais}</td>
+                    <td className={`${tdClass} text-gray-500`}>
+                      <div className="flex items-center gap-2">
+                        {o.codPais && (
+                          <img
+                            src={`/assets/flags/${o.codPais.toLowerCase()}.svg`}
+                            alt={o.codPais}
+                            className="h-3.5 w-5 rounded-sm object-cover shrink-0"
+                          />
+                        )}
+                        <span>{o.nomPais}</span>
+                      </div>
+                    </td>
                     <td className={`${tdClass} text-gray-500`}>{o.nomCiudad}</td>
                     <td className={tdClass}>{o.estado || '—'}</td>
                     <td className={`${tdClass} text-gray-400`}>{o.fecCotizacion}</td>

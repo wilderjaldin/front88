@@ -56,14 +56,19 @@ const ComponentsAuthLoginForm = () => {
       const { name, rol } = res.data.user;
       const initials = name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) ?? '?';
 
+      const isDark   = document.body.classList.contains('dark');
+      const cTitle   = isDark ? '#f1f5f9' : '#1e293b';
+      const cBg      = isDark ? '#0e1726' : '#ffffff';
+
       Swal.fire({
+        background: cBg,
         html: `
           <div style="padding:12px 0 6px">
             <div style="width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#b45309);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;box-shadow:0 8px 24px rgba(245,158,11,0.4)">
               <span style="color:#fff;font-size:24px;font-weight:800;letter-spacing:-1px">${initials}</span>
             </div>
             <p style="color:#94a3b8;font-size:11px;margin:0 0 6px;text-transform:uppercase;letter-spacing:.1em">Bienvenido de nuevo</p>
-            <h2 style="color:#1e293b;font-size:19px;font-weight:700;margin:0 0 14px;line-height:1.3">${name}</h2>
+            <h2 style="color:${cTitle};font-size:19px;font-weight:700;margin:0 0 14px;line-height:1.3">${name}</h2>
             <span style="display:inline-block;background:#fef3c7;color:#92400e;font-size:11px;font-weight:600;padding:4px 14px;border-radius:20px;letter-spacing:.06em;text-transform:uppercase">${rol}</span>
           </div>`,
         showConfirmButton: true,
@@ -75,7 +80,13 @@ const ComponentsAuthLoginForm = () => {
 
     } catch (error: any) {
       const msg = error.response?.status === 401 ? t.login_incorrect : t.error_server;
+      const isDark = document.body.classList.contains('dark');
+      const cTitle = isDark ? '#ffffff' : '#1e293b';
+      const cMuted = isDark ? '#cbd5e1' : '#64748b';
+      const cBg    = isDark ? '#0e1726' : '#ffffff';
+
       Swal.fire({
+        background: cBg,
         html: `
           <div style="padding:12px 0 6px">
             <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#fca5a5,#ef4444);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;box-shadow:0 8px 24px rgba(239,68,68,0.3)">
@@ -84,8 +95,8 @@ const ComponentsAuthLoginForm = () => {
               </svg>
             </div>
             <p style="color:#94a3b8;font-size:11px;margin:0 0 6px;text-transform:uppercase;letter-spacing:.1em">Acceso denegado</p>
-            <h2 style="color:#1e293b;font-size:18px;font-weight:700;margin:0 0 10px;line-height:1.3">Credenciales incorrectas</h2>
-            <p style="color:#64748b;font-size:13px;margin:0">${msg}</p>
+            <h2 style="color:${cTitle};font-size:18px;font-weight:700;margin:0 0 10px;line-height:1.3">Credenciales incorrectas</h2>
+            <p style="color:${cMuted};font-size:13px;margin:0">${msg}</p>
           </div>`,
         showConfirmButton: true,
         confirmButtonText: 'Intentar de nuevo',
@@ -103,7 +114,7 @@ const ComponentsAuthLoginForm = () => {
 
       {/* Usuario */}
       <div>
-        <label className="block text-sm font-semibold text-gray-600 mb-1.5">
+        <label className="block text-sm font-semibold text-gray-600 dark:text-gray-300 mb-1.5">
           {t.email}
         </label>
         <div className="relative">
@@ -116,7 +127,8 @@ const ComponentsAuthLoginForm = () => {
             placeholder={t.enter_email}
             {...register("login", { required: { value: true, message: t.required_field } })}
             className={`form-input ps-10 w-full bg-white/70 border-gray-200
-              focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-200
+              dark:bg-white/5 dark:border-gray-700 dark:text-gray-100
+              focus:bg-white dark:focus:bg-white/10 focus:border-amber-500 focus:ring-2 focus:ring-amber-200
               placeholder:text-gray-400 text-gray-800
               ${errors.login ? 'border-red-400 focus:border-red-400 focus:ring-red-100' : ''}`}
           />
@@ -128,7 +140,7 @@ const ComponentsAuthLoginForm = () => {
 
       {/* Contraseña */}
       <div>
-        <label className="block text-sm font-semibold text-gray-600 mb-1.5">
+        <label className="block text-sm font-semibold text-gray-600 dark:text-gray-300 mb-1.5">
           {t.password}
         </label>
         <div className="relative">
@@ -142,7 +154,8 @@ const ComponentsAuthLoginForm = () => {
             {...register("password", { required: { value: true, message: t.required_field } })}
             style={showPassword ? undefined : { WebkitTextSecurity: 'disc' } as React.CSSProperties}
             className={`form-input ps-10 pe-10 w-full bg-white/70 border-gray-200
-              focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-200
+              dark:bg-white/5 dark:border-gray-700 dark:text-gray-100
+              focus:bg-white dark:focus:bg-white/10 focus:border-amber-500 focus:ring-2 focus:ring-amber-200
               placeholder:text-gray-400 text-gray-800
               ${errors.password ? 'border-red-400 focus:border-red-400 focus:ring-red-100' : ''}`}
           />
@@ -168,10 +181,10 @@ const ComponentsAuthLoginForm = () => {
             className="form-checkbox rounded text-amber-600"
             style={{ accentColor: '#d97706' }}
           />
-          <span className="text-sm text-gray-500">{t.remember}</span>
+          <span className="text-sm text-gray-500 dark:text-gray-400">{t.remember}</span>
         </label>
         <Link href="#"
-          className="no-load text-sm text-gray-500 hover:text-amber-700 border-b border-transparent hover:border-amber-500 transition">
+          className="no-load text-sm text-gray-500 dark:text-gray-400 hover:text-amber-700 dark:hover:text-amber-400 border-b border-transparent hover:border-amber-500 transition">
           {t.forgot}
         </Link>
       </div>

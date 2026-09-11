@@ -75,7 +75,16 @@ const MessageQuoteForm = ({ close, token, t, order }) => {
         CuerpoMail:    formatEmailBody(data.message, "html"),
       });
       close();
-      swalSuccess(rs.data?.mensaje ?? t.message_sent);
+      // La cotización se registró; si el correo no salió, avisar en vez del "éxito".
+      if (rs.data?.correoEnviado === false) {
+        swalError(
+          t.mail_not_sent_title   ?? 'No se pudo enviar el correo',
+          t.mail_not_sent_message ?? 'El mensaje no pudo ser enviado. Comunícate con soporte para que tu cuenta sea revisada.',
+          t.close ?? 'Cerrar',
+        );
+      } else {
+        swalSuccess(rs.data?.mensaje ?? t.message_sent);
+      }
     } catch (error) {
       const status = error?.response?.status;
       const body   = error?.response?.data;

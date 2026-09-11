@@ -5,6 +5,10 @@ const ICON_X        = `<svg width="28" height="28" viewBox="0 0 24 24" fill="non
 const ICON_QUESTION = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const ICON_INFO     = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#fff" stroke-width="2.5"/><path d="M12 8h.01M12 12v4" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg>`;
 
+// Los colores inline son para modo claro. En oscuro los pisa el CSS
+// (.dark .dax-swal ... en styles/sweetalert.css) via la clase `dax-swal`.
+const DAX = { customClass: { popup: 'dax-swal' } };
+
 export const swalSuccess = (title, msg = '') => Swal.fire({
   html: `<div style="display:flex;align-items:center;gap:8px;padding:0">
     ${ICON_CHECK}
@@ -18,6 +22,7 @@ export const swalSuccess = (title, msg = '') => Swal.fire({
 });
 
 export const swalError = (title, msg = '', confirmText = 'Cerrar') => Swal.fire({
+  ...DAX,
   html: `<div style="padding:12px 0 6px">
     <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#fca5a5,#ef4444);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 8px 24px rgba(239,68,68,0.3)">${ICON_X}</div>
     <h2 style="color:#1e293b;font-size:17px;font-weight:700;margin:0 0 10px;line-height:1.3">${title}</h2>
@@ -27,6 +32,7 @@ export const swalError = (title, msg = '', confirmText = 'Cerrar') => Swal.fire(
 });
 
 export const swalConfirm = (title, msg = '', { confirmText = 'Sí', cancelText = 'Cancelar', confirmColor = '#4f46e5' } = {}) => Swal.fire({
+  ...DAX,
   html: `<div style="padding:12px 0 6px">
     <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#a5b4fc,#4f46e5);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 8px 24px rgba(79,70,229,0.3)">${ICON_QUESTION}</div>
     <h2 style="color:#1e293b;font-size:17px;font-weight:700;margin:0 0 ${msg ? '10px' : '0'};line-height:1.3">${title}</h2>
@@ -39,6 +45,7 @@ export const swalConfirm = (title, msg = '', { confirmText = 'Sí', cancelText =
 // A diferencia de swalSuccess (toast, se autocierra), esta es una alerta centrada
 // con botón de confirmar — para avisos importantes que el usuario debe leer y cerrar.
 export const swalSuccessModal = (title, msg = '', confirmText = 'Cerrar') => Swal.fire({
+  ...DAX,
   html: `<div style="padding:12px 0 6px">
     <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#86efac,#16a34a);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 8px 24px rgba(22,163,74,0.3)">${ICON_CHECK}</div>
     <h2 style="color:#1e293b;font-size:17px;font-weight:700;margin:0 0 ${msg ? '10px' : '0'};line-height:1.3">${title}</h2>
@@ -47,7 +54,17 @@ export const swalSuccessModal = (title, msg = '', confirmText = 'Cerrar') => Swa
   showConfirmButton: true, confirmButtonText: confirmText, confirmButtonColor: '#16a34a',
 });
 
+// Los 8 endpoints de envío de correo del CRM devuelven { correoEnviado, correoError }.
+// La operación principal igual se completó — esto solo avisa que el mail no salió.
+// Alerta centrada con botón "Cerrar" (mismo estilo que swalError).
+export const swalMailNotSent = (t = {}) => swalError(
+  t.mail_not_sent_title   ?? 'No se pudo enviar el correo',
+  t.mail_not_sent_message ?? 'El mensaje no pudo ser enviado. Comunícate con soporte para que revisen tu cuenta.',
+  t.close ?? 'Cerrar',
+);
+
 export const swalInfo = (title, msg = '', confirmText = 'Entendido') => Swal.fire({
+  ...DAX,
   html: `<div style="padding:12px 0 6px">
     <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#fde68a,#f59e0b);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 8px 24px rgba(245,158,11,0.3)">${ICON_INFO}</div>
     <h2 style="color:#1e293b;font-size:17px;font-weight:700;margin:0 0 10px;line-height:1.3">${title}</h2>

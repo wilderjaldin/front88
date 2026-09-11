@@ -5,7 +5,7 @@ import { useTranslation } from "@/app/locales";
 
 import { useRouter } from 'next/navigation';
 import Modal from '@/components/modal';
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import axios from 'axios'
 import Swal from 'sweetalert2'
 import { useSelector } from 'react-redux';

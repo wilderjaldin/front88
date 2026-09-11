@@ -4,6 +4,7 @@ import { useForm, Controller } from "react-hook-form";
 import Select from "react-select";
 import axiosClient from "@/app/lib/axiosClient";
 import Swal from "sweetalert2";
+import { useTranslation } from "@/app/locales";
 
 const URL_BASE = '/categorizaciones';
 
@@ -12,13 +13,14 @@ const filterOption = (option, inputValue) => {
   return option.label.toLowerCase().includes(inputValue.toLowerCase());
 };
 
-const noOptionsMessage = ({ inputValue }) =>
-  !inputValue || inputValue.length < 2
-    ? 'Ingrese 2 caracteres para buscar'
-    : 'Sin resultados';
-
 export default function CategorizationForm({ item, controles, onCancel, onSaved }) {
   const isEdit = Boolean(item);
+  const t = useTranslation();
+
+  const noOptionsMessage = ({ inputValue }) =>
+    !inputValue || inputValue.length < 2
+      ? t.type_2_chars_search
+      : t.no_results;
 
   const {
     control,
@@ -53,11 +55,11 @@ export default function CategorizationForm({ item, controles, onCancel, onSaved 
       onSaved?.();
     } catch (e) {
       Swal.fire({
-        title: 'Error',
-        text: e?.response?.data?.message ?? e?.response?.data?.mensaje ?? 'No se pudo guardar el registro.',
+        title: t.error,
+        text: e?.response?.data?.message ?? e?.response?.data?.mensaje ?? t.could_not_save_record,
         icon: 'error',
         confirmButtonColor: '#dc2626',
-        confirmButtonText: 'Cerrar',
+        confirmButtonText: t.close,
       });
     }
   };
@@ -76,11 +78,11 @@ export default function CategorizationForm({ item, controles, onCancel, onSaved 
 
       {/* Marca */}
       <div>
-        <label className={labelCls}>Marca <span className="text-red-500">*</span></label>
+        <label className={labelCls}>{t.brand} <span className="text-red-500">*</span></label>
         <Controller
           name="codMarca"
           control={control}
-          rules={{ required: "Campo requerido" }}
+          rules={{ required: t.required_field }}
           render={({ field }) => (
             <Select
               options={opciones}
@@ -88,7 +90,7 @@ export default function CategorizationForm({ item, controles, onCancel, onSaved 
               onChange={opt => field.onChange(opt?.value ?? null)}
               onBlur={field.onBlur}
               isClearable
-              placeholder="Buscar marca..."
+              placeholder={t.search_brand_ph}
               menuPosition="fixed"
               filterOption={filterOption}
               noOptionsMessage={noOptionsMessage}
@@ -101,11 +103,11 @@ export default function CategorizationForm({ item, controles, onCancel, onSaved 
 
       {/* Aplicación */}
       <div>
-        <label className={labelCls}>Aplicación <span className="text-red-500">*</span></label>
+        <label className={labelCls}>{t.application} <span className="text-red-500">*</span></label>
         <Controller
           name="codAplicacion"
           control={control}
-          rules={{ required: "Campo requerido" }}
+          rules={{ required: t.required_field }}
           render={({ field }) => (
             <Select
               options={opciones}
@@ -113,7 +115,7 @@ export default function CategorizationForm({ item, controles, onCancel, onSaved 
               onChange={opt => field.onChange(opt?.value ?? null)}
               onBlur={field.onBlur}
               isClearable
-              placeholder="Buscar aplicación..."
+              placeholder={t.search_application_ph}
               menuPosition="fixed"
               filterOption={filterOption}
               noOptionsMessage={noOptionsMessage}
@@ -126,7 +128,7 @@ export default function CategorizationForm({ item, controles, onCancel, onSaved 
 
       {/* Categoría */}
       <div>
-        <label className={labelCls}>Categoría</label>
+        <label className={labelCls}>{t.category}</label>
         <Controller
           name="codCategoria"
           control={control}
@@ -137,7 +139,7 @@ export default function CategorizationForm({ item, controles, onCancel, onSaved 
               onChange={opt => field.onChange(opt?.value ?? null)}
               onBlur={field.onBlur}
               isClearable
-              placeholder="Seleccionar categoría..."
+              placeholder={t.select_category_ph}
               menuPosition="fixed"
               classNamePrefix="react-select"
             />
@@ -150,7 +152,7 @@ export default function CategorizationForm({ item, controles, onCancel, onSaved 
         <label className="flex items-center gap-3 cursor-pointer select-none">
           <input type="checkbox" {...register("habilitadoSeo")} className="form-checkbox w-4 h-4" />
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Habilitado para SEO
+            {t.enabled_for_seo}
           </span>
         </label>
       </div>
@@ -158,7 +160,7 @@ export default function CategorizationForm({ item, controles, onCancel, onSaved 
       {/* Botones */}
       <div className="pt-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-3">
         <button type="button" onClick={onCancel} className="btn btn-outline-danger">
-          Cancelar
+          {t.btn_cancel}
         </button>
         <button
           type="submit"
@@ -168,9 +170,9 @@ export default function CategorizationForm({ item, controles, onCancel, onSaved 
           {isSubmitting
             ? <span className="flex items-center gap-2">
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                Guardando...
+                {t.saving}
               </span>
-            : isEdit ? 'Actualizar' : 'Guardar'
+            : isEdit ? t.update : t.save
           }
         </button>
       </div>

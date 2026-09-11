@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pagination } from '@mantine/core';
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import SearchFilter from '@/components/SearchFilter';
 import IconArrowDown from '@/components/icon/icon-arrow-down';
 import IconSave from '@/components/icon/icon-save';

@@ -129,6 +129,7 @@ const EyeIcon = ({ open }) => open ? (
 
 const PwdInput = ({ placeholder, maxLen, registration, error, show: extShow, onToggle, hideToggle }) => {
   const [intShow, setIntShow] = useState(false);
+  const [focused, setFocused] = useState(false);
   const show   = extShow    !== undefined ? extShow    : intShow;
   const toggle = onToggle   !== undefined ? onToggle   : () => setIntShow(v => !v);
   return (
@@ -138,8 +139,10 @@ const PwdInput = ({ placeholder, maxLen, registration, error, show: extShow, onT
           type={show ? 'text' : 'password'}
           maxLength={maxLen}
           {...registration}
+          onFocus={() => setFocused(true)}
+          onBlur={(e) => { setFocused(false); registration?.onBlur?.(e); }}
           className="form-input w-full pr-10"
-          placeholder={placeholder ?? '••••••••'}
+          placeholder={focused ? '' : (placeholder ?? '••••••••')}
         />
         {!hideToggle && (
           <button
@@ -333,7 +336,9 @@ export default function UserSettings() {
     if (!profile) return;
     const smtpEmail = profile.corElectronico ?? '';
     resetSmtp({ smtpUser: smtpEmail.split('@')[0] ?? '', email: smtpEmail, pwdMail: '' });
-    setVerifiedSmtp(profile.smtpVerificado && smtpEmail ? { email: smtpEmail, password: '' } : null);
+    // Guardar exige probar la conexión en la sesión actual — no alcanza con que
+    // el backend la tenga marcada como verificada.
+    setVerifiedSmtp(null);
   }, [profile]);
 
   const translateSmtpError = (rawMessage = '') => {
@@ -727,11 +732,17 @@ export default function UserSettings() {
               <h2 className="text-sm font-bold text-gray-700 dark:text-gray-200">Correo y contraseña SMTP</h2>
             </div>
 
-            {!isSmtpVerified && (
+            {(profile?.smtpVerificado || isSmtpVerified) ? (
+              <div className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs
+                              bg-green-50 text-green-700 border border-green-200
+                              dark:bg-green-900/20 dark:text-green-400 dark:border-green-800/40">
+                ✓ La conexión SMTP de esta cuenta está verificada y lista para el envío de correos.
+              </div>
+            ) : (
               <div className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs
                               bg-amber-50 text-amber-700 border border-amber-200
                               dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800/40">
-                ⚠️ La conexión SMTP no ha sido verificada. Usa "Probar Conexión" antes de guardar.
+                ⚠️ La conexión SMTP de esta cuenta no ha sido verificada.
               </div>
             )}
 
@@ -785,9 +796,6 @@ export default function UserSettings() {
                 >
                   {testingSmtp ? 'Probando…' : 'Probar Conexión'}
                 </button>
-                {isSmtpVerified && (
-                  <span className="text-xs text-green-600 font-medium">✓ Conexión verificada</span>
-                )}
               </div>
               <SaveBtn loading={savingSmtp} label={t.btn_save} disabled={!isSmtpVerified} />
             </div>

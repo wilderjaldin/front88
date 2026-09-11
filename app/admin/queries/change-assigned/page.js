@@ -5,7 +5,7 @@ import { useTranslation } from "@/app/locales";
 import axiosClient from '@/app/lib/axiosClient';
 import { swalConfirm, swalError } from '@/app/lib/swal';
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import IconArrowsExchange from '@/components/icon/icon-arrows-exchange';
 
 const URL_USUARIOS = 'usuarios/seguimiento';

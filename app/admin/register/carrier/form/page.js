@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSelector } from "react-redux";
 import { selectToken } from "@/store/authSlice";
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
+import { useTranslation } from "@/app/locales";
 import axios from "axios";
 import Swal from "sweetalert2";
 import IconSave from '@/components/icon/icon-save';
@@ -29,8 +30,9 @@ export default function CarrierFormPage() {
   const token        = useSelector(selectToken);
   const id           = searchParams.get("id");
   const isEdit       = Boolean(id);
+  const t            = useTranslation();
 
-  useDynamicTitle(isEdit ? "Editar Transportista" : "Nuevo Transportista");
+  useDynamicTitle(isEdit ? t.edit_carrier : t.new_carrier);
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -77,18 +79,18 @@ export default function CarrierFormPage() {
       const rs = await axios.post(URL_SAVE, payload);
       if (rs.data.estado === 'Ok') {
         Swal.fire({
-          title: 'Guardado',
-          text: isEdit ? 'Transportista actualizado correctamente.' : 'Transportista registrado correctamente.',
+          title: t.saved,
+          text: isEdit ? t.carrier_updated : t.carrier_registered,
           icon: 'success',
           confirmButtonColor: '#15803d',
-          confirmButtonText: 'Cerrar',
+          confirmButtonText: t.close,
         }).then(() => router.push('/admin/register/carrier'));
       } else {
-        Swal.fire({ title: 'Error', text: rs.data.mensaje ?? 'No se pudo guardar.', icon: 'error', confirmButtonColor: '#dc2626', confirmButtonText: 'Cerrar' });
+        Swal.fire({ title: t.error, text: rs.data.mensaje ?? t.could_not_save, icon: 'error', confirmButtonColor: '#dc2626', confirmButtonText: t.close });
         setIsLoading(false);
       }
     } catch (e) {
-      Swal.fire({ title: 'Error de conexión', text: 'No se pudo conectar con el servidor.', icon: 'error', confirmButtonColor: '#dc2626', confirmButtonText: 'Cerrar' });
+      Swal.fire({ title: t.connection_error, text: t.connection_error_detail, icon: 'error', confirmButtonColor: '#dc2626', confirmButtonText: t.close });
       setIsLoading(false);
     }
   };
@@ -102,14 +104,14 @@ export default function CarrierFormPage() {
     <>
       {/* Breadcrumb */}
       <ul className="flex items-center space-x-2 rtl:space-x-reverse text-sm mb-6">
-        <li className="text-gray-400">Registro</li>
+        <li className="text-gray-400">{t.registry}</li>
         <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
           <Link href="/admin/register/carrier" className="text-primary hover:text-primary/80 hover:underline">
-            Transportistas
+            {t.carriers}
           </Link>
         </li>
         <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2 text-gray-600 dark:text-gray-400 font-medium">
-          {isEdit ? 'Editar' : 'Nuevo'}
+          {isEdit ? t.edit : t.new}
         </li>
       </ul>
 
@@ -120,65 +122,65 @@ export default function CarrierFormPage() {
             {/* Columna 1 */}
             <div className="space-y-4">
               <div>
-                <label className={labelCls}>Transportista <span className="text-red-500">*</span></label>
+                <label className={labelCls}>{t.carrier} <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   autoComplete="off"
-                  placeholder="Nombre del transportista"
-                  {...register("NomTransportista", { required: "Campo requerido" })}
+                  placeholder={t.carrier_name_ph}
+                  {...register("NomTransportista", { required: t.required_field })}
                   className={inputCls(errors.NomTransportista)}
                 />
                 {errors.NomTransportista && <span className={errorCls}>{errors.NomTransportista.message}</span>}
               </div>
 
               <div>
-                <label className={labelCls}>País <span className="text-red-500">*</span></label>
+                <label className={labelCls}>{t.country} <span className="text-red-500">*</span></label>
                 <select
-                  {...register("Pais", { required: "Campo requerido" })}
+                  {...register("Pais", { required: t.required_field })}
                   className={selectCls(errors.Pais)}
                 >
-                  <option value="">Seleccionar...</option>
+                  <option value="">{t.select_option}</option>
                   {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
                 {errors.Pais && <span className={errorCls}>{errors.Pais.message}</span>}
               </div>
 
               <div>
-                <label className={labelCls}>Nombre Contacto</label>
+                <label className={labelCls}>{t.contact_name}</label>
                 <input
                   type="text"
                   autoComplete="off"
-                  placeholder="Nombre del contacto"
+                  placeholder={t.contact_name_ph}
                   {...register("NomContacto")}
                   className={inputCls(false)}
                 />
               </div>
 
               <div>
-                <label className={labelCls}>Dirección</label>
+                <label className={labelCls}>{t.address}</label>
                 <input
                   type="text"
                   autoComplete="off"
-                  placeholder="Dirección"
+                  placeholder={t.address}
                   {...register("Direccion")}
                   className={inputCls(false)}
                 />
               </div>
 
               <div>
-                <label className={labelCls}>Moneda</label>
+                <label className={labelCls}>{t.currency}</label>
                 <select {...register("Moneda")} className={selectCls(false)}>
-                  <option value="">Seleccionar...</option>
+                  <option value="">{t.select_option}</option>
                   {CURRENCIES.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className={labelCls}>Destino Entrega</label>
+                <label className={labelCls}>{t.delivery_destination}</label>
                 <input
                   type="text"
                   autoComplete="off"
-                  placeholder="Ciudad / destino"
+                  placeholder={t.delivery_destination_ph}
                   {...register("DestinoEntrega")}
                   className={inputCls(false)}
                 />
@@ -188,15 +190,15 @@ export default function CarrierFormPage() {
             {/* Columna 2 */}
             <div className="space-y-4">
               <div>
-                <label className={labelCls}>Tipo</label>
+                <label className={labelCls}>{t.type}</label>
                 <select {...register("TipoTransportista")} className={selectCls(false)}>
-                  <option value="">Seleccionar...</option>
+                  <option value="">{t.select_option}</option>
                   {TYPES.map(tp => <option key={tp} value={tp}>{tp}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className={labelCls}>Teléfono Oficina</label>
+                <label className={labelCls}>{t.office_phone}</label>
                 <input
                   type="text"
                   autoComplete="off"
@@ -207,7 +209,7 @@ export default function CarrierFormPage() {
               </div>
 
               <div>
-                <label className={labelCls}>Celular</label>
+                <label className={labelCls}>{t.cell_phone}</label>
                 <input
                   type="text"
                   autoComplete="off"
@@ -221,13 +223,13 @@ export default function CarrierFormPage() {
             {/* Columna 3 */}
             <div className="space-y-4">
               <div>
-                <label className={labelCls}>Email</label>
+                <label className={labelCls}>{t.email}</label>
                 <input
                   type="email"
                   autoComplete="off"
                   placeholder="correo@ejemplo.com"
                   {...register("Correo", {
-                    pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "Email inválido" },
+                    pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: t.invalid_email },
                   })}
                   className={inputCls(errors.Correo)}
                 />
@@ -235,14 +237,14 @@ export default function CarrierFormPage() {
               </div>
 
               <div>
-                <label className={labelCls}>Fee (%)</label>
+                <label className={labelCls}>{t.fee_pct}</label>
                 <input
                   type="number"
                   step="0.01"
                   min="0"
                   placeholder="0"
                   {...register("Comision", {
-                    min: { value: 0, message: "Debe ser mayor o igual a 0" },
+                    min: { value: 0, message: t.min_value_zero },
                   })}
                   className={inputCls(errors.Comision)}
                 />
@@ -257,7 +259,7 @@ export default function CarrierFormPage() {
                     className="form-checkbox w-4 h-4"
                   />
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Incluir IVA en Precio
+                    {t.include_vat_in_price}
                   </span>
                 </label>
 
@@ -268,7 +270,7 @@ export default function CarrierFormPage() {
                     className="form-checkbox w-4 h-4"
                   />
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Es Representación
+                    {t.is_representation}
                   </span>
                 </label>
               </div>
@@ -285,17 +287,17 @@ export default function CarrierFormPage() {
               {isLoading ? (
                 <>
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  Guardando...
+                  {t.saving}
                 </>
               ) : (
                 <>
                   <IconSave className="h-4 w-4" />
-                  {isEdit ? 'Actualizar' : 'Guardar'}
+                  {isEdit ? t.update : t.save}
                 </>
               )}
             </button>
             <Link href="/admin/register/carrier" className="btn btn-outline-dark">
-              Cancelar
+              {t.btn_cancel}
             </Link>
           </div>
         </form>

@@ -8,7 +8,7 @@ import { useDynamicTitle } from '@/app/hooks/useDynamicTitle';
 import axiosClient from '@/app/lib/axiosClient';
 import SelectCountry from '@/components/select-country';
 import SelectCity from '@/components/select-city';
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import Swal from 'sweetalert2';
 
 const URL_CIUDADES  = (codPais) => `/representantes/ciudades/${codPais}`;

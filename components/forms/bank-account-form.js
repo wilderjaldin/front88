@@ -3,7 +3,7 @@ import { useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 import { useForm, SubmitHandler } from "react-hook-form"
 import { useTranslation } from "@/app/locales";
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import SelectCurrency from '@/components/select-currency'
 import { useOptionsSelect } from '@/app/options'
 

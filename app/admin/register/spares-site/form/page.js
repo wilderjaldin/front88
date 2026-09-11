@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import Swal from 'sweetalert2';
 import axiosClient from '@/app/lib/axiosClient';
 import { useTranslation } from '@/app/locales';

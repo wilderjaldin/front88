@@ -17,7 +17,7 @@ export default function RepresentativeLayout({ children }) {
   const router      = useRouter();
   const { hasPermission } = usePermissions();
   const user             = useSelector(selectUser);
-  const isAdmin          = hasPermission(PERMISSIONS.LISTAR_REPRESENTANTES);
+  const isAdmin          = hasPermission(PERMISSIONS.MENU_REPRESENTANTES);
   const isRepresentante  = user?.rol === 'Representante';
 
   const TABS = [

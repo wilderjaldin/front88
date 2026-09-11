@@ -2,9 +2,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { selectUser } from '@/store/authSlice';
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import axiosClient from '@/app/lib/axiosClient';
-import { swalSuccess, swalError } from '@/app/lib/swal';
+import { swalSuccess, swalError, swalMailNotSent } from '@/app/lib/swal';
+import { useTranslation } from '@/app/locales';
 import ComponentContactForm from '@/components/forms/contact-form';
 
 const URL_CONTROLS   = 'repuestosporcotizar/controles';
@@ -342,6 +343,7 @@ const UsuarioStep = ({ stepData, onSubmit, onCancel, sending, options, selectedU
 
 // ── Componente principal ──────────────────────────────────────────────────────
 const DeleteForm = ({ selected_orders, action_cancel, onDeleted, users, setUsers, loadUsers, setLoadUsers, setOrdersAssigned }) => {
+  const t = useTranslation();
   const authUser = useSelector(selectUser);
   const deEmail  = authUser?.Email ?? authUser?.email ?? '';
 
@@ -399,6 +401,8 @@ const DeleteForm = ({ selected_orders, action_cancel, onDeleted, users, setUsers
       onDeleted?.(deletedIds);
       swalSuccess('Ítems eliminados correctamente');
       action_cancel();
+      // Los ítems se eliminaron igual; si el aviso al cliente no salió, avisar aparte.
+      if (rs.data?.correoEnviado === false) swalMailNotSent(t);
     } catch (err) {
       swalError('Error', err?.response?.data?.mensaje ?? 'No se pudo eliminar los ítems.');
     } finally {

@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import IconSave from '@/components/icon/icon-save';
 import axiosClient from '@/app/lib/axiosClient';
 import Swal from 'sweetalert2';

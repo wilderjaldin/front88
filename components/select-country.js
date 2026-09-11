@@ -1,6 +1,6 @@
 // components/select-country.js
 import React, { useEffect, useState } from 'react';
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import IconPlus from '@/components/icon/icon-plus';
 import Modal from '@/components/modal';
 import CountryForm from '@/components/forms/country-form';
@@ -77,6 +77,13 @@ const SelectCountry = ({
                 menuPosition="fixed"
                 classNamePrefix="select"
                 menuShouldScrollIntoView={false}
+                styles={{
+                  // Mismo borde que el <Select> "Compartir con" de la cotización:
+                  // visible e idéntico en claro y oscuro, sin borde derecho para
+                  // pegarse al botón [+]. !important para ganarle al tema oscuro
+                  // global (.dark [class*="__control"]).
+                  control: b => ({ ...b, borderColor: '#94a3b8 !important', borderRightWidth: '0 !important', backgroundColor: 'transparent !important', boxShadow: 'none !important', borderRadius: '0.5rem 0 0 0.5rem' }),
+                }}
                 value={field.value}
                 onChange={(val) => {
                   field.onChange(val);
@@ -90,8 +97,8 @@ const SelectCountry = ({
               type="button"
               onClick={handleAdd}
               title={t.add_country}
-              className="flex items-center justify-center px-3 border border-l-0 border-gray-300
-                         dark:border-gray-600 rounded-r-lg bg-gray-100 dark:bg-gray-800
+              className="flex items-center justify-center px-3 border border-l-0 border-[#94a3b8]
+                         rounded-r-lg bg-gray-100 dark:bg-gray-800
                          text-gray-500 dark:text-gray-400 hover:bg-primary hover:border-primary
                          hover:text-white dark:hover:bg-primary dark:hover:border-primary
                          dark:hover:text-white transition-all duration-150 shrink-0 group"

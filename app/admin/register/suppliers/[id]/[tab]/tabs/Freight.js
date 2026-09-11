@@ -4,7 +4,7 @@ import { useSupplier } from '../../SupplierContext';
 import { useTranslation } from '@/app/locales';
 import axiosClient from '@/app/lib/axiosClient';
 import Swal from 'sweetalert2';
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import IconPlus from '@/components/icon/icon-plus';
 import IconTrashLines from '@/components/icon/icon-trash-lines';
 import IconCaretDown from '@/components/icon/icon-caret-down';

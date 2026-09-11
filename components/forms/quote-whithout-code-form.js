@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useForm } from "react-hook-form"
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import IconTrashLines from '../icon/icon-trash-lines';
 import IconPlusCircle from '../icon/icon-plus-circle';
 import IconInfoCircle from '../icon/icon-info-circle';

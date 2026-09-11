@@ -244,7 +244,7 @@ export default function Quotes() {
 
       {/* ── CONTENIDO ───────────────────────────────────────────────────── */}
       {option === 'quotes' && (
-        <QuoteForm key={order_id} getOrder={getOrder} token={token} _customer_={customer} _tracking_={tracking} t={t} _order_={order} _items_={items} />
+        <QuoteForm key={order_id} getOrder={getOrder} onNewQuote={() => { setOrder([]); setItems([]); }} token={token} _customer_={customer} _tracking_={tracking} t={t} _order_={order} _items_={items} />
       )}
       {option === 'buy' && (
         <StepsToBuy token={token} _customer_={customer} t={t} _order_={order} _items_={items} />

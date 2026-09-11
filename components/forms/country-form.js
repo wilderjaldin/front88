@@ -1,7 +1,7 @@
 'use client';
 // components/forms/country-form.js
 import React, { useEffect, useState } from 'react';
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import Swal from 'sweetalert2';
 import { useTranslation } from '@/app/locales';
 import axiosClient from '@/app/lib/axiosClient';

@@ -53,7 +53,7 @@ const Form = ({ t, brands = [], action_cancel, handleSave }) => {
               required={t.required_select}
               instanceId="application_part"
               brands={brands}
-              placeholder="Buscar marca..."
+              placeholder={t.search_brand_ph}
             />
           </div>
         </div>
@@ -83,7 +83,7 @@ const Form = ({ t, brands = [], action_cancel, handleSave }) => {
               required={t.required_select}
               instanceId="application_reference"
               brands={brands}
-              placeholder="Buscar marca..."
+              placeholder={t.search_brand_ph}
             />
           </div>
         </div>

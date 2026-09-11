@@ -3,7 +3,7 @@ import { useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 import { Controller, useForm } from "react-hook-form"
 import { useTranslation } from "@/app/locales";
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import SelectTrading from '@/components/select-trading';
 
 import axios from 'axios'

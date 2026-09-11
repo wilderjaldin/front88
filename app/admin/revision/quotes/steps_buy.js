@@ -158,18 +158,18 @@ const StepsToBuy = ({ token, t, _customer_ }) => {
                       ? 'bg-green-500 text-white shadow-md shadow-green-200/60'
                       : isActive
                         ? 'bg-yellow-400 text-gray-900 shadow-md shadow-yellow-200/60'
-                        : 'bg-gray-100 text-gray-400 border border-gray-200'}`}
+                        : 'bg-gray-100 text-gray-400 border border-gray-200 dark:bg-gray-800 dark:text-gray-500 dark:border-gray-700'}`}
                 >
                   {isCompleted ? ICON_CHECK : n}
                 </button>
                 <span className={`mt-2 text-xs text-center leading-tight px-1 transition-colors
-                  ${isActive ? 'text-gray-800 font-semibold' : isCompleted ? 'text-green-600 font-medium' : 'text-gray-400'}`}>
+                  ${isActive ? 'text-gray-800 dark:text-gray-100 font-semibold' : isCompleted ? 'text-green-600 dark:text-green-400 font-medium' : 'text-gray-400 dark:text-gray-500'}`}>
                   {s.label}
                 </span>
               </div>
               {!isLast && (
                 <div className={`flex-1 h-px mt-5 transition-all duration-300
-                  ${isCompleted ? 'bg-green-300' : 'bg-gray-200'}`}
+                  ${isCompleted ? 'bg-green-300 dark:bg-green-700' : 'bg-gray-200 dark:bg-gray-700'}`}
                 />
               )}
             </Fragment>
@@ -213,12 +213,12 @@ const StepsToBuy = ({ token, t, _customer_ }) => {
 
       {/* ── NAVEGACIÓN INFERIOR ─────────────────────────────────────── */}
       <div className="mt-6 flex justify-center">
-      <div className="w-full max-w-xl bg-white border border-gray-100 rounded-2xl px-5 py-3.5 flex justify-between items-center shadow-sm">
+      <div className="w-full max-w-xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-2xl px-5 py-3.5 flex justify-between items-center shadow-sm">
         {activeTab === 1 ? (
           <button
             type="button"
             onClick={backToQuote}
-            className="inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-gray-300 text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 hover:border-gray-400 transition-all duration-150"
+            className="inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-600 dark:text-gray-300 bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-gray-400 transition-all duration-150"
           >
             <IconArrowBackward className="h-4 w-4" />
             {t.back}
@@ -227,7 +227,7 @@ const StepsToBuy = ({ token, t, _customer_ }) => {
           <button
             type="button"
             onClick={prev}
-            className="inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-gray-300 text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 hover:border-gray-400 transition-all duration-150"
+            className="inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-600 dark:text-gray-300 bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-gray-400 transition-all duration-150"
           >
             <IconArrowBackward className="h-4 w-4" />
             {t.prev}
@@ -236,7 +236,7 @@ const StepsToBuy = ({ token, t, _customer_ }) => {
           <div className="w-24" />
         )}
 
-        <span className="text-xs text-gray-400 font-medium">
+        <span className="text-xs text-gray-400 dark:text-gray-500 font-medium">
           {t.step} {activeTab} {t.of} 4
         </span>
 

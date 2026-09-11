@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 
 import { useForm, Controller } from "react-hook-form"
 import axiosClient from '@/app/lib/axiosClient';
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import IconSave from '@/components/icon/icon-save';
 import IconPlus from '@/components/icon/icon-plus';
 import IconX from '@/components/icon/icon-x';

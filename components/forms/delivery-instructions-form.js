@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import axios from 'axios'
 import axiosClient from '@/app/lib/axiosClient';
 import Swal from 'sweetalert2'

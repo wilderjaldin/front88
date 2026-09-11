@@ -6,7 +6,7 @@ import axiosClient from '@/app/lib/axiosClient';
 import { useSelector } from 'react-redux';
 import { selectUser } from '@/store/authSlice';
 import { useForm } from 'react-hook-form';
-import { swalSuccess, swalError } from '@/app/lib/swal';
+import { swalSuccess, swalError, swalMailNotSent } from '@/app/lib/swal';
 import ComponentContactForm from '@/components/forms/contact-form';
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false });
@@ -97,13 +97,14 @@ const MailToCustomerForm = ({ close, t, order, codCliente }) => {
     try {
       const editor   = quillRef.current?.getEditor?.();
       const bodyHtml = editor ? editor.root.innerHTML : rawTemplate.current || data.message;
-      await axiosClient.post(URL_SEND_EMAIL, {
+      const rs = await axiosClient.post(URL_SEND_EMAIL, {
         asuntoMail:  data.subject,
         destinoMail: para,
         cuerpoMail:  bodyHtml,
       });
       close();
-      swalSuccess(t.message_sent);
+      if (rs.data?.correoEnviado === false) swalMailNotSent(t);
+      else swalSuccess(t.message_sent);
     } catch (err) {
       const status = err?.response?.status;
       const body   = err?.response?.data;

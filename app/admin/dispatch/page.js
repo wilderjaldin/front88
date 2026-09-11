@@ -14,9 +14,9 @@ import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 import Modal from '@/components/modal';
 import { downloadInvoice, downloadPackingList } from '@/app/lib/embalajeReports';
 
-const URL_ATTACH_ITEMS = 'entregas/adjuntar-items';
+const URL_DETALLE_DESPACHO = (numEntrega) => `entregas/ver-detalle-despacho/${numEntrega}`;
 const URL_CONTROLS = 'entregas/controles';
-const URL_SAVE_DISPATCH = 'entregas/guardar-despacho';
+const URL_DISPATCH = 'entregas/despachar';
 const URL_CANCEL_PACKING = 'embalajes/anular-recepcion';
 const URL_CANCEL_DISPATCH = 'entregas/anular-despacho';
 const URL_LISTAR_DESPACHO = 'entregas/listar-despacho';
@@ -50,8 +50,8 @@ export default function Dispatch() {
 
   const [seleccionados, setSeleccionados] = useState([])
 
-  const [customer, setCustomer] = useState({})
   const [items, setItems] = useState([]);
+  const [despachoDetalle, setDespachoDetalle] = useState(null);
 
   const [show_modal, setShowModal] = useState(false);
   const [printOrder, setPrintOrder] = useState(null);
@@ -139,50 +139,38 @@ export default function Dispatch() {
   const handleTabChange = (index) => goToTab(TAB_KEYS[index]);
 
   const attachItems = async () => {
-    if (seleccionados.length === 0) return;
+    // ver-detalle-despacho recibe un solo numEntrega.
+    if (seleccionados.length !== 1) return;
+    const row = seleccionados[0];
     try {
-      let customers_codes = [];
-      let CadNroEmbalaje = [];
-      seleccionados.map(o => {
-        CadNroEmbalaje.push(o.nroEmbalaje);
-        customers_codes.push(o.codCliente);
-      });
-      //verifica que sea el mismo cliente
-      if (customers_codes.length > 1) {
-        let s = new Set(customers_codes);
-        let a1 = [...s]
-        if (a1.length > 1) {
-          Swal.fire({
-            title: t.error,
-            text: t.different_customers_delivery_error,
-            icon: 'error',
-            confirmButtonColor: '#dc2626',
-            confirmButtonText: t.close
-          });
-          return;
-        }
-
-      }
-
-      const rs = await axiosClient.post(URL_ATTACH_ITEMS, {
-        cadNumEmbalaje: CadNroEmbalaje.join(","),
-      });
-      const list = Array.isArray(rs.data) ? rs.data : [];
+      const rs = await axiosClient.get(URL_DETALLE_DESPACHO(row.numEntrega));
+      const data = rs.data ?? {};
+      const list = Array.isArray(data.items) ? data.items : [];
       setItems(list.map(i => ({
-        NroEmbalaje:  i.numEmbalaje,
-        NroOrden:     i.nroCotizacion,
-        CodItem:      i.codItem,
-        CodRepuesto:  i.codRepuesto,
-        NomCliente:   i.cliente,
-        NroParte:     i.nroParte,
-        Descripcion:  i.desRepuesto,
-        Cantidad:     i.cantidad,
-        Origen:       i.origen,
-        HCode:        i.hCode,
-        Material:     i.material,
-        Presentacion: i.presentacion,
+        NroOrden:       i.nroCotizacion,
+        NomCliente:     i.cliente,
+        NroParte:       i.nroParte,
+        NroParteCompra: i.nroParteCompra,
+        Descripcion:    i.desRepuesto,
+        Cantidad:       i.cantidad,
+        Origen:         i.origen,
       })));
-      setCustomer({ CodCliente: customers_codes[0] });
+      // Datos de cabecera ya registrados para este despacho — precargan el
+      // formulario en vez de pedírselos de nuevo al usuario. numEntrega/numEmbalaje
+      // vienen de la fila seleccionada (la respuesta de este endpoint no los trae),
+      // se guardan acá para el POST de guardado y el modal de impresión posterior.
+      setDespachoDetalle({
+        numEntrega:    row.numEntrega,
+        numEmbalaje:   row.nroEmbalaje,
+        recibidoPor:   data.recibidoPor,
+        entregadoPor:  data.entregadoPor,
+        codVendedor:   data.codVendedor,
+        lugEntrega:    data.lugEntrega,
+        fecEntrega:    data.fecEntrega,
+        codMoneda:     data.codMoneda,
+        tipTransporte: data.tipTransporte,
+        condPago:      data.condPago,
+      });
       // Deja la lista de pendientes atrás: sin page/sort/dir/term heredados.
       router.push(`?option=${TAB_KEYS[1]}`, { scroll: false });
     } catch (error) {
@@ -269,16 +257,22 @@ export default function Dispatch() {
     }
   };
 
-  //Guardar Despacho
+  //Guardar Despacho — la respuesta ahora es la lista de pendientes actualizada
+  // (no trae el numEntrega recién despachado), así que el modal de impresión usa
+  // el numEntrega/numEmbalaje que ya se guardó en despachoDetalle al cargar el detalle.
   const saveDelivery = async (data_send) => {
     try {
-      const rs = await axiosClient.post(URL_SAVE_DISPATCH, data_send);
+      await axiosClient.post(URL_DISPATCH, data_send);
       swalSuccess(t.delivery_recorded_success);
+      const numEntregaDespachado = despachoDetalle?.numEntrega;
+      const numEmbalajeDespachado = despachoDetalle?.numEmbalaje;
       setSeleccionados([])
       setItems([]);
+      setDespachoDetalle(null);
+      goToTab(TAB_KEYS[0]);
       getLists();
-      if (rs.data?.numEntrega)
-        print(rs.data.numEntrega, data_send[0]?.nroEmbalaje);
+      if (numEntregaDespachado && numEmbalajeDespachado)
+        print(numEntregaDespachado, numEmbalajeDespachado);
     } catch (error) {
       const apiMsg = error?.response?.data?.mensaje;
       swalError(t.error, apiMsg ?? t.error, t.close);
@@ -351,10 +345,10 @@ export default function Dispatch() {
         {activeTab === 1 && (
           <ItemsToDelivery
             t={t}
-            customer={customer}
             sellers={sellers}
             deliverers={deliverers}
             items={items}
+            detalle={despachoDetalle}
             saveDelivery={saveDelivery}
           />
         )}

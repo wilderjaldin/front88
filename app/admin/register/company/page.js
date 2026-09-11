@@ -15,7 +15,7 @@ export default function CompanyPage() {
   const user   = useSelector(selectUser);
   const router = useRouter();
 
-  const isAdmin = hasPermission(PERMISSIONS.LISTAR_REPRESENTANTES);
+  const isAdmin = hasPermission(PERMISSIONS.MENU_REPRESENTANTES);
   const isRep   = user?.rol === ROL_REPRESENTANTE;
 
   const [ready, setReady] = useState(false);

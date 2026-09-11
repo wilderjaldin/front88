@@ -176,10 +176,10 @@ const AttachQuoteForm = ({ close, t, nro, urls = {} }) => {
           onDrop={handleDrop}
           className={`relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed cursor-pointer transition-all duration-200 overflow-hidden select-none
             ${isDragging
-              ? 'border-blue-400 bg-blue-50'
+              ? 'border-blue-400 bg-blue-50 dark:border-blue-500 dark:bg-blue-500/10'
               : selectedFile
-                ? 'border-slate-300 bg-slate-50'
-                : 'border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50'
+                ? 'border-slate-300 bg-slate-50 dark:border-gray-600 dark:bg-gray-800/60'
+                : 'border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50 dark:border-gray-600 dark:bg-gray-900 dark:hover:border-gray-500 dark:hover:bg-gray-800/60'
             }
             ${previewUrl ? 'h-52' : 'h-36'}
           `}
@@ -193,21 +193,21 @@ const AttachQuoteForm = ({ close, t, nro, urls = {} }) => {
             </>
           ) : selectedFile ? (
             <div className="flex flex-col items-center gap-2 px-6 py-4">
-              <IconFile className="w-10 h-10 text-slate-400" />
-              <p className="text-sm font-semibold text-slate-700 text-center truncate max-w-xs">{filename}</p>
-              <span className="text-xs bg-slate-200 text-slate-600 rounded px-2 py-0.5 font-mono uppercase">
+              <IconFile className="w-10 h-10 text-slate-400 dark:text-gray-500" />
+              <p className="text-sm font-semibold text-slate-700 dark:text-gray-200 text-center truncate max-w-xs">{filename}</p>
+              <span className="text-xs bg-slate-200 text-slate-600 dark:bg-gray-700 dark:text-gray-300 rounded px-2 py-0.5 font-mono uppercase">
                 {filename.split('.').pop()}
               </span>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-1.5 px-6 text-center">
-              <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-8 h-8 text-slate-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
               </svg>
-              <p className="text-sm text-slate-500">
-                Arrastra o <span className="text-blue-500 font-semibold">selecciona un archivo</span>
+              <p className="text-sm text-slate-500 dark:text-gray-400">
+                Arrastra o <span className="text-blue-500 dark:text-blue-400 font-semibold">selecciona un archivo</span>
               </p>
-              <p className="text-xs text-slate-400">También puedes pegar con Ctrl+V</p>
+              <p className="text-xs text-slate-400 dark:text-gray-500">También puedes pegar con Ctrl+V</p>
             </div>
           )}
 
@@ -242,8 +242,8 @@ const AttachQuoteForm = ({ close, t, nro, urls = {} }) => {
                 activeExt === ext
                   ? 'bg-primary text-white font-semibold'
                   : activeExt
-                    ? 'bg-gray-100 text-gray-300'
-                    : 'bg-gray-100 text-gray-500'
+                    ? 'bg-gray-100 text-gray-300 dark:bg-gray-800 dark:text-gray-600'
+                    : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
               }`}>{ext}</span>
             ));
           })()}
@@ -261,7 +261,7 @@ const AttachQuoteForm = ({ close, t, nro, urls = {} }) => {
         </div>
 
         {/* Acciones */}
-        <div className="flex items-center justify-end gap-2 mb-4 mt-4 pb-4 border-b border-gray-100">
+        <div className="flex items-center justify-end gap-2 mb-4 mt-4 pb-4 border-b border-gray-100 dark:border-gray-700">
           <button onClick={() => close()} type="button"
             className="inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-600 dark:text-gray-300 bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-gray-400 transition">
             {t.btn_cancel}
@@ -284,37 +284,37 @@ const AttachQuoteForm = ({ close, t, nro, urls = {} }) => {
 
       {/* Tabla de archivos adjuntos */}
       {files.length > 0 && (
-        <div className="rounded-lg border border-gray-200 overflow-hidden">
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="max-h-60 overflow-y-auto">
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10">
                 <tr>
-                  <th className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 bg-gray-50 px-2 py-2 text-left w-16"></th>
-                  <th className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 bg-gray-50 px-3 py-2 text-left">{t.file_name}</th>
-                  <th className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 bg-gray-50 px-3 py-2 text-left">{t.description}</th>
-                  <th className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 bg-gray-50 px-3 py-2 text-left whitespace-nowrap">{t.date}</th>
+                  <th className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-2 py-2 text-left w-16"></th>
+                  <th className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left">{t.file_name}</th>
+                  <th className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left">{t.description}</th>
+                  <th className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap">{t.date}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-900">
                 {files.map((f, index) => (
-                  <tr key={index} className="hover:bg-gray-50 transition-colors">
+                  <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors">
                     <td className="px-2 py-1.5">
                       <div className="flex items-center gap-0.5">
                         <button onClick={() => deleteFile(f)} title={t.delete} type="button"
-                          className="p-1.5 rounded-lg hover:bg-red-50 transition">
+                          className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition">
                           <IconTrashLines className="w-4 h-4 text-red-500" />
                         </button>
                         <a
                           href={`${ARCHIVOS_URL}/${nro}/${f.codArchivo}`}
                           download={f.nomArchivo}
                           title="Descargar"
-                          className="p-1.5 rounded-lg hover:bg-blue-50 transition"
+                          className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition"
                         >
                           <IconDownload className="w-4 h-4 text-blue-500" />
                         </a>
                       </div>
                     </td>
-                    <td className="px-3 py-1.5 text-gray-700" title={f.nomArchivo}>{f.nomArchivo}</td>
+                    <td className="px-3 py-1.5 text-gray-700 dark:text-gray-300" title={f.nomArchivo}>{f.nomArchivo}</td>
                     <td className="px-3 py-1.5">
                       <div className="flex items-center">
                         <div className="relative flex-1">
@@ -327,7 +327,7 @@ const AttachQuoteForm = ({ close, t, nro, urls = {} }) => {
                           />
                           <button type="button"
                             onClick={() => setValue(`description.${f.codRegistro}`, '')}
-                            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition">
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition">
                             <IconBackSpace className="w-4 h-4" />
                           </button>
                         </div>
@@ -337,7 +337,7 @@ const AttachQuoteForm = ({ close, t, nro, urls = {} }) => {
                         </button>
                       </div>
                     </td>
-                    <td className="px-3 py-1.5 text-gray-500 whitespace-nowrap text-xs">{f.fecha}</td>
+                    <td className="px-3 py-1.5 text-gray-500 dark:text-gray-400 whitespace-nowrap text-xs">{f.fecha}</td>
                   </tr>
                 ))}
               </tbody>

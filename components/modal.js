@@ -32,8 +32,8 @@ export default function Modal({ closeModal, openModal, title = '', content = nul
                 leaveFrom="opacity-100 scale-100"
                 leaveTo="opacity-0 scale-95"
               >
-                <DialogPanel as="div" className={`panel my-8 ${size} overflow-hidden rounded-lg border-0 p-0 text-black dark:text-white-dark`}>
-                  <div className="flex items-center justify-between gap-3 bg-[#fbfbfb] px-5 py-3 dark:bg-[#121c2c]">
+                <DialogPanel as="div" className={`panel my-8 ${size} overflow-hidden rounded-lg border border-gray-200 p-0 text-black shadow-2xl dark:border-gray-600 dark:bg-[#111c30] dark:text-white-dark`}>
+                  <div className="flex items-center justify-between gap-3 border-b border-gray-100 bg-[#fbfbfb] px-5 py-3 dark:border-gray-700 dark:bg-[#182844]">
                     <div className="text-lg font-bold">{title}</div>
                     <div className="flex items-center gap-3">
                       {headerActions}

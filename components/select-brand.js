@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import AsyncSelect from 'react-select/async';
+import AsyncSelect from '@/components/ui/AsyncSelect';
 import { Controller } from 'react-hook-form';
 import IconPlus from '@/components/icon/icon-plus';
 import Modal from '@/components/modal';

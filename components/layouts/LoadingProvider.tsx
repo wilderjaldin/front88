@@ -50,7 +50,7 @@ export function LoadingProvider({ children }: { children: React.ReactNode }) {
   return (
     <>
       {isLoading && (
-        <div className="fixed inset-0 bg-white/80 flex items-center justify-center z-50 transition-opacity">
+        <div className="fixed inset-0 bg-white/80 dark:bg-black/70 flex items-center justify-center z-50 transition-opacity">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-blue-600" />
         </div>
       )}

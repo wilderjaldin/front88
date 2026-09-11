@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux';
 
 import { Controller, useForm } from 'react-hook-form';
 
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import DatePicker from "react-date-picker";
 import IconSave from '@/components/icon/icon-save';
 import { selectUser } from '@/store/authSlice';
@@ -30,7 +30,7 @@ const selectStyles = {
 const thClass = "text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-2 py-1.5 text-left select-none";
 const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-2 py-1.5";
 
-const ItemsToDelivery = ({ t, customer, sellers = [], deliverers = [], items = [], saveDelivery }) => {
+const ItemsToDelivery = ({ t, sellers = [], deliverers = [], items = [], detalle = null, saveDelivery }) => {
 
   const {
     register,
@@ -44,64 +44,72 @@ const ItemsToDelivery = ({ t, customer, sellers = [], deliverers = [], items = [
   const [saving, setSaving] = useState(false);
   const currentUser = useSelector(selectUser);
 
+  // ver-detalle-despacho ya trae estos datos registrados para el despacho — se
+  // precargan en vez de pedírselos de nuevo al usuario. Va antes que los defaults
+  // de abajo (mismo orden de efectos) para que gane si hay un match real.
+  useEffect(() => {
+    if (!detalle) return;
+    if (detalle.recibidoPor)    setValue('received_by', detalle.recibidoPor);
+    if (detalle.lugEntrega)     setValue('delivery_location', detalle.lugEntrega);
+    if (detalle.fecEntrega) {
+      const fecha = new Date(detalle.fecEntrega);
+      if (!isNaN(fecha)) setValue('date', fecha);
+    }
+  }, [detalle, setValue]);
+
+  useEffect(() => {
+    if (!detalle?.entregadoPor || deliverers.length === 0) return;
+    const match = deliverers.find(o => String(o.value) === String(detalle.entregadoPor));
+    if (match) setValue('delivered_by', match);
+  }, [detalle, deliverers, setValue]);
+
+  useEffect(() => {
+    if (!detalle?.codVendedor || sellers.length === 0) return;
+    const match = sellers.find(o => String(o.value) === String(detalle.codVendedor));
+    if (match) setValue('seller', match);
+  }, [detalle, sellers, setValue]);
+
   // Si solo hay una opción, se preselecciona (no tiene sentido obligar a elegir
   // el único valor posible). Si hay varias, por defecto el usuario logueado.
+  // No pisa lo que ya haya precargado ver-detalle-despacho (detalle.entregadoPor).
   useEffect(() => {
-    if (deliverers.length === 0) return;
+    if (detalle?.entregadoPor || deliverers.length === 0) return;
     if (deliverers.length === 1) { setValue('delivered_by', deliverers[0]); return; }
     if (!currentUser?.id) return;
     const match = deliverers.find(o => String(o.value) === String(currentUser.id));
     if (match) setValue('delivered_by', match);
-  }, [deliverers, currentUser, setValue]);
+  }, [deliverers, currentUser, detalle, setValue]);
 
   useEffect(() => {
-    if (sellers.length === 0) return;
+    if (detalle?.codVendedor || sellers.length === 0) return;
     if (sellers.length === 1) { setValue('seller', sellers[0]); return; }
     if (!currentUser?.id) return;
     const match = sellers.find(o => String(o.value) === String(currentUser.id));
     if (match) setValue('seller', match);
-  }, [sellers, currentUser, setValue]);
+  }, [sellers, currentUser, detalle, setValue]);
 
-  const formatearFecha = (fecha) => {
-    if (!fecha) return "";
-    const dia = String(fecha.getDate()).padStart(2, "0");
-    const mes = String(fecha.getMonth() + 1).padStart(2, "0");
-    const año = fecha.getFullYear();
-    return `${mes}/${dia}/${año}`;
+  const pad = (n) => String(n).padStart(2, "0");
+
+  // El backend pide fecha+hora ("YYYY-MM-DD HH:mm:ss") — se usa el día elegido
+  // en el DatePicker con la hora actual (el DatePicker solo captura el día).
+  const formatFecEntrega = (fecha) => {
+    const base = fecha instanceof Date ? new Date(fecha) : new Date();
+    const ahora = new Date();
+    base.setHours(ahora.getHours(), ahora.getMinutes(), ahora.getSeconds());
+    return `${base.getFullYear()}-${pad(base.getMonth() + 1)}-${pad(base.getDate())} ${pad(base.getHours())}:${pad(base.getMinutes())}:${pad(base.getSeconds())}`;
   };
 
   const handleSave = async () => {
-    let data = getValues();
+    const data = getValues();
 
-    let data_send = [];
-    items.map(i => {
-      data_send.push(
-        {
-          codCliente: customer.CodCliente,
-          codRecibidoPor: data.received_by,
-          codEntregadoPor: data.delivered_by?.value,
-          codVendedor: data.seller?.value,
-          // Transporte/Cond. Pago/Moneda: el form todavía no los pide, se
-          // ajusta cuando se agreguen esos campos.
-          codTipTransporte: '',
-          codCondPago: '',
-          codMoneda: '',
-          lugEntrega: data.delivery_location,
-          fecha: formatearFecha(data.date),
-          nroEmbalaje: i.NroEmbalaje,
-          nroOrden: i.NroOrden,
-          codItem: i.CodItem,
-          codRepuesto: i.CodRepuesto,
-          nroParte: i.NroParte,
-          descripcion: i.Descripcion,
-          cantidad: i.Cantidad,
-          origen: i.Origen,
-          hCode: i.HCode,
-          material: i.Material,
-          presentacion: i.Presentacion,
-        }
-      );
-    });
+    const data_send = {
+      NumEntrega: detalle?.numEntrega,
+      FecEntrega: formatFecEntrega(data.date),
+      RecibidoPor: data.received_by,
+      CodEntregadoPor: data.delivered_by?.value,
+      CodVendedor: data.seller?.value,
+      LugarEntrega: data.delivery_location,
+    };
     setSaving(true);
     try {
       await saveDelivery(data_send);
@@ -216,28 +224,24 @@ const ItemsToDelivery = ({ t, customer, sellers = [], deliverers = [], items = [
                 <th className={thClass}>{t.nro_order}</th>
                 <th className={thClass}>{t.customer}</th>
                 <th className={thClass}>{t.nro_part}</th>
+                <th className={thClass}>{t.nro_part_customer}</th>
                 <th className={thClass}>{t.description}</th>
                 <th className={`${thClass} text-center`}>{t.amount}</th>
                 <th className={thClass}>Origen</th>
-                <th className={thClass}>{t.h_code}</th>
-                <th className={thClass}>Material</th>
-                <th className={thClass}>{t.presentation}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
               {items.length === 0 ? (
-                <tr><td colSpan={9} className="py-8 text-center text-xs text-gray-400">{t.no_matches}</td></tr>
+                <tr><td colSpan={7} className="py-8 text-center text-xs text-gray-400">{t.no_matches}</td></tr>
               ) : items.map((i, index) => (
                 <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
                   <td className={tdClass}>{i.NroOrden}</td>
                   <td className={tdClass}>{i.NomCliente}</td>
+                  <td className={tdClass}>{i.NroParteCompra}</td>
                   <td className={tdClass}>{i.NroParte}</td>
                   <td className={tdClass}>{i.Descripcion}</td>
                   <td className={`${tdClass} text-center`}>{i.Cantidad}</td>
                   <td className={tdClass}>{i.Origen}</td>
-                  <td className={tdClass}>{i.HCode}</td>
-                  <td className={tdClass}>{i.Material}</td>
-                  <td className={tdClass}>{i.Presentacion}</td>
                 </tr>
               ))}
             </tbody>

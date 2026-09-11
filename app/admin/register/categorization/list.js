@@ -16,6 +16,7 @@ import IconX from "@/components/icon/icon-x";
 import { useDevice } from "@/context/device-context";
 import Modal from "@/components/modal";
 import CategorizationForm from "./form/CategorizationForm";
+import { useTranslation } from "@/app/locales";
 
 const URL_BASE  = '/categorizaciones';
 const PAGE_SIZE = 20;
@@ -31,7 +32,7 @@ const parseTerm = (raw) => {
   return { term: raw.trim(), codEstado: null };
 };
 
-const CategorizationCard = ({ item, onEdit }) => (
+const CategorizationCard = ({ item, onEdit, t }) => (
   <div className="rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 overflow-hidden">
     <div className="flex items-start justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
       <div className="min-w-0 flex-1">
@@ -45,7 +46,7 @@ const CategorizationCard = ({ item, onEdit }) => (
           ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
           : 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300'
       }`}>
-        {item.codEstado === 'AC' ? 'Activo' : 'Inactivo'}
+        {item.codEstado === 'AC' ? t.active : t.inactive}
       </span>
     </div>
     <div className="px-4 py-3 flex flex-wrap gap-1.5 min-h-[44px]">
@@ -72,6 +73,7 @@ const CategorizationCard = ({ item, onEdit }) => (
 );
 
 export default function CategorizationList() {
+  const t             = useTranslation();
   const { isMobile }  = useDevice();
   const router        = useRouter();
   const pathname      = usePathname();
@@ -150,7 +152,7 @@ export default function CategorizationList() {
   const handleSaved = () => {
     setShowModal(false);
     fetchData(page, debouncedTerm, codCategoria);
-    Toast.fire({ icon: 'success', title: editItem ? 'Registro actualizado' : 'Registro creado' });
+    Toast.fire({ icon: 'success', title: editItem ? t.record_updated : t.record_created });
   };
 
   const { codEstado: activeCodEstado } = parseTerm(term);
@@ -158,9 +160,9 @@ export default function CategorizationList() {
   return (
     <>
       <ul className="flex space-x-2 rtl:space-x-reverse">
-        <li>Registrar</li>
+        <li>{t.register}</li>
         <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2">
-          <span>Categorización</span>
+          <span>{t.categorization}</span>
         </li>
       </ul>
 
@@ -170,7 +172,7 @@ export default function CategorizationList() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-            Categorización{' '}
+            {t.categorization}{' '}
             <span className="text-sm font-normal text-gray-400">({total})</span>
           </h2>
           <div className="h-0.5 w-10 rounded bg-primary/60 mt-1" />
@@ -184,7 +186,7 @@ export default function CategorizationList() {
                 type="text"
                 value={term}
                 onChange={e => setTerm(e.target.value)}
-                placeholder="Buscar marca, aplicación…"
+                placeholder={t.search_brand_application_ph}
                 className={`w-full rounded-lg border px-4 py-2 pr-10 text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/40 ${activeCodEstado ? 'border-primary/50' : 'border-gray-300 dark:border-gray-700'}`}
               />
               {term ? (
@@ -201,18 +203,18 @@ export default function CategorizationList() {
             {activeCodEstado ? (
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${activeCodEstado === 'AC' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                  Estado: {activeCodEstado === 'AC' ? 'Activos' : 'Inactivos'}
+                  {t.status}: {activeCodEstado === 'AC' ? t.actives : t.inactives}
                   <button type="button" onClick={() => setTerm(term.replace(/estado:\s*(AC|IN)/i, '').trim())} className="ml-0.5 hover:opacity-70">
                     <IconX className="h-3 w-3" />
                   </button>
                 </span>
                 <button type="button" onClick={() => setTerm('')} className="text-[11px] text-primary hover:underline">
-                  Limpiar todo
+                  {t.clear_all}
                 </button>
               </div>
             ) : (
               <p className="text-[11px] text-gray-400">
-                Prefijos: <span className="font-mono">estado:AC</span> · <span className="font-mono">estado:IN</span>
+                {t.prefixes} <span className="font-mono">estado:AC</span> · <span className="font-mono">estado:IN</span>
               </p>
             )}
           </div>
@@ -224,7 +226,7 @@ export default function CategorizationList() {
               onChange={e => { setCodCategoria(e.target.value); setPage(1); }}
               className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-700 dark:text-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40"
             >
-              <option value="">Todas las categorías</option>
+              <option value="">{t.all_categories}</option>
               {(controles.categorias ?? []).map(c => (
                 <option key={c.value} value={c.value}>{c.label}</option>
               ))}
@@ -249,7 +251,7 @@ export default function CategorizationList() {
               className="group flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-white text-sm font-medium shadow-sm hover:bg-primary/90 transition-all"
             >
               <IconPlus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
-              Nuevo
+              {t.new}
             </button>
           </div>
         </div>
@@ -277,17 +279,17 @@ export default function CategorizationList() {
                   ),
                 },
                 {
-                  accessor: 'nomMarca', title: 'Marca', sortable: false,
+                  accessor: 'nomMarca', title: t.brand, sortable: false,
                   render: (item) => (
                     <span className="font-medium text-gray-800 dark:text-gray-200">{item.nomMarca || '—'}</span>
                   ),
                 },
                 {
-                  accessor: 'nomAplicacion', title: 'Aplicación', sortable: false,
+                  accessor: 'nomAplicacion', title: t.application, sortable: false,
                   render: (item) => <span className="text-gray-500">{item.nomAplicacion || '—'}</span>,
                 },
                 {
-                  accessor: 'nomCategoria', title: 'Categoría', sortable: false,
+                  accessor: 'nomCategoria', title: t.category, sortable: false,
                   render: (item) => <span className="text-gray-500">{item.nomCategoria || '—'}</span>,
                 },
                 {
@@ -298,19 +300,19 @@ export default function CategorizationList() {
                         ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
                         : 'bg-gray-100 text-gray-400 dark:bg-gray-800'
                     }`}>
-                      {item.blnSeo ? 'SI' : 'NO'}
+                      {item.blnSeo ? t.yes : t.no}
                     </span>
                   ),
                 },
                 {
-                  accessor: 'codEstado', title: 'Estado', sortable: false,
+                  accessor: 'codEstado', title: t.status, sortable: false,
                   render: (item) => (
                     <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${
                       item.codEstado === 'AC'
                         ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
                         : 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300'
                     }`}>
-                      {item.codEstado === 'AC' ? 'Activo' : 'Inactivo'}
+                      {item.codEstado === 'AC' ? t.active : t.inactive}
                     </span>
                   ),
                 },
@@ -321,7 +323,7 @@ export default function CategorizationList() {
               totalRecords={total}
               recordsPerPage={PAGE_SIZE}
               paginationText={({ from, to, totalRecords }) => `${from} - ${to} / ${totalRecords}`}
-              noRecordsText="Sin registros"
+              noRecordsText={t.no_records}
             />
           </div>
         </div>
@@ -332,12 +334,12 @@ export default function CategorizationList() {
         <>
           {!loading && data.length === 0 ? (
             <div className="rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 py-16 text-center text-gray-400">
-              Sin registros
+              {t.no_records}
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {data.map((item) => (
-                <CategorizationCard key={item.codRegistro} item={item} onEdit={handleEdit} />
+                <CategorizationCard key={item.codRegistro} item={item} onEdit={handleEdit} t={t} />
               ))}
             </div>
           )}
@@ -360,7 +362,7 @@ export default function CategorizationList() {
         size="w-full max-w-md"
         showModal={showModal}
         closeModal={() => setShowModal(false)}
-        title={editItem ? 'Editar Categorización' : 'Nueva Categorización'}
+        title={editItem ? t.edit_categorization : t.new_categorization}
       >
         <CategorizationForm
           item={editItem}

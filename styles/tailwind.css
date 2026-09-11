@@ -148,20 +148,20 @@ hover:text-primary ltr:before:mr-2 rtl:before:ml-2 dark:before:bg-gray-500 dark:
     }
 
     .horizontal-menu .nav-link {
-        @apply flex items-center rounded-lg px-2 py-2.5 hover:bg-[#000]/[0.08] hover:text-black dark:hover:bg-[#181f32] dark:hover:text-white-dark xl:px-4;
+        @apply flex items-center whitespace-nowrap rounded-lg px-1.5 py-2.5 hover:bg-[#000]/[0.08] hover:text-black dark:hover:bg-[#181f32] dark:hover:text-white-dark xl:px-2.5;
     }
 
     .horizontal-menu .nav-link.active {
-        @apply bg-[#000]/[0.08] text-black dark:bg-[#181f32] dark:text-white-dark;
+        @apply bg-primary/10 font-bold text-primary dark:bg-primary/20 dark:text-white;
     }
 
     .horizontal-menu ul.sub-menu {
-        @apply absolute top-full z-[10] hidden min-w-[180px] rounded bg-white p-0 py-2 text-dark shadow dark:bg-[#1b2e4b] dark:text-white-dark;
+        @apply absolute top-full z-[10] hidden w-max min-w-[200px] max-w-[320px] rounded bg-white p-0 py-2 text-dark shadow dark:bg-[#1b2e4b] dark:text-white-dark;
     }
 
     .horizontal-menu ul.sub-menu a,
     .horizontal-menu ul.sub-menu button {
-        @apply flex w-full items-center justify-between px-4 py-2 hover:bg-gray-100 hover:text-primary dark:hover:bg-primary/10;
+        @apply flex w-full items-center justify-between gap-3 whitespace-nowrap px-4 py-2 hover:bg-gray-100 hover:text-primary dark:hover:bg-primary/10;
     }
 
     .horizontal-menu ul.sub-menu a.active,
@@ -740,6 +740,36 @@ img.dark-img {
 .svg-center svg{
     margin: 0 auto;
 }
+/* Los íconos del panel usan negro por defecto (paths sin atributo fill) para el
+   trazo y #EBC111 (dentro de <g fill>) para el acento. En modo oscuro el trazo
+   negro se pierde: se aclara todo lo que no tiene fill propio, y luego se
+   restaura la herencia del acento amarillo con una regla más específica. */
+.dark .svg-center svg path:not([fill]),
+.dark .svg-center svg rect:not([fill]),
+.dark .svg-center svg circle:not([fill]),
+.dark .svg-center svg polygon:not([fill]),
+.dark .svg-center svg polyline:not([fill]) {
+    fill: #d1d5db;
+}
+.dark .svg-center svg g[fill] path:not([fill]),
+.dark .svg-center svg g[fill] rect:not([fill]),
+.dark .svg-center svg g[fill] circle:not([fill]),
+.dark .svg-center svg g[fill] polygon:not([fill]) {
+    fill: inherit;
+}
+/* Mismo criterio para el ícono DAX (Nueva Cotización) suelto en el header. */
+.dark .dax-icon svg path:not([fill]),
+.dark .dax-icon svg rect:not([fill]),
+.dark .dax-icon svg circle:not([fill]),
+.dark .dax-icon svg polygon:not([fill]) {
+    fill: #d1d5db;
+}
+.dark .dax-icon svg g[fill] path:not([fill]),
+.dark .dax-icon svg g[fill] rect:not([fill]),
+.dark .dax-icon svg g[fill] circle:not([fill]),
+.dark .dax-icon svg g[fill] polygon:not([fill]) {
+    fill: inherit;
+}
 .cls-1 {
         fill: #fff;
       }
@@ -1147,4 +1177,98 @@ label.required::after {
 }
 .user-form .usr-select__value-container {
   padding: 2px 12px;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   react-select en modo oscuro — tema global. react-select v5 no adapta sus
+   colores al dark mode por sí solo. Se apunta por sufijo de clase (patrón
+   BEM "PREFIJO__parte") para cubrir cualquier classNamePrefix del proyecto
+   (select, react-select, rselect, rs, …) sin depender de uno concreto.
+   Se alinea con .form-input dark (bg #121e32, borde #17263c).
+   ─────────────────────────────────────────────────────────────────────────── */
+.dark [class*="__control"] {
+  background-color: #121e32;
+  border-color: #17263c;
+}
+.dark [class*="__control--is-focused"] {
+  border-color: #4361ee;
+  box-shadow: 0 0 0 1px #4361ee;
+}
+.dark [class*="__single-value"] {
+  color: #e5e7eb;
+}
+.dark [class*="__input-container"],
+.dark [class*="__input-container"] input {
+  color: #e5e7eb !important;
+}
+.dark [class*="__placeholder"] {
+  color: #6b7280;
+}
+.dark [class*="__indicator-separator"] {
+  background-color: #17263c;
+}
+.dark [class*="__menu"] {
+  background-color: #1b2e4b;
+  border: 1px solid #17263c;
+}
+.dark [class*="__menu-notice"] {
+  color: #9ca3af;
+  background-color: transparent;
+}
+.dark [class*="__group-heading"] {
+  color: #9ca3af;
+}
+.dark [class*="__option"] {
+  background-color: transparent;
+  color: #d1d5db;
+}
+.dark [class*="__option--is-focused"] {
+  background-color: rgba(67, 97, 238, 0.18);
+  color: #fff;
+}
+.dark [class*="__option--is-selected"] {
+  background-color: #4361ee;
+  color: #fff;
+}
+.dark [class*="__multi-value"] {
+  background-color: #253656;
+}
+.dark [class*="__multi-value__label"] {
+  color: #e5e7eb;
+}
+.dark [class*="__multi-value__remove"]:hover {
+  background-color: #e7515a;
+  color: #fff;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Scrollbars en modo oscuro. color-scheme le dice al navegador que pinte los
+   controles nativos (incluida la barra) en oscuro; el resto es el estilo
+   propio de la barra para Chromium/Edge/Safari.
+   ─────────────────────────────────────────────────────────────────────────── */
+body.dark {
+  color-scheme: dark;
+}
+
+.dark ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.dark ::-webkit-scrollbar-track {
+  background: #0e1726;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #33415c;
+  border-radius: 8px;
+  border: 2px solid #0e1726;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+.dark ::-webkit-scrollbar-corner {
+  background: #0e1726;
+}
+/* Firefox */
+.dark * {
+  scrollbar-color: #33415c #0e1726;
 }

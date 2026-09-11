@@ -44,6 +44,22 @@ function PermisoLabel({ permiso, checked, register }) {
   );
 }
 
+// Checkbox del encabezado de módulo: marca/desmarca todos sus permisos, con
+// estado "indeterminado" cuando solo algunos están marcados.
+function ModuloCheck({ total, marcados, onToggle }) {
+  const ref = (el) => { if (el) el.indeterminate = marcados > 0 && marcados < total; };
+  return (
+    <input
+      type="checkbox"
+      ref={ref}
+      checked={total > 0 && marcados === total}
+      onChange={(e) => onToggle(e.target.checked)}
+      title="Seleccionar / deseleccionar todo el módulo"
+      className="w-3.5 h-3.5 accent-primary cursor-pointer shrink-0"
+    />
+  );
+}
+
 function FilterTabs({ tabs, active, counts, onChange }) {
   return (
     <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-[11px]">
@@ -77,25 +93,36 @@ export default function SettingsRol() {
   const t       = useTranslation();
   const router  = useRouter();
 
-  const [saving,      setSaving]      = useState(false);
-  const [filterPerm,  setFilterPerm]  = useState("all");
-  const [searchPerm,  setSearchPerm]  = useState("");
-  const [filterUsers, setFilterUsers] = useState("active");
+  const [saving,       setSaving]       = useState(false);
+  const [filterPerm,   setFilterPerm]   = useState("all");
+  const [filterModulo, setFilterModulo] = useState("all");
+  const [searchPerm,   setSearchPerm]   = useState("");
+  const [filterUsers,  setFilterUsers]  = useState("active");
 
   const {
     register,
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors },
   } = useForm();
 
+  // Marca/desmarca una lista de permisos de una sola vez.
+  const setAllPermisos = (list, value) => {
+    list.forEach(p => setValue(p.codPermiso, value, { shouldDirty: true }));
+  };
+
   const [loading,  setLoading]  = useState(true);
-  const [permisos, setPermisos] = useState([]);
+  // La API ahora agrupa: [{ modulo, permisos: [{ codPermiso, etiqueta, final }] }]
+  const [modulos,  setModulos]  = useState([]);
   const [usuarios, setUsuarios] = useState([]);
   const [rolInfo,  setRolInfo]  = useState(null);
 
   const watchedValues = watch();
+
+  // Lista plana de todos los permisos — para contadores, defaults y el payload.
+  const flatPermisos = useMemo(() => modulos.flatMap(m => m.permisos || []), [modulos]);
 
   useEffect(() => {
     if (!id) return;
@@ -107,10 +134,12 @@ export default function SettingsRol() {
 
         setRolInfo(rol);
         setUsuarios(usuarios || []);
-        setPermisos(permisos || []);
+        setModulos(permisos || []);
 
         const defaultValues = { nombre: rol?.nombre || "" };
-        (permisos || []).forEach((p) => { defaultValues[p.codPermiso] = p.final; });
+        (permisos || []).forEach((m) => (m.permisos || []).forEach((p) => {
+          defaultValues[p.codPermiso] = p.final;
+        }));
         reset(defaultValues);
       } catch (error) {
         console.error("Error cargando rol:", error);
@@ -122,24 +151,31 @@ export default function SettingsRol() {
   }, [id, reset]);
 
   // ─── Permisos ────────────────────────────────────────────────────────────────
-  const assignedCount   = useMemo(() => permisos.filter(p =>  !!watchedValues[p.codPermiso]).length, [permisos, watchedValues]);
-  const unassignedCount = useMemo(() => permisos.length - assignedCount, [permisos.length, assignedCount]);
-  const permTabCounts   = { all: permisos.length, assigned: assignedCount, unassigned: unassignedCount };
+  const assignedCount   = useMemo(() => flatPermisos.filter(p =>  !!watchedValues[p.codPermiso]).length, [flatPermisos, watchedValues]);
+  const unassignedCount = useMemo(() => flatPermisos.length - assignedCount, [flatPermisos.length, assignedCount]);
+  const permTabCounts   = { all: flatPermisos.length, assigned: assignedCount, unassigned: unassignedCount };
 
-  const filteredPermisos = useMemo(() => {
-    let list = permisos;
-    if (filterPerm === "assigned")   list = list.filter(p =>  !!watchedValues[p.codPermiso]);
-    if (filterPerm === "unassigned") list = list.filter(p => !watchedValues[p.codPermiso]);
+  // Módulos con sus permisos ya filtrados por tab + búsqueda; se descartan los
+  // módulos que quedan sin permisos visibles.
+  const modulosFiltrados = useMemo(() => {
     const q = searchPerm.trim().toLowerCase();
-    if (q) list = list.filter(p => p.etiqueta.toLowerCase().includes(q));
-    return list;
-  }, [permisos, filterPerm, searchPerm, watchedValues]);
+    return modulos
+      .filter(m => filterModulo === "all" || m.modulo === filterModulo)
+      .map((m) => {
+        let list = m.permisos || [];
+        if (filterPerm === "assigned")   list = list.filter(p =>  !!watchedValues[p.codPermiso]);
+        if (filterPerm === "unassigned") list = list.filter(p => !watchedValues[p.codPermiso]);
+        if (q) list = list.filter(p => p.etiqueta.toLowerCase().includes(q));
+        return { ...m, permisos: list };
+      })
+      .filter(m => m.permisos.length > 0);
+  }, [modulos, filterPerm, filterModulo, searchPerm, watchedValues]);
 
-  const showGrouped = filterPerm === "all" && !searchPerm.trim();
-  const groupedPermisos = useMemo(() => ({
-    assigned:   permisos.filter(p =>  !!watchedValues[p.codPermiso]),
-    unassigned: permisos.filter(p => !watchedValues[p.codPermiso]),
-  }), [permisos, watchedValues]);
+  // Todos los permisos actualmente visibles (para "marcar / desmarcar todos").
+  const visiblePermisos = useMemo(
+    () => modulosFiltrados.flatMap(m => m.permisos),
+    [modulosFiltrados]
+  );
 
   // ─── Usuarios ────────────────────────────────────────────────────────────────
   const userCounts = useMemo(() => ({
@@ -161,7 +197,7 @@ export default function SettingsRol() {
       await axiosClient.post(url_update_rol, {
         codRol:   parseInt(id),
         nombre:   formData.nombre,
-        permisos: permisos.map((p) => ({ codPermiso: p.codPermiso, check: formData[p.codPermiso] === true })),
+        permisos: flatPermisos.map((p) => ({ codPermiso: p.codPermiso, check: formData[p.codPermiso] === true })),
       });
       Swal.fire({ position: "top-end", icon: "success", title: "Rol actualizado correctamente", timer: 3000, showConfirmButton: false })
         .then(() => router.push("/admin/roles"));
@@ -205,7 +241,7 @@ export default function SettingsRol() {
           </div>
           <div className="hidden sm:flex items-center gap-4 text-center shrink-0">
             <div>
-              <p className="text-xl font-bold text-gray-800 dark:text-gray-100 leading-none">{permisos.length}</p>
+              <p className="text-xl font-bold text-gray-800 dark:text-gray-100 leading-none">{flatPermisos.length}</p>
               <p className="text-[11px] text-gray-400 mt-0.5">Total</p>
             </div>
             <div className="w-px h-8 bg-gray-200 dark:bg-gray-700" />
@@ -265,6 +301,37 @@ export default function SettingsRol() {
                 counts={permTabCounts}
                 onChange={setFilterPerm}
               />
+              <select
+                value={filterModulo}
+                onChange={e => setFilterModulo(e.target.value)}
+                className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
+              >
+                <option value="all">Todos los módulos</option>
+                {modulos.map(m => (
+                  <option key={m.modulo} value={m.modulo}>{m.modulo}</option>
+                ))}
+              </select>
+
+              {/* Marcar / desmarcar todos los permisos visibles (según filtros) */}
+              <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-[11px] font-medium">
+                <button
+                  type="button"
+                  onClick={() => setAllPermisos(visiblePermisos, true)}
+                  disabled={visiblePermisos.length === 0}
+                  className="px-2.5 py-1.5 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-primary/5 hover:text-primary transition disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Marcar todos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAllPermisos(visiblePermisos, false)}
+                  disabled={visiblePermisos.length === 0}
+                  className="px-2.5 py-1.5 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-l border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Desmarcar
+                </button>
+              </div>
+
               <div className="relative ml-auto">
                 <input
                   type="text"
@@ -285,50 +352,40 @@ export default function SettingsRol() {
               </div>
             </div>
 
-            {filteredPermisos.length === 0 ? (
+            {modulosFiltrados.length === 0 ? (
               <p className="text-sm text-gray-400 py-4 text-center">
-                {permisos.length === 0 ? "No existen permisos registrados." : "Sin resultados."}
+                {flatPermisos.length === 0 ? "No existen permisos registrados." : "Sin resultados."}
               </p>
-            ) : showGrouped ? (
+            ) : (
               <div className="space-y-4">
-                {groupedPermisos.assigned.length > 0 && (
-                  <div className="space-y-2">
+                {modulosFiltrados.map((m) => {
+                  const marcados = m.permisos.filter(p => !!watchedValues[p.codPermiso]).length;
+                  return (
+                  <div key={m.modulo} className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-semibold uppercase tracking-wide text-primary">
-                        Asignados
+                      <ModuloCheck
+                        total={m.permisos.length}
+                        marcados={marcados}
+                        onToggle={(v) => setAllPermisos(m.permisos, v)}
+                      />
+                      <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                        {m.modulo}
                       </span>
-                      <span className="text-[10px] text-primary/60 font-medium">({groupedPermisos.assigned.length})</span>
-                      <div className="flex-1 h-px bg-primary/15" />
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                      {groupedPermisos.assigned.map((permiso) => (
-                        <PermisoLabel key={permiso.codPermiso} permiso={permiso} checked register={register} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {groupedPermisos.unassigned.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
-                        Sin asignar
-                      </span>
-                      <span className="text-[10px] text-gray-400 font-medium">({groupedPermisos.unassigned.length})</span>
+                      <span className="text-[10px] text-gray-400 font-medium">({marcados}/{m.permisos.length})</span>
                       <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                      {groupedPermisos.unassigned.map((permiso) => (
-                        <PermisoLabel key={permiso.codPermiso} permiso={permiso} checked={false} register={register} />
+                      {m.permisos.map((permiso) => (
+                        <PermisoLabel
+                          key={permiso.codPermiso}
+                          permiso={permiso}
+                          checked={!!watchedValues[permiso.codPermiso]}
+                          register={register}
+                        />
                       ))}
                     </div>
                   </div>
-                )}
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                {filteredPermisos.map((permiso) => {
-                  const checked = !!watchedValues[permiso.codPermiso];
-                  return <PermisoLabel key={permiso.codPermiso} permiso={permiso} checked={checked} register={register} />;
+                  );
                 })}
               </div>
             )}

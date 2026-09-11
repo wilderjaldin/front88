@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import axiosClient from '@/app/lib/axiosClient';
 import ComponentContactForm from '@/components/forms/contact-form';
 import Modal from '@/components/modal';

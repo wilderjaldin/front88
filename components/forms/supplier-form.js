@@ -7,7 +7,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from "@/app/locales";
 import SelectCountry from '@/components/select-country'
 import SelectCity from '@/components/select-city'
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import { useOptionsSelect, getNameOption, getNameCity } from '@/app/options'
 
 import axios from 'axios'

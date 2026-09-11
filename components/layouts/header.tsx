@@ -28,7 +28,7 @@ import IconX from '@/components/icon/icon-x';
 import IconMailDot from '../icon/icon-mail-dot';
 import IconBell from '../icon/icon-bell';
 import IconSend from '@/components/icon/icon-send';
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import axiosClient from '@/app/lib/axiosClient';
 import { swalSuccess } from '@/app/lib/swal';
 import Swal from 'sweetalert2'
@@ -266,7 +266,7 @@ const Header = () => {
               </div>
               <div className='flex'>
                 {hasPermission(PERMISSIONS.CREAR_COTIZACION) && (
-                  <div className="dropdown shrink-0 mr-4">
+                  <div className="dropdown shrink-0 mr-4 dax-icon">
                     <BtnNewQuote token={token} t={t} classNameBtn='block p-2 rounded-full bg-gray-300 dark:bg-dark/40 hover:text-primary hover:bg-white-light/90 dark:hover:bg-dark/60' classNameIcon='drop-shadow-xl mx-auto h-4.5 w-4.5 dark:text-[#d0d2d6]'></BtnNewQuote>
                   </div>
                 )}
@@ -478,7 +478,7 @@ const Header = () => {
           </div>
 
           {/* horizontal menu */}
-          <ul className="horizontal-menu relative hidden border-t border-[#ebedf2] bg-white px-6 py-1.5 font-semibold text-black dark:border-[#191e3a] dark:bg-[#0e1726] dark:text-white-dark lg:space-x-1.5 xl:space-x-8 rtl:space-x-reverse">
+          <ul className="horizontal-menu relative hidden border-t border-[#ebedf2] bg-white px-6 py-1.5 font-semibold text-black dark:border-[#191e3a] dark:bg-[#0e1726] dark:text-white-dark lg:space-x-0 xl:space-x-1 2xl:space-x-4 rtl:space-x-reverse">
             {visibleMenu.map((item: MenuItem, index: number) => {
               const label = (t as any)[item.labelKey] ?? item.labelKey;
 
@@ -495,9 +495,9 @@ const Header = () => {
                 <li key={index} className="menu nav-item relative">
                   <button type="button" className="nav-link">
                     <div className="flex items-center">
-                      <span className="px-1">{label}</span>
+                      <span>{label}</span>
                     </div>
-                    <div className="right_arrow">
+                    <div className="right_arrow ltr:ml-0.5 rtl:mr-0.5">
                       <IconCaretDown />
                     </div>
                   </button>
@@ -550,8 +550,8 @@ const Header = () => {
                 leaveFrom="opacity-100 scale-100"
                 leaveTo="opacity-0 scale-95"
               >
-                <DialogPanel as="div" className="panel my-8 w-full max-w-md overflow-hidden rounded-2xl border-0 p-0 shadow-xl text-black dark:text-white-dark">
-                  <div className="flex items-center justify-between bg-[#fbfbfb] px-5 py-3.5 border-b border-gray-100 dark:border-gray-700 dark:bg-[#121c2c]">
+                <DialogPanel as="div" className="panel my-8 w-full max-w-md overflow-hidden rounded-2xl border border-gray-200 p-0 shadow-2xl text-black dark:border-gray-600 dark:bg-[#111c30] dark:text-white-dark">
+                  <div className="flex items-center justify-between bg-[#fbfbfb] px-5 py-3.5 border-b border-gray-100 dark:border-gray-700 dark:bg-[#182844]">
                     <div className="flex items-center gap-2">
                       <IconMailDot className="h-5 w-5 text-primary" />
                       <span className="text-base font-bold">Nuevo mensaje</span>

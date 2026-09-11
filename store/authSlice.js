@@ -61,6 +61,10 @@ export const { setAuth, setUser, setImpersonation, restoreAdmin } = authSlice.ac
 export const selectToken = (state) => state.authState.token
 export const selectUser = (state) => state.authState.user
 export const selectPermissions = (state) => state.authState.permissions
+// Acceso total: lo define la API en el login. Es solo para UX — la autorización
+// real la aplica el backend en cada request desde el token, así que si el usuario
+// lo manipula en el navegador solo "ve" opciones que igual le darán 403.
+export const selectIsSuperAdmin = (state) => state.authState.user?.esSuperAdmin === true
 export const selectAuth = (state) => { return { user: state.authState.user, token: state.authState.token } }
 export const selectImpersonated = (state) => state.authState.impersonated
 

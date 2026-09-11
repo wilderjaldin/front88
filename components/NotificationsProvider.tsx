@@ -46,13 +46,15 @@ const Toast = Swal.mixin({
   showCloseButton: false, // el cierre lo maneja nuestro propio botón dentro del html (evita el solapamiento del close nativo)
   timer: 8000,
   timerProgressBar: true,
-  width: 320,
+  width: 360,
   padding: "0.75rem",
   customClass: {
     // overflow-hidden fuerza a que el toast nunca muestre scrollbar propia,
     // sin redondeo, con borde visible y sombra fuerte para que se note. Sin
     // cursor-pointer forzado: el puntero solo debe verse sobre el link interno.
-    popup: "!rounded-none !shadow-2xl !border !border-gray-300 dark:!border-gray-600 !overflow-hidden",
+    // min-w fija un ancho mínimo uniforme para todas las notificaciones SignalR
+    // (si no, sweetalert2 encoge el toast al contenido cuando el texto es corto).
+    popup: "!rounded-none !shadow-2xl !border !border-gray-300 dark:!border-gray-600 !overflow-hidden !min-w-[360px]",
     timerProgressBar: "!bg-primary",
   },
   didOpen: (el) => {
@@ -101,6 +103,43 @@ function fireMessageToast(nombre: string, mensaje: string, onNavigate: () => voi
   });
 }
 
+// Formato propio (no fireMessageToast) para notificaciones de evento con varios
+// datos estructurados — a diferencia de un mensaje de chat, acá nada se trunca:
+// bandera en proporción horizontal real (no el círculo de iniciales) + 3 líneas.
+function fireOcToast(title: string, data: {
+  numOrdenCompra?: number | string;
+  nomUsuario?: string;
+  empresaRepresentante?: string;
+  codPaisOrigen?: string;
+  fecha?: string;
+}, onNavigate: () => void) {
+  const isDark = document.documentElement.classList.contains("dark");
+  pendingNavigate = onNavigate;
+  pendingLinkNavigate = null;
+  const flag = data.codPaisOrigen
+    ? `<img src="/assets/flags/${String(data.codPaisOrigen).toLowerCase()}.svg" alt="${data.codPaisOrigen}" class="h-7 w-10 rounded object-cover shrink-0 border border-gray-200 dark:border-gray-600 mt-0.5" />`
+    : `<div class="h-7 w-10 rounded bg-primary/10 shrink-0"></div>`;
+  Toast.fire({
+    background: isDark ? "#1f2937" : "#eef2ff",
+    color: isDark ? "#f3f4f6" : "#1e293b",
+    html: `
+      <div class="flex items-start gap-3 text-left">
+        ${flag}
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-semibold text-gray-800 dark:text-white">
+            ${title} <span class="text-primary dark:text-blue-400">N° ${data.numOrdenCompra ?? ""}</span>
+          </p>
+          <p class="text-xs text-gray-600 dark:text-gray-300 mt-1 leading-snug">${data.empresaRepresentante ?? ""}</p>
+          <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1">${data.nomUsuario ?? ""}</p>
+        </div>
+        <button data-toast-close type="button" class="shrink-0 -mt-1 -mr-1 p-1 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+    `,
+  });
+}
+
 export default function NotificationsProvider() {
   const token = useSelector(selectToken);
   const dispatch = useDispatch();
@@ -121,8 +160,21 @@ export default function NotificationsProvider() {
     setHubToken(token);
     const conn = getHubConnection();
 
+    // El backend registra en inbox (y por lo tanto dispara "nuevaMensaje" genérico)
+    // el mismo mensaje que ya viene cubierto por un evento específico (seguimientoAsignado,
+    // ordenCompraGenerada/Anulada) — se identifican por compartir codMensaje. Sin esto,
+    // el toast genérico ("Nuevo mensaje" con iniciales "NM") termina tapando al específico.
+    const specialCodMensajes = new Set<number>();
+
     const onNuevaMensaje = (data: any) => {
-      dispatch(setTotalNoLeidos(data?.totalNoLeidos ?? 0));
+      // Igual que en los eventos de OC: si totalNoLeidos no viene, no pisar el
+      // contador con 0 — puede llegar después de un evento específico que ya lo
+      // actualizó correctamente (comparten codMensaje).
+      if (data?.totalNoLeidos != null) dispatch(setTotalNoLeidos(data.totalNoLeidos));
+      if (data?.codMensaje != null && specialCodMensajes.has(data.codMensaje)) {
+        specialCodMensajes.delete(data.codMensaje);
+        return;
+      }
       fireMessageToast(data?.nomUsuario ?? "Nuevo mensaje", data?.desMensaje ?? "", () => {
         router.push("/admin/inbox?status=unread");
       });
@@ -138,6 +190,7 @@ export default function NotificationsProvider() {
     // nroCotizacion, codCliente, categoria, nomCliente }. Sigue siendo un evento
     // propio (no "nuevaMensaje") pese a que también registra un mensaje en inbox.
     const onSeguimientoAsignado = (data: any) => {
+      if (data?.codMensaje != null) specialCodMensajes.add(data.codMensaje);
       const option = CATEGORY_OPTION[data?.categoria] ?? "quotes";
       const link = `/admin/revision/quotes?customer=${data?.codCliente}&option=${option}&id=${data?.nroCotizacion}`;
       const numeroLink = `<span data-quote-link class="text-primary dark:text-blue-400 underline underline-offset-2 font-semibold cursor-pointer">#${data?.nroCotizacion ?? ""}</span>`;
@@ -151,10 +204,42 @@ export default function NotificationsProvider() {
       );
     };
 
+    // Payload de OrdenesCompraService al generar una OC: { numOrdenCompra, codUsuario,
+    // nomUsuario, codEmpresa, empresaRepresentante, codPaisOrigen, fecha, codMensaje,
+    // totalNoLeidos }. Solo llega a los usuarios de la empresa MIAMI conectados en ese
+    // momento (filtrado en backend); acá no hace falta filtrar nada más. totalNoLeidos
+    // viene calculado igual que en InboxController.Responder — mismo criterio que
+    // onNuevaMensaje para refrescar el contador del header sin pedirlo aparte.
+    const onOrdenCompraGenerada = (data: any) => {
+      if (data?.codMensaje != null) specialCodMensajes.add(data.codMensaje);
+      // Solo pisa el badge si el backend realmente mandó el dato — si todavía no lo
+      // envía (undefined/null), mejor dejar el contador actual que resetearlo a 0.
+      if (data?.totalNoLeidos != null) dispatch(setTotalNoLeidos(data.totalNoLeidos));
+      fireOcToast(
+        t.purchase_order_generated_title ?? "Nueva Orden de Compra",
+        data,
+        () => router.push(`/admin/queries/purchase-orders?oc=${data?.numOrdenCompra ?? ""}`),
+      );
+    };
+
+    // Mismo payload que ordenCompraGenerada, pero se dispara al anular una OC del
+    // flujo RE → MI. También llega solo a los usuarios de MIAMI conectados.
+    const onOrdenCompraAnulada = (data: any) => {
+      if (data?.codMensaje != null) specialCodMensajes.add(data.codMensaje);
+      if (data?.totalNoLeidos != null) dispatch(setTotalNoLeidos(data.totalNoLeidos));
+      fireOcToast(
+        t.purchase_order_cancelled_title ?? "Orden de Compra Anulada",
+        data,
+        () => router.push(`/admin/queries/purchase-orders?oc=${data?.numOrdenCompra ?? ""}`),
+      );
+    };
+
     conn.on("nuevaMensaje", onNuevaMensaje);
     conn.on("mensajeVisto", onMensajeVisto);
     conn.on("mensajeArchivado", onMensajeArchivado);
     conn.on("seguimientoAsignado", onSeguimientoAsignado);
+    conn.on("ordenCompraGenerada", onOrdenCompraGenerada);
+    conn.on("ordenCompraAnulada", onOrdenCompraAnulada);
 
     if (conn.state === signalR.HubConnectionState.Disconnected) {
       conn.start().catch((err) => console.error("SignalR: error al conectar", err));
@@ -165,6 +250,8 @@ export default function NotificationsProvider() {
       conn.off("mensajeVisto", onMensajeVisto);
       conn.off("mensajeArchivado", onMensajeArchivado);
       conn.off("seguimientoAsignado", onSeguimientoAsignado);
+      conn.off("ordenCompraGenerada", onOrdenCompraGenerada);
+      conn.off("ordenCompraAnulada", onOrdenCompraAnulada);
     };
   }, [token, dispatch, router, t]);
 

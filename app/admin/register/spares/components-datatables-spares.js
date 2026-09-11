@@ -11,8 +11,8 @@ import IconSearch from '@/components/icon/icon-search-filled';
 import IconX from '@/components/icon/icon-x';
 import IconBackSpace from '@/components/icon/icon-backspace';
 import IconPlus from '@/components/icon/icon-plus';
-import Select from 'react-select';
-import AsyncSelect from 'react-select/async';
+import Select from '@/components/ui/Select';
+import AsyncSelect from '@/components/ui/AsyncSelect';
 import { Controller, useForm } from 'react-hook-form';
 import { Pagination } from '@mantine/core';
 

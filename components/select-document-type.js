@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import IconPlusProps from '@/components/icon/icon-plus';
 import { useOptionsSelect } from '@/app/options'
 import Modal from '@/components/modal';

@@ -10,7 +10,7 @@ import Modal from '@/components/modal';
 import FormAddBrand from '@/components/forms/add-brand-form';
 import SelectCountry from '@/components/select-country'
 import SelectCity from '@/components/select-city'
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import { useOptionsSelect } from '@/app/options'
 import Loading from '@/components/layouts/loading';
 import { getNameOption, getNameCity } from '@/app/options'

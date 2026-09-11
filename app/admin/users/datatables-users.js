@@ -13,6 +13,7 @@ import IconMapPin from '@/components/icon/icon-map-pin';
 import axiosClient from "@/app/lib/axiosClient";
 import { setImpersonation } from "@/store/authSlice";
 import { swalConfirm, swalError } from '@/app/lib/swal';
+import { PERMISSIONS } from "@/constants/permissions";
 
 const PAGE_SIZE = 20;
 
@@ -29,6 +30,7 @@ const formatText = (text) => text?.toLowerCase().replace(/\b\w/g, l => l.toUpper
 const DatatablesUser = ({
   data = [], t, total, page, term, handlePageChange, currentUserId,
   handleSearchChange, toggleUserStatus, addUser, editUser, handleCountries,
+  hasPermission = () => false,
 }) => {
   const dispatch = useDispatch();
   const totalPages = Math.max(1, Math.ceil((total ?? 0) / PAGE_SIZE));
@@ -99,51 +101,61 @@ const DatatablesUser = ({
                   <tr key={user.id ?? i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                     <td className={`${tdClass} text-center`}>
                       <div className="flex items-center justify-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => editUser(user)}
-                          title="Editar"
-                          className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition"
-                        >
-                          <IconPencil className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => toggleUserStatus(user)}
-                          disabled={isSelf}
-                          title={user.codEstado === 'AC' ? 'Inactivar' : 'Reactivar'}
-                          className={`inline-flex items-center justify-center h-6 w-6 rounded-md transition disabled:opacity-30 disabled:cursor-not-allowed ${
-                            user.codEstado === 'AC'
-                              ? 'bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400'
-                              : 'bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400'
-                          }`}
-                        >
-                          {user.codEstado === 'AC' ? <IconBan className="h-3.5 w-3.5" /> : <IconCheck className="h-3.5 w-3.5" />}
-                        </button>
-                        <Link
-                          href={`/admin/users/permissions/${user.codUsuario}`}
-                          title="Permisos"
-                          className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 transition"
-                        >
-                          <IconLock className="h-3.5 w-3.5" />
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => handleCountries(user)}
-                          title="Países permitidos"
-                          className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-sky-50 text-sky-600 hover:bg-sky-100 dark:bg-sky-900/20 dark:text-sky-400 transition"
-                        >
-                          <IconMapPin className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleViewAs(user)}
-                          disabled={isSelf}
-                          title="Ver como usuario"
-                          className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-violet-50 text-violet-600 hover:bg-violet-100 dark:bg-violet-900/20 dark:text-violet-400 transition disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          <IconEye className="h-3.5 w-3.5" />
-                        </button>
+                        {hasPermission(PERMISSIONS.EDITAR_USUARIO) && (
+                          <button
+                            type="button"
+                            onClick={() => editUser(user)}
+                            title={t.edit}
+                            className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition"
+                          >
+                            <IconPencil className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        {hasPermission(PERMISSIONS.BLOQUEAR_USUARIO) && (
+                          <button
+                            type="button"
+                            onClick={() => toggleUserStatus(user)}
+                            disabled={isSelf}
+                            title={user.codEstado === 'AC' ? t.inactivate : t.reactivate}
+                            className={`inline-flex items-center justify-center h-6 w-6 rounded-md transition disabled:opacity-30 disabled:cursor-not-allowed ${
+                              user.codEstado === 'AC'
+                                ? 'bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400'
+                                : 'bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400'
+                            }`}
+                          >
+                            {user.codEstado === 'AC' ? <IconBan className="h-3.5 w-3.5" /> : <IconCheck className="h-3.5 w-3.5" />}
+                          </button>
+                        )}
+                        {hasPermission(PERMISSIONS.PERMISOS_USUARIO) && (
+                          <Link
+                            href={`/admin/users/permissions/${user.codUsuario}`}
+                            title={t.permissions}
+                            className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 transition"
+                          >
+                            <IconLock className="h-3.5 w-3.5" />
+                          </Link>
+                        )}
+                        {hasPermission(PERMISSIONS.PAISES_HABILITADOS) && (
+                          <button
+                            type="button"
+                            onClick={() => handleCountries(user)}
+                            title={t.allowed_countries}
+                            className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-sky-50 text-sky-600 hover:bg-sky-100 dark:bg-sky-900/20 dark:text-sky-400 transition"
+                          >
+                            <IconMapPin className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        {hasPermission(PERMISSIONS.VER_COMO_USUARIO) && (
+                          <button
+                            type="button"
+                            onClick={() => handleViewAs(user)}
+                            disabled={isSelf}
+                            title={t.view_as_user}
+                            className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-violet-50 text-violet-600 hover:bg-violet-100 dark:bg-violet-900/20 dark:text-violet-400 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            <IconEye className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                       </div>
                     </td>
                     <td className={tdClass}>{user.nomRol}</td>

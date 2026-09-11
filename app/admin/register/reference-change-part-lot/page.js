@@ -127,7 +127,7 @@ export default function ReferenceChangePartLot() {
         setShowResult(true);
       }
     } catch (err) {
-      Swal.fire({ position: 'top-end', icon: 'error', title: err?.response?.data?.message || 'Error al guardar', showConfirmButton: false, timer: 3000 });
+      Swal.fire({ position: 'top-end', icon: 'error', title: err?.response?.data?.message || t.save_error, showConfirmButton: false, timer: 3000 });
     } finally {
       setSaving(false);
     }
@@ -261,8 +261,8 @@ export default function ReferenceChangePartLot() {
           </div>
 
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Importación completada</h2>
-            <p className="text-sm text-gray-400 mt-1">Referencias cruzadas registradas correctamente</p>
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{t.import_completed}</h2>
+            <p className="text-sm text-gray-400 mt-1">{t.cross_references_registered}</p>
           </div>
 
           <div className="flex flex-wrap justify-center gap-4">

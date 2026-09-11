@@ -49,6 +49,7 @@ export default function PdfViewer({ order, onClose }) {
     try {
       const res = await axiosClient.post(URL_PREVIEW, buildPayload(options), { responseType: 'blob' });
       setPdfBlobUrl(URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' })));
+      setPreviewed(true);
     } catch (error) {
       console.error('Error al cargar PDF:', error);
     }

@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { Pagination } from '@mantine/core';
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import axiosClient from '@/app/lib/axiosClient';
 import { useSelector } from 'react-redux';
 import { selectUser } from '@/store/authSlice';

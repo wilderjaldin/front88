@@ -62,10 +62,12 @@ export default function Quotes({
 
   const addQuote = () => {
     const ICON_Q = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    const isDark = document.body.classList.contains('dark');
     Swal.fire({
+      background: isDark ? '#111c30' : '#ffffff',
       html: `<div style="padding:12px 0 6px">
         <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#a5b4fc,#4f46e5);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 8px 24px rgba(79,70,229,0.3)">${ICON_Q}</div>
-        <h2 style="color:#1e293b;font-size:17px;font-weight:700;margin:0;line-height:1.3">${t.question_do_you_have_the_codes}</h2>
+        <h2 style="color:${isDark ? '#f1f5f9' : '#1e293b'};font-size:17px;font-weight:700;margin:0;line-height:1.3">${t.question_do_you_have_the_codes}</h2>
       </div>`,
       showCancelButton: true,
       confirmButtonText: t.yes ?? 'Sí',

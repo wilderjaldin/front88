@@ -8,7 +8,7 @@ import { selectUser } from '@/store/authSlice';
 import { useForm } from 'react-hook-form';
 import { formatEmailBody } from '@/app/lib/formatEmail';
 import ComponentContactForm from '@/components/forms/contact-form';
-import { swalSuccess, swalError } from '@/app/lib/swal';
+import { swalSuccess, swalError, swalMailNotSent } from '@/app/lib/swal';
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false });
 
@@ -103,13 +103,14 @@ const MailToCustomerForm = ({ close, t, selected = [] }) => {
     setParaError('');
     setLoading(true);
     try {
-      await axiosClient.post(URL_SEND_EMAIL, {
+      const rs = await axiosClient.post(URL_SEND_EMAIL, {
         AsuntoMail:  data.subject,
         DestinoMail: para,
         CuerpoMail:  formatEmailBody(data.message, 'html'),
       });
       close();
-      swalSuccess(t.message_sent);
+      if (rs.data?.correoEnviado === false) swalMailNotSent(t);
+      else swalSuccess(t.message_sent);
     } catch (err) {
       const msg = err?.response?.data?.mensaje ?? 'No se pudo enviar el correo.';
       swalError('Error', msg);

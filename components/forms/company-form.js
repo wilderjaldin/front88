@@ -8,7 +8,7 @@ import { useTranslation } from "@/app/locales";
 import IconPlusProps from '@/components/icon/icon-plus';
 import Modal from '@/components/modal';
 import FormAddBrand from '@/components/forms/add-brand-form';
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import axios from 'axios'
 import Swal from 'sweetalert2'
 import { useOptionsSelect } from '@/app/options'

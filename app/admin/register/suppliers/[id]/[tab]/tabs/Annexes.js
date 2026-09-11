@@ -4,8 +4,8 @@ import { useSupplier } from '../../SupplierContext';
 import { useTranslation } from '@/app/locales';
 import axiosClient from '@/app/lib/axiosClient';
 import { swalSuccess, swalError, swalConfirm } from '@/app/lib/swal';
-import AsyncSelect from 'react-select/async';
-import Select from 'react-select';
+import AsyncSelect from '@/components/ui/AsyncSelect';
+import Select from '@/components/ui/Select';
 import IconTrashLines from '@/components/icon/icon-trash-lines';
 import IconPlus from '@/components/icon/icon-plus';
 

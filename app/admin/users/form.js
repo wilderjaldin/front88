@@ -4,7 +4,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from "@/app/locales";
 import SelectCountry from '@/components/select-country';
 import SelectCity from '@/components/select-city';
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import Loading from '@/components/layouts/loading';
 import IconMail from '@/components/icon/icon-mail';
 import axiosClient from "@/app/lib/axiosClient";
@@ -17,6 +17,38 @@ const URL_CIUDADES         = "/usuarios/ciudades";
 const URL_PROBAR_SMTP      = "/usuarios/probar-smtp";
 const ROL_REPRESENTANTE_ID = 3; // hardcodeado también en el backend (usuarios/detalle)
 
+// Medidor de fuerza de contraseña — mismo criterio/estilo que users/settings/page.js
+const STRENGTH_LEVELS = [
+  { label: 'Muy débil',  bar: 'bg-red-500',     text: 'text-red-500'     },
+  { label: 'Débil',      bar: 'bg-orange-500',  text: 'text-orange-500'  },
+  { label: 'Regular',    bar: 'bg-yellow-500',  text: 'text-yellow-500'  },
+  { label: 'Fuerte',     bar: 'bg-emerald-500', text: 'text-emerald-500' },
+];
+const getStrength = (pwd) => {
+  if (!pwd) return null;
+  let score = 0;
+  if (pwd.length >= 8)          score++;
+  if (/[A-Z]/.test(pwd))        score++;
+  if (/[0-9]/.test(pwd))        score++;
+  if (/[^A-Za-z0-9]/.test(pwd)) score++;
+  return { score: Math.max(score, 1), ...STRENGTH_LEVELS[Math.max(score - 1, 0)] };
+};
+const StrengthBar = ({ value }) => {
+  const info = getStrength(value);
+  if (!info) return null;
+  return (
+    <div className="mt-2 space-y-1.5">
+      <div className="flex gap-1">
+        {STRENGTH_LEVELS.map((_, i) => (
+          <div key={i} className={`h-1.5 flex-1 rounded-full transition-colors duration-300
+            ${i < info.score ? info.bar : 'bg-gray-200 dark:bg-gray-700'}`} />
+        ))}
+      </div>
+      <p className={`text-[11px] font-semibold ${info.text}`}>{info.label}</p>
+    </div>
+  );
+};
+
 const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countries }) => {
   const [isLoading,     setLoading]       = useState(false);
   const [loadingCities, setLoadingCities] = useState(false);
@@ -24,6 +56,10 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
 
   const [cities,          setCities]         = useState([]);
   const [current_country, setCurrentCountry] = useState('');
+
+  // Correo SMTP tal como vino del backend — referencia para saber si el admin lo
+  // modificó y para el botón "Limpiar".
+  const [originalSmtpEmail, setOriginalSmtpEmail] = useState('');
 
   // ── Prueba de conexión SMTP (stateless — no depende de que el usuario ya exista) ──
   const [testingSmtp, setTestingSmtp] = useState(false);
@@ -82,6 +118,7 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
       setCities([]);
       setCurrentCountry('');
       setVerifiedSmtp(null);
+      setOriginalSmtpEmail('');
       return;
     }
 
@@ -102,6 +139,7 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
     // corElectronico es exclusivo del SMTP y siempre es @daxparts.com; si el
     // detalle no lo trae todavía, cae al viejo derivado desde correo (username local-part).
     const smtpEmail = user?.corElectronico || (user?.correo ? `${user.correo}@daxparts.com` : '');
+    setOriginalSmtpEmail(smtpEmail);
     if (smtpEmail) {
       setValue('email', smtpEmail);
       setValue('smtpUser', smtpEmail.split('@')[0] ?? '');
@@ -236,8 +274,8 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
       nums [Math.floor(Math.random() * nums.length )] +
       spec [Math.floor(Math.random() * spec.length )];
 
-    for (let i = 4; i < 8; i++) pwd += all[Math.floor(Math.random() * all.length)];
-    setValue("password_system", pwd.split('').sort(() => 0.5 - Math.random()).join(''));
+    for (let i = 4; i < 10; i++) pwd += all[Math.floor(Math.random() * all.length)];
+    setValue("password_system", pwd.split('').sort(() => 0.5 - Math.random()).join(''), { shouldValidate: true });
   };
 
   // Verificado solo cuenta si corresponde al correo/contraseña actuales del form
@@ -246,6 +284,23 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
     verifiedSmtp.email === watch('email') &&
     verifiedSmtp.password === watch('password_smtp')
   );
+
+  // Al editar: si el admin tocó el correo o la contraseña SMTP, hay que volver a
+  // probar la conexión — hasta que dé "Ok" el botón Guardar queda bloqueado.
+  const smtpChanged = isEdit && (
+    watch('email') !== originalSmtpEmail ||
+    !!watch('password_smtp')
+  );
+  const saveDisabled = smtpChanged && !isSmtpVerified;
+
+  // Vuelve al correo SMTP original y limpia la contraseña → deja de contar como
+  // "modificado", así el botón Guardar se rehabilita.
+  const limpiarSmtp = () => {
+    setValue('email', originalSmtpEmail, { shouldValidate: true });
+    setValue('smtpUser', originalSmtpEmail.split('@')[0] ?? '');
+    setValue('password_smtp', '');
+    setVerifiedSmtp(null);
+  };
 
   return (
     <>
@@ -330,7 +385,7 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
                         validate: (value) => {
                           if (isEdit && !value) return true;
                           if (value.length < 6) return "Debe tener mínimo 6 caracteres";
-                          if (!/^[a-zA-Z0-9]+$/.test(value)) return "Solo caracteres alfanuméricos";
+                          if (/\s/.test(value)) return "No se permiten espacios";
                           return true;
                         }
                       })}
@@ -350,6 +405,7 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
                       {errors.password_system?.message?.toString()}
                     </span>
                   )}
+                  <StrengthBar value={watch('password_system')} />
                 </div>
               </div>
 
@@ -381,9 +437,13 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
                 Configuración SMTP
               </h3>
 
-              {isEdit && !isSmtpVerified && (
+              {smtpChanged && !isSmtpVerified ? (
                 <div className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs bg-amber-50 text-amber-700 border border-amber-200">
-                  ⚠️ La conexión SMTP no ha sido verificada. Usa "Probar Conexión" antes de guardar.
+                  ⚠️ Cambiaste los datos SMTP. Prueba la conexión antes de guardar.
+                </div>
+              ) : isEdit && !user?.smtpVerificado && (
+                <div className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs bg-amber-50 text-amber-700 border border-amber-200">
+                  ⚠️ Esta cuenta no tiene una configuración SMTP verificada para el envío de mensajes.
                 </div>
               )}
 
@@ -414,7 +474,7 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
                 <label className="form-label">Contraseña del Correo (SMTP)</label>
                 <input type="text" {...register("password_smtp")} className="form-input" />
               </div>
-              <div className="flex items-center gap-3 pt-1">
+              <div className="flex items-center gap-2 pt-1">
                 <button
                   type="button"
                   onClick={testSmtp}
@@ -423,6 +483,16 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
                 >
                   {testingSmtp ? "Probando…" : "Probar Conexión"}
                 </button>
+                {isEdit && (
+                  <button
+                    type="button"
+                    onClick={limpiarSmtp}
+                    disabled={!smtpChanged}
+                    className="text-xs bg-white text-gray-600 border border-gray-300 px-3 py-1.5 rounded-md hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Limpiar
+                  </button>
+                )}
                 {isSmtpVerified && (
                   <span className="text-xs text-green-600 font-medium">✓ Conexión verificada</span>
                 )}
@@ -475,9 +545,9 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
 
             {/* PREFERENCIAS */}
             <div className="space-y-3 bg-gray-50 p-4 rounded-xl border">
-              <div className="grid grid-cols-[140px_1fr] items-start gap-3">
-                <label className="form-label text-right pt-2">{t.show_reports_in}</label>
-                <div>
+              <div className="flex items-center gap-3">
+                <label className="form-label mb-0 whitespace-nowrap">{t.show_reports_in}</label>
+                <div className="w-44">
                   <Controller
                     name="report"
                     control={control}
@@ -521,7 +591,12 @@ const UserForm = ({ action_cancel, user, token, updateList, roles, mode, countri
             <button type="button" onClick={action_cancel} className="btn btn-outline-dark px-5">
               {t.btn_cancel}
             </button>
-            <button type="submit" className="btn btn-success px-5 shadow-sm">
+            <button
+              type="submit"
+              disabled={saveDisabled}
+              title={saveDisabled ? 'Prueba la conexión SMTP antes de guardar' : undefined}
+              className="btn btn-success px-5 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               {t.btn_save}
             </button>
           </div>

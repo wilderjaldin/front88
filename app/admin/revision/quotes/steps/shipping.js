@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import axiosClient from '@/app/lib/axiosClient';
 import Modal from '@/components/modal';
-import Select from 'react-select';
+import Select from '@/components/ui/Select';
 import { useSearchParams } from 'next/navigation';
 import IconPlusProps from '@/components/icon/icon-plus';
 import IconPencil from '@/components/icon/icon-pencil';
@@ -158,9 +158,9 @@ const ShippingQuote = ({ token, t, order_id, customer, savedShipping, registerSh
   const DetailRow = ({ label, value }) => {
     if (!value) return null;
     return (
-      <div className="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0">
-        <span className="w-28 shrink-0 text-xs font-medium text-gray-400 text-right">{label}</span>
-        <span className="text-sm font-medium text-gray-800 flex-1">{value}</span>
+      <div className="flex items-center gap-3 py-2.5 border-b border-gray-50 dark:border-gray-700/60 last:border-0">
+        <span className="w-28 shrink-0 text-xs font-medium text-gray-400 dark:text-gray-500 text-right">{label}</span>
+        <span className="text-sm font-medium text-gray-800 dark:text-gray-100 flex-1">{value}</span>
       </div>
     );
   };
@@ -168,11 +168,11 @@ const ShippingQuote = ({ token, t, order_id, customer, savedShipping, registerSh
   return (
     <>
       <div className="flex justify-center">
-        <div className="w-full max-w-xl bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-6">
+        <div className="w-full max-w-xl bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 space-y-6">
 
           {/* ── Transporte ──────────────────────────────────────────────── */}
           <div>
-            <h3 className="text-sm font-semibold text-gray-600 mb-3">
+            <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-200 mb-3">
               {t.select_transport ?? 'Seleccione el Transporte'}
             </h3>
             <Select
@@ -185,7 +185,7 @@ const ShippingQuote = ({ token, t, order_id, customer, savedShipping, registerSh
             />
             {selTransporte && selTransporte.value !== '1' && (
               <div className="flex items-center gap-3 mt-3">
-                <label className="w-28 shrink-0 text-xs font-medium text-gray-400 text-right">
+                <label className="w-28 shrink-0 text-xs font-medium text-gray-400 dark:text-gray-500 text-right">
                   {t.account_number ?? '# Cuenta'}
                 </label>
                 <input
@@ -202,7 +202,7 @@ const ShippingQuote = ({ token, t, order_id, customer, savedShipping, registerSh
 
           {/* ── Dirección de entrega ──────────────────────────────────────── */}
           <div>
-            <h3 className="text-sm font-semibold text-gray-600 mb-3">
+            <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-200 mb-3">
               {t.select_address ?? 'Seleccione una dirección'}
             </h3>
             <div className="flex items-center gap-2">
@@ -219,7 +219,7 @@ const ShippingQuote = ({ token, t, order_id, customer, savedShipping, registerSh
               <button
                 type="button"
                 onClick={openAdd}
-                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-gray-300 text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 transition shrink-0"
+                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-600 dark:text-gray-300 bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 transition shrink-0"
               >
                 <IconPlusProps className="h-4 w-4" />
                 {t.btn_add ?? 'Agregar'}
@@ -228,11 +228,11 @@ const ShippingQuote = ({ token, t, order_id, customer, savedShipping, registerSh
 
             {/* Skeleton mientras carga */}
             {loadingDir && (
-              <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 space-y-2 animate-pulse">
+              <div className="mt-4 rounded-xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-4 py-3 space-y-2 animate-pulse">
                 {[1,2,3,4].map(i => (
                   <div key={i} className="flex gap-3 py-1.5">
-                    <div className="h-3.5 w-24 bg-gray-200 rounded ml-auto" />
-                    <div className="h-3.5 w-40 bg-gray-200 rounded" />
+                    <div className="h-3.5 w-24 bg-gray-200 dark:bg-gray-700 rounded ml-auto" />
+                    <div className="h-3.5 w-40 bg-gray-200 dark:bg-gray-700 rounded" />
                   </div>
                 ))}
               </div>
@@ -240,7 +240,7 @@ const ShippingQuote = ({ token, t, order_id, customer, savedShipping, registerSh
 
             {/* Detalle de la dirección */}
             {!loadingDir && currentDir && (
-              <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 px-4 pt-1 pb-3">
+              <div className="mt-4 rounded-xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-4 pt-1 pb-3">
                 <DetailRow
                   label={`${t.country ?? 'País'} / ${t.city ?? 'Ciudad'}`}
                   value={[currentDir.nomPais, currentDir.nomCiudad].filter(Boolean).join(' - ')}
@@ -256,7 +256,7 @@ const ShippingQuote = ({ token, t, order_id, customer, savedShipping, registerSh
                   <button
                     type="button"
                     onClick={openEdit}
-                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm font-medium text-blue-600 hover:bg-blue-50 transition"
+                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition"
                   >
                     <IconPencil className="h-3.5 w-3.5" />
                     {t.btn_edit ?? 'Editar'}
@@ -268,7 +268,7 @@ const ShippingQuote = ({ token, t, order_id, customer, savedShipping, registerSh
 
           {/* ── Instrucción de entrega ───────────────────────────────────── */}
           <div className="flex items-start gap-3">
-            <label className="w-28 shrink-0 text-xs font-medium text-gray-400 text-right pt-2">
+            <label className="w-28 shrink-0 text-xs font-medium text-gray-400 dark:text-gray-500 text-right pt-2">
               {t.delivery_instructions ?? 'Instrucción Entrega'}
             </label>
             <textarea

@@ -49,6 +49,9 @@ const PendingDelivery = ({
     setSeleccionados(prev => prev.includes(row) ? prev.filter(i => i !== row) : [...prev, row]);
 
   const isEmpty = seleccionados.length === 0;
+  // ver-detalle-despacho recibe un solo numEntrega — ya no tiene sentido
+  // seleccionar varios para "Adjuntar Items".
+  const isSingle = seleccionados.length === 1;
 
   return (
     <div>
@@ -56,7 +59,8 @@ const PendingDelivery = ({
         <button
           type="button"
           onClick={attachItems}
-          disabled={isEmpty}
+          disabled={!isSingle}
+          title={isEmpty ? undefined : (!isSingle ? t.select_single_delivery_hint : undefined)}
           className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 disabled:opacity-35 disabled:cursor-not-allowed transition"
         >
           {t.attach_items}
