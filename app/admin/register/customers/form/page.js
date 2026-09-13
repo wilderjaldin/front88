@@ -26,18 +26,34 @@ const ToggleChip = ({ checked, label, disabled, register }) => (
   </label>
 );
 
+// Mapea el nombre de campo que devuelve la API (PascalCase, según el DTO del
+// backend) al nombre del campo en el formulario — así el error 400 de
+// validación se puede mostrar directo bajo el campo correspondiente, además
+// del mensaje general.
+const API_FIELD_MAP = {
+  nomcliente:   'nomCliente',
+  tipdocumento: 'tipDocumento',
+  numnit:       'numNit',
+  codpais:      'country',
+  codciudad:    'city',
+  dircliente:   'dirCliente',
+  sitweb:       'sitWeb',
+  actprincipal: 'actPrincipal',
+  estado:       'estado',
+  zip:          'zip',
+  poriva:       'pctIva',
+};
+
 const URL_CONTROLES  = '/clientes/controles';
 const URL_CIUDADES   = '/ciudades';          // GET /ciudades?codPais=XX
 const URL_REGISTRO   = '/clientes/registro';
 const URL_EDITAR     = '/clientes/editar';
 
-const IDIOMA_OPTIONS = [
-  { value: 'ES', label: 'Español' },
-  { value: 'US', label: 'Inglés' },
+// labelKey → clave de traducción, resuelta con `t` dentro del componente.
+const IDIOMA_OPTIONS_BASE = [
+  { value: 'ES', labelKey: 'spanish' },
+  { value: 'US', labelKey: 'english' },
 ];
-
-const IDIOMA_ES = IDIOMA_OPTIONS[0]; // Español
-const IDIOMA_EN = IDIOMA_OPTIONS[1]; // Inglés
 
 // Países que además de US muestran los campos Estado/ZIP (codPais 33)
 const isEstadoZipCountry = (value) => value === 'US' || value === 33 || value === '33';
@@ -52,6 +68,10 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
   const isEdit = !!cliente;
   const skipIdiomaRef = useRef(isEdit);
 
+  const IDIOMA_OPTIONS = IDIOMA_OPTIONS_BASE.map(o => ({ value: o.value, label: t[o.labelKey] }));
+  const IDIOMA_ES = IDIOMA_OPTIONS[0]; // Español
+  const IDIOMA_EN = IDIOMA_OPTIONS[1]; // Inglés
+
   const [saving, setSaving]         = useState(false);
   const [paises, setPaises]         = useState([]);
   const [ciudades, setCiudades]     = useState([]);
@@ -61,7 +81,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
 
 
   const {
-    register, handleSubmit, control, reset, watch, setValue,
+    register, handleSubmit, control, reset, watch, setValue, setError,
     formState: { errors },
   } = useForm({
     defaultValues: {
@@ -137,7 +157,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
           });
         }
       } catch {
-        swalError('Error cargando controles');
+        swalError(t.loading_error_controls);
       } finally {
         setLoading(false);
       }
@@ -175,7 +195,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
         const res = await axiosClient.get(URL_CIUDADES, { params: { codPais: watchPais.value } });
         setCiudades(res.data ?? []);
       } catch {
-        swalError('Error cargando ciudades');
+        swalError(t.loading_error_cities);
         setCiudades([]);
       } finally {
         setLoadingCities(false);
@@ -214,16 +234,31 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
         ? await axiosClient.put(URL_EDITAR,    payload)
         : await axiosClient.post(URL_REGISTRO, payload);
 
-      swalSuccess(isEdit ? 'Cliente actualizado' : 'Cliente registrado');
+      swalSuccess(isEdit ? t.customer_updated : t.customer_registered);
       onSaved?.(res.data);
     } catch (err) {
-      swalError(err?.response?.data?.message || 'Error al guardar');
+      // 400 de ASP.NET (ModelState/DataAnnotations): { errors: { Campo: ["mensaje"] } }.
+      // Se resalta el campo si se puede mapear y, además, se listan todos los
+      // mensajes en el alert — así no queda solo el genérico "Error al guardar".
+      const apiErrors = err?.response?.data?.errors;
+      if (err?.response?.status === 400 && apiErrors) {
+        const msgs = [];
+        Object.entries(apiErrors).forEach(([field, messages]) => {
+          const list = Array.isArray(messages) ? messages : [messages];
+          msgs.push(...list);
+          const rhfField = API_FIELD_MAP[field.toLowerCase()];
+          if (rhfField) setError(rhfField, { type: 'server', message: list[0] });
+        });
+        swalError(t.error, msgs.join('\n'), t.close);
+        return;
+      }
+      swalError(err?.response?.data?.message || t.could_not_save);
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) return <p className="p-4 text-sm text-gray-500">Cargando...</p>;
+  if (loading) return <p className="p-4 text-sm text-gray-500">{t.loading}</p>;
 
   return (
     <>
@@ -241,19 +276,19 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
             {/* Cliente */}
             <div>
               <label className="block text-sm font-medium mb-1">
-                Cliente <span className="text-red-500">*</span>
+                {t.customer} <span className="text-red-500">*</span>
               </label>
               <input
                 {...register('nomCliente', {
-                  required: 'El nombre del cliente es obligatorio',
-                  maxLength: { value: 50, message: 'Máximo 50 caracteres' },
+                  required: t.customer_name_required,
+                  maxLength: { value: 50, message: t.max_n_characters.replace('{n}', 50) },
                   pattern: {
                     value: /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ0-9\s\-\.\,\&']+$/,
-                    message: 'Solo se permiten letras, números y caracteres básicos',
+                    message: t.only_letters_numbers_basic,
                   },
-                  validate: v => v.trim().length > 0 || 'El nombre no puede estar vacío',
+                  validate: v => v.trim().length > 0 || t.name_not_empty,
                 })}
-                placeholder="Nombre completo del cliente"
+                placeholder={t.customer_full_name_ph}
                 className="form-input w-full"
               />
               <FieldError error={errors.nomCliente} />
@@ -262,7 +297,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
             {/* País */}
             <div>
               <label className="block text-sm font-medium mb-1">
-                País <span className="text-red-500">*</span>
+                {t.country} <span className="text-red-500">*</span>
               </label>
               <SelectCountry
                 t={t}
@@ -285,16 +320,16 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
 
             {/* Dirección (calle) */}
             <div>
-              <label className="block text-sm font-medium mb-1">Dir. Oficina Central</label>
+              <label className="block text-sm font-medium mb-1">{t.office_address}</label>
               <input
                 {...register('dirCliente', {
-                  maxLength: { value: 150, message: 'Máximo 150 caracteres' },
+                  maxLength: { value: 150, message: t.max_n_characters.replace('{n}', 150) },
                   pattern: {
                     value: /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ0-9\s\.\,\-\#\/\(\)]+$/,
-                    message: 'Solo se permiten caracteres válidos para una dirección',
+                    message: t.valid_address_chars,
                   },
                 })}
-                placeholder="Ej: Av. Flores 545, Edificio Torres"
+                placeholder={t.office_address_ph}
                 className="form-input w-full"
               />
               <FieldError error={errors.dirCliente} />
@@ -303,7 +338,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
             {/* Ciudad */}
             <div>
               <label className="block text-sm font-medium mb-1">
-                Ciudad <span className="text-red-500">*</span>
+                {t.city} <span className="text-red-500">*</span>
               </label>
               <SelectCity
                 t={t}
@@ -327,35 +362,35 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
             >
                 <div>
                   <label className="block text-sm font-medium mb-1">
-                    Estado <span className="text-red-500">*</span>
+                    {t.state} <span className="text-red-500">*</span>
                   </label>
                   <input
                     {...register('estado', {
-                      required: isUS ? 'El estado es requerido para USA' : false,
-                      maxLength: { value: 60, message: 'Máximo 60 caracteres' },
+                      required: isUS ? t.state_required_usa : false,
+                      maxLength: { value: 60, message: t.max_n_characters.replace('{n}', 60) },
                       pattern: {
                         value: /^[a-zA-Z\s]+$/,
-                        message: 'Solo se permiten letras',
+                        message: t.only_letters,
                       },
                     })}
-                    placeholder="Ej: California"
+                    placeholder={t.state_ph}
                     className="form-input w-full"
                   />
                   <FieldError error={errors.estado} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">
-                    Código Postal <span className="text-red-500">*</span>
+                    {t.zip_code} <span className="text-red-500">*</span>
                   </label>
                   <input
                     {...register('zip', {
-                      required: isUS ? 'El ZIP es requerido para USA' : false,
+                      required: isUS ? t.zip_required_usa : false,
                       pattern: {
                         value: /^\d{5}(-\d{4})?$/,
-                        message: 'Formato inválido. Ej: 90210 o 90210-1234',
+                        message: t.invalid_zip_format,
                       },
                     })}
-                    placeholder="Ej: 90210"
+                    placeholder={t.zip_ph}
                     className="form-input w-full"
                   />
                   <FieldError error={errors.zip} />
@@ -364,7 +399,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
 
             {/* % IVA */}
             <div>
-              <label className="block text-sm font-medium mb-1">% IVA</label>
+              <label className="block text-sm font-medium mb-1">{t.pct_iva_label}</label>
               {/* Altura fijada por inline style en ambos (input y chip): .form-input trae su propio
                   padding/line-height que nunca calzó pixel-a-pixel contra clases de altura (h-[42px]
                   ni items-stretch) frente al chip, que arma la suya solo con utilidades. Un style
@@ -376,8 +411,8 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                   min="0"
                   max="100"
                   {...register('pctIva', {
-                    min: { value: 0,   message: 'Mínimo 0'   },
-                    max: { value: 100, message: 'Máximo 100' },
+                    min: { value: 0,   message: t.min_value_n.replace('{n}', 0)   },
+                    max: { value: 100, message: t.max_value_n.replace('{n}', 100) },
                   })}
                   disabled={watchNoIva}
                   style={{ height: 42, boxSizing: 'border-box' }}
@@ -385,7 +420,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                 />
                 <ToggleChip
                   checked={watchNoIva}
-                  label="No Considerar IVA"
+                  label={t.no_consider_iva}
                   register={register('noConsiderarIva')}
                 />
               </div>
@@ -400,15 +435,18 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
             {/* Tipo de documento + Número — en una sola fila */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium mb-1">Tipo de Documento</label>
+                <label className="block text-sm font-medium mb-1">
+                  {t.document_type_full} <span className="text-red-500">*</span>
+                </label>
                 <Controller
                   name="tipDocumento"
                   control={control}
+                  rules={{ required: t.required_select }}
                   render={({ field }) => (
                     <Select
                       {...field}
                       options={docTypes}
-                      placeholder="Seleccionar..."
+                      placeholder={t.select_option}
                       classNamePrefix="select"
                       className="w-full"
                       isClearable
@@ -418,23 +456,24 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                     />
                   )}
                 />
+                <FieldError error={errors.tipDocumento} />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Num. NIT / CI</label>
+                <label className="block text-sm font-medium mb-1">{t.nit_number_label}</label>
                 <input
                   {...register('numNit', {
-                    maxLength: { value: 45, message: 'Máximo 45 caracteres' },
+                    maxLength: { value: 45, message: t.max_n_characters.replace('{n}', 45) },
                     pattern: {
                       value: /^[0-9\-]*$/,
-                      message: 'Solo se permiten números y el carácter -',
+                      message: t.only_numbers_dash,
                     },
                     validate: v => {
                       const tipo = watch('tipDocumento');
-                      if (tipo && !v?.trim()) return 'El número de documento es requerido';
+                      if (tipo && !v?.trim()) return t.document_number_required;
                       return true;
                     },
                   })}
-                  placeholder={watchTipDoc ? `Nro. de ${watchTipDoc.label}` : 'Número de documento'}
+                  placeholder={watchTipDoc ? t.nro_of.replace('{label}', watchTipDoc.label) : t.document_number}
                   disabled={!watchTipDoc}
                   className="form-input w-full disabled:opacity-50 disabled:cursor-not-allowed"
                 />
@@ -444,21 +483,21 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
 
             {/* Página web */}
             <div>
-              <label className="block text-sm font-medium mb-1">Página web</label>
+              <label className="block text-sm font-medium mb-1">{t.website}</label>
               <input
                 {...register('sitWeb', {
-                  maxLength: { value: 100, message: 'Máximo 100 caracteres' },
+                  maxLength: { value: 100, message: t.max_n_characters.replace('{n}', 100) },
                   validate: v => {
                     if (!v || !v.trim()) return true; // opcional
                     try {
                       const url = new URL(v.startsWith('http') ? v : `https://${v}`);
-                      return (url.hostname.includes('.')) || 'Ingresa una URL válida (ej: https://ejemplo.com)';
+                      return (url.hostname.includes('.')) || t.invalid_url;
                     } catch {
-                      return 'Ingresa una URL válida (ej: https://ejemplo.com)';
+                      return t.invalid_url;
                     }
                   },
                 })}
-                placeholder="https://ejemplo.com"
+                placeholder={t.website_ph}
                 className="form-input w-full"
               />
               <FieldError error={errors.sitWeb} />
@@ -466,16 +505,16 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
 
             {/* Actividad principal */}
             <div>
-              <label className="block text-sm font-medium mb-1">Actividad Principal</label>
+              <label className="block text-sm font-medium mb-1">{t.main_activity}</label>
               <input
                 {...register('actPrincipal', {
-                  maxLength: { value: 50, message: 'Máximo 50 caracteres' },
+                  maxLength: { value: 50, message: t.max_n_characters.replace('{n}', 50) },
                   pattern: {
                     value: /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ0-9\s\.\,\-]+$/,
-                    message: 'Solo se permiten letras, números y caracteres básicos',
+                    message: t.only_letters_numbers_basic,
                   },
                 })}
-                placeholder="Ej: Comercio de repuestos automotrices"
+                placeholder={t.main_activity_ph}
                 className="form-input w-full"
               />
               <FieldError error={errors.actPrincipal} />
@@ -483,7 +522,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
 
             {/* Idioma reporte */}
             <div>
-              <label className="block text-sm font-medium mb-1">Mostrar reportes en</label>
+              <label className="block text-sm font-medium mb-1">{t.show_reports_in}</label>
               <Controller
                 name="cliIdioma"
                 control={control}
@@ -506,7 +545,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
               <label className="block text-sm font-medium mb-1">&nbsp;</label>
               <ToggleChip
                 checked={watch('esRevendedor')}
-                label="Es Revendedor"
+                label={t.is_reseller}
                 register={register('esRevendedor')}
               />
             </div>
@@ -522,7 +561,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
             onClick={onCancel}
             className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700
                        text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition">
-            Cancelar
+            {t.btn_cancel}
           </button>
           <button
             type="submit"
@@ -531,12 +570,12 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
             {saving ? (
               <>
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                Guardando...
+                {t.saving}
               </>
             ) : (
               <>
                 <IconSave className="h-4 w-4" />
-                {isEdit ? 'Actualizar' : 'Guardar'}
+                {isEdit ? t.update : t.save}
               </>
             )}
           </button>

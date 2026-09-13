@@ -60,7 +60,6 @@ const Header = () => {
 
   const user_redux = useSelector(selectUser);
   const totalNoLeidos = useSelector(selectTotalNoLeidos);
-  console.log('user_redux', user_redux)
 
   const [showModal, setShowModal] = useState(false);
 

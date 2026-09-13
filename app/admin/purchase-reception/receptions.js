@@ -33,7 +33,11 @@ const ITEM_COLUMNS = [
   { key: 'note',   type: 'text',   widthPx: 140 },
 ];
 
-const Receptions = ({ t, data, setReceptions, selected_orders, onRefresh }) => {
+// Alto aproximado del panel de sugerencias, usado solo para decidir si abrir
+// hacia abajo o hacia arriba — el máximo real lo pone max-h-40 en el render.
+const ORIGEN_DROPDOWN_MAX_HEIGHT = 176;
+
+const Receptions = ({ t, data, setReceptions, selected_orders, onRefresh, origenes = [] }) => {
 
   const [page,   setPage]   = useState(1);
   const [saving, setSaving] = useState(false);
@@ -45,10 +49,43 @@ const Receptions = ({ t, data, setReceptions, selected_orders, onRefresh }) => {
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
   const [barcodeText, setBarcodeText] = useState('');
 
+  // Sugerencias de "Origen": un único panel flotante compartido por todas las
+  // filas (no un componente por fila) — se reposiciona con position:fixed
+  // calculado por JS según la celda enfocada, y se filtra con lo que se va
+  // escribiendo, sin perder la esencia de celda de texto tipo Excel.
+  const [origenDropdown, setOrigenDropdown] = useState(null); // { rowId, top, bottom, left, width }
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const origenDropdownRef = useRef(null);
+  const origenOptionRefs = useRef([]);
+
+  // Lista de orígenes "recordados", tipo autocompletado de columna de Excel:
+  // arranca con lo que llega del backend y se le van sumando los valores
+  // nuevos que se escriben en cualquier celda, para que las filas siguientes
+  // los puedan sugerir también.
+  const [origenList, setOrigenList] = useState(origenes);
+  useEffect(() => {
+    setOrigenList(prev => {
+      const merged = [...prev];
+      origenes.forEach((o) => {
+        if (o && !merged.some(m => m.toLowerCase() === o.toLowerCase())) merged.push(o);
+      });
+      return merged;
+    });
+  }, [origenes]);
+
+  const rememberOrigen = (value) => {
+    const v = (value || '').trim();
+    if (!v) return;
+    setOrigenList(prev => (
+      prev.some(o => o.toLowerCase() === v.toLowerCase()) ? prev : [...prev, v]
+    ));
+  };
+
   const {
     register,
     getValues,
     setValue,
+    watch,
   } = useForm()
 
   useEffect(() => {
@@ -106,6 +143,100 @@ const Receptions = ({ t, data, setReceptions, selected_orders, onRefresh }) => {
         : field.onChange,
       onKeyDown: (e) => handleCellKeyDown(e, row, col),
     };
+  };
+
+  const openOrigenDropdown = (rowId, inputEl) => {
+    if (!inputEl) return;
+    const rect = inputEl.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openUp = spaceBelow < ORIGEN_DROPDOWN_MAX_HEIGHT && rect.top > spaceBelow;
+    setHighlightedIndex(-1);
+    setOrigenDropdown({
+      rowId,
+      left: rect.left,
+      width: Math.max(rect.width, 140),
+      ...(openUp
+        ? { bottom: window.innerHeight - rect.top + 2 }
+        : { top: rect.bottom + 2 }),
+    });
+  };
+
+  const closeOrigenDropdown = () => { setOrigenDropdown(null); setHighlightedIndex(-1); };
+
+  const selectOrigen = (rowId, value) => {
+    setValue(`orders_${rowId}_origen`, value);
+    rememberOrigen(value);
+    closeOrigenDropdown();
+  };
+
+  const getFilteredOrigenes = (rowId) => {
+    const typed = (watch(`orders_${rowId}_origen`) || '').trim().toLowerCase();
+    return typed ? origenList.filter(op => op.toLowerCase().includes(typed)) : origenList;
+  };
+
+  // Cierra el panel si se hace scroll fuera de él (tabla o página) o se
+  // redimensiona la ventana — al ser fixed, no seguiría a la celda igual.
+  // El scroll dentro del propio listado de sugerencias NO debe cerrarlo.
+  useEffect(() => {
+    if (!origenDropdown) return;
+    const handleScroll = (e) => {
+      if (origenDropdownRef.current?.contains(e.target)) return;
+      closeOrigenDropdown();
+    };
+    window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', closeOrigenDropdown);
+    return () => {
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', closeOrigenDropdown);
+    };
+  }, [origenDropdown]);
+
+  // Mantiene visible la opción resaltada por teclado dentro del listado.
+  useEffect(() => {
+    if (highlightedIndex < 0) return;
+    origenOptionRefs.current[highlightedIndex]?.scrollIntoView({ block: 'nearest' });
+  }, [highlightedIndex]);
+
+  // Navegación por teclado propia de la celda "Origen": mientras el listado
+  // de sugerencias está abierto, arriba/abajo recorren las opciones en vez
+  // de saltar de fila, y Enter confirma la resaltada (o guarda y avanza si
+  // no hay ninguna resaltada, igual que en el resto de celdas).
+  const handleOrigenKeyDown = (e, row, col, rowId) => {
+    const isOpen = origenDropdown?.rowId === rowId;
+    if (isOpen) {
+      const filtered = getFilteredOrigenes(rowId);
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (filtered.length > 0) setHighlightedIndex(i => (i + 1) % filtered.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (filtered.length > 0) setHighlightedIndex(i => (i - 1 + filtered.length) % filtered.length);
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (highlightedIndex >= 0 && filtered[highlightedIndex]) {
+          selectOrigen(rowId, filtered[highlightedIndex]);
+        } else {
+          closeOrigenDropdown();
+        }
+        const lastRow = pageData.length - 1;
+        if (row < lastRow) focusCell(row + 1, col);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeOrigenDropdown();
+        return;
+      }
+      if (e.key === 'Tab') {
+        closeOrigenDropdown();
+        return;
+      }
+    }
+    handleCellKeyDown(e, row, col);
   };
 
   const handleReceiveAll = () => {
@@ -303,7 +434,7 @@ const Receptions = ({ t, data, setReceptions, selected_orders, onRefresh }) => {
                 <th className={thClass} style={{ width: 180 }}>{t.description}</th>
                 <th className={`${thClass} text-center`} style={{ width: 56 }}>{t.missing_amount}</th>
                 <th className={`${thClass} text-center`} style={{ width: 80 }}>{t.amount_received}</th>
-                <th className={thClass} style={{ width: 90 }}>Origen</th>
+                <th className={thClass} style={{ width: 90 }}>{t.origin}</th>
                 <th className={thClass}>{t.note}</th>
               </tr>
             </thead>
@@ -332,7 +463,26 @@ const Receptions = ({ t, data, setReceptions, selected_orders, onRefresh }) => {
                     />
                   </td>
                   <td className={cellTdClass}>
-                    <input type="text" {...registerCell(`orders_${index}_origen`, rowIndex, 1)} className={cellInputClass} />
+                    {(() => {
+                      const origenField = registerCell(`orders_${index}_origen`, rowIndex, 1);
+                      return (
+                        <input
+                          type="text"
+                          autoComplete="off"
+                          {...origenField}
+                          onChange={(e) => { origenField.onChange(e); setHighlightedIndex(-1); }}
+                          onFocus={(e) => openOrigenDropdown(index, e.target)}
+                          onBlur={(e) => {
+                            origenField.onBlur?.(e);
+                            rememberOrigen(e.target.value);
+                            // pequeño delay para que el click en una sugerencia se registre antes de cerrar
+                            setTimeout(() => setOrigenDropdown(prev => (prev?.rowId === index ? null : prev)), 150);
+                          }}
+                          onKeyDown={(e) => handleOrigenKeyDown(e, rowIndex, 1, index)}
+                          className={cellInputClass}
+                        />
+                      );
+                    })()}
                   </td>
                   <td className={cellTdClass}>
                     <input type="text" {...registerCell(`orders_${index}_note`, rowIndex, 2, { uppercase: true })} className={cellInputClass} />
@@ -344,6 +494,43 @@ const Receptions = ({ t, data, setReceptions, selected_orders, onRefresh }) => {
           </table>
         </div>
       </div>
+
+      {/* Sugerencias de "Origen" — panel único, fixed y fuera de la tabla (no
+          altera su layout), filtrado con lo que se va escribiendo. */}
+      {origenDropdown && (() => {
+        const filtered = getFilteredOrigenes(origenDropdown.rowId);
+        if (filtered.length === 0) return null;
+        return (
+          <div
+            ref={origenDropdownRef}
+            style={{
+              position: 'fixed',
+              left: origenDropdown.left,
+              width: origenDropdown.width,
+              ...(origenDropdown.top != null ? { top: origenDropdown.top } : { bottom: origenDropdown.bottom }),
+            }}
+            className="z-50 max-h-40 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg py-1"
+          >
+            {filtered.map((op, i) => (
+              <button
+                key={i}
+                type="button"
+                ref={(el) => { origenOptionRefs.current[i] = el; }}
+                onMouseDown={(e) => e.preventDefault()}
+                onMouseEnter={() => setHighlightedIndex(i)}
+                onClick={() => selectOrigen(origenDropdown.rowId, op)}
+                className={`block w-full text-left px-2.5 py-1 text-[11px] transition ${
+                  i === highlightedIndex
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-primary/10 hover:text-primary'
+                }`}
+              >
+                {op}
+              </button>
+            ))}
+          </div>
+        );
+      })()}
 
       {totalPages > 1 && (
         <div className="flex justify-center mt-4">

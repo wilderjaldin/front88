@@ -63,7 +63,7 @@ export default function TradingConditions({
         precargarForm(data);
       })
       .catch(() => {
-        Toast.fire({ icon: 'error', title: 'Error al cargar condiciones comerciales' });
+        Toast.fire({ icon: 'error', title: t.could_not_load_trading_conditions });
         setConditions({});
       })
       .finally(() => setLoadConditions(false));
@@ -183,7 +183,7 @@ export default function TradingConditions({
 
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Monto Crédito $us.
+                  {t.credit_amount_usd}
                 </label>
                 <input
                   type="text"
@@ -193,7 +193,7 @@ export default function TradingConditions({
                   {...register('montoCredito', {
                     pattern: {
                       value: /^\d+(\.\d{0,2})?$/,
-                      message: 'Solo números (ej: 1500.00)',
+                      message: t.numbers_only_eg.replace('{eg}', '1500.00'),
                     },
                   })}
                   className={`form-input w-full ${errors.montoCredito ? 'error' : ''}`}
@@ -205,7 +205,7 @@ export default function TradingConditions({
 
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  % Descuento
+                  {t.pct_discount}
                 </label>
                 <input
                   type="text"
@@ -215,13 +215,13 @@ export default function TradingConditions({
                   {...register('pctDescuento', {
                     pattern: {
                       value: /^\d+(\.\d{0,2})?$/,
-                      message: 'Solo números (ej: 10.00)',
+                      message: t.numbers_only_eg.replace('{eg}', '10.00'),
                     },
                     validate: v => {
                       if (!v) return true;
                       const n = Number(v);
-                      if (n < 0)   return 'No puede ser negativo';
-                      if (n > 100) return 'No puede superar 100%';
+                      if (n < 0)   return t.cannot_be_negative;
+                      if (n > 100) return t.cannot_exceed_100;
                       return true;
                     },
                   })}
@@ -249,7 +249,7 @@ export default function TradingConditions({
                     className="h-4 w-4 rounded border-gray-300 accent-primary cursor-pointer"
                   />
                   <span className={`transition-colors duration-150 ${watchNoIva ? 'text-primary font-medium' : ''}`}>
-                    No Considerar IVA
+                    {t.no_consider_iva}
                   </span>
                 </label>
               </div>
@@ -263,12 +263,12 @@ export default function TradingConditions({
                   required: { value: !watchNoIva, message: t.required_field },
                   pattern: {
                     value: /^\d+(\.\d{0,2})?$/,
-                    message: 'Solo se permiten números (ej: 15.00)',
+                    message: t.numbers_only_eg.replace('{eg}', '15.00'),
                   },
                   validate: v => {
                     if (watchNoIva) return true;
                     const n = Number(v);
-                    if (n < 0) return 'El margen no puede ser negativo';
+                    if (n < 0) return t.margin_cannot_be_negative;
                     return true;
                   },
                 })}

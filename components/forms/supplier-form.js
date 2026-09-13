@@ -89,7 +89,6 @@ const ComponentSupplierForm = ({ action_cancel, supplier = [], show_labels_opc =
     setShowLabels(true);
   }
   const onSubmit = async (data) => {
-    console.log(data)
     try {
       let data_supplier = {
         CodPrv: (supplier?.CodPrv) ?? 0,
@@ -124,10 +123,8 @@ const ComponentSupplierForm = ({ action_cancel, supplier = [], show_labels_opc =
           confirmButtonText: t.close
         }).then(async (r) => {
           data_supplier.CodPrv = (supplier?.CodPrv) ?? rs.data.dato;
-          console.log('supplier.CodPrv', supplier?.CodPrv)
           updateList(data_supplier);
           if(!supplier?.CodPrv){
-            console.log('IFF');
             action_cancel();
           } else {
             cancel();
@@ -146,7 +143,6 @@ const ComponentSupplierForm = ({ action_cancel, supplier = [], show_labels_opc =
 
 
     } catch (error) {
-console.log(error)
       Swal.fire({
         title: t.error,
         text: t.supplier_error_server + " - " + error.mensaje,
@@ -189,7 +185,6 @@ console.log(error)
     setCurrentReport(current_report)
 
     setCurrentTypeDoc(doc_types.find((key) => key.value.toUpperCase() === supplier.TipDocumento.toUpperCase()) || null);
-    console.log(supplier)
     reset({
       company: supplier.NomPrv,
       address: supplier.DirPrv,

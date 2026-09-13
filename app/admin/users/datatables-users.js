@@ -65,14 +65,16 @@ const DatatablesUser = ({
 
         <div className="flex flex-wrap items-center gap-3">
           <SearchFilter t={t} value={term} onSearch={handleSearchChange} onClear={() => handleSearchChange('')} />
-          <button
-            type="button"
-            onClick={addUser}
-            className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 transition"
-          >
-            <IconPlus className="h-4 w-4" />
-            Agregar Usuario
-          </button>
+          {hasPermission(PERMISSIONS.CREAR_USUARIOS) && (
+            <button
+              type="button"
+              onClick={addUser}
+              className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 transition"
+            >
+              <IconPlus className="h-4 w-4" />
+              {t.add_user}
+            </button>
+          )}
         </div>
       </div>
 

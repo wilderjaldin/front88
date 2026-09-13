@@ -90,10 +90,6 @@ const StepsToBuy = ({ token, t, _customer_ }) => {
   const next = async () => {
     if (activeTab === 2) {
       const v = getValues();
-      if (!v.codDireccion) {
-        swalInfo(t.error ?? 'Atención', t.address_required ?? 'Debe seleccionar una dirección de entrega.', t.close ?? 'Entendido');
-        return;
-      }
       const newShipping = {
         company: v.company, contact: v.contact, phone: v.phone,
         email:   v.email,   country: v.country, address: v.address,

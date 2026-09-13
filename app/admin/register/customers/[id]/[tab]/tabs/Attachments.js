@@ -13,12 +13,11 @@ import AddEquipmentCustomerForm from '@/components/forms/add-equipment-customer-
 // ── URLs ──────────────────────────────────────────────────────────────────────
 // GET  /api/clientes/{id}/anexos             → { marcasCliente, equipos, marcas }
 // POST /api/clientes/{id}/marcas/agregar     → { codMarca }            → marcasCliente[]
-// POST /api/clientes/{id}/marcas/eliminar    → { codRegistro }         → marcasCliente[]
+//      marcasCliente[] → [{ codMarca, nomMarca, cantidad }] — sin eliminar, solo lectura
 // POST /api/clientes/{id}/equipos/guardar    → dto (codRegistro=0|>0)  → equipos[]
 // POST /api/clientes/{id}/equipos/eliminar   → { codRegistro }         → equipos[]
 const URL_ANEXOS        = (id) => `/clientes/${id}/anexos`;
 const URL_AGR_MARCA     = (id) => `/clientes/${id}/marcas/agregar`;
-const URL_DEL_MARCA     = (id) => `/clientes/${id}/marcas/eliminar`;
 const URL_GUARDAR_EQUIP = (id) => `/clientes/${id}/equipos/guardar`;
 const URL_DEL_EQUIP     = (id) => `/clientes/${id}/equipos/eliminar`;
 
@@ -56,32 +55,6 @@ export default function Attachments({
   // ── Helpers — actualizar subkeys del estado sin perder las demás ──────────
   const updateMarcasCliente = (list) => setAttachments(prev => ({ ...prev, marcasCliente: list }));
   const updateEquipos       = (list) => setAttachments(prev => ({ ...prev, equipos: list }));
-
-  // ── Eliminar marca cliente ────────────────────────────────────────────────
-  // Payload: { codRegistro } — ObtenerMarcasCliente devuelve la lista actualizada
-  const handleDeleteBrand = (marca) => {
-    Swal.fire({
-      title: t.question_delete_brand,
-      text:  marca.nomMarca,
-      icon:  'question',
-      showCancelButton:   true,
-      confirmButtonColor: '#dc2626',
-      confirmButtonText:  t.yes_delete,
-      cancelButtonText:   t.btn_cancel,
-      reverseButtons:     true,
-    }).then(async (result) => {
-      if (!result.isConfirmed) return;
-      try {
-        const res = await axiosClient.post(URL_DEL_MARCA(cliente.codCliente), {
-          codRegistro: marca.codRegistro,
-        });
-        updateMarcasCliente(res.data ?? []);
-        Toast.fire({ icon: 'success', title: t.brand_deleted });
-      } catch {
-        Toast.fire({ icon: 'error', title: t.brand_error_deleted });
-      }
-    });
-  };
 
   // ── Eliminar equipo ───────────────────────────────────────────────────────
   // Payload: { codRegistro }
@@ -143,26 +116,20 @@ export default function Attachments({
               </button>
             </div>
 
-            <div className="divide-y divide-gray-100 dark:divide-gray-700">
+            <div className="divide-y divide-gray-100 dark:divide-gray-700 max-h-[70vh] overflow-y-auto">
               {marcasCliente.length === 0 ? (
                 <p className="text-sm text-gray-400 text-center py-8">No hay marcas registradas</p>
               ) : (
                 marcasCliente.map((m) => (
-                  <div key={m.codRegistro}
+                  <div key={m.codMarca}
                     className="flex items-center justify-between px-4 py-2.5
-                               hover:bg-gray-50 dark:hover:bg-gray-800 transition group">
+                               hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                     <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
                       {m.nomMarca}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteBrand(m)}
-                      title={t.btn_delete}
-                      className="shrink-0 p-1 rounded-lg opacity-0 group-hover:opacity-100
-                                 hover:bg-red-50 dark:hover:bg-gray-700 transition-all"
-                    >
-                      <IconTrashLines className="h-4 w-4 text-red-500" />
-                    </button>
+                    <span className="shrink-0 ml-2 text-xs font-semibold text-gray-400 dark:text-gray-500 tabular-nums">
+                      {m.cantidad}
+                    </span>
                   </div>
                 ))
               )}
@@ -192,9 +159,9 @@ export default function Attachments({
             {equipos.length === 0 ? (
               <p className="text-sm text-gray-400 text-center py-8">No hay equipos registrados</p>
             ) : (
-              <div className="table-responsive">
+              <div className="table-responsive max-h-[70vh] overflow-y-auto">
                 <table className="table-striped table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 w-full text-sm">
-                  <thead>
+                  <thead className="sticky top-0 z-10">
                     <tr>
                       <th colSpan={4}
                         className="text-center text-xs uppercase tracking-wide
@@ -207,9 +174,9 @@ export default function Attachments({
                                    border-b border-gray-100 dark:border-gray-700">
                         {t.engine_data}
                       </th>
-                      <th className="border-b border-gray-100 dark:border-gray-700" />
+                      <th className="bg-gray-100 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700" />
                     </tr>
-                    <tr className="text-xs text-gray-500 uppercase">
+                    <tr className="text-xs text-gray-500 uppercase bg-white dark:bg-gray-900">
                       <th className="px-3 py-2 text-left">{t.brand}</th>
                       <th className="px-3 py-2 text-left">{t.model}</th>
                       <th className="px-3 py-2 text-left">{t.year}</th>

@@ -10,8 +10,6 @@ import { PERMISSIONS } from '@/constants/permissions';
 
 const URL_STATUS = '/clientes/status';
 
-const IDIOMA_LABEL = { ES: 'Español', US: 'Inglés' };
-
 const thClass = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap";
 const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-3 py-2 whitespace-nowrap";
 
@@ -43,12 +41,12 @@ const ClienteCard = ({ c, onStatus, onSettings, t, hasPermission }) => (
     <div className="px-4 py-3 space-y-1.5 text-xs">
       {c.dirCliente && (
         <div className="flex gap-2">
-          <span className="text-gray-400 shrink-0">Dirección</span>
+          <span className="text-gray-400 shrink-0">{t.address}</span>
           <span className="text-gray-700 dark:text-gray-300 truncate">{c.dirCliente}</span>
         </div>
       )}
       <div className="flex gap-2">
-        <span className="text-gray-400 shrink-0">Ubicación</span>
+        <span className="text-gray-400 shrink-0">{t.location}</span>
         <span className="text-gray-700 dark:text-gray-300">
           {[c.nomPais, c.nomCiudad].filter(Boolean).join(' · ') || '—'}
         </span>
@@ -63,7 +61,7 @@ const ClienteCard = ({ c, onStatus, onSettings, t, hasPermission }) => (
     </div>
 
     <div className="flex items-center justify-end gap-1 px-4 py-2 border-t border-gray-100 dark:border-gray-700">
-      <button onClick={() => onStatus(c)} title={c.codEstado === 'AC' ? 'Eliminar' : 'Activar'}
+      <button onClick={() => onStatus(c)} title={c.codEstado === 'AC' ? t.delete : t.activate}
         className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition">
         {c.codEstado === 'AC'
           ? <IconTrash className="w-4 h-4 text-red-500" />
@@ -71,7 +69,7 @@ const ClienteCard = ({ c, onStatus, onSettings, t, hasPermission }) => (
         }
       </button>
       {(hasPermission(PERMISSIONS.ELIMINAR_CLIENTE)) &&
-        <button onClick={() => onSettings(c)} title="Configuraciones"
+        <button onClick={() => onSettings(c)} title={t.settings}
           className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition">
           <IconSettings className="w-4 h-4 text-gray-500" />
         </button>
@@ -100,12 +98,12 @@ const DatatablesCustomers = ({
 
   const handleStatus = async (c) => {
     const nuevoEstado = c.codEstado === 'AC' ? 'IN' : 'AC';
-    const accion = nuevoEstado === 'IN' ? 'eliminar' : 'activar';
+    const accion = nuevoEstado === 'IN' ? t.delete_action : t.activate_action;
 
     const { isConfirmed } = await swalConfirm(
-      `¿Deseas ${accion} este cliente?`,
+      t.delete_activate_customer_question.replace('{action}', accion),
       c.nomCliente,
-      { confirmText: `Sí, ${accion}`, confirmColor: nuevoEstado === 'IN' ? '#dc2626' : '#16a34a' }
+      { confirmText: t.yes_comma_action.replace('{action}', accion), confirmColor: nuevoEstado === 'IN' ? '#dc2626' : '#16a34a' }
     );
     if (!isConfirmed) return;
 
@@ -117,9 +115,9 @@ const DatatablesCustomers = ({
       setData(prev => prev.map(item =>
         item.codCliente === c.codCliente ? { ...item, codEstado: nuevoEstado } : item
       ));
-      swalSuccess(nuevoEstado === 'AC' ? 'Cliente activado' : 'Cliente eliminado');
+      swalSuccess(nuevoEstado === 'AC' ? t.customer_activated : t.customer_deleted);
     } catch {
-      swalError('Error', 'No se pudo cambiar el estado del cliente');
+      swalError(t.error, t.status_change_error_customer);
     }
   };
 
@@ -134,12 +132,12 @@ const DatatablesCustomers = ({
               <thead className="sticky top-0 z-10">
                 <tr>
                   <th className={`${thClass} w-[70px]`}></th>
-                  <th className={thClass}>Cliente</th>
-                  <th className={thClass}>Documento</th>
-                  <th className={thClass}>Ubicación</th>
-                  <th className={thClass}>Idioma</th>
-                  <th className={thClass}>Estado</th>
-                  <th className={thClass}>Auditoría</th>
+                  <th className={thClass}>{t.customer}</th>
+                  <th className={thClass}>{t.document}</th>
+                  <th className={thClass}>{t.location}</th>
+                  <th className={thClass}>{t.language}</th>
+                  <th className={thClass}>{t.status}</th>
+                  <th className={thClass}>{t.audit}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -150,7 +148,7 @@ const DatatablesCustomers = ({
                         <button
                           className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
                           onClick={() => onSettings(c)}
-                          title="Configuraciones"
+                          title={t.settings}
                         >
                           <IconSettings className="w-4 h-4 text-gray-500" />
                         </button>
@@ -158,7 +156,7 @@ const DatatablesCustomers = ({
                           <button
                             className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
                             onClick={() => handleStatus(c)}
-                            title={c.codEstado === 'AC' ? 'Eliminar' : 'Activar'}
+                            title={c.codEstado === 'AC' ? t.delete : t.activate}
                           >
                             {c.codEstado === 'AC'
                               ? <IconTrash className="w-4 h-4 text-red-500" />
@@ -185,7 +183,7 @@ const DatatablesCustomers = ({
                       </div>
                     </td>
                     <td className={tdClass}>
-                      <span className="text-gray-500">{IDIOMA_LABEL[c.cliIdioma] ?? c.cliIdioma}</span>
+                      <span className="text-gray-500">{c.cliIdioma === 'ES' ? t.spanish : c.cliIdioma === 'US' ? t.english : c.cliIdioma}</span>
                     </td>
                     <td className={tdClass}>
                       <EstadoBadge codEstado={c.codEstado} t={t} />
@@ -209,7 +207,7 @@ const DatatablesCustomers = ({
                 {data.length === 0 && (
                   <tr>
                     <td colSpan={7} className="px-3 py-10 text-center text-sm text-gray-400">
-                      {t.no_matches ?? 'Sin resultados'}
+                      {t.no_results}
                     </td>
                   </tr>
                 )}

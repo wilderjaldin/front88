@@ -80,10 +80,10 @@ const IconStar = ({ filled = false, className = '' }) => (
 );
 
 // ── Chip de estado ────────────────────────────────────────────────────────────
-const EstadoChip = ({ value, onRemove }) => (
+const EstadoChip = ({ value, onRemove, t }) => (
   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium
                    bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-    Estado: {value === 'AC' ? t.active : t.inactive}
+    {t.status}: {value === 'AC' ? t.active : t.inactive}
     <button type="button" onClick={onRemove} className="ml-0.5 hover:opacity-70 transition">
       <IconX className="w-3 h-3" />
     </button>
@@ -91,7 +91,7 @@ const EstadoChip = ({ value, onRemove }) => (
 );
 
 // ── Tarjeta grid ──────────────────────────────────────────────────────────────
-const ContactCard = ({ contact, onEdit, onDelete, onActivate, onSetDefault, settingDefault }) => {
+const ContactCard = ({ contact, onEdit, onDelete, onActivate, onSetDefault, settingDefault, t }) => {
   const isActive  = contact.codEstado === 'AC';
   const isDefault = !!contact.blnFijar;
 
@@ -114,7 +114,7 @@ const ContactCard = ({ contact, onEdit, onDelete, onActivate, onSetDefault, sett
             {isDefault && (
               <span className="shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300">
                 <IconStar filled className="w-2.5 h-2.5" />
-                Predeterminado
+                {t.default_m}
               </span>
             )}
           </div>
@@ -124,7 +124,7 @@ const ContactCard = ({ contact, onEdit, onDelete, onActivate, onSetDefault, sett
         </div>
         {!isActive && (
           <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-400 dark:bg-gray-800">
-            Inactivo
+            {t.inactive}
           </span>
         )}
       </div>
@@ -132,13 +132,13 @@ const ContactCard = ({ contact, onEdit, onDelete, onActivate, onSetDefault, sett
       <div className="px-4 py-3 space-y-2.5 text-xs min-h-[60px]">
         {contact.telefonos && (
           <div className="space-y-1">
-            <span className="text-gray-400">Teléfonos</span>
+            <span className="text-gray-400">{t.phones}</span>
             <PhoneBadges value={contact.telefonos} />
           </div>
         )}
         {contact.correos && (
           <div className="space-y-1">
-            <span className="text-gray-400">Correos</span>
+            <span className="text-gray-400">{t.emails}</span>
             <EmailBadges value={contact.correos} />
           </div>
         )}
@@ -151,7 +151,7 @@ const ContactCard = ({ contact, onEdit, onDelete, onActivate, onSetDefault, sett
             <button
               onClick={() => !isDefault && onSetDefault(contact)}
               disabled={isDefault || settingDefault}
-              title={isDefault ? 'Contacto predeterminado' : 'Marcar como predeterminado'}
+              title={isDefault ? t.default_contact : t.mark_as_default_m}
               className={`p-1.5 rounded-lg transition
                 ${isDefault
                   ? 'text-yellow-400 cursor-default'
@@ -159,17 +159,17 @@ const ContactCard = ({ contact, onEdit, onDelete, onActivate, onSetDefault, sett
             >
               <IconStar filled={isDefault} className="w-4 h-4" />
             </button>
-            <button onClick={() => onEdit(contact)} title="Editar"
+            <button onClick={() => onEdit(contact)} title={t.edit}
               className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-800 transition">
               <IconPencil className="w-4 h-4 text-blue-500" />
             </button>
-            <button onClick={() => onDelete(contact)} title="Eliminar"
+            <button onClick={() => onDelete(contact)} title={t.delete}
               className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-gray-800 transition">
               <IconTrashLines className="w-4 h-4 text-red-500" />
             </button>
           </>
         ) : (
-          <button onClick={() => onActivate(contact)} title="Activar"
+          <button onClick={() => onActivate(contact)} title={t.activate}
             className="p-1.5 rounded-lg hover:bg-green-50 dark:hover:bg-gray-800 transition">
             <IconToggleOff className="w-6 h-6 text-gray-400 hover:text-green-500 transition" />
           </button>
@@ -222,7 +222,7 @@ export default function ContactsCustomer({
       const res = await axiosClient.get(URL_CONTACTOS(cliente.codCliente), { params });
       setContacts(res.data ?? []);
     } catch {
-      Toast.fire({ icon: 'error', title: 'Error al cargar contactos' });
+      Toast.fire({ icon: 'error', title: t.could_not_load_contacts });
     } finally {
       setFetching(false);
       setLoadContacts(false);
@@ -268,14 +268,14 @@ export default function ContactsCustomer({
   // ── Modal agregar ─────────────────────────────────────────────────────────
   const handleAdd = () => {
     setEditContact(null);
-    setModalTitle(`Agregar Contacto — ${cliente.nomCliente}`);
+    setModalTitle(`${t.add_contact} — ${cliente.nomCliente}`);
     setShowModal(true);
   };
 
   // ── Modal editar ──────────────────────────────────────────────────────────
   const handleEdit = (contact) => {
     setEditContact(contact);
-    setModalTitle(`Editar Contacto — ${cliente.nomCliente}`);
+    setModalTitle(`${t.edit_contact} — ${cliente.nomCliente}`);
     setShowModal(true);
   };
 
@@ -287,9 +287,9 @@ export default function ContactsCustomer({
         codRegistro: contact.codRegistro,
       });
       setContacts(res.data ?? []);
-      Toast.fire({ icon: 'success', title: 'Contacto predeterminado actualizado' });
+      Toast.fire({ icon: 'success', title: t.default_contact_updated });
     } catch {
-      Toast.fire({ icon: 'error', title: 'Error al marcar como predeterminado' });
+      Toast.fire({ icon: 'error', title: t.could_not_mark_default_contact });
     } finally {
       setSettingDefault(false);
     }
@@ -298,13 +298,13 @@ export default function ContactsCustomer({
   // ── Eliminar (AC → IN) ────────────────────────────────────────────────────
   const handleDelete = (contact) => {
     Swal.fire({
-      title: '¿Eliminar contacto?',
+      title: t.delete_contact_question,
       text: contact.nomContacto,
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#dc2626',
-      confirmButtonText: 'Sí, eliminar',
-      cancelButtonText: 'Cancelar',
+      confirmButtonText: t.yes_delete,
+      cancelButtonText: t.btn_cancel,
       reverseButtons: true,
     }).then(async (result) => {
       if (!result.isConfirmed) return;
@@ -313,9 +313,9 @@ export default function ContactsCustomer({
           codRegistro: contact.codRegistro,
         });
         setContacts(res.data ?? []);
-        Toast.fire({ icon: 'success', title: 'Contacto eliminado' });
+        Toast.fire({ icon: 'success', title: t.contact_deleted });
       } catch {
-        Toast.fire({ icon: 'error', title: 'Error al eliminar' });
+        Toast.fire({ icon: 'error', title: t.delete_error });
       }
     });
   };
@@ -323,13 +323,13 @@ export default function ContactsCustomer({
   // ── Activar (IN → AC) ─────────────────────────────────────────────────────
   const handleActivate = (contact) => {
     Swal.fire({
-      title: '¿Activar este contacto?',
+      title: t.activate_contact_question,
       text: contact.nomContacto,
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#16a34a',
-      confirmButtonText: 'Sí, activar',
-      cancelButtonText: 'Cancelar',
+      confirmButtonText: t.yes_activate,
+      cancelButtonText: t.btn_cancel,
       reverseButtons: true,
     }).then(async (result) => {
       if (!result.isConfirmed) return;
@@ -338,9 +338,9 @@ export default function ContactsCustomer({
           codRegistro: contact.codRegistro,
         });
         setContacts(res.data ?? []);
-        Toast.fire({ icon: 'success', title: 'Contacto activado' });
+        Toast.fire({ icon: 'success', title: t.contact_activated });
       } catch {
-        Toast.fire({ icon: 'error', title: 'Error al activar' });
+        Toast.fire({ icon: 'error', title: t.could_not_activate });
       }
     });
   };
@@ -367,7 +367,7 @@ export default function ContactsCustomer({
         {/* ── TOOLBAR ──────────────────────────────────────────────────── */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-            Contactos
+            {t.contacts}
             <span className="ml-2 text-sm font-normal text-gray-400">({filtered.length})</span>
           </h2>
 
@@ -380,7 +380,7 @@ export default function ContactsCustomer({
                   type="text"
                   value={inputValue}
                   onChange={e => handleInputChange(e.target.value)}
-                  placeholder="Buscar... estado:in"
+                  placeholder={t.search_status_prefix_ph}
                   className="w-full rounded-lg border border-gray-300 dark:border-gray-700
                              bg-white dark:bg-gray-900 px-3 py-1.5 pr-8 text-sm
                              focus:outline-none focus:ring-2 focus:ring-primary/40"
@@ -402,12 +402,12 @@ export default function ContactsCustomer({
 
               {estado && (
                 <div className="flex gap-1">
-                  <EstadoChip value={estado} onRemove={removeEstadoChip} />
+                  <EstadoChip value={estado} onRemove={removeEstadoChip} t={t} />
                 </div>
               )}
 
               <p className="text-[11px] text-gray-400">
-                Prefijo: <span className="font-mono">estado:ac</span> · <span className="font-mono">estado:in</span>
+                {t.prefixes} <span className="font-mono">estado:ac</span> · <span className="font-mono">estado:in</span>
               </p>
             </div>
 
@@ -432,7 +432,7 @@ export default function ContactsCustomer({
               className="flex items-center gap-2 rounded-lg bg-primary px-3 py-1.5
                          text-white text-sm font-medium shadow-sm hover:bg-primary/90 transition">
               <IconUserPlus className="h-4 w-4" />
-              Agregar Contacto
+              {t.add_contact}
             </button>
           </div>
         </div>
@@ -443,7 +443,7 @@ export default function ContactsCustomer({
                           bg-white dark:bg-gray-900 py-16 flex flex-col items-center gap-2">
             <IconUser className="h-8 w-8 text-gray-300" />
             <p className="text-sm text-gray-400">
-              {term ? 'Sin resultados para la búsqueda' : 'No hay contactos registrados'}
+              {term ? t.no_results_for_search : t.no_contacts_registered}
             </p>
           </div>
         )}
@@ -455,11 +455,11 @@ export default function ContactsCustomer({
               <table className="table-striped table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 w-full [&_th]:!py-2 [&_th]:!text-xs [&_td]:!py-1.5 [&_td]:!text-xs">
                 <thead>
                   <tr>
-                    <th>Nombre</th>
-                    <th>Cargo</th>
-                    <th>Teléfonos</th>
-                    <th>Correos</th>
-                    <th className="w-28 text-center">Acciones</th>
+                    <th>{t.name}</th>
+                    <th>{t.job_title}</th>
+                    <th>{t.phones}</th>
+                    <th>{t.emails}</th>
+                    <th className="w-28 text-center">{t.actions}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -484,7 +484,7 @@ export default function ContactsCustomer({
                                 <button
                                   onClick={() => !isDefault && handleSetDefault(contact)}
                                   disabled={isDefault || settingDefault}
-                                  title={isDefault ? 'Contacto predeterminado' : 'Marcar como predeterminado'}
+                                  title={isDefault ? t.default_contact : t.mark_as_default_m}
                                   className={`p-1.5 rounded-lg transition
                                     ${isDefault
                                       ? 'text-yellow-400 cursor-default'
@@ -493,18 +493,18 @@ export default function ContactsCustomer({
                                   <IconStar filled={isDefault} className="w-4 h-4" />
                                 </button>
                                 {(hasPermission(PERMISSIONS.EDITAR_CONTACTO_CLIENTE)) &&
-                                <button title="Editar" onClick={() => handleEdit(contact)}
+                                <button title={t.edit} onClick={() => handleEdit(contact)}
                                   className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-800 transition">
                                   <IconPencil className="w-4 h-4 text-blue-500" />
                                 </button>
                                 }
-                                <button title="Eliminar" onClick={() => handleDelete(contact)}
+                                <button title={t.delete} onClick={() => handleDelete(contact)}
                                   className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-gray-800 transition">
                                   <IconTrashLines className="w-4 h-4 text-red-500" />
                                 </button>
                               </>
                             ) : (
-                              <button title="Activar" onClick={() => handleActivate(contact)}
+                              <button title={t.activate} onClick={() => handleActivate(contact)}
                                 className="p-1.5 rounded-lg hover:bg-green-50 dark:hover:bg-gray-800 transition">
                                 <IconToggleOff className="w-6 h-6 text-gray-400 hover:text-green-500 transition" />
                               </button>
@@ -532,6 +532,7 @@ export default function ContactsCustomer({
                 onActivate={handleActivate}
                 onSetDefault={handleSetDefault}
                 settingDefault={settingDefault}
+                t={t}
               />
             ))}
           </div>

@@ -22,13 +22,14 @@ const URL_BASE  = '/clientes';
 const PAGE_SIZE = 20;
 
 export default function CustomersPage() {
-  useDynamicTitle('Clientes');
 
   const router        = useRouter();
   const searchParams  = useSearchParams();
   const { hasPermission } = usePermissions();
   const t             = useTranslation();
   const { isMobile }  = useDevice();
+
+  useDynamicTitle(t.customers);
 
   const [view, setView] = useState(isMobile ? 'grid' : 'list');
 
@@ -88,7 +89,7 @@ export default function CustomersPage() {
 
       if (currentPage === 1 && res.data.paises) setPaises(res.data.paises);
     } catch {
-      swalError('Error', 'No se pudieron cargar los clientes');
+      swalError(t.error, t.could_not_load_customers);
     } finally {
       setLoading(false);
     }
@@ -168,7 +169,7 @@ export default function CustomersPage() {
                 className="flex h-9 items-center gap-1.5 rounded-lg bg-primary px-4 text-white text-sm font-medium shadow-sm hover:bg-primary/90 transition"
               >
                 <IconPlus className="h-4 w-4" />
-                Nuevo Cliente
+                {t.new_customer}
               </button>
             )}
           </div>
@@ -180,7 +181,7 @@ export default function CustomersPage() {
           {/* País */}
           {paises.length > 1 ? (
             <div className="flex flex-col gap-0.5">
-              <span className="text-[11px] text-gray-500 dark:text-gray-400 px-1">País</span>
+              <span className="text-[11px] text-gray-500 dark:text-gray-400 px-1">{t.country}</span>
               <div className="flex flex-wrap items-center gap-1.5">
                 <button
                   type="button"
@@ -192,7 +193,7 @@ export default function CustomersPage() {
                                 : 'bg-white dark:bg-gray-900 text-gray-500 border-gray-300 dark:border-gray-700 hover:border-primary/50 hover:text-primary'}`}
                 >
                   <span className="text-base leading-none">🌐</span>
-                  Todos
+                  {t.all}
                 </button>
 
                 {paises.map((p) => {
@@ -246,7 +247,7 @@ export default function CustomersPage() {
                 type="text"
                 value={termInput}
                 onChange={(e) => setTermInput(e.target.value)}
-                placeholder="Nombre o documento..."
+                placeholder={t.name_or_document_ph}
                 className="h-8 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 pl-7 pr-7 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
               {termInput && (
@@ -282,7 +283,7 @@ export default function CustomersPage() {
               className="flex h-8 items-center gap-1.5 rounded-lg px-3 bg-primary/20 text-primary text-xs font-medium hover:bg-primary/40 transition"
             >
               <IconSearch className="h-3 w-3" />
-              Buscar
+              {t.search}
             </button>
           </form>
         </div>
@@ -307,7 +308,7 @@ export default function CustomersPage() {
         size="w-full max-w-4xl"
         showModal={showModal}
         closeModal={() => setShowModal(false)}
-        title="Nuevo Cliente"
+        title={t.new_customer}
       >
         <CustomerForm
           cliente={null}

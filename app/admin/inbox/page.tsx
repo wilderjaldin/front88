@@ -30,10 +30,11 @@ const URL_ARCHIVAR      = "inbox/archivar";
 const URL_RESPONDER     = "inbox/responder";
 const URL_INICIAR_MSG   = "inbox/iniciar";
 
+// labelKey → clave de traducción, resuelta con `t` dentro del componente.
 const STATUS_TABS = [
-  { value: "unread",   label: "No leídos" },
-  { value: "read",     label: "Leídos" },
-  { value: "archived", label: "Archivados" },
+  { value: "unread",   labelKey: "unread" },
+  { value: "read",     labelKey: "read" },
+  { value: "archived", labelKey: "archived" },
 ];
 
 // Misma tabla que usa components/NotificationsProvider.tsx (y app/admin/revision/quotes/page.js)
@@ -242,11 +243,11 @@ export default function Inbox() {
         desMensaje:        data.message,
       });
       setShowNewMsgModal(false);
-      swalSuccess("Mensaje enviado");
+      swalSuccess(t.message_sent);
       await fetchList();
     } catch (error: any) {
       const apiMsg = error?.response?.data?.mensaje;
-      swalError(t.error ?? "Error", apiMsg ?? "No se pudo enviar el mensaje.");
+      swalError(t.error ?? "Error", apiMsg ?? t.could_not_send_message);
     }
   };
 
@@ -268,18 +269,18 @@ export default function Inbox() {
       setSelectedMail(null);
       setDetails([]);
       pushParams({ message: null });
-      swalSuccess("Mensaje archivado");
+      swalSuccess(t.message_archived);
     } catch (error: any) {
       const apiMsg = error?.response?.data?.mensaje;
-      swalError(t.error ?? "Error", apiMsg ?? "No se pudo archivar el mensaje.");
+      swalError(t.error ?? "Error", apiMsg ?? t.could_not_archive_message);
     } finally {
       setClosing(false);
     }
   };
 
   const handleCloseConfirm = async () => {
-    const res = await swalConfirm("¿Archivar este mensaje?", "El seguimiento se marcará como cerrado.", {
-      confirmText: "Archivar", cancelText: "Cancelar", confirmColor: "#dc2626",
+    const res = await swalConfirm(t.archive_message_question, t.tracking_will_be_closed, {
+      confirmText: t.archive, cancelText: t.btn_cancel, confirmColor: "#dc2626",
     });
     if (!res.isConfirmed) return;
     await handleCerrar();
@@ -287,7 +288,7 @@ export default function Inbox() {
 
   const handleReply = async () => {
     if (!respuesta.trim()) {
-      swalError(t.error ?? "Error", "Escribe un mensaje antes de enviar.");
+      swalError(t.error ?? "Error", t.write_message_before_sending);
       return;
     }
     setSending(true);
@@ -300,7 +301,7 @@ export default function Inbox() {
       setRespuesta("");
     } catch (error: any) {
       const apiMsg = error?.response?.data?.mensaje;
-      swalError(t.error ?? "Error", apiMsg ?? "No se pudo enviar el mensaje.");
+      swalError(t.error ?? "Error", apiMsg ?? t.could_not_send_message);
     } finally {
       setSending(false);
     }
@@ -339,7 +340,7 @@ export default function Inbox() {
                   className={`relative z-10 flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap transition-colors
                     ${urlStatus === tab.value ? "text-white" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"}`}
                 >
-                  {tab.label}
+                  {t[tab.labelKey]}
                   {tab.value === "unread" && totalUnread > 0 && (
                     <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 text-[10px] font-bold rounded-full bg-primary text-white">
                       {totalUnread}
@@ -351,11 +352,11 @@ export default function Inbox() {
             <button
               type="button"
               onClick={openNewMsgModal}
-              title="Nuevo mensaje"
+              title={t.new_message}
               className="shrink-0 flex items-center gap-1.5 h-7 px-2.5 rounded-lg bg-secondary text-white text-xs font-semibold shadow-sm hover:bg-secondary/90 transition-all"
             >
               <IconPlus className="h-3.5 w-3.5" />
-              Nuevo
+              {t.new}
             </button>
           </div>
 
@@ -370,7 +371,7 @@ export default function Inbox() {
             <div className="flex-1 min-w-0">
               <Select
                 isClearable
-                placeholder="Usuario..."
+                placeholder={t.user_ph}
                 options={users}
                 value={selectedUserOption}
                 onChange={(opt: any) => setValSearch("user", opt?.value ?? 0)}
@@ -391,7 +392,7 @@ export default function Inbox() {
               className="h-[30px] px-3 text-xs font-medium bg-primary text-white rounded hover:bg-primary/90 flex items-center gap-1.5 transition-colors shrink-0"
             >
               <IconSearch className="w-3 h-3" />
-              Buscar
+              {t.search}
             </button>
             {hasActiveFilters && (
               <button
@@ -400,13 +401,13 @@ export default function Inbox() {
                 className="h-[30px] px-3 text-xs font-medium border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-300 rounded hover:bg-gray-50 dark:hover:bg-gray-600 flex items-center gap-1.5 transition-colors shrink-0"
               >
                 <IconXCircle className="w-3 h-3" />
-                Limpiar
+                {t.clear}
               </button>
             )}
 
             <div className="w-full flex items-center justify-end gap-3 mt-1">
               <span className="text-xs text-gray-400 dark:text-gray-500">
-                {total} {total === 1 ? "mensaje" : "mensajes"}
+                {total} {total === 1 ? t.one_message : t.messages_count}
               </span>
               {totalPages > 1 && (
                 <div className="flex items-center gap-1">
@@ -443,7 +444,7 @@ export default function Inbox() {
             {mailList.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-40 text-gray-400 gap-2">
                 <IconMailDot className="h-8 w-8 opacity-30" />
-                <span className="text-sm">Sin mensajes</span>
+                <span className="text-sm">{t.no_messages}</span>
               </div>
             ) : (
               mailList.map((mail: any) => {
@@ -499,7 +500,7 @@ export default function Inbox() {
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-gray-700/60">
               <span className="text-xs text-gray-500 dark:text-gray-400">
-                {total} {total === 1 ? "mensaje" : "mensajes"} · página {urlPage} de {totalPages}
+                {total} {total === 1 ? t.one_message : t.messages_count} · {t.page} {urlPage} {t.of} {totalPages}
               </span>
               <Pagination
                 total={totalPages}
@@ -519,7 +520,7 @@ export default function Inbox() {
             /* Empty state */
             <div className="flex flex-col items-center justify-center min-h-[400px] gap-3 text-gray-300 dark:text-gray-600">
               <IconMailDot className="h-14 w-14" />
-              <p className="text-sm font-medium">Selecciona un mensaje para leer</p>
+              <p className="text-sm font-medium">{t.select_message_to_read}</p>
             </div>
           ) : loadingDetail ? (
             <div className="flex items-center justify-center min-h-[400px]">
@@ -537,7 +538,7 @@ export default function Inbox() {
                   <button
                     type="button"
                     onClick={() => pushParams({ message: null })}
-                    title="Cerrar detalle"
+                    title={t.close_detail}
                     className="shrink-0 p-1.5 rounded-md text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
                   >
                     <IconX className="h-4 w-4" />
@@ -556,16 +557,16 @@ export default function Inbox() {
                         : undefined
                     }
                   />
-                  <MetaItem label="Total"    value={selectedMail.total != null ? `US$ ${customFormat(selectedMail.total)}` : null} />
-                  <MetaItem label="Creado"     value={selectedMail.fecRegistra} />
-                  <MetaItem label="Modificado" value={selectedMail.fecModifica} />
+                  <MetaItem label={t.total}    value={selectedMail.total != null ? `US$ ${customFormat(selectedMail.total)}` : null} />
+                  <MetaItem label={t.created}     value={selectedMail.fecRegistra} />
+                  <MetaItem label={t.modified} value={selectedMail.fecModifica} />
                 </div>
               </div>
 
               {/* Thread */}
               <div ref={threadRef} className="max-h-[480px] overflow-y-auto px-5 py-4 space-y-3 bg-gray-100/70 dark:bg-gray-900/50">
                 {details.length === 0 ? (
-                  <p className="text-sm text-center text-gray-400 py-6">Sin mensajes en la conversación</p>
+                  <p className="text-sm text-center text-gray-400 py-6">{t.no_messages_in_conversation}</p>
                 ) : (
                   // El backend devuelve detalle en orden DESC (más reciente primero); se invierte para leer el chat cronológicamente
                   [...details].reverse().map((msg: any, i: number) => {
@@ -600,7 +601,7 @@ export default function Inbox() {
               {selectedMail.abierto === false ? (
                 <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 px-5 py-3 flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
                   <IconArchive className="h-4 w-4 shrink-0" />
-                  Este mensaje está archivado — no se puede responder.
+                  {t.archived_message_hint}
                 </div>
               ) : (
                 <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-5 py-3 space-y-2">
@@ -608,7 +609,7 @@ export default function Inbox() {
                     value={respuesta}
                     onChange={(e) => setRespuesta(e.target.value)}
                     rows={2}
-                    placeholder="Escribe una respuesta..."
+                    placeholder={t.write_a_reply_ph}
                     className="form-input w-full resize-none text-sm"
                   />
                   <div className="flex items-center justify-between gap-2">
@@ -616,7 +617,7 @@ export default function Inbox() {
                       type="button"
                       disabled={closing}
                       onClick={handleCloseConfirm}
-                      title="Archivar"
+                      title={t.archive}
                       className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-danger transition disabled:opacity-50"
                     >
                       {closing ? (
@@ -624,7 +625,7 @@ export default function Inbox() {
                       ) : (
                         <IconArchive className="h-3.5 w-3.5" />
                       )}
-                      Archivar
+                      {t.archive}
                     </button>
                     <button
                       type="button"
@@ -637,7 +638,7 @@ export default function Inbox() {
                       ) : (
                         <IconSend className="h-4 w-4" />
                       )}
-                      Responder
+                      {t.reply}
                     </button>
                   </div>
                 </div>
@@ -649,7 +650,7 @@ export default function Inbox() {
       </div>
 
       {/* Modal nuevo mensaje */}
-      <Modal showModal={showNewMsgModal} closeModal={() => setShowNewMsgModal(false)} openModal={openNewMsgModal} title="Nuevo mensaje" size="w-full max-w-md">
+      <Modal showModal={showNewMsgModal} closeModal={() => setShowNewMsgModal(false)} openModal={openNewMsgModal} title={t.new_message} size="w-full max-w-md">
         <form onSubmit={submitNew(onNewMessage)} className="space-y-3">
           <div>
             <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">{t.to_user}</label>
@@ -675,7 +676,7 @@ export default function Inbox() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">{t.message ?? "Mensaje"}</label>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">{t.message}</label>
             <textarea
               {...regNew("message", { required: { value: true, message: t.required_field } })}
               rows={4}

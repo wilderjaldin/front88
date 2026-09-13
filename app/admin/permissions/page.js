@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import axiosClient from "@/app/lib/axiosClient";
-import Swal from "sweetalert2";
+import { swalSuccess, swalError } from "@/app/lib/swal";
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 import Modal from "@/components/modal";
 import { useForm, Controller } from "react-hook-form";
@@ -21,23 +21,28 @@ import AccessDenied from "@/components/AccessDenied";
 const URL_BASE = "/permisos";
 const PAGE_SIZE = 50;
 
+// labelKey → clave de traducción del label (las opciones/prefijos son fijos,
+// pero el texto visible depende del idioma activo, resuelto con `t` en render).
 const TIPO_OPTIONS = [
-  { value: "BT", label: "Ambos" },
-  { value: "FT", label: "Interfaz" },
-  { value: "BK", label: "Backend" },
+  { value: "BT", labelKey: "both" },
+  { value: "FT", labelKey: "interface" },
+  { value: "BK", labelKey: "backend" },
 ];
 const TIPO_DEFAULT = "FT";
 // La API devuelve el tipo con espacios de relleno ("FT ") — hay que recortarlo
 // antes de comparar/usar.
 const normTipo = (v) => (v ?? "").trim();
-const tipoLabel = (v) => TIPO_OPTIONS.find(o => o.value === normTipo(v))?.label ?? normTipo(v);
+const tipoLabel = (v, t) => {
+  const opt = TIPO_OPTIONS.find(o => o.value === normTipo(v));
+  return opt ? t[opt.labelKey] : normTipo(v);
+};
 
-// Prefijos reconocidos y sus etiquetas para los chips
+// Prefijos reconocidos y sus etiquetas (labelKey) para los chips
 const FILTER_KEYS = {
-  modulo: { label: "Módulo", color: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300" },
-  accion: { label: "Acción", color: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300" },
-  tipo: { label: "Tipo", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" },
-  activo: { label: "Activo", color: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300" },
+  modulo: { labelKey: "module", color: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300" },
+  accion: { labelKey: "action", color: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300" },
+  tipo: { labelKey: "type", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" },
+  activo: { labelKey: "active", color: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300" },
 };
 
 // ── Parser: "modulo:Usuarios tipo:ft texto libre" → { modulo, tipo, term }
@@ -66,29 +71,26 @@ const parseSearch = (raw) => {
   return filters;
 };
 
-const Toast = Swal.mixin({
-  toast: true, position: "top-end",
-  showConfirmButton: false, timer: 3000, timerProgressBar: true,
+// Reglas de validación por campo — el mensaje se resuelve con `t` en el
+// componente (rulesFor), acá solo se definen los patrones/requisitos.
+const RULES = (t) => ({
+  codigo: { required: t.required, pattern: { value: /^[A-Z0-9]{8}$/, message: t.code_8_chars_hint } },
+  modulo: {},
+  accion: { pattern: { value: /^[a-zA-Z]*$/, message: t.letters_only_no_spaces } },
+  etiqueta: { required: t.required },
 });
-
-const RULES = {
-  codigo: { required: "Requerido", pattern: { value: /^[A-Z0-9]{8}$/, message: "8 chars alfanuméricos MAYÚSCULAS" } },
-  modulo: { pattern: { value: /^[a-zA-Z]*$/, message: "Solo letras sin espacios" } },
-  accion: { pattern: { value: /^[a-zA-Z]*$/, message: "Solo letras sin espacios" } },
-  etiqueta: { required: "Requerido" },
-};
 
 const FieldError = ({ error }) =>
   error ? <p className="text-xs text-red-500 mt-1">{error.message}</p> : null;
 
 // ── Chip individual ───────────────────────────────────────────────────────────
-const FilterChip = ({ filterKey, value, onRemove }) => {
+const FilterChip = ({ filterKey, value, onRemove, t }) => {
   const meta = FILTER_KEYS[filterKey];
   const label = filterKey === "activo"
-    ? (value === "1" ? "Activo: Sí" : "Activo: No")
+    ? `${t.active}: ${value === "1" ? t.yes_cap : t.no_cap}`
     : filterKey === "tipo"
-      ? `Tipo: ${tipoLabel(value)}`
-      : `${meta.label}: ${value}`;
+      ? `${t.type}: ${tipoLabel(value, t)}`
+      : `${t[meta.labelKey]}: ${value}`;
 
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${meta.color}`}>
@@ -133,6 +135,8 @@ export default function PermisosPage() {
     [parsedFilters]
   );
 
+  const rules = useMemo(() => RULES(t), [t]);
+
   const { register, handleSubmit, control, reset, formState: { errors } } = useForm({
     defaultValues: {
       codigo: "", modulo: "", accion: "",
@@ -154,7 +158,7 @@ export default function PermisosPage() {
       if (error?.response?.status === 403) {
         setForbidden(true);
       } else {
-        Toast.fire({ icon: "error", title: "Error cargando permisos" });
+        swalError(t.error, t.loading_error_permissions, t.close);
       }
     } finally {
       setLoading(false);
@@ -222,10 +226,10 @@ export default function PermisosPage() {
 
       setPermisos(res.data.data);
       setTotal(res.data.total);
-      Toast.fire({ icon: "success", title: editando ? "Permiso actualizado" : "Permiso registrado" });
+      swalSuccess(editando ? t.permission_updated : t.permission_registered);
       closeModal();
     } catch (err) {
-      Toast.fire({ icon: "error", title: err?.response?.data?.message || "Error al guardar" });
+      swalError(t.error, err?.response?.data?.message || t.could_not_save, t.close);
     } finally {
       setSaving(false);
     }
@@ -241,7 +245,7 @@ export default function PermisosPage() {
       setPermisos(res.data.data);
       setTotal(res.data.total);
     } catch {
-      Toast.fire({ icon: "error", title: "Error al cambiar estado" });
+      swalError(t.error, t.status_change_error, t.close);
     }
   };
 
@@ -288,7 +292,7 @@ export default function PermisosPage() {
                   type="text"
                   value={rawTerm}
                   onChange={e => setRawTerm(e.target.value)}
-                  placeholder='Ej: modulo:Usuarios tipo:ft activo:1'
+                  placeholder={t.permissions_search_ph}
                   className="w-full rounded-lg border border-gray-300 dark:border-gray-700
                              bg-white dark:bg-gray-900
                              px-4 py-2 pr-10 text-sm
@@ -303,7 +307,7 @@ export default function PermisosPage() {
               {activeChips.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {activeChips.map(([key, val]) => (
-                    <FilterChip key={key} filterKey={key} value={val} onRemove={removeChip} />
+                    <FilterChip key={key} filterKey={key} value={val} onRemove={removeChip} t={t} />
                   ))}
                   {/* Limpiar todo */}
                   <button
@@ -311,14 +315,14 @@ export default function PermisosPage() {
                     onClick={() => setRawTerm("")}
                     className="text-xs text-gray-400 hover:text-red-500 transition underline"
                   >
-                    Limpiar todo
+                    {t.clear_all}
                   </button>
                 </div>
               )}
 
               {/* Hint de sintaxis */}
               <p className="text-[11px] text-gray-400 leading-tight">
-                Prefijos: <span className="font-mono">modulo:</span> <span className="font-mono">accion:</span> <span className="font-mono">tipo:ft</span> <span className="font-mono">tipo:bk</span> <span className="font-mono">tipo:bt</span> <span className="font-mono">activo:1</span>
+                {t.prefixes} <span className="font-mono">modulo:</span> <span className="font-mono">accion:</span> <span className="font-mono">tipo:ft</span> <span className="font-mono">tipo:bk</span> <span className="font-mono">tipo:bt</span> <span className="font-mono">activo:1</span>
               </p>
             </div>
 
@@ -339,19 +343,19 @@ export default function PermisosPage() {
         {/* ── TABLA ── */}
         <div className="panel border-0 p-0 overflow-x-auto">
           {loading ? (
-            <p className="p-4 text-sm text-gray-500">Cargando...</p>
+            <p className="p-4 text-sm text-gray-500">{t.loading}</p>
           ) : permisos.length === 0 ? (
-            <p className="p-4 text-sm text-gray-500">Sin resultados.</p>
+            <p className="p-4 text-sm text-gray-500">{t.no_results}</p>
           ) : (
             <table className="w-full text-sm">
               <thead className="border-b dark:border-gray-700 text-left bg-gray-50 dark:bg-gray-800">
                 <tr>
                   <th className="px-3 py-1.5 w-16" />
-                  <th className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Código</th>
-                  <th className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Etiqueta</th>
-                  <th className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Módulo</th>
-                  <th className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Acción</th>
-                  <th className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Tipo</th>
+                  <th className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">{t.code}</th>
+                  <th className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">{t.label}</th>
+                  <th className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">{t.module}</th>
+                  <th className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">{t.action}</th>
+                  <th className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">{t.type}</th>
                 </tr>
               </thead>
               <tbody>
@@ -365,14 +369,14 @@ export default function PermisosPage() {
                         <button
                           onClick={() => openEditar(p)}
                           className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition"
-                          title="Editar"
+                          title={t.edit}
                         >
                           <IconPencil className="w-3.5 h-3.5 text-blue-500" />
                         </button>
                         <button
                           onClick={() => toggleActivo(p)}
                           className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition"
-                          title={p.activo ? "Desactivar" : "Activar"}
+                          title={p.activo ? t.deactivate : t.activate}
                         >
                           {p.activo
                             ? <IconToggleOn className="w-6 h-6 fill-green-500" />
@@ -393,7 +397,7 @@ export default function PermisosPage() {
                               ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300"
                               : "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
                         }`}>
-                        {p.tipoLabel ?? tipoLabel(p.tipo)}
+                        {p.tipoLabel ?? tipoLabel(p.tipo, t)}
                       </span>
                     </td>
                   </tr>
@@ -423,20 +427,20 @@ export default function PermisosPage() {
         size="w-full max-w-lg"
         closeModal={closeModal}
         showModal={showModal}
-        title={editando ? "Editar Permiso" : "Nuevo Permiso"}
+        title={editando ? t.edit_permission : t.new_permission}
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
           <div>
             <label className="block text-sm font-medium mb-1">
-              Código <span className="text-red-500">*</span>
+              {t.code} <span className="text-red-500">*</span>
               <span className="text-xs text-gray-400 ml-1">(8 chars, A–Z 0–9)</span>
             </label>
             <div className="flex">
               <input
-                {...register("codigo", RULES.codigo)}
+                {...register("codigo", rules.codigo)}
                 maxLength={8}
-                placeholder="Ej: ZLU3HB7P"
+                placeholder={`${t.eg} ZLU3HB7P`}
                 className="form-input flex-1 rounded-r-none font-mono uppercase tracking-widest"
                 onInput={e => e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "")}
               />
@@ -448,7 +452,7 @@ export default function PermisosPage() {
                            text-xs font-medium text-gray-600 dark:text-gray-300
                            transition whitespace-nowrap"
               >
-                Generar
+                {t.generate}
               </button>
             </div>
             <FieldError error={errors.codigo} />
@@ -456,11 +460,11 @@ export default function PermisosPage() {
 
           <div>
             <label className="block text-sm font-medium mb-1">
-              Etiqueta <span className="text-red-500">*</span>
+              {t.label} <span className="text-red-500">*</span>
             </label>
             <input
-              {...register("etiqueta", RULES.etiqueta)}
-              placeholder="Ej: Listar Usuarios"
+              {...register("etiqueta", rules.etiqueta)}
+              placeholder={`${t.eg} Listar Usuarios`}
               className="form-input w-full"
             />
             <FieldError error={errors.etiqueta} />
@@ -468,19 +472,19 @@ export default function PermisosPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium mb-1">Módulo</label>
-              <input {...register("modulo", RULES.modulo)} placeholder="Ej: Usuarios" className="form-input w-full" />
+              <label className="block text-sm font-medium mb-1">{t.module}</label>
+              <input {...register("modulo", rules.modulo)} placeholder={`${t.eg} Usuarios`} className="form-input w-full" />
               <FieldError error={errors.modulo} />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Acción</label>
-              <input {...register("accion", RULES.accion)} placeholder="Ej: listar" className="form-input w-full" />
+              <label className="block text-sm font-medium mb-1">{t.action}</label>
+              <input {...register("accion", rules.accion)} placeholder={`${t.eg} listar`} className="form-input w-full" />
               <FieldError error={errors.accion} />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Tipo</label>
+            <label className="block text-sm font-medium mb-1">{t.type}</label>
             <Controller
               name="tipo"
               control={control}
@@ -500,7 +504,7 @@ export default function PermisosPage() {
                         checked={field.value === opt.value}
                         onChange={() => field.onChange(opt.value)}
                       />
-                      {opt.label}
+                      {t[opt.labelKey]}
                     </label>
                   ))}
                 </div>
@@ -510,17 +514,17 @@ export default function PermisosPage() {
 
           <div className="flex items-center gap-2">
             <input type="checkbox" id="activo" {...register("activo")} className="form-checkbox" />
-            <label htmlFor="activo" className="text-sm font-medium cursor-pointer">Activo</label>
+            <label htmlFor="activo" className="text-sm font-medium cursor-pointer">{t.active}</label>
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={closeModal}
               className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition">
-              Cancelar
+              {t.btn_cancel}
             </button>
             <button type="submit" disabled={saving}
               className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-white text-sm font-medium shadow-sm hover:shadow-md disabled:opacity-50 transition-all">
-              {saving ? "Guardando..." : editando ? "Actualizar" : "Guardar"}
+              {saving ? t.saving : editando ? t.update : t.save}
             </button>
           </div>
 

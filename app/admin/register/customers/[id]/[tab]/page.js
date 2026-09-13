@@ -21,15 +21,15 @@ export default function CustomerTabPage() {
   const { hasPermission }  = usePermissions();
 
   const TAB_TITLES = {
-    general:     'Clientes | Información General',
-    contacts:    'Clientes | Contactos',
-    shipping:    'Clientes | Direcciones de Entrega',
-    conditions:  'Clientes | Condiciones Comerciales',
-    attachments: 'Clientes | Anexos',
-    accounts:    'Clientes | Usuarios',
-    meetings:    'Clientes | Reuniones',
+    general:     `${t.customers} | ${t.general_information}`,
+    contacts:    `${t.customers} | ${t.contacts}`,
+    shipping:    `${t.customers} | ${t.delivery_addresses}`,
+    conditions:  `${t.customers} | ${t.commercial_conditions}`,
+    attachments: `${t.customers} | ${t.attachments}`,
+    accounts:    `${t.customers} | ${t.users}`,
+    meetings:    `${t.customers} | ${t.meetings}`,
   };
-  useDynamicTitle(TAB_TITLES[tab] ?? 'Clientes');
+  useDynamicTitle(TAB_TITLES[tab] ?? t.customers);
 
   if (!ctx) return null;
 

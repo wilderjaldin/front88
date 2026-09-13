@@ -10,22 +10,24 @@ import axiosClient from '@/app/lib/axiosClient';
 import Modal from '@/components/modal';
 import CustomerForm from '../form/page';
 import AccessDenied from '@/components/AccessDenied';
+import { useTranslation } from '@/app/locales';
 
 const URL_BASE = '/clientes';
-
-const TABS = [
-  { key: 'general',     label: 'Datos Generales'        },
-  { key: 'contacts',    label: 'Contactos'               },
-  { key: 'shipping',    label: 'Direcciones de Entrega'  },
-  { key: 'conditions',  label: 'Condiciones Comerciales' },
-  { key: 'attachments', label: 'Anexos'                  },
-  { key: 'accounts',    label: 'Cuentas de Usuario'      },
-  { key: 'meetings',    label: 'Reuniones'               },
-];
 
 export default function CustomerLayout({ children }) {
   const { id, tab } = useParams();
   const router      = useRouter();
+  const t           = useTranslation();
+
+  const TABS = [
+    { key: 'general',     label: t.general_data },
+    { key: 'contacts',    label: t.contacts },
+    { key: 'shipping',    label: t.delivery_addresses },
+    { key: 'conditions',  label: t.commercial_conditions },
+    { key: 'attachments', label: t.attachments },
+    { key: 'accounts',    label: t.user_accounts },
+    { key: 'meetings',    label: t.meetings },
+  ];
 
   // ── Cliente (ficha: breadcrumb) ───────────────────────────────────────────
   const [cliente,       setCliente]       = useState(null);
@@ -110,7 +112,7 @@ export default function CustomerLayout({ children }) {
   if (forbidden) return <AccessDenied />;
   if (!cliente) return null;
 
-  const currentTab = TABS.find(t => t.key === tab) ?? TABS[0];
+  const currentTab = TABS.find(tabItem => tabItem.key === tab) ?? TABS[0];
 
   // ── Todo el estado disponible para los hijos via context ─────────────────
   const contextValue = {
@@ -131,10 +133,10 @@ export default function CustomerLayout({ children }) {
 
         {/* ── BREADCRUMB ─────────────────────────────────────────────────── */}
         <ul className="flex items-center gap-1 text-sm text-gray-500 flex-wrap">
-          <li>Registrar</li>
+          <li>{t.register}</li>
           <li className="before:content-['/'] before:mx-2">
             <Link href="/admin/register/customers" className="text-primary hover:underline">
-              Clientes
+              {t.customers}
             </Link>
           </li>
           <li className="before:content-['/'] before:mx-2">
@@ -162,18 +164,18 @@ export default function CustomerLayout({ children }) {
         {/* ── TAB NAV ────────────────────────────────────────────────────── */}
         <div className="flex flex-wrap items-end justify-between gap-2 border-b border-gray-200 dark:border-gray-700">
           <div className="flex flex-wrap gap-1">
-            {TABS.map((t) => {
-              const isActive = t.key === tab;
+            {TABS.map((tabItem) => {
+              const isActive = tabItem.key === tab;
               return (
                 <Link
-                  key={t.key}
-                  href={`/admin/register/customers/${id}/${t.key}`}
+                  key={tabItem.key}
+                  href={`/admin/register/customers/${id}/${tabItem.key}`}
                   className={`no-load px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors
                     ${isActive
                       ? 'border-primary text-primary bg-primary/5'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:hover:text-gray-300'}`}
                 >
-                  {t.label}
+                  {tabItem.label}
                 </Link>
               );
             })}
@@ -187,7 +189,7 @@ export default function CustomerLayout({ children }) {
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
-            Cerrar configuraciones
+            {t.close_settings}
           </Link>
         </div>
 
@@ -201,7 +203,7 @@ export default function CustomerLayout({ children }) {
         size="w-full max-w-4xl"
         showModal={showModal}
         closeModal={() => setShowModal(false)}
-        title="Editar Cliente"
+        title={t.edit_customer}
       >
         {(loadingEditData || !editCliente) ? (
           <div className="flex items-center justify-center py-12">

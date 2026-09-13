@@ -46,10 +46,10 @@ const IconStar = ({ filled = false, className = '' }) => (
 );
 
 // ── Chip de estado ────────────────────────────────────────────────────────────
-const EstadoChip = ({ value, onRemove }) => (
+const EstadoChip = ({ value, onRemove, t }) => (
   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium
                    bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-    Estado: {value === 'AC' ? t.active : t.inactive}
+    {t.status}: {value === 'AC' ? t.active : t.inactive}
     <button type="button" onClick={onRemove} className="ml-0.5 hover:opacity-70 transition">
       <IconX className="w-3 h-3" />
     </button>
@@ -57,7 +57,7 @@ const EstadoChip = ({ value, onRemove }) => (
 );
 
 // ── Tarjeta grid ──────────────────────────────────────────────────────────────
-const DireccionCard = ({ dir, onEdit, onDelete, onActivate, onSetDefault, settingDefault }) => {
+const DireccionCard = ({ dir, onEdit, onDelete, onActivate, onSetDefault, settingDefault, t }) => {
   const isActive  = dir.codEstado === 'AC';
   const isDefault = !!dir.blnPredet;
 
@@ -80,7 +80,7 @@ const DireccionCard = ({ dir, onEdit, onDelete, onActivate, onSetDefault, settin
             {isDefault && (
               <span className="shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300">
                 <IconStar filled className="w-2.5 h-2.5" />
-                Predeterminado
+                {t.default_address}
               </span>
             )}
           </div>
@@ -90,7 +90,7 @@ const DireccionCard = ({ dir, onEdit, onDelete, onActivate, onSetDefault, settin
         </div>
         {!isActive && (
           <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-400 dark:bg-gray-800">
-            Inactivo
+            {t.inactive}
           </span>
         )}
       </div>
@@ -98,25 +98,25 @@ const DireccionCard = ({ dir, onEdit, onDelete, onActivate, onSetDefault, settin
       <div className="px-4 py-3 space-y-1.5 text-xs">
         {dir.nomEmpresa && (
           <div className="flex gap-2">
-            <span className="text-gray-400 shrink-0 w-16">Empresa</span>
+            <span className="text-gray-400 shrink-0 w-16">{t.company}</span>
             <span className="text-gray-700 dark:text-gray-300 truncate">{dir.nomEmpresa}</span>
           </div>
         )}
         {dir.nomContacto && (
           <div className="flex gap-2">
-            <span className="text-gray-400 shrink-0 w-16">Contacto</span>
+            <span className="text-gray-400 shrink-0 w-16">{t.contact}</span>
             <span className="text-gray-700 dark:text-gray-300 truncate">{dir.nomContacto}</span>
           </div>
         )}
         {dir.numTelefono && (
           <div className="flex gap-2">
-            <span className="text-gray-400 shrink-0 w-16">Teléfono</span>
+            <span className="text-gray-400 shrink-0 w-16">{t.phone}</span>
             <span className="text-gray-700 dark:text-gray-300 truncate">{dir.numTelefono}</span>
           </div>
         )}
         {dir.mail && (
           <div className="flex gap-2">
-            <span className="text-gray-400 shrink-0 w-16">Correo</span>
+            <span className="text-gray-400 shrink-0 w-16">{t.mail}</span>
             <span className="text-gray-700 dark:text-gray-300 truncate">{dir.mail}</span>
           </div>
         )}
@@ -129,7 +129,7 @@ const DireccionCard = ({ dir, onEdit, onDelete, onActivate, onSetDefault, settin
             <button
               onClick={() => !isDefault && onSetDefault(dir)}
               disabled={isDefault || settingDefault}
-              title={isDefault ? 'Dirección predeterminada' : 'Marcar como predeterminada'}
+              title={isDefault ? t.default_address_full : t.mark_as_default}
               className={`p-1.5 rounded-lg transition
                 ${isDefault
                   ? 'text-yellow-400 cursor-default'
@@ -137,17 +137,17 @@ const DireccionCard = ({ dir, onEdit, onDelete, onActivate, onSetDefault, settin
             >
               <IconStar filled={isDefault} className="w-4 h-4" />
             </button>
-            <button onClick={() => onEdit(dir)} title="Editar"
+            <button onClick={() => onEdit(dir)} title={t.edit}
               className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-800 transition">
               <IconPencil className="w-4 h-4 text-blue-500" />
             </button>
-            <button onClick={() => onDelete(dir)} title="Eliminar"
+            <button onClick={() => onDelete(dir)} title={t.delete}
               className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-gray-800 transition">
               <IconTrashLines className="w-4 h-4 text-red-500" />
             </button>
           </>
         ) : (
-          <button onClick={() => onActivate(dir)} title="Activar"
+          <button onClick={() => onActivate(dir)} title={t.activate}
             className="p-1.5 rounded-lg hover:bg-green-50 dark:hover:bg-gray-800 transition">
             <IconToggleOff className="w-6 h-6 text-gray-400 hover:text-green-500 transition" />
           </button>
@@ -199,7 +199,7 @@ export default function ShippingAddress({
       const res = await axiosClient.get(URL_DIRECCIONES(cliente.codCliente), { params });
       setShipping(res.data ?? []);
     } catch {
-      Toast.fire({ icon: 'error', title: 'Error al cargar direcciones' });
+      Toast.fire({ icon: 'error', title: t.could_not_load_addresses });
     } finally {
       setFetching(false);
       setLoadShipping(false);
@@ -247,13 +247,13 @@ export default function ShippingAddress({
   // ── Acciones modal ────────────────────────────────────────────────────────
   const handleAdd = () => {
     setEditDir(null);
-    setModalTitle(`Agregar Dirección — ${cliente.nomCliente}`);
+    setModalTitle(`${t.add_address} — ${cliente.nomCliente}`);
     setShowModal(true);
   };
 
   const handleEdit = (dir) => {
     setEditDir(dir);
-    setModalTitle(`Editar Dirección — ${cliente.nomCliente}`);
+    setModalTitle(`${t.edit_address} — ${cliente.nomCliente}`);
     setShowModal(true);
   };
 
@@ -265,9 +265,9 @@ export default function ShippingAddress({
         codRegistro: dir.codRegistro,
       });
       setShipping(res.data ?? []);
-      Toast.fire({ icon: 'success', title: 'Dirección predeterminada actualizada' });
+      Toast.fire({ icon: 'success', title: t.default_address_updated });
     } catch {
-      Toast.fire({ icon: 'error', title: 'Error al marcar como predeterminada' });
+      Toast.fire({ icon: 'error', title: t.could_not_mark_default });
     } finally {
       setSettingDefault(false);
     }
@@ -276,13 +276,13 @@ export default function ShippingAddress({
   // ── Eliminar (AC → IN) ────────────────────────────────────────────────────
   const handleDelete = (dir) => {
     Swal.fire({
-      title: '¿Eliminar esta dirección?',
+      title: t.delete_address_question,
       text: [dir.nomPais, dir.nomCiudad, dir.desDireccion].filter(Boolean).join(' · '),
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#dc2626',
-      confirmButtonText: 'Sí, eliminar',
-      cancelButtonText: 'Cancelar',
+      confirmButtonText: t.yes_delete,
+      cancelButtonText: t.btn_cancel,
       reverseButtons: true,
     }).then(async (result) => {
       if (!result.isConfirmed) return;
@@ -291,9 +291,9 @@ export default function ShippingAddress({
           codRegistro: dir.codRegistro,
         });
         setShipping(res.data ?? []);
-        Toast.fire({ icon: 'success', title: 'Dirección eliminada' });
+        Toast.fire({ icon: 'success', title: t.address_deleted });
       } catch {
-        Toast.fire({ icon: 'error', title: 'Error al eliminar' });
+        Toast.fire({ icon: 'error', title: t.delete_error });
       }
     });
   };
@@ -301,13 +301,13 @@ export default function ShippingAddress({
   // ── Activar (IN → AC) ─────────────────────────────────────────────────────
   const handleActivate = (dir) => {
     Swal.fire({
-      title: '¿Activar esta dirección?',
+      title: t.activate_address_question,
       text: [dir.nomPais, dir.nomCiudad, dir.desDireccion].filter(Boolean).join(' · '),
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#16a34a',
-      confirmButtonText: 'Sí, activar',
-      cancelButtonText: 'Cancelar',
+      confirmButtonText: t.yes_activate,
+      cancelButtonText: t.btn_cancel,
       reverseButtons: true,
     }).then(async (result) => {
       if (!result.isConfirmed) return;
@@ -316,9 +316,9 @@ export default function ShippingAddress({
           codRegistro: dir.codRegistro,
         });
         setShipping(res.data ?? []);
-        Toast.fire({ icon: 'success', title: 'Dirección activada' });
+        Toast.fire({ icon: 'success', title: t.address_activated });
       } catch {
-        Toast.fire({ icon: 'error', title: 'Error al activar' });
+        Toast.fire({ icon: 'error', title: t.could_not_activate });
       }
     });
   };
@@ -345,7 +345,7 @@ export default function ShippingAddress({
         {/* ── TOOLBAR ──────────────────────────────────────────────────── */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-            Direcciones de Entrega
+            {t.delivery_addresses}
             <span className="ml-2 text-sm font-normal text-gray-400">({filtered.length})</span>
           </h2>
 
@@ -358,7 +358,7 @@ export default function ShippingAddress({
                   type="text"
                   value={inputValue}
                   onChange={e => handleInputChange(e.target.value)}
-                  placeholder="Buscar... estado:in"
+                  placeholder={t.search_status_prefix_ph}
                   className="w-full rounded-lg border border-gray-300 dark:border-gray-700
                              bg-white dark:bg-gray-900 px-3 py-1.5 pr-8 text-sm
                              focus:outline-none focus:ring-2 focus:ring-primary/40"
@@ -380,12 +380,12 @@ export default function ShippingAddress({
 
               {estado && (
                 <div className="flex gap-1">
-                  <EstadoChip value={estado} onRemove={removeEstadoChip} />
+                  <EstadoChip value={estado} onRemove={removeEstadoChip} t={t} />
                 </div>
               )}
 
               <p className="text-[11px] text-gray-400">
-                Prefijo: <span className="font-mono">estado:ac</span> · <span className="font-mono">estado:in</span>
+                {t.prefixes} <span className="font-mono">estado:ac</span> · <span className="font-mono">estado:in</span>
               </p>
             </div>
 
@@ -410,7 +410,7 @@ export default function ShippingAddress({
               className="flex items-center gap-2 rounded-lg bg-primary px-3 py-1.5
                          text-white text-sm font-medium shadow-sm hover:bg-primary/90 transition">
               <IconMapPin className="h-4 w-4" />
-              Agregar Dirección
+              {t.add_address}
             </button>
           </div>
         </div>
@@ -421,7 +421,7 @@ export default function ShippingAddress({
                           bg-white dark:bg-gray-900 py-16 flex flex-col items-center gap-2">
             <IconMapPin className="h-8 w-8 text-gray-300" />
             <p className="text-sm text-gray-400">
-              {term ? 'Sin resultados para la búsqueda' : 'No hay direcciones registradas'}
+              {term ? t.no_results_for_search : t.no_delivery_addresses}
             </p>
           </div>
         )}
@@ -433,15 +433,15 @@ export default function ShippingAddress({
               <table className="table-striped table-hover [&_tbody_tr:hover]:bg-gray-100 [&_tbody_tr:hover]:dark:bg-gray-700 w-full">
                 <thead>
                   <tr>
-                    <th>Lugar</th>
-                    <th>Dirección</th>
-                    <th>Empresa</th>
-                    <th>Contacto</th>
-                    <th>Teléfono</th>
-                    <th>Correo electrónico</th>
-                    <th>Estado</th>
-                    <th>Cod. Postal</th>
-                    <th className="w-28 text-center">Acciones</th>
+                    <th>{t.place}</th>
+                    <th>{t.address}</th>
+                    <th>{t.company}</th>
+                    <th>{t.contact}</th>
+                    <th>{t.phone}</th>
+                    <th>{t.email}</th>
+                    <th>{t.state}</th>
+                    <th>{t.zip}</th>
+                    <th className="w-28 text-center">{t.actions}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -470,7 +470,7 @@ export default function ShippingAddress({
                                 <button
                                   onClick={() => !isDefault && handleSetDefault(dir)}
                                   disabled={isDefault || settingDefault}
-                                  title={isDefault ? 'Dirección predeterminada' : 'Marcar como predeterminada'}
+                                  title={isDefault ? t.default_address_full : t.mark_as_default}
                                   className={`p-1.5 rounded-lg transition
                                     ${isDefault
                                       ? 'text-yellow-400 cursor-default'
@@ -478,17 +478,17 @@ export default function ShippingAddress({
                                 >
                                   <IconStar filled={isDefault} className="w-4 h-4" />
                                 </button>
-                                <button title="Editar" onClick={() => handleEdit(dir)}
+                                <button title={t.edit} onClick={() => handleEdit(dir)}
                                   className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-800 transition">
                                   <IconPencil className="w-4 h-4 text-blue-500" />
                                 </button>
-                                <button title="Eliminar" onClick={() => handleDelete(dir)}
+                                <button title={t.delete} onClick={() => handleDelete(dir)}
                                   className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-gray-800 transition">
                                   <IconTrashLines className="w-4 h-4 text-red-500" />
                                 </button>
                               </>
                             ) : (
-                              <button title="Activar" onClick={() => handleActivate(dir)}
+                              <button title={t.activate} onClick={() => handleActivate(dir)}
                                 className="p-1.5 rounded-lg hover:bg-green-50 dark:hover:bg-gray-800 transition">
                                 <IconToggleOff className="w-6 h-6 text-gray-400 hover:text-green-500 transition" />
                               </button>
@@ -516,6 +516,7 @@ export default function ShippingAddress({
                 onActivate={handleActivate}
                 onSetDefault={handleSetDefault}
                 settingDefault={settingDefault}
+                t={t}
               />
             ))}
           </div>

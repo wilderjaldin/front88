@@ -345,7 +345,6 @@ export default function DeliveryReport() {
                   <SortableHeader col="delivery"  label={t.nro_delivery}  sort={urlSort} dir={urlDir} onSort={handleSort} />
                   <SortableHeader col="date"      label={t.date}          sort={urlSort} dir={urlDir} onSort={handleSort} />
                   <SortableHeader col="to"        label={t.to_customer}   sort={urlSort} dir={urlDir} onSort={handleSort} />
-                  <SortableHeader col="customer"  label={t.customer}      sort={urlSort} dir={urlDir} onSort={handleSort} />
                   <SortableHeader col="received"  label={t.received_by}   sort={urlSort} dir={urlDir} onSort={handleSort} />
                   <SortableHeader col="delivered" label={t.delivered_by}  sort={urlSort} dir={urlDir} onSort={handleSort} />
                 </tr>
@@ -383,17 +382,24 @@ export default function DeliveryReport() {
                       </div>
                     </td>
                     <td className={`${tdClass} text-gray-400`}>{o.fecEntrega}</td>
-                    <td className={`${tdClass} text-gray-400`}>{o.destino}</td>
                     <td className={tdClass}>
+                      {/* codCliente != 0 → entrega a cliente (bandera + nombre cliente).
+                          codCliente == 0 → entrega de MI a Representante (solo destino, sin bandera). */}
                       <div className="flex items-center gap-2">
-                        {o.codPais && (
-                          <img
-                            src={`/assets/flags/${o.codPais.toLowerCase()}.svg`}
-                            alt={o.codPais}
-                            className="h-3.5 w-5 rounded-sm object-cover shrink-0"
-                          />
+                        {o.codCliente ? (
+                          <>
+                            {o.codPais && (
+                              <img
+                                src={`/assets/flags/${o.codPais.toLowerCase()}.svg`}
+                                alt={o.codPais}
+                                className="h-3.5 w-5 rounded-sm object-cover shrink-0"
+                              />
+                            )}
+                            <span>{o.cliente}</span>
+                          </>
+                        ) : (
+                          <span className="text-gray-400">{o.destino}</span>
                         )}
-                        <span>{o.cliente}</span>
                       </div>
                     </td>
                     <td className={`${tdClass} text-gray-500`}>{o.recibidoPor || '—'}</td>

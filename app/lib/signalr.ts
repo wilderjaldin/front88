@@ -22,10 +22,8 @@ export function getHubConnection(): signalR.HubConnection {
     // debe tratarse como error — Next.js muestra un overlay bloqueante por cada console.error.
     connection.onclose((err) => {
       if (err) console.error("SignalR: conexión cerrada", err);
-      else console.log("SignalR: conexión cerrada");
     });
     connection.onreconnecting((err) => console.warn("SignalR: reconectando...", err));
-    connection.onreconnected(() => console.log("SignalR: reconectado"));
   }
   return connection;
 }

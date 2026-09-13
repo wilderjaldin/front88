@@ -20,7 +20,7 @@ const ARCHIVOS_URL = process.env.NEXT_PUBLIC_ARCHIVOS_URL;
 
 const FILE_TYPES = ['.jpeg', '.jpg', '.png', '.pdf', '.doc', '.docx', '.xls', '.xlsx'];
 
-const AttachQuoteForm = ({ close, t, nro, urls = {} }) => {
+const AttachQuoteForm = ({ close, t, nro, urls = {}, readOnly = false }) => {
 
   const urlUpload = urls.upload ?? DEFAULTS.upload;
   const urlList   = urls.list   ?? DEFAULTS.list;
@@ -166,6 +166,14 @@ const AttachQuoteForm = ({ close, t, nro, urls = {} }) => {
   return (
     <div className="space-y-5">
 
+      {readOnly ? (
+        <div className="flex items-center justify-end pb-4 border-b border-gray-100 dark:border-gray-700">
+          <button onClick={() => close()} type="button"
+            className="inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-600 dark:text-gray-300 bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-gray-400 transition">
+            {t.close}
+          </button>
+        </div>
+      ) : (
       <form onSubmit={handleSubmit(onUpload)}>
 
         {/* Drop zone */}
@@ -281,9 +289,10 @@ const AttachQuoteForm = ({ close, t, nro, urls = {} }) => {
           </button>
         </div>
       </form>
+      )}
 
       {/* Tabla de archivos adjuntos */}
-      {files.length > 0 && (
+      {files.length > 0 ? (
         <div className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="max-h-60 overflow-y-auto">
             <table className="w-full text-sm">
@@ -300,10 +309,12 @@ const AttachQuoteForm = ({ close, t, nro, urls = {} }) => {
                   <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors">
                     <td className="px-2 py-1.5">
                       <div className="flex items-center gap-0.5">
-                        <button onClick={() => deleteFile(f)} title={t.delete} type="button"
-                          className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition">
-                          <IconTrashLines className="w-4 h-4 text-red-500" />
-                        </button>
+                        {!readOnly && (
+                          <button onClick={() => deleteFile(f)} title={t.delete} type="button"
+                            className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition">
+                            <IconTrashLines className="w-4 h-4 text-red-500" />
+                          </button>
+                        )}
                         <a
                           href={`${ARCHIVOS_URL}/${nro}/${f.codArchivo}`}
                           download={f.nomArchivo}
@@ -316,26 +327,30 @@ const AttachQuoteForm = ({ close, t, nro, urls = {} }) => {
                     </td>
                     <td className="px-3 py-1.5 text-gray-700 dark:text-gray-300" title={f.nomArchivo}>{f.nomArchivo}</td>
                     <td className="px-3 py-1.5">
-                      <div className="flex items-center">
-                        <div className="relative flex-1">
-                          <input
-                            type="text"
-                            defaultValue={f.desArchivo}
-                            {...register(`description.${f.codRegistro}`)}
-                            maxLength={100}
-                            className="form-input h-8 text-sm pr-7 w-full rounded-r-none"
-                          />
-                          <button type="button"
-                            onClick={() => setValue(`description.${f.codRegistro}`, '')}
-                            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition">
-                            <IconBackSpace className="w-4 h-4" />
+                      {readOnly ? (
+                        <span className="text-gray-500 dark:text-gray-400">{f.desArchivo || '—'}</span>
+                      ) : (
+                        <div className="flex items-center">
+                          <div className="relative flex-1">
+                            <input
+                              type="text"
+                              defaultValue={f.desArchivo}
+                              {...register(`description.${f.codRegistro}`)}
+                              maxLength={100}
+                              className="form-input h-8 text-sm pr-7 w-full rounded-r-none"
+                            />
+                            <button type="button"
+                              onClick={() => setValue(`description.${f.codRegistro}`, '')}
+                              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition">
+                              <IconBackSpace className="w-4 h-4" />
+                            </button>
+                          </div>
+                          <button onClick={() => updateDescriptionFile(f)} type="button"
+                            className="h-8 px-2 border border-l-0 border-primary rounded-r-md hover:bg-primary/10 transition shrink-0">
+                            <IconSave className="w-4 h-4 text-primary" />
                           </button>
                         </div>
-                        <button onClick={() => updateDescriptionFile(f)} type="button"
-                          className="h-8 px-2 border border-l-0 border-primary rounded-r-md hover:bg-primary/10 transition shrink-0">
-                          <IconSave className="w-4 h-4 text-primary" />
-                        </button>
-                      </div>
+                      )}
                     </td>
                     <td className="px-3 py-1.5 text-gray-500 dark:text-gray-400 whitespace-nowrap text-xs">{f.fecha}</td>
                   </tr>
@@ -344,7 +359,9 @@ const AttachQuoteForm = ({ close, t, nro, urls = {} }) => {
             </table>
           </div>
         </div>
-      )}
+      ) : readOnly ? (
+        <p className="text-sm text-gray-400 text-center py-6">{t.no_files}</p>
+      ) : null}
 
     </div>
   );

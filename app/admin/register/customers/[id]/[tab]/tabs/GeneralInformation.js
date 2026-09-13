@@ -70,7 +70,7 @@ const Badge = ({ color = 'slate', children }) => {
   );
 };
 
-const StatCard = ({ color = 'blue', icon, label, value, caption, href, footer }) => {
+const StatCard = ({ color = 'blue', icon, label, value, caption, href, footer, t }) => {
   const c = COLORS[color] ?? COLORS.blue;
   const IconTag = href ? 'a' : 'span';
   return (
@@ -82,7 +82,7 @@ const StatCard = ({ color = 'blue', icon, label, value, caption, href, footer })
           {caption && <p className="text-[11px] text-gray-400 mt-0.5 truncate">{caption}</p>}
         </div>
         <IconTag
-          {...(href ? { href, target: '_blank', rel: 'noopener noreferrer', title: 'Ver cotizaciones' } : {})}
+          {...(href ? { href, target: '_blank', rel: 'noopener noreferrer', title: t.view_quotes } : {})}
           className={`flex-shrink-0 h-9 w-9 rounded-lg flex items-center justify-center ${c.chipBg} ${c.chipText} ${href ? 'no-load hover:brightness-90 dark:hover:brightness-125 transition cursor-pointer' : ''}`}
         >
           {icon}
@@ -150,7 +150,7 @@ export default function GeneralInformation({ cliente, onEdit, t, general, setGen
   }
 
   const g = general;
-  const idioma = g.cliIdioma === 'ES' ? 'Español' : g.cliIdioma === 'US' ? 'English' : g.cliIdioma;
+  const idioma = g.cliIdioma === 'ES' ? t.spanish : g.cliIdioma === 'US' ? t.english : g.cliIdioma;
 
   // ── Datos nuevos del contrato (confirmado contra GET /clientes/general/{id}) ──
   const comercial   = g.resumenComercial ?? null;
@@ -189,18 +189,18 @@ export default function GeneralInformation({ cliente, onEdit, t, general, setGen
                            text-white shadow-sm hover:bg-primary/90 transition"
               >
                 <IconPencil className="h-3 w-3" />
-                Editar
+                {t.edit}
               </button>
             }
           >
-            Información
+            {t.information}
           </SectionTitle>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            <Field label="Cliente"       value={g.nomCliente} />
-            <Field label="Num. NIT / CI" value={[g.tipDocumento, g.numNit].filter(Boolean).join(' ')} />
-            <Field label="Dir. Oficina"  value={g.dirCliente} />
+            <Field label={t.customer}         value={g.nomCliente} />
+            <Field label={t.nit_number_label} value={[g.tipDocumento, g.numNit].filter(Boolean).join(' ')} />
+            <Field label={t.office_short}     value={g.dirCliente} />
             <div className="flex flex-col gap-0.5">
-              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Página web</span>
+              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{t.website}</span>
               {g.sitWeb ? (
                 <a
                   href={g.sitWeb.match(/^https?:\/\//) ? g.sitWeb : `https://${g.sitWeb}`}
@@ -215,10 +215,10 @@ export default function GeneralInformation({ cliente, onEdit, t, general, setGen
                 <span className="text-sm text-gray-300 dark:text-gray-600">—</span>
               )}
             </div>
-            <Field label="Actividad"     value={g.actPrincipal} />
-            <Field label="Reportes en"   value={idioma} />
+            <Field label={t.activity}    value={g.actPrincipal} />
+            <Field label={t.reports_in}  value={idioma} />
             <div className="flex flex-col gap-0.5">
-              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">País</span>
+              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{t.country}</span>
               <span className="flex items-center gap-1.5 text-sm text-gray-800 dark:text-gray-100">
                 {g.codPais && (
                   <img
@@ -231,35 +231,37 @@ export default function GeneralInformation({ cliente, onEdit, t, general, setGen
                 {g.nomPais || <span className="text-gray-300 dark:text-gray-600">—</span>}
               </span>
             </div>
-            <Field label="Ciudad"        value={g.nomCiudad} />
+            <Field label={t.city}        value={g.nomCiudad} />
+            {g.nomEstado && <Field label={t.state}    value={g.nomEstado} />}
+            {g.codZip    && <Field label={t.zip_code} value={g.codZip} />}
           </div>
         </div>
 
         {/* Condiciones Comerciales */}
         <div>
-          <SectionTitle color="green" icon={<IconCreditCard className="h-3.5 w-3.5" />}>Condiciones Comerciales</SectionTitle>
+          <SectionTitle color="green" icon={<IconCreditCard className="h-3.5 w-3.5" />}>{t.commercial_conditions}</SectionTitle>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <div className="flex flex-col gap-0.5">
-              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Condición de Pago</span>
+              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{t.payment_condition}</span>
               {(g.desConPago || g.conPago)
                 ? <Badge color="blue">{g.desConPago || g.conPago}</Badge>
                 : <span className="text-sm text-gray-300 dark:text-gray-600">—</span>}
             </div>
-            <Field label="Crédito $us" value={g.mtoCredito != null ? Number(g.mtoCredito).toFixed(2) : null} />
+            <Field label={t.credit_usd} value={g.mtoCredito != null ? Number(g.mtoCredito).toFixed(2) : null} />
             <div className="flex flex-col gap-0.5">
-              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">% Descuento</span>
+              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{t.pct_discount}</span>
               {g.porDescuento ? <Badge color="green">{g.porDescuento}% OFF</Badge> : <span className="text-sm text-gray-500 dark:text-gray-400">0%</span>}
             </div>
             <div className="flex flex-col gap-0.5">
-              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">% IVA</span>
+              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{t.pct_iva_label}</span>
               {g.noConsiderarIva
-                ? <Badge color="amber">No considera IVA</Badge>
+                ? <Badge color="amber">{t.not_consider_iva}</Badge>
                 : <Badge color="indigo">{g.porIva ?? 0}%</Badge>}
             </div>
-            <Field label="Vendedor" value={g.nomVendedor} />
+            <Field label={t.vendor} value={g.nomVendedor} />
             <div className="flex flex-col gap-0.5">
-              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Es Revendedor</span>
-              <Badge color={g.esRevendedor ? 'green' : 'slate'}>{g.esRevendedor ? 'Sí' : 'No'}</Badge>
+              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{t.is_reseller}</span>
+              <Badge color={g.esRevendedor ? 'green' : 'slate'}>{g.esRevendedor ? t.yes_cap : t.no_cap}</Badge>
             </div>
           </div>
         </div>
@@ -269,7 +271,7 @@ export default function GeneralInformation({ cliente, onEdit, t, general, setGen
           <>
             <div className="border-t border-gray-100 dark:border-gray-700" />
             <div>
-              <SectionTitle color="amber" icon={<IconUsers className="h-3.5 w-3.5" />}>Contacto Principal</SectionTitle>
+              <SectionTitle color="amber" icon={<IconUsers className="h-3.5 w-3.5" />}>{t.main_contact}</SectionTitle>
               <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="flex h-7 w-7 shrink-0 items-center justify-center
@@ -294,7 +296,7 @@ export default function GeneralInformation({ cliente, onEdit, t, general, setGen
                   className="ml-auto flex items-center gap-1 text-xs text-primary hover:underline"
                 >
                   <IconUsers className="h-3.5 w-3.5" />
-                  Contactos
+                  {t.contacts}
                 </button>
               </div>
             </div>
@@ -306,7 +308,7 @@ export default function GeneralInformation({ cliente, onEdit, t, general, setGen
           <>
             <div className="border-t border-gray-100 dark:border-gray-700" />
             <div>
-              <SectionTitle color="slate" icon={<IconClock className="h-3.5 w-3.5" />}>Auditoría</SectionTitle>
+              <SectionTitle color="slate" icon={<IconClock className="h-3.5 w-3.5" />}>{t.audit}</SectionTitle>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex items-center gap-3">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full
@@ -314,7 +316,7 @@ export default function GeneralInformation({ cliente, onEdit, t, general, setGen
                     {g.usuarioRegistra?.split(' ').slice(0, 2).map(w => w[0]).join('') || '?'}
                   </div>
                   <div className="min-w-0">
-                    <span className="block text-[10px] text-gray-400 uppercase tracking-wide">Registrado por</span>
+                    <span className="block text-[10px] text-gray-400 uppercase tracking-wide">{t.registered_by}</span>
                     <div className="text-xs font-medium text-gray-700 dark:text-gray-200 truncate">{g.usuarioRegistra || '—'}</div>
                     {g.fecRegistra && <span className="text-[11px] text-gray-400">{g.fecRegistra}</span>}
                   </div>
@@ -325,7 +327,7 @@ export default function GeneralInformation({ cliente, onEdit, t, general, setGen
                     {g.usuarioModifica?.split(' ').slice(0, 2).map(w => w[0]).join('') || '?'}
                   </div>
                   <div className="min-w-0">
-                    <span className="block text-[10px] text-gray-400 uppercase tracking-wide">Modificado por</span>
+                    <span className="block text-[10px] text-gray-400 uppercase tracking-wide">{t.modified_by}</span>
                     <div className="text-xs font-medium text-gray-700 dark:text-gray-200 truncate">{g.usuarioModifica || '—'}</div>
                     {g.fecModifica && <span className="text-[11px] text-gray-400">{g.fecModifica}</span>}
                   </div>
@@ -342,11 +344,14 @@ export default function GeneralInformation({ cliente, onEdit, t, general, setGen
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {comercial && (
             <StatCard
+              t={t}
               color="blue"
               icon={<IconClipboardText className="h-4.5 w-4.5" />}
-              label="Cotizaciones"
+              label={t.quotes}
               value={comercial.cotizaciones ?? '—'}
-              caption={`${comercial.ordenesAbiertas ?? 0} abiertas · ${comercial.ordenesCompletadas ?? 0} completadas`}
+              caption={t.open_completed_caption
+                .replace('{open}', comercial.ordenesAbiertas ?? 0)
+                .replace('{completed}', comercial.ordenesCompletadas ?? 0)}
               href={quotesListUrl}
               footer={ultimaCot && (
                 <a
@@ -356,7 +361,7 @@ export default function GeneralInformation({ cliente, onEdit, t, general, setGen
                   className="no-load flex items-center justify-between gap-2 px-4 py-2 border-t border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition"
                 >
                   <div className="min-w-0">
-                    <span className="text-[10px] text-gray-400 uppercase tracking-wide">Última: </span>
+                    <span className="text-[10px] text-gray-400 uppercase tracking-wide">{t.last_colon}</span>
                     <span className="text-xs font-medium text-gray-700 dark:text-gray-200">
                       {ultimaCotNro ? `#${ultimaCotNro}` : '—'}
                     </span>
@@ -373,15 +378,16 @@ export default function GeneralInformation({ cliente, onEdit, t, general, setGen
           )}
           {entregas && (
             <StatCard
+              t={t}
               color="indigo"
               icon={<IconBox className="h-4.5 w-4.5" />}
-              label="Entregas"
+              label={t.deliveries}
               value={entregas.total ?? '—'}
-              caption={entregas.pendientesDespacho != null ? `${entregas.pendientesDespacho} pendientes de despacho` : undefined}
+              caption={entregas.pendientesDespacho != null ? t.pending_dispatch_caption.replace('{n}', entregas.pendientesDespacho) : undefined}
               footer={entregas.ultimaEntrega && (
                 <div className="flex items-center justify-between gap-2 px-4 py-2 border-t border-gray-100 dark:border-gray-700">
                   <div className="min-w-0">
-                    <span className="text-[10px] text-gray-400 uppercase tracking-wide">Última: </span>
+                    <span className="text-[10px] text-gray-400 uppercase tracking-wide">{t.last_colon}</span>
                     <span className="text-xs font-medium text-gray-700 dark:text-gray-200">
                       {entregas.ultimaEntrega.numEntrega ? `#${entregas.ultimaEntrega.numEntrega}` : '—'}
                     </span>

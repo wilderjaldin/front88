@@ -105,7 +105,14 @@ const BtnImprimir = ({ t, row, className = "", onOpenDispatch }) => {
         closeModal={() => setShowModal(false)}
         openModal={() => setShowModal(true)}
         showModal={show_modal}
-        title={t.select_report}
+        title={
+          <span className="inline-flex items-baseline gap-2">
+            <span>{t.select_report}</span>
+            <span className="text-xs font-normal text-gray-400 dark:text-gray-500">
+              {t.nro_delivery} #{row.NumDespacho}
+            </span>
+          </span>
+        }
         content={
           <div className="space-y-4">
             {/* Modo: uno por uno / personalizada / todo */}

@@ -138,7 +138,7 @@ const swalError = (title, msg = '', confirmText = 'Cerrar') => Swal.fire({
   confirmButtonColor: '#ef4444',
 });
 
-function SortableRow({ id, index, children, className }) {
+function SortableRow({ id, index, children, className, t }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   return (
     <tr
@@ -158,7 +158,7 @@ function SortableRow({ id, index, children, className }) {
           {...listeners}
           className="cursor-grab active:cursor-grabbing touch-none group/drag"
           tabIndex={-1}
-          title="Arrastrar para reordenar"
+          title={t.drag_to_reorder}
         >
           <span className="inline-flex h-5 w-5 items-center justify-center rounded-full
             bg-slate-100 dark:bg-slate-700
@@ -184,7 +184,7 @@ const ItemNotesModal = ({ t, item, onUpdated }) => {
   };
 
   const handleError = (error) => {
-    swalError(t.error, error?.response?.data?.mensaje ?? 'No se pudo guardar la nota');
+    swalError(t.error, error?.response?.data?.mensaje ?? t.could_not_save_note);
   };
 
   return (
@@ -193,7 +193,7 @@ const ItemNotesModal = ({ t, item, onUpdated }) => {
         <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">{t.history ?? 'Historial'}</p>
         {notes.length === 0 ? (
           <div className="rounded-lg border border-dashed border-gray-200 dark:border-gray-700 py-6 text-center">
-            <p className="text-xs text-gray-400">{t.no_matches ?? 'Sin notas registradas'}</p>
+            <p className="text-xs text-gray-400">{t.no_notes_registered}</p>
           </div>
         ) : (
           <div className="max-h-64 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
@@ -218,7 +218,7 @@ const ItemNotesModal = ({ t, item, onUpdated }) => {
 };
 
 // Imágenes de un ítem — se pide on-demand (repuestos/{codRepuesto}/imagenes) al abrir el modal.
-const ItemFilesModal = ({ codRepuesto }) => {
+const ItemFilesModal = ({ codRepuesto, t }) => {
   const [loading, setLoading] = useState(true);
   const [images, setImages] = useState([]);
   const [zoomImg, setZoomImg] = useState(null);
@@ -230,8 +230,8 @@ const ItemFilesModal = ({ codRepuesto }) => {
       .finally(() => setLoading(false));
   }, [codRepuesto]);
 
-  if (loading) return <p className="text-xs text-gray-400 text-center py-6">Cargando…</p>;
-  if (images.length === 0) return <p className="text-xs text-gray-400 text-center py-6">Sin imágenes</p>;
+  if (loading) return <p className="text-xs text-gray-400 text-center py-6">{t.loading}</p>;
+  if (images.length === 0) return <p className="text-xs text-gray-400 text-center py-6">{t.no_images}</p>;
 
   return (
     <>
@@ -332,9 +332,15 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const hasItemsWithoutPrice = items.some(item => !item.Precio || item.Precio === 0);
-  const vencido  = order.Vencido === true;
-  const ordenado = order.Estado === 'ORDENADO';
-  const blocked  = vencido || ordenado;
+  const vencido   = order.Vencido === true;
+  const ordenado  = order.Estado === 'ORDENADO';
+  const entregado = order.Estado === 'ENTREGADO';
+  // blocked: bloquea todas las acciones de edición de la cotización.
+  // blockedStrict: igual, pero sin considerar "entregado" — se usa en las pocas
+  // acciones que siguen habilitadas aun entregado (imprimir, ver adjuntos,
+  // resumen de costo, instrucciones de entrega).
+  const blockedStrict = vencido || ordenado;
+  const blocked        = blockedStrict || entregado;
 
   const tablaRef = useRef(null);
   const locale = useSelector(getLocale);
@@ -716,7 +722,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
       await axiosClient.post(URL_COPY_ARGENTINA(order.NroOrden));
       router.push(`/admin/revision/quotes-argentina-copy?id=${order.NroOrden}&customer=${customer.CodCliente}`);
     } catch (err) {
-      swalError(t.error ?? 'Error', err?.response?.data?.mensaje ?? 'No se pudo generar la copia');
+      swalError(t.error ?? 'Error', err?.response?.data?.mensaje ?? t.could_not_generate_copy);
     } finally {
       setIsSubmitting(false);
     }
@@ -737,7 +743,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
       updateInputs(updatedItems);
       swalSuccess(t.update_item_success ?? 'Cotización actualizada correctamente');
     } catch (err) {
-      swalError(t.error ?? 'Error', err?.response?.data?.mensaje ?? 'No se pudo actualizar la cotización');
+      swalError(t.error ?? 'Error', err?.response?.data?.mensaje ?? t.could_not_update_quote);
     } finally {
       setIsSubmitting(false);
     }
@@ -776,7 +782,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
   const attach = () => {
     setModalTitle('');
     setModalSize('w-full max-w-6xl');
-    setModalContent(<AttachQuoteForm close={() => setShowModal(false)} nro={order.NroOrden} t={t} />);
+    setModalContent(<AttachQuoteForm close={() => setShowModal(false)} nro={order.NroOrden} t={t} readOnly={entregado} />);
     setShowModal(true);
   }
 
@@ -946,7 +952,6 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
   }
 
   const showMore = async (item) => {
-    console.log('INI', item)
     try {
       const rs = await axiosClient.post(URL_MORE_QUOTE, {
         NroCotizacion: order.NroOrden,
@@ -1028,8 +1033,8 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
     if (!count) return;
 
     const title = count === 1
-      ? t.question_delete_item   ?? '¿Desea eliminar el item seleccionado?'
-      : t.question_delete_items  ?? `¿Desea eliminar los ${count} items seleccionados?`;
+      ? t.question_delete_item     ?? '¿Desea eliminar el item seleccionado?'
+      : (t.question_delete_n_items ?? '¿Desea eliminar los {n} items seleccionados?').replace('{n}', count);
 
     const result = await swalConfirm(title, '', {
       confirmText: t.yes ?? 'Sí',
@@ -1257,9 +1262,9 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
   };
 
   const showItemImages = (item) => {
-    setModalTitle('Imágenes');
+    setModalTitle(t.images);
     setModalSize('w-full max-w-lg');
-    setModalContent(<ItemFilesModal codRepuesto={item.CodRepuesto} />);
+    setModalContent(<ItemFilesModal codRepuesto={item.CodRepuesto} t={t} />);
     setShowModal(true);
   };
 
@@ -1272,12 +1277,12 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
         if (docs[0]?.urlDocumento) window.open(docs[0].urlDocumento, '_blank', 'noopener,noreferrer');
         return;
       }
-      setModalTitle('Documentos');
+      setModalTitle(t.documents);
       setModalSize('w-full max-w-lg');
       setModalContent(<ItemDocumentsModal docs={docs} />);
       setShowModal(true);
     } catch {
-      Swal.fire({ title: 'Error', text: 'No se pudieron cargar los documentos', icon: 'error', confirmButtonColor: '#dc2626' });
+      Swal.fire({ title: t.error, text: t.could_not_load_documents, icon: 'error', confirmButtonColor: '#dc2626' });
     }
   };
 
@@ -1382,8 +1387,18 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
           </svg>
           <div className="flex-1">
-            <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">Cotización ordenada</p>
-            <p className="mt-0.5 text-xs text-blue-700 dark:text-blue-400">Esta cotización ya fue ordenada y no admite modificaciones.</p>
+            <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">{t.ordered_quote_title}</p>
+            <p className="mt-0.5 text-xs text-blue-700 dark:text-blue-400">{t.ordered_quote_message}</p>
+          </div>
+        </div>
+      ) : entregado ? (
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-green-300 bg-green-50 px-4 py-3.5 dark:border-green-700/50 dark:bg-green-900/20">
+          <svg className="mt-0.5 h-5 w-5 shrink-0 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
+          </svg>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-green-800 dark:text-green-300">{t.delivered_quote_title}</p>
+            <p className="mt-0.5 text-xs text-green-700 dark:text-green-400">{t.delivered_quote_message}</p>
           </div>
         </div>
       ) : vencido && (
@@ -1392,8 +1407,8 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
           </svg>
           <div className="flex-1">
-            <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Cotización no vigente</p>
-            <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-400">Esta cotización ya no se encuentra vigente. Los precios y disponibilidad pueden haber cambiado en los últimos 7 días. Se requiere actualizar los ítems para continuar.</p>
+            <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">{t.expired_quote_title}</p>
+            <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-400">{t.expired_quote_message}</p>
           </div>
           <button
             type="button"
@@ -1411,7 +1426,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
               </svg>
             )}
-            Actualizar Cotización
+            {t.update_quote_btn}
           </button>
         </div>
       )}
@@ -1598,11 +1613,11 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                 [t.nro_quote,       <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-0.5 text-sm font-bold text-primary">{order.NroOrden}</span>],
                 [t.nro_items,       order.NroItems],
                 [t.total_weight_lb, customFormat(order.TotalPeso)],
-                ['Tipo de Cotización', order.TipCotizacion || order.Categoria || '—'],
+                [t.quote_type, order.TipCotizacion || order.Categoria || '—'],
               ];
               const colB = [
-                ['Vendedor Asignado',   order.Vendedor || '—'],
-                ['Fecha de Cotización', order.FecCotizacion || '—'],
+                [t.assigned_seller, order.Vendedor || '—'],
+                [t.quote_date,      order.FecCotizacion || '—'],
                 [t.exchange_rate,       order.TipoCambio],
                 [t.quote_total,        customFormat(order.Total)],
               ];
@@ -1667,7 +1682,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
 
             {/* ── Fila 2: Contacto ────────────────────────────────────── */}
             <div className="flex items-center gap-2 px-4 py-2.5">
-              <span className="text-xs font-medium text-gray-500 shrink-0 w-24 text-right pr-1">Contacto</span>
+              <span className="text-xs font-medium text-gray-500 shrink-0 w-24 text-right pr-1">{t.contact}</span>
               <ContactQuoteSection
                 nroCotizacion={order.NroOrden}
                 codCliente={customer.CodCliente}
@@ -1689,12 +1704,12 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                 {/* Columnas a mostrar */}
                 <div className="w-1/4 shrink-0 px-4 py-3">
                   <p className="text-[10px] font-semibold uppercase tracking-widest text-center text-gray-400 dark:text-gray-500 mb-2.5">
-                    Columnas a mostrar en el reporte
+                    {t.columns_to_show_report}
                   </p>
                   <div className="flex flex-wrap justify-center gap-2">
                     {[
-                      { regName: 'show_nro_part', label: 'Nro. Parte', checked: order.MostrarCodigo === 1, onChange: handelChangeShowPart },
-                      { regName: 'show_peso',     label: 'Peso',        checked: order.MostrarPeso   === 1, onChange: handelChangeShowPeso },
+                      { regName: 'show_nro_part', label: t.nro_part, checked: order.MostrarCodigo === 1, onChange: handelChangeShowPart },
+                      { regName: 'show_peso',     label: t.weight,   checked: order.MostrarPeso   === 1, onChange: handelChangeShowPeso },
                     ].map(({ regName, label, checked, onChange }) => (
                       <label key={regName}
                         className={`inline-flex items-center gap-1.5 select-none px-3 py-1.5 rounded-lg border text-xs font-medium transition
@@ -1721,12 +1736,12 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                 {/* Configuración de cotización */}
                 <div className="flex-1 px-3 py-3 grid grid-cols-3 gap-2 items-end">
                   {[
-                    { label: 'Moneda',     opts: optsMoneda,     val: selMoneda,    set: setSelMoneda,    key: 'moneda',
+                    { label: t.currency,   opts: optsMoneda,     val: selMoneda,    set: setSelMoneda,    key: 'moneda',
                       onSave: async (v) => {
                         const rs = await axiosClient.post(URL_SAVE_MONEDA, { NroCotizacion: order.NroOrden, TipMoneda: v.value });
                         if (rs.data?.tipCambio != null) setOrder(prev => ({ ...prev, TipoCambio: rs.data.tipCambio }));
                       } },
-                    { label: 'Tipo Envío', opts: optsTipoEnvio,  val: selTipoEnvio, set: setSelTipoEnvio, key: 'tipoEnvio',
+                    { label: t.shipping_type, opts: optsTipoEnvio,  val: selTipoEnvio, set: setSelTipoEnvio, key: 'tipoEnvio',
                       onSave: async (v) => {
                         const rs = await axiosClient.put(URL_SAVE_TIPO_ENVIO, { NroCotizacion: order.NroOrden, PrefEnvio: v.value });
                         const { cotizacion, detalle } = rs.data;
@@ -1736,7 +1751,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                         setItems(updatedItems);
                         updateInputs(updatedItems);
                       } },
-                    { label: 'Estado',     opts: optsEstado,     val: selEstado,    set: setSelEstado,    url: URL_SAVE_ESTADO,     key: 'estado',     payloadKey: 'codSeguimiento'  },
+                    { label: t.status,     opts: optsEstado,     val: selEstado,    set: setSelEstado,    url: URL_SAVE_ESTADO,     key: 'estado',     payloadKey: 'codSeguimiento'  },
                   ].map(({ label, opts, val, set, url, key, payloadKey, onSave }) => (
                     <div key={key} className="flex flex-col gap-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-800/30 p-2">
                       <span className="text-xs text-gray-500">{label}</span>
@@ -1772,7 +1787,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                               }
                               swalSuccess(t.record_updated);
                             } catch (err) {
-                              swalError(t.error, err?.response?.data?.mensaje ?? 'No se pudo guardar');
+                              swalError(t.error, err?.response?.data?.mensaje ?? t.could_not_save);
                             }
                           }}
                           className="h-[34px] w-[34px] shrink-0 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 text-gray-400 hover:border-primary hover:text-primary hover:bg-primary/5 dark:hover:border-primary/50 dark:hover:bg-primary/10 transition disabled:opacity-40 disabled:cursor-not-allowed"
@@ -1826,7 +1841,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                   className="h-8 w-8 flex items-center justify-center rounded-lg bg-violet-50 text-violet-600 hover:bg-violet-100 transition disabled:opacity-50 disabled:cursor-not-allowed">
                   <IconDiscount className="h-4 w-4" />
                 </button>
-                <button onClick={run(attach)} title={t.attach} type="button" disabled={isSubmitting || blocked}
+                <button onClick={run(attach)} title={t.attach} type="button" disabled={isSubmitting || blockedStrict}
                   className="h-8 w-8 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
                   <IconAttachment className="h-4 w-4" />
                 </button>
@@ -1865,7 +1880,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                   className="h-8 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-[11px] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                   {t.cost_summary}
                 </button>
-                {ordenado && (
+                {(ordenado || entregado) && (
                   <button onClick={instructions} type="button"
                     className="h-8 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-[11px] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
                     {t.delivery_instruction}
@@ -1906,7 +1921,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                       <th className={thClass}>{t.application}</th>
                       <th className={thClass}>{t.brand}</th>
                       <th className={`${thClass} text-right`}>{t.price_unit}*</th>
-                      <th className={`${thClass} text-right`}>Total</th>
+                      <th className={`${thClass} text-right`}>{t.total}</th>
                       <th className={thClass}>{t.indicator}</th>
                       <th className={thClass}>{t.t_delivery}**</th>
                       <th className={`${thClass} text-right`}>{t.days_of_validity}</th>
@@ -1917,7 +1932,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                       {items.map((item, index) => {
                         const sinPrecio = !item.Precio || item.Precio === 0;
                         return (
-                        <SortableRow key={item.CodItem} id={item.CodItem} index={index + 1} className={`transition ${
+                        <SortableRow key={item.CodItem} id={item.CodItem} index={index + 1} t={t} className={`transition ${
                           sinPrecio
                             ? 'bg-rose-50 dark:bg-rose-900/15 hover:bg-rose-100/70 dark:hover:bg-rose-900/25'
                             : item.ParPrecio
@@ -1961,14 +1976,14 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                               )}
                               {item.TieneImagen && (
                                 <button onClick={run(() => showItemImages(item))} type="button" disabled={isSubmitting}
-                                  title="Ver imágenes"
+                                  title={t.view_images}
                                   className="text-blue-500 hover:text-blue-600 transition disabled:opacity-50 disabled:cursor-not-allowed">
                                   <IconPhoto className="h-4 w-4" />
                                 </button>
                               )}
                               {item.TieneDocumento && (
                                 <button onClick={run(() => showItemDocuments(item))} type="button" disabled={isSubmitting}
-                                  title="Ver documentos"
+                                  title={t.view_documents}
                                   className="text-indigo-500 hover:text-indigo-600 transition disabled:opacity-50 disabled:cursor-not-allowed">
                                   <IconFile className="h-4 w-4" />
                                 </button>

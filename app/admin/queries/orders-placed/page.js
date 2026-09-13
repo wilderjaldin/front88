@@ -23,17 +23,18 @@ const ASYNC_LIMIT     = 20;
 const thClass = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap";
 const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-3 py-2";
 
+// labelKey → clave de traducción, resuelta con `t` dentro de CatBadge.
 const CAT_META = {
-  NR: { label: 'Normal',     dot: 'bg-sky-500',    cls: 'bg-sky-50    text-sky-700    border border-sky-200    dark:bg-sky-900/30   dark:text-sky-400   dark:border-sky-800'    },
-  SC: { label: 'Sin Código', dot: 'bg-amber-500',  cls: 'bg-amber-50  text-amber-700  border border-amber-200  dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'  },
-  MA: { label: 'Manual',     dot: 'bg-violet-500', cls: 'bg-violet-50 text-violet-700 border border-violet-200 dark:bg-violet-900/30 dark:text-violet-400 dark:border-violet-800' },
+  NR: { labelKey: 'normal',  dot: 'bg-sky-500',    cls: 'bg-sky-50    text-sky-700    border border-sky-200    dark:bg-sky-900/30   dark:text-sky-400   dark:border-sky-800'    },
+  SC: { labelKey: 'no_code', dot: 'bg-amber-500',  cls: 'bg-amber-50  text-amber-700  border border-amber-200  dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'  },
+  MA: { labelKey: 'manual',  dot: 'bg-violet-500', cls: 'bg-violet-50 text-violet-700 border border-violet-200 dark:bg-violet-900/30 dark:text-violet-400 dark:border-violet-800' },
 };
-const CatBadge = ({ cat }) => {
-  const m = CAT_META[cat] ?? { label: cat, dot: 'bg-gray-400', cls: 'bg-gray-100 text-gray-500 border border-gray-200' };
+const CatBadge = ({ cat, t }) => {
+  const m = CAT_META[cat] ?? { labelKey: null, dot: 'bg-gray-400', cls: 'bg-gray-100 text-gray-500 border border-gray-200' };
   return (
     <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${m.cls}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${m.dot}`} />
-      {m.label}
+      {m.labelKey ? t[m.labelKey] : cat}
     </span>
   );
 };
@@ -231,12 +232,12 @@ export default function OrdersPlaced() {
 
             {/* Estado */}
             <div className="flex flex-col gap-1">
-              <span className="text-xs text-gray-500 dark:text-gray-400 px-1">Estado</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400 px-1">{t.status}</span>
               <Controller name="estado" control={control} render={({ field }) => (
                 <Select isClearable options={estados}
                   value={estados.find(o => o.value === field.value) ?? null}
                   onChange={opt => field.onChange(opt?.value ?? null)}
-                  placeholder="Todos"
+                  placeholder={t.all}
                   styles={{ control: (b) => ({ ...b, minWidth: '160px', width: '160px' }) }}
                 />
               )} />
@@ -249,11 +250,11 @@ export default function OrdersPlaced() {
                 <AsyncSelect
                   loadOptions={loadClientes} defaultOptions={false}
                   value={field.value} onChange={opt => field.onChange(opt ?? null)}
-                  isClearable placeholder="Buscar cliente..."
+                  isClearable placeholder={t.search_customer_ph}
                   noOptionsMessage={({ inputValue }) =>
                     inputValue.length < ASYNC_MIN_CHARS
-                      ? `Ingresa ${ASYNC_MIN_CHARS} caracteres`
-                      : t.no_results ?? 'Sin resultados'
+                      ? t.type_n_chars.replace('{n}', ASYNC_MIN_CHARS)
+                      : t.no_results
                   }
                   styles={{ control: (b) => ({ ...b, minWidth: '220px', width: '220px' }) }}
                 />
@@ -263,11 +264,11 @@ export default function OrdersPlaced() {
             {/* País */}
             {paises.length > 0 && (
               <div className="flex flex-col gap-1">
-                <span className="text-xs text-gray-500 dark:text-gray-400 px-1">País</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 px-1">{t.country}</span>
                 <Controller name="codPais" control={control} render={({ field }) => (
                   <Select isClearable options={paises}
                     value={field.value} onChange={opt => field.onChange(opt ?? null)}
-                    placeholder="Todos"
+                    placeholder={t.all}
                     styles={{ control: (b) => ({ ...b, minWidth: '160px', width: '160px' }) }}
                   />
                 )} />
@@ -277,11 +278,11 @@ export default function OrdersPlaced() {
             {/* Vendedor Asignado */}
             {vendedores.length > 0 && (
               <div className="flex flex-col gap-1">
-                <span className="text-xs text-gray-500 dark:text-gray-400 px-1">Vendedor Asignado</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 px-1">{t.assigned_seller}</span>
                 <Controller name="codVendedor" control={control} render={({ field }) => (
                   <Select isClearable options={vendedores}
                     value={field.value} onChange={opt => field.onChange(opt ?? null)}
-                    placeholder="Todos"
+                    placeholder={t.all}
                     styles={{ control: (b) => ({ ...b, minWidth: '200px', width: '200px' }) }}
                   />
                 )} />
@@ -293,7 +294,7 @@ export default function OrdersPlaced() {
           <div className="flex items-center gap-2">
             <input
               type="number"
-              placeholder="Nro. Orden / Cot."
+              placeholder={t.nro_order_quote_ph}
               {...register("nroOrden")}
               className="h-10 w-full rounded-lg border border-gray-300 dark:border-gray-700
                 bg-white dark:bg-gray-900 px-3 text-sm
@@ -340,11 +341,11 @@ export default function OrdersPlaced() {
               <thead>
                 <tr>
                   <SortableHeader col="client"    label={t.customer}    sort={urlSort} dir={urlDir} onSort={handleSort} />
-                  <th className={`${thClass} text-center w-16`}>Cre.</th>
+                  <th className={`${thClass} text-center w-16`} title={t.created_by}>{t.created_by_short}</th>
                   <SortableHeader col="quote"     label={t.nro_quote}   sort={urlSort} dir={urlDir} onSort={handleSort} className="text-center" />
                   <SortableHeader col="item"      label={t.nro_items}   sort={urlSort} dir={urlDir} onSort={handleSort} className="text-center" />
-                  <SortableHeader col="total"     label="Total $us"     sort={urlSort} dir={urlDir} onSort={handleSort} className="text-right" />
-                  <SortableHeader col="country"   label="País"          sort={urlSort} dir={urlDir} onSort={handleSort} />
+                  <SortableHeader col="total"     label={t.total_usd}  sort={urlSort} dir={urlDir} onSort={handleSort} className="text-right" />
+                  <SortableHeader col="country"   label={t.country}     sort={urlSort} dir={urlDir} onSort={handleSort} />
                   <SortableHeader col="city"      label={t.city}        sort={urlSort} dir={urlDir} onSort={handleSort} />
                   <SortableHeader col="status"    label={t.condition}   sort={urlSort} dir={urlDir} onSort={handleSort} />
                   <SortableHeader col="quotedate" label={t.quote_date}  sort={urlSort} dir={urlDir} onSort={handleSort} />
@@ -361,7 +362,7 @@ export default function OrdersPlaced() {
                           ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
                           : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'
                       }`}>
-                        {o.creadoPor === 1 ? 'Cliente' : 'Usuario'}
+                        {o.creadoPor === 1 ? t.customer : t.user}
                       </span>
                     </td>
                     <td className={tdClass}>
@@ -369,7 +370,7 @@ export default function OrdersPlaced() {
                         <Link href={quoteUrl(o)} className="font-semibold text-primary hover:underline">
                           {o.nroCotizacion}
                         </Link>
-                        <CatBadge cat={o.tipCot} />
+                        <CatBadge cat={o.tipCot} t={t} />
                       </div>
                     </td>
                     <td className={`${tdClass} text-center`}>{o.nroItems}</td>

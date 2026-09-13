@@ -29,6 +29,7 @@ export default function PurchaseReception() {
 
   const [orders, setOrders] = useState([])
   const [receptions, setReceptions] = useState([])
+  const [origenes, setOrigenes] = useState([])
 
   const [selected_orders, setSelectedOrders] = useState([]);
 
@@ -94,7 +95,8 @@ export default function PurchaseReception() {
       });
 
       router.push(`?option=${TAB_KEYS[1]}`, { scroll: false });
-      setReceptions((rs.data ?? []).map((o, index) => ({
+      setOrigenes(rs.data?.origenes ?? []);
+      setReceptions((rs.data?.items ?? []).map((o, index) => ({
         id:              index,
         NumOrdenCompra:  o.numOrdenCompra,
         NroOrden:        o.nroCotizacion,
@@ -181,7 +183,7 @@ export default function PurchaseReception() {
           />
         )}
         {activeTab === 1 && (
-          <Receptions t={t} token={token} data={receptions} setReceptions={setReceptions} selected_orders={selected_orders} onRefresh={getList} />
+          <Receptions t={t} token={token} data={receptions} setReceptions={setReceptions} selected_orders={selected_orders} onRefresh={getList} origenes={origenes} />
         )}
       </div>
     </>
