@@ -140,9 +140,11 @@ export default function RepresentativesPage() {
   const isAdmin = hasPermission(PERMISSIONS.MENU_REPRESENTANTES);
   const isRep   = user?.rol === 'Representante';
 
-  // Redirect representante to their own profile
+  // Redirect representante a su propio perfil — salvo que además tenga el
+  // permiso de administrador (MENU_REPRESENTANTES), en cuyo caso debe ver el
+  // listado completo en vez de su ficha individual.
   useEffect(() => {
-    if (!isRep || !user?.countryCode) return;
+    if (!isRep || isAdmin || !user?.countryCode) return;
     axiosClient.get(`/representantes/detalle-por-pais/${user.countryCode}`)
       .then(res => {
         const codEmp = res.data?.codEmp;
@@ -228,7 +230,11 @@ export default function RepresentativesPage() {
   const { codEstado: activeCodEstado } = parseTerm(debouncedTerm);
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
-  if (isRep) return (
+  // Mismo criterio que el useEffect de arriba: isRep muestra este spinner
+  // mientras se resuelve el redirect a su ficha propia, pero solo cuando NO
+  // es también admin — si no, se quedaba colgado acá para siempre (el
+  // useEffect ya no dispara el redirect en ese caso).
+  if (isRep && !isAdmin) return (
     <div className="flex items-center justify-center py-32">
       <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
     </div>

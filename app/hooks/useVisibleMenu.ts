@@ -31,7 +31,8 @@ export const useVisibleMenu = (): MenuItem[] => {
       const visibleChildren = item.children.filter(
         (child: MenuItemChild) =>
           checkPermission(child.permission, child.permissionCountry) &&
-          (!child.rol || user?.rol === child.rol)
+          (!child.rol || user?.rol === child.rol) &&
+          (!child.hideIfPermission || !hasPermission(child.hideIfPermission))
       );
 
       // Si no quedan hijos visibles, ocultar el dropdown completo

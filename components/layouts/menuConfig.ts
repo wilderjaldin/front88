@@ -15,6 +15,8 @@ export type MenuItemChild = {
   permission?: string;    // undefined = visible para todos
   permissionCountry?: string; // acota `permission` a usuarios de este país (countryCode)
   rol?: string;           // si se define, solo visible para ese rol exacto
+  hideIfPermission?: string; // si el usuario tiene este permiso, el item se oculta
+                              // (para no duplicar la opción "propia" cuando ya ve la versión admin)
 };
 
 export type MenuIcon =
@@ -67,7 +69,7 @@ export const MENU_CONFIG: MenuItem[] = [
       { labelKey: 'suppliers', href: '/admin/register/suppliers', permission: PERMISSIONS.MENU_PROVEEDORES },
       { labelKey: 'freight_supplier', href: '/admin/register/supplier-freight', permission: PERMISSIONS.MENU_FLETE_PROVEEDOR },
       { labelKey: 'representatives', href: '/admin/register/representatives', permission: PERMISSIONS.MENU_REPRESENTANTES },
-      { labelKey: 'representative',  href: '/admin/register/representative',  rol: 'Representante' },
+      { labelKey: 'representative',  href: '/admin/register/representative',  rol: 'Representante', hideIfPermission: PERMISSIONS.MENU_REPRESENTANTES },
       { labelKey: 'utility', href: '/admin/register/utility', permission: PERMISSIONS.MENU_UTILIDAD },
       { labelKey: 'categorization', href: '/admin/register/categorization', permission: PERMISSIONS.MENU_CATEGORIZACION },
       { labelKey: 'exchange_rate', href: '/admin/register/exchange-rate', permission: PERMISSIONS.MENU_TIPO_CAMBIO },

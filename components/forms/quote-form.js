@@ -567,6 +567,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
     ConsiderarEnvioAduana:  cotizacion.considerarEnvioAduana  ?? false,
     Pais:                   cotizacion.pais                   ?? '',
     MtoFleteInternac:       cotizacion.mtoFleteInternac       ?? 0,
+    MtoAduanaItem:          cotizacion.mtoAduanaItem          ?? 0,
   });
 
   const mapDetalle = (detalle) => (detalle ?? []).map(d => ({
@@ -2140,14 +2141,14 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                     </p>
                     <div className="flex items-center justify-between pl-2">
                       <span className="text-xs text-gray-500">{t.freight}:</span>
-                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{customFormat(order.FleteInterno)}</span>
+                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{customFormat(order.MtoFleteInternac)}</span>
                     </div>
                     <div className="flex items-center justify-between pl-2">
                       {order.ConsiderarEnvioAduana && <span className="text-xs text-gray-500">{t.customs ?? 'Aduana'}:</span>}
                       <div className="flex items-center gap-1.5 ml-auto">
                         {order.ConsiderarEnvioAduana && (
                           <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                            {customFormat(order.MtoFleteInternac)}
+                            {customFormat(order.MtoAduanaItem)}
                           </span>
                         )}
                         <button

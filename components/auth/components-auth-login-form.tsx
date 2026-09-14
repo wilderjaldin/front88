@@ -2,7 +2,7 @@
 import IconLockDots from '@/components/icon/icon-lock-dots';
 import IconUser from '@/components/icon/icon-user';
 import { useRouter } from 'next/navigation';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useForm } from "react-hook-form";
 import { useTranslation } from "@/app/locales";
 import Link from 'next/link';
@@ -110,7 +110,7 @@ const ComponentsAuthLoginForm = () => {
   useDynamicTitle(`${t.login?.title ?? 'Sign In'}`);
 
   return (
-    <form className="mt-6 space-y-4" onSubmit={handleSubmit(onSubmit)} autoComplete="off">
+    <form className="mt-6 space-y-4" onSubmit={handleSubmit(onSubmit)} autoComplete="on">
 
       {/* Usuario */}
       <div>
@@ -123,7 +123,7 @@ const ComponentsAuthLoginForm = () => {
           </span>
           <input
             type="text"
-            autoComplete="off"
+            autoComplete="username"
             placeholder={t.enter_email}
             {...register("login", { required: { value: true, message: t.required_field } })}
             className={`form-input ps-10 w-full bg-white/70 border-gray-200
@@ -148,11 +148,10 @@ const ComponentsAuthLoginForm = () => {
             <IconLockDots fill={true} />
           </span>
           <input
-            type="text"
-            autoComplete="off"
+            type={showPassword ? 'text' : 'password'}
+            autoComplete="current-password"
             placeholder={t.enter_password}
             {...register("password", { required: { value: true, message: t.required_field } })}
-            style={showPassword ? undefined : { WebkitTextSecurity: 'disc' } as React.CSSProperties}
             className={`form-input ps-10 pe-10 w-full bg-white/70 border-gray-200
               dark:bg-white/5 dark:border-gray-700 dark:text-gray-100
               focus:bg-white dark:focus:bg-white/10 focus:border-amber-500 focus:ring-2 focus:ring-amber-200

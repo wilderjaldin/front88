@@ -5,10 +5,13 @@ import { useForm, Controller } from 'react-hook-form';
 import { useTranslation } from '@/app/locales';
 import IconSave from '@/components/icon/icon-save';
 import { useDynamicTitle } from '@/app/hooks/useDynamicTitle';
+import { usePermissions } from '@/app/hooks/usePermissions';
+import { PERMISSIONS } from '@/constants/permissions';
 import axiosClient from '@/app/lib/axiosClient';
 import SelectCountry from '@/components/select-country';
 import SelectCity from '@/components/select-city';
 import Select from '@/components/ui/Select';
+import AccessDenied from '@/components/AccessDenied';
 import Swal from 'sweetalert2';
 
 const URL_CIUDADES  = (codPais) => `/representantes/ciudades/${codPais}`;
@@ -36,9 +39,14 @@ export default function RepresentanteFormPage({
   const t      = useTranslation();
   const router = useRouter();
   const params = useSearchParams();
+  const { hasPermission } = usePermissions();
 
   const id     = isEmbedded ? String(repProp?.codEmp ?? '') : (params.get('id') ?? '');
   const isEdit = !!id;
+  // Embebido (modal desde GeneralInformation.js) ya queda detrás del guard de
+  // [id]/layout.js — acá solo hace falta cubrir el acceso directo por URL a
+  // esta página como standalone (antes no chequeaba nada).
+  const canAccess = isEmbedded || hasPermission(PERMISSIONS.MENU_REPRESENTANTES);
 
   useDynamicTitle(isEmbedded ? '' : (isEdit ? 'Editar Representante' : 'Registrar Representante'));
 
@@ -251,6 +259,8 @@ export default function RepresentanteFormPage({
       }
     }
   };
+
+  if (!canAccess) return <AccessDenied message="No tienes permiso para acceder a esta sección." />;
 
   if (loadingInit) {
     return (

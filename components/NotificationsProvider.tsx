@@ -49,15 +49,37 @@ const Toast = Swal.mixin({
   width: 360,
   padding: "0.75rem",
   customClass: {
-    // overflow-hidden fuerza a que el toast nunca muestre scrollbar propia,
-    // sin redondeo, con borde visible y sombra fuerte para que se note. Sin
-    // cursor-pointer forzado: el puntero solo debe verse sobre el link interno.
-    // min-w fija un ancho mínimo uniforme para todas las notificaciones SignalR
-    // (si no, sweetalert2 encoge el toast al contenido cuando el texto es corto).
-    popup: "!rounded-none !shadow-2xl !border !border-gray-300 dark:!border-gray-600 !overflow-hidden !min-w-[360px]",
+    // Sin redondeo, con borde visible y sombra pareja (mismo valor que usan
+    // los paneles tipo card del resto de la app, no el shadow-2xl de Tailwind
+    // — ese es un shadow "flotante" con offset-y grande, por diseño se ve
+    // solo abajo/tosco). OJO: NO agregar overflow-hidden acá — el box-shadow
+    // se pinta fuera de la caja, así que un overflow≠visible en el mismo
+    // elemento recorta la propia sombra (por eso antes no se veía pese a
+    // estar declarada). Sin cursor-pointer forzado: el puntero solo debe
+    // verse sobre el link interno. min-w fija un ancho mínimo uniforme para
+    // todas las notificaciones SignalR (si no, sweetalert2 encoge el toast
+    // al contenido cuando el texto es corto).
+    popup: "!rounded-none !shadow-[0_4px_24px_rgba(0,0,0,0.18)] !border !border-gray-300 dark:!border-gray-600 !min-w-[360px]",
     timerProgressBar: "!bg-primary",
   },
   didOpen: (el) => {
+    // Bug real: `.swal2-popup` (regla base de sweetalert2, sin !important) trae
+    // `justify-content: center`, y `.swal2-popup.swal2-toast` solo pisa
+    // `align-items` — nunca `justify-content`. Como nuestro contenido no ocupa
+    // el 100% del ancho del toast, quedaba centrado horizontalmente en vez de
+    // pegado a la izquierda. Se fuerza acá por inline style (gana por cascada
+    // sin pelear con la especificidad del css externo, que no usa !important).
+    el.style.justifyContent = "flex-start";
+    el.style.alignItems = "flex-start";
+    // Otro bug real: `.swal2-html-container` (el contenedor que envuelve
+    // nuestro html) NO tiene `width:100%` — dentro del popup en fila (flex
+    // row) se achica al contenido, así que nuestro botón "X" (posicionado
+    // absolute top-right relativo a un wrapper propio adentro) terminaba
+    // pegado al texto en vez de en la esquina real del toast. Forzado acá
+    // porque no hay una clase de customClass para ganarle a esto de forma
+    // más limpia.
+    const htmlContainer = el.querySelector<HTMLElement>(".swal2-html-container");
+    if (htmlContainer) htmlContainer.style.width = "100%";
     el.onmouseenter = Swal.stopTimer;
     el.onmouseleave = Swal.resumeTimer;
     el.addEventListener("click", (e) => {
@@ -89,15 +111,17 @@ function fireMessageToast(nombre: string, mensaje: string, onNavigate: () => voi
     background: isDark ? "#1f2937" : "#eef2ff",
     color: isDark ? "#f3f4f6" : "#1e293b",
     html: `
-      <div class="flex items-start gap-2.5 text-left">
-        <div class="${color} h-9 w-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0">${initials}</div>
-        <div class="min-w-0 flex-1 pt-0.5">
-          <p class="text-sm font-semibold text-gray-800 dark:text-white truncate">${nombre}</p>
-          <p class="text-xs text-gray-500 dark:text-gray-400 leading-snug mt-0.5" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${mensaje}</p>
-        </div>
-        <button data-toast-close type="button" class="shrink-0 -mt-1 -mr-1 p-1 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      <div class="relative w-full">
+        <button data-toast-close type="button" aria-label="Cerrar" class="absolute top-0 right-0 flex items-center justify-center h-6 w-6 text-gray-700 hover:text-black dark:text-gray-300 dark:hover:text-white transition-colors">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.25" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </button>
+        <div class="flex items-start gap-2.5 text-left">
+          <div class="${color} h-9 w-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0">${initials}</div>
+          <div class="min-w-0 flex-1 pt-0.5 pr-6">
+            <p class="text-sm font-semibold text-gray-800 dark:text-white truncate">${nombre}</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 leading-snug mt-0.5" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${mensaje}</p>
+          </div>
+        </div>
       </div>
     `,
   });
@@ -123,18 +147,20 @@ function fireOcToast(title: string, data: {
     background: isDark ? "#1f2937" : "#eef2ff",
     color: isDark ? "#f3f4f6" : "#1e293b",
     html: `
-      <div class="flex items-start gap-3 text-left">
-        ${flag}
-        <div class="min-w-0 flex-1">
-          <p class="text-sm font-semibold text-gray-800 dark:text-white">
-            ${title} <span class="text-primary dark:text-blue-400">N° ${data.numOrdenCompra ?? ""}</span>
-          </p>
-          <p class="text-xs text-gray-600 dark:text-gray-300 mt-1 leading-snug">${data.empresaRepresentante ?? ""}</p>
-          <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1">${data.nomUsuario ?? ""}</p>
-        </div>
-        <button data-toast-close type="button" class="shrink-0 -mt-1 -mr-1 p-1 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      <div class="relative w-full">
+        <button data-toast-close type="button" aria-label="Cerrar" class="absolute top-0 right-0 flex items-center justify-center h-6 w-6 text-gray-700 hover:text-black dark:text-gray-300 dark:hover:text-white transition-colors">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.25" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </button>
+        <div class="flex items-start gap-3 text-left">
+          ${flag}
+          <div class="min-w-0 flex-1 pr-6">
+            <p class="text-sm font-semibold text-gray-800 dark:text-white">
+              ${title} <span class="text-primary dark:text-blue-400">N° ${data.numOrdenCompra ?? ""}</span>
+            </p>
+            <p class="text-xs text-gray-600 dark:text-gray-300 mt-1 leading-snug">${data.empresaRepresentante ?? ""}</p>
+            <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1">${data.nomUsuario ?? ""}</p>
+          </div>
+        </div>
       </div>
     `,
   });
