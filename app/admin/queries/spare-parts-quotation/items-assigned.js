@@ -524,7 +524,7 @@ const ItemsAssigned = ({ token, t, data, unassignOrder, setOrdersAssigned, setOr
     };
 
     setModalSize('w-full max-w-3xl'); setModalTitle('');
-    setModalContent(<DeleteForm t={t} token={token} action_cancel={() => setShowModal(false)} onDeleted={onDeleted} users={users} setUsers={setUsers} loadUsers={loadUsers} setLoadUsers={setLoadUsers} selected_orders={selected} setOrdersAssigned={setOrdersAssigned} />);
+    setModalContent(<DeleteForm t={t} token={token} action_cancel={() => setShowModal(false)} onDeleted={onDeleted} users={users} setUsers={setUsers} loadUsers={loadUsers} setLoadUsers={setLoadUsers} selected_orders={selected} setOrdersAssigned={setOrdersAssigned} setOrdersUnassigned={setOrdersUnassigned} />);
     setShowModal(true);
   };
 

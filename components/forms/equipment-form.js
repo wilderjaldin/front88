@@ -1,7 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import { useForm } from "react-hook-form";
-import Select from '@/components/ui/Select';
+import BrandSelect from '@/components/ui/BrandSelect';
 
 const EquipmentForm = ({ t, brands = [], showModal, setDataEquipment }) => {
 
@@ -28,7 +28,8 @@ const EquipmentForm = ({ t, brands = [], showModal, setDataEquipment }) => {
       <div className="flex items-center gap-2">
         <label className={labelClass}>{t.brand}</label>
         <div className="flex-1">
-          <Select
+          <BrandSelect
+            t={t}
             instanceId="equipment-brand-select"
             menuPosition="fixed"
             menuShouldScrollIntoView={false}
@@ -36,8 +37,6 @@ const EquipmentForm = ({ t, brands = [], showModal, setDataEquipment }) => {
             options={brands}
             value={select}
             onChange={onChangeSelectBrand}
-            filterOption={(opt, input) => input.length >= 2 && opt.label.toLowerCase().includes(input.toLowerCase())}
-            noOptionsMessage={({ inputValue }) => inputValue.length < 2 ? (t.type_to_search ?? 'Escribe al menos 2 caracteres') : (t.no_options ?? 'Sin opciones')}
             styles={{
               control: b => ({ ...b, minHeight: '36px', height: '36px', fontSize: '14px' }),
               valueContainer: b => ({ ...b, padding: '0 8px' }),

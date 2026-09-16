@@ -1405,5 +1405,9 @@
   "numbers_only_eg": "Numbers only (e.g: {eg})",
   "cannot_be_negative": "Cannot be negative",
   "cannot_exceed_100": "Cannot exceed 100%",
-  "margin_cannot_be_negative": "The margin cannot be negative"
+  "margin_cannot_be_negative": "The margin cannot be negative",
+  "type_to_search_ph": "Type to search",
+  "deleting_items": "Deleting items...",
+  "adding_item": "Adding item...",
+  "changing_item": "Changing part..."
 }

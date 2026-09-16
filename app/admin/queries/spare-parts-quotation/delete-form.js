@@ -269,6 +269,10 @@ const UsuarioStep = ({ stepData, onSubmit, onCancel, sending, options, selectedU
   const [message, setMessage] = useState('Listo');
   const uniqueQuotes = [...new Set(stepData.items.map(o => o.nroCotizacion))];
 
+  // Cada paso es ahora una cotización distinta — el mensaje vuelve a su
+  // default al pasar de una a otra, en vez de arrastrar lo escrito antes.
+  useEffect(() => { setMessage('Listo'); }, [stepData.nroCotizacion]);
+
   const handleSubmit = (blnEnviar) => {
     if (!selectedUser) { setUserError(true); return; }
     setUserError(false);
@@ -342,16 +346,19 @@ const UsuarioStep = ({ stepData, onSubmit, onCancel, sending, options, selectedU
 };
 
 // ── Componente principal ──────────────────────────────────────────────────────
-const DeleteForm = ({ selected_orders, action_cancel, onDeleted, users, setUsers, loadUsers, setLoadUsers, setOrdersAssigned }) => {
+const DeleteForm = ({ selected_orders, action_cancel, onDeleted, users, setUsers, loadUsers, setLoadUsers, setOrdersAssigned, setOrdersUnassigned }) => {
   const t = useTranslation();
   const authUser = useSelector(selectUser);
   const deEmail  = authUser?.Email ?? authUser?.email ?? '';
 
-  // Construye pasos: primero un paso por cada codCliente único (creadoPor=1),
-  // luego un paso de usuario con todos los ítems creadoPor=0 (si los hay)
+  // Construye pasos: uno por cada codCliente único (creadoPor=1) + uno por
+  // cada NroCotizacion única entre los ítems creadoPor=0 (antes se juntaban
+  // todos en un solo paso "usuario" mezclando cotizaciones distintas con un
+  // único "Usuario Destino" compartido — ahora cada cotización es su propio
+  // paso del wizard, con su propio destinatario por defecto).
   const steps = useMemo(() => {
     const clienteMap = {};
-    const usuarioItems = [];
+    const usuarioMap = {};
 
     selected_orders.forEach(o => {
       if (o.creadoPor === 1) {
@@ -359,23 +366,37 @@ const DeleteForm = ({ selected_orders, action_cancel, onDeleted, users, setUsers
           clienteMap[o.codCliente] = { type: 'cliente', codCliente: o.codCliente, nomCliente: o.nomCliente, items: [] };
         clienteMap[o.codCliente].items.push(o);
       } else {
-        usuarioItems.push(o);
+        if (!usuarioMap[o.nroCotizacion])
+          usuarioMap[o.nroCotizacion] = { type: 'usuario', nroCotizacion: o.nroCotizacion, items: [] };
+        usuarioMap[o.nroCotizacion].items.push(o);
       }
     });
 
     return [
       ...Object.values(clienteMap),
-      ...(usuarioItems.length > 0 ? [{ type: 'usuario', items: usuarioItems }] : []),
+      ...Object.values(usuarioMap),
     ];
   }, []);
+
+  // Default de "Usuario Destino": el usuario ya asignado (codUsuAsignado) a
+  // los ítems del paso actual — no el primero de la lista. Como cada paso ya
+  // es una sola cotización, en general va a coincidir; si por algún motivo
+  // dos ítems de la misma cotización tuvieran codUsuAsignado distinto, se
+  // deja sin seleccionar para obligar a elegir a propósito.
+  const getDefaultUser = (items, list) => {
+    if (!items?.length || !list?.length) return null;
+    const unique = [...new Set(items.map(o => o.codUsuAsignado))];
+    if (unique.length !== 1 || unique[0] == null) return null;
+    return list.find(u => Number(u.value) === Number(unique[0])) ?? null;
+  };
 
   const [currentStep, setCurrentStep] = useState(0);
   const [accPayload,  setAccPayload]  = useState([]);
   const [sending,     setSending]     = useState(false);
 
-  // Estado del paso Usuario (se carga una sola vez aunque haya múltiples pasos)
+  // Lista de usuarios (se carga una sola vez aunque haya múltiples pasos)
   const [options,      setOptions]      = useState(users);
-  const [selectedUser, setSelectedUser] = useState(users[0] ?? null);
+  const [selectedUser, setSelectedUser] = useState(null);
   const [userError,    setUserError]    = useState(false);
 
   useEffect(() => {
@@ -385,19 +406,34 @@ const DeleteForm = ({ selected_orders, action_cancel, onDeleted, users, setUsers
         const list = rs.data.usuarios ?? [];
         setUsers(list);
         setOptions(list);
-        if (list.length > 0) setSelectedUser(list[0]);
       })
       .catch(() => {})
       .finally(() => setLoadUsers(false));
   }, []);
 
+  // Recalcula el "Usuario Destino" preseleccionado cada vez que se entra a un
+  // paso de tipo "usuario" (al abrir el modal y al avanzar de cotización en
+  // cotización) — options puede tardar en cargar, así que también corre
+  // cuando termina de llegar.
+  useEffect(() => {
+    const s = steps[currentStep];
+    if (s?.type !== 'usuario') return;
+    setSelectedUser(getDefaultUser(s.items, options));
+    setUserError(false);
+  }, [currentStep, options]);
+
   const submitAll = async (fullPayload) => {
     setSending(true);
     try {
       const rs = await axiosClient.post(URL_DELETE, fullPayload);
-      const assigned = (rs.data.asignados ?? rs.data.dato ?? []).map((o, i) => ({ ...o, id: i }));
+      // El endpoint anida la respuesta bajo "resultado" ({ asignados, noAsignados })
+      // en vez de devolverla plana como antes (asignados/dato).
+      const resultado   = rs.data?.resultado ?? rs.data ?? {};
+      const assigned    = (resultado.asignados   ?? []).map((o, i) => ({ ...o, id: i }));
+      const unassigned  = (resultado.noAsignados ?? []).map((o, i) => ({ ...o, id: i }));
       const deletedIds = new Set(selected_orders.map(o => o.codRegistro));
       setOrdersAssigned(assigned);
+      setOrdersUnassigned?.(unassigned);
       onDeleted?.(deletedIds);
       swalSuccess('Ítems eliminados correctamente');
       action_cancel();

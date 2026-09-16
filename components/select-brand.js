@@ -3,6 +3,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import AsyncSelect from '@/components/ui/AsyncSelect';
+import { filterBrandOptions } from '@/components/ui/BrandSelect';
 import { Controller } from 'react-hook-form';
 import IconPlus from '@/components/icon/icon-plus';
 import Modal from '@/components/modal';
@@ -179,17 +180,17 @@ const SelectBrand = ({
   const loadOptions = useCallback(
     async (inputValue) => {
       const term = inputValue?.trim() ?? '';
-      if (term.length < ASYNC_MIN) return [];
 
-      // Si hay lista precargada, filtrar localmente (más rápido, sin red)
+      // Si hay lista precargada, filtrar+priorizar localmente (instantáneo,
+      // sin red) — desde 1 carácter: empieza-con con 1-2, contiene-priorizado
+      // por posición desde 3 (ver filterBrandOptions).
       if (localBrands.length > 0) {
-        const q = term.toLowerCase();
-        return localBrands
-          .filter(b => b.label.toLowerCase().includes(q))
-          .slice(0, ASYNC_MAX);
+        return filterBrandOptions(localBrands, term).slice(0, ASYNC_MAX);
       }
 
-      // Sin lista precargada → llamar a la API
+      // Sin lista precargada → llamar a la API (acá sí conviene un mínimo de
+      // caracteres antes de pegarle al backend con cada tecla).
+      if (term.length < ASYNC_MIN) return [];
       try {
         const res = await axiosClient.get(URL_BRANDS, { params: { term, limit: ASYNC_MAX } });
         return res.data ?? [];
@@ -200,10 +201,15 @@ const SelectBrand = ({
     [localBrands],
   );
 
-  const noOptionsMessage = ({ inputValue }) =>
-    (inputValue?.trim().length ?? 0) < ASYNC_MIN
+  const noOptionsMessage = ({ inputValue }) => {
+    const len = inputValue?.trim().length ?? 0;
+    if (localBrands.length > 0) {
+      return len === 0 ? (t?.type_to_search_ph ?? 'Escribe para buscar') : (t.empty_results ?? 'Sin resultados');
+    }
+    return len < ASYNC_MIN
       ? `Ingresa ${ASYNC_MIN} caracteres para buscar`
       : t.empty_results ?? 'Sin resultados';
+  };
 
   // ── Estilos react-select (igual que page.js) ────────────────────────────
   const selectStyles = {
@@ -275,8 +281,8 @@ const SelectBrand = ({
                 isClearable
                 isDisabled={isDisabled}
                 placeholder={placeholder ?? (localBrands.length
-                  ? `Buscar marca (mín. ${ASYNC_MIN} caracteres)...`
-                  : 'Buscar marca...'
+                  ? 'Buscar marca...'
+                  : `Buscar marca (mín. ${ASYNC_MIN} caracteres)...`
                 )}
                 noOptionsMessage={noOptionsMessage}
                 instanceId={instanceId}

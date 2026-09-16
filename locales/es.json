@@ -1407,5 +1407,9 @@
   "numbers_only_eg": "Solo números (ej: {eg})",
   "cannot_be_negative": "No puede ser negativo",
   "cannot_exceed_100": "No puede superar 100%",
-  "margin_cannot_be_negative": "El margen no puede ser negativo"
+  "margin_cannot_be_negative": "El margen no puede ser negativo",
+  "type_to_search_ph": "Escribe para buscar",
+  "deleting_items": "Eliminando ítems...",
+  "adding_item": "Agregando ítem...",
+  "changing_item": "Cambiando repuesto..."
 }

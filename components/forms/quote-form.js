@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import Select from '@/components/ui/Select';
+import BrandSelect from '@/components/ui/BrandSelect';
 import IconFile from '../icon/icon-file';
 import IconPhoto from '../icon/icon-photo';
 import IconMail from '../icon/icon-mail';
@@ -328,6 +329,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
   const [optsMoneda,        setOptsMoneda]        = useState([]);
   const [optsTipoEnvio,     setOptsTipoEnvio]     = useState([]);
   const [optsEstado,        setOptsEstado]        = useState([]);
+  const [optsTipoRepuesto,  setOptsTipoRepuesto]  = useState([]);
   const [brands,    setBrands]    = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -349,9 +351,18 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
 
   const [seleccionados, setSeleccionados] = useState([])
 
+  // Bug real: comparaba "¿ya está seleccionado?" por referencia de objeto
+  // (prev.includes(item)) pero sacaba por CodItem — cualquier acción que
+  // reemplaza `items` con objetos nuevos (Par. Precio, agregar un ítem, etc.)
+  // rompía esa referencia, así que el checkbox se veía destildado pero el
+  // ítem seguía "seleccionado" en memoria; al tildar uno nuevo, se sumaba en
+  // vez de reemplazar, inflando la cuenta real. Ahora todo se compara por
+  // CodItem, consistente en ambas ramas.
   const toggleSeleccion = (item) => {
     setSeleccionados((prev) =>
-      prev.includes(item) ? prev.filter((i) => i.CodItem !== item.CodItem) : [...prev, item]
+      prev.some((i) => i.CodItem === item.CodItem)
+        ? prev.filter((i) => i.CodItem !== item.CodItem)
+        : [...prev, item]
     )
   }
 
@@ -442,6 +453,22 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
     updateInputs(_items_);
   }, [_items_]);
 
+  // Cada vez que `items` cambia (Par. Precio, agregar/eliminar ítem, cualquier
+  // refresh desde la API), re-sincroniza `seleccionados` contra la lista
+  // vigente: descarta los CodItem que ya no existen y refresca los que siguen
+  // existiendo con su objeto actual (en vez de arrastrar datos viejos, p.ej.
+  // un precio desactualizado).
+  useEffect(() => {
+    setSeleccionados((prev) => {
+      if (prev.length === 0) return prev;
+      const next = prev
+        .map(sel => items.find(i => i.CodItem === sel.CodItem))
+        .filter(Boolean);
+      if (next.length === prev.length && next.every((n, idx) => n === prev[idx])) return prev;
+      return next;
+    });
+  }, [items]);
+
   useEffect(() => {
     if (seleccionados.length > 0) {
       setIsSelectItems(false)
@@ -521,6 +548,21 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
     setIsSubmitting(true);
     try { await fn(...args); }
     finally { setIsSubmitting(false); }
+  };
+
+  // Mismo patrón que usa page.js para "Cargando información de la cotización":
+  // un Swal centrado y bloqueante con spinner, para acciones que le pegan al
+  // servidor y pueden demorar — sin esto, un click quedaba sin ningún
+  // indicio de qué se estaba esperando. Se cierra con Swal.close() apenas
+  // termina la request (éxito o error).
+  const showLoadingPopup = (message) => {
+    Swal.fire({
+      html: message,
+      showConfirmButton: false,
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      didOpen: () => Swal.showLoading(),
+    });
   };
 
   const handleKeyDown = async (event) => {
@@ -650,8 +692,10 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
       NotUsuario:    order.NotaUsuario    ?? '',
     };
 
+    showLoadingPopup(t.searching);
     try {
       const rs = await axiosClient.post(URL_SEARCH, data_search);
+      Swal.close();
       const { resultado: _res, cotizacion, detalle, opcionesLocales, opcionesImportacion } = rs.data;
       const resultado = String(_res ?? '').replace(/"/g, '').trim().toLowerCase();
 
@@ -663,19 +707,29 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
         updateInputs(updatedItems);
         setValueQuote('nro_part', '');
         setValueQuote('quantity', '');
-        if (updatedOrder.NroOrden) {
-          router.push(`/admin/revision/quotes?customer=${customer.CodCliente}&option=quotes&id=${updatedOrder.NroOrden}`);
-        }
+
+        // El router.push queda para DESPUÉS de cerrar el modal (no antes de
+        // abrirlo): page.js monta QuoteForm con key={order_id}, así que
+        // navegar ya mismo cambia esa key y remonta el componente entero —
+        // el setShowModal(true) de abajo quedaba pisado por el remount y el
+        // panel se cerraba solo antes de que el usuario llegara a verlo.
+        const goToOrder = () => {
+          setShowModal(false);
+          if (updatedOrder.NroOrden) {
+            router.push(`/admin/revision/quotes?customer=${customer.CodCliente}&option=quotes&id=${updatedOrder.NroOrden}`);
+          }
+        };
+
         setModalTitle(t?.part_not_found ?? 'Parte no encontrada');
         setModalSize('w-full max-w-md');
         setModalContent(
           <NotFoundPartForm
-            close={() => setShowModal(false)}
+            close={goToOrder}
             nroParte={data.nro_part}
             codRegistro={rs.data.codRegistroSC}
             brands={brands}
             t={t}
-            onSaved={() => setShowModal(false)}
+            onSaved={goToOrder}
           />
         );
         setShowModal(true);
@@ -708,7 +762,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
       });
 
     } catch (error) {
-
+      Swal.close();
     }
   }
 
@@ -732,6 +786,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
   const handleActualizarTodo = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
+    showLoadingPopup(t.updating);
     try {
       const rs = await axiosClient.put(URL_UPDATE_ALL, order.NroOrden, {
         headers: { 'Content-Type': 'application/json' },
@@ -742,8 +797,10 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
       setOrder(prev => ({ ...updatedOrder, CodContacto: prev.CodContacto }));
       setItems(updatedItems);
       updateInputs(updatedItems);
+      Swal.close();
       swalSuccess(t.update_item_success ?? 'Cotización actualizada correctamente');
     } catch (err) {
+      Swal.close();
       swalError(t.error ?? 'Error', err?.response?.data?.mensaje ?? t.could_not_update_quote);
     } finally {
       setIsSubmitting(false);
@@ -751,6 +808,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
   };
 
   const updateItem = async () => {
+    showLoadingPopup(t.updating);
     try {
       const rs = await axiosClient.put(URL_UPDATE_ITEM, {
         NroCotizacion: order.NroOrden,
@@ -759,11 +817,13 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
       const { cotizacion, detalle } = rs.data;
       const updatedOrder = mapCotizacion(cotizacion);
       const updatedItems = mapDetalle(detalle);
+      Swal.close();
       swalSuccess(t.update_item_success).then(() => setSeleccionados([]));
       setOrder(prev => ({ ...updatedOrder, CodContacto: prev.CodContacto }));
       setItems(updatedItems);
       updateInputs(updatedItems);
     } catch (error) {
+      Swal.close();
 
     }
   }
@@ -836,7 +896,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
     if (!order.NroOrden) return;
     axiosClient.get(URL_CONTROLES, { params: { nroCotizacion: order.NroOrden } })
       .then(rs => {
-        const { marcas = [], seguimiento = [], monedas = [], tiposEnvio = [], estados = [] } = rs.data;
+        const { marcas = [], seguimiento = [], monedas = [], tiposEnvio = [], estados = [], tiposRepuesto = [] } = rs.data;
         setBrands(marcas);
         if (!all_disabled_tracking) {
           setOptionsShare(seguimiento);
@@ -845,6 +905,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
         setOptsMoneda(monedas);
         setOptsTipoEnvio(tiposEnvio);
         setOptsEstado(estados);
+        setOptsTipoRepuesto(tiposRepuesto);
       })
       .catch(() => {});
   }, [order.NroOrden]);
@@ -870,31 +931,34 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
 
 
   const handleChangePreference = async (select) => {
+    // Bug real: el Select de Preferencia solo se deshabilitaba con `blocked`,
+    // nunca mientras la request estaba en curso — se podía volver a cambiar
+    // la selección durante el llamado anterior (una especie de doble click).
+    // Además el popup anterior se cerraba solo por su propio timer (1s), no
+    // cuando la request realmente terminaba. Ahora usa isSubmitting (mismo
+    // flag que ya deshabilita el resto de la barra) + el popup bloqueante
+    // estándar.
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    showLoadingPopup(t.updating);
     try {
-      Swal.fire({
-        title: t.updating,
-        showConfirmButton: false,
-        timer: 1000,
-        timerProgressBar: true,
-        didOpen: () => {
-          Swal.showLoading();
-        },
-      }).then(async () => {
-        const rs = await axiosClient.put(URL_UPDATE_PREFERENCE, {
-          NroCotizacion:  order.NroOrden,
-          TipoPreferencia: select.value,
-        });
-        const { cotizacion, detalle } = rs.data;
-        const updatedOrder = mapCotizacion(cotizacion);
-        const updatedItems = mapDetalle(detalle);
-        swalSuccess(t.update_preference_success).then(() => {
-          setOrder(prev => ({ ...updatedOrder, CodContacto: prev.CodContacto }));
-          setItems(updatedItems);
-        });
+      const rs = await axiosClient.put(URL_UPDATE_PREFERENCE, {
+        NroCotizacion:  order.NroOrden,
+        TipoPreferencia: select.value,
+      });
+      const { cotizacion, detalle } = rs.data;
+      const updatedOrder = mapCotizacion(cotizacion);
+      const updatedItems = mapDetalle(detalle);
+      Swal.close();
+      swalSuccess(t.update_preference_success).then(() => {
+        setOrder(prev => ({ ...updatedOrder, CodContacto: prev.CodContacto }));
+        setItems(updatedItems);
       });
     } catch (error) {
+      Swal.close();
       swalError(t.error, t.update_preference_error_server, t.close);
-
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -1044,6 +1108,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
     });
     if (!result.isConfirmed) return;
 
+    showLoadingPopup(t.deleting_items ?? 'Eliminando ítems...');
     try {
       const rs = await axiosClient.delete(URL_DELETE_ITEM_QUOTE, {
         data: {
@@ -1054,11 +1119,14 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
       const { cotizacion, detalle } = rs.data;
       const updatedOrder = mapCotizacion(cotizacion);
       const updatedItems = mapDetalle(detalle);
+      Swal.close();
       swalSuccess(t.delete_item_success).then(() => setSeleccionados([]));
       setOrder(prev => ({ ...updatedOrder, CodContacto: prev.CodContacto }));
       setItems(updatedItems);
       updateInputs(updatedItems);
-    } catch (error) {}
+    } catch (error) {
+      Swal.close();
+    }
   }
 
   const priceParameters = async () => {
@@ -1077,6 +1145,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
         default_value={rs.data.porUtilidad}
         items={items}
         seleccionados={seleccionados}
+        setSeleccionados={setSeleccionados}
         t={t}
         data={[]}
       />);
@@ -1517,9 +1586,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                   <div className="flex-1">
                     <Controller name="equipment_brand" control={control} rules={{ required: false }}
                       render={({ field }) => (
-                        <Select {...field} isClearable isDisabled={blocked} options={brands} placeholder={t.select} instanceId="equipment_brand" menuPosition="fixed" menuShouldScrollIntoView={false}
-                          filterOption={(opt, input) => input.length >= 2 && opt.label.toLowerCase().includes(input.toLowerCase())}
-                          noOptionsMessage={({ inputValue }) => inputValue.length < 2 ? (t.type_to_search ?? 'Escribe al menos 2 caracteres') : (t.no_options ?? 'Sin opciones')}
+                        <BrandSelect {...field} t={t} isClearable isDisabled={blocked} options={brands} placeholder={t.select} instanceId="equipment_brand" menuPosition="fixed" menuShouldScrollIntoView={false}
                           styles={{ control: b => ({ ...b, minHeight: '32px', height: '32px', fontSize: '12px' }), valueContainer: b => ({ ...b, padding: '0 8px' }), indicatorsContainer: b => ({ ...b, height: '32px' }) }}
                         />
                       )}
@@ -1531,9 +1598,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                   <div className="flex-1">
                     <Controller name="engine_brand" control={control} rules={{ required: false }}
                       render={({ field }) => (
-                        <Select {...field} isClearable isDisabled={blocked} options={brands} placeholder={t.select} instanceId="engine_brand" menuPosition="fixed" menuShouldScrollIntoView={false}
-                          filterOption={(opt, input) => input.length >= 2 && opt.label.toLowerCase().includes(input.toLowerCase())}
-                          noOptionsMessage={({ inputValue }) => inputValue.length < 2 ? (t.type_to_search ?? 'Escribe al menos 2 caracteres') : (t.no_options ?? 'Sin opciones')}
+                        <BrandSelect {...field} t={t} isClearable isDisabled={blocked} options={brands} placeholder={t.select} instanceId="engine_brand" menuPosition="fixed" menuShouldScrollIntoView={false}
                           styles={{ control: b => ({ ...b, minHeight: '32px', height: '32px', fontSize: '12px' }), valueContainer: b => ({ ...b, padding: '0 8px' }), indicatorsContainer: b => ({ ...b, height: '32px' }) }}
                         />
                       )}
@@ -1855,8 +1920,8 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                 <span className="text-xs text-gray-500 shrink-0">{t.preference}</span>
                 <div className="w-40">
                   <Select
-                    options={[{ value: "RE", label: "MAS ECONOMICO" }, { value: "OR", label: "ORIGINAL" }]}
-                    isClearable={false} isSearchable={false} isDisabled={blocked}
+                    options={optsTipoRepuesto}
+                    isClearable={false} isSearchable={false} isDisabled={blocked || isSubmitting}
                     instanceId="preference-select"
                     onChange={handleChangePreference}
                     placeholder={t.select_option}
@@ -1942,7 +2007,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                         }`}>
                           <td className={`${tdClass} text-center`}>
                             <input type="checkbox" className="form-checkbox border-gray-400 rounded"
-                              checked={seleccionados.includes(item)} onChange={() => toggleSeleccion(item)} disabled={blocked} />
+                              checked={seleccionados.some(i => i.CodItem === item.CodItem)} onChange={() => toggleSeleccion(item)} disabled={blocked} />
                           </td>
                           <td className={tdClass}>
                             <input step="any" type="number"

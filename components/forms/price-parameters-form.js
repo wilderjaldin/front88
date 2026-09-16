@@ -113,7 +113,7 @@ const parsePositions = (str) => {
   return [...result].sort((a, b) => a - b);
 };
 
-const PriceParametersForm = ({ close, token, t, default_value, order, setItems, setOrder, items = [], seleccionados = [] }) => {
+const PriceParametersForm = ({ close, token, t, default_value, order, setItems, setOrder, items = [], seleccionados = [], setSeleccionados }) => {
 
   const allSelected = seleccionados.length > 0 && seleccionados.length === items.length;
   const partialSelected = seleccionados.length > 0 && !allSelected;
@@ -199,6 +199,10 @@ const PriceParametersForm = ({ close, token, t, default_value, order, setItems, 
           DiasVigencia: d.diasVigencia  ?? '',
           ParPrecio:    d.parPrecio     ?? false,
         })));
+        // La selección ya cumplió su propósito (aplicar el parámetro a esos
+        // ítems) — se limpia para no dar a entender que siguen "elegidos"
+        // para una próxima acción.
+        setSeleccionados?.([]);
       });
     } catch (error) {
       swalError(t.error ?? 'Error', t.price_parameters_quote_error ?? 'No se pudo guardar', t.close ?? 'Cerrar');

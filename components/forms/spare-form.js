@@ -5,6 +5,7 @@ import IconPlusProps from '@/components/icon/icon-plus';
 import Modal from '@/components/modal';
 import FormAddBrand from '@/components/forms/add-brand-form';
 import Select from '@/components/ui/Select';
+import BrandSelect from '@/components/ui/BrandSelect';
 import axios from 'axios'
 import Swal from 'sweetalert2'
 import { useOptionsSelect } from '@/app/options'
@@ -427,8 +428,10 @@ const ComponentSpareForm = ({ action_cancel, token, t, spare = [], updateList })
                       control={control}
                       rules={{ required: { value: true, message: t.required_select } }}
                       render={({ field }) => (
-                        <Select
+                        <BrandSelect
                           {...field}
+                          t={t}
+                          showAllWhenEmpty
                           id="select_application"
                           placeholder={t.select_option}
                           classNamePrefix="select"
@@ -492,8 +495,10 @@ const ComponentSpareForm = ({ action_cancel, token, t, spare = [], updateList })
                       control={control}
                       rules={{ required: { value: true, message: t.required_select } }}
                       render={({ field }) => (
-                        <Select
+                        <BrandSelect
                           {...field}
+                          t={t}
+                          showAllWhenEmpty
                           id="select_brands"
                           placeholder={t.select_option}
                           classNamePrefix="select"

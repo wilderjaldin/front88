@@ -6,6 +6,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { useDevice } from '@/context/device-context';
 import { Pagination } from '@mantine/core';
 import Select from '@/components/ui/Select';
+import BrandSelect from '@/components/ui/BrandSelect';
 import axiosClient from '@/app/lib/axiosClient';
 import Swal from 'sweetalert2';
 import IconPlus from '@/components/icon/icon-plus';
@@ -24,15 +25,6 @@ const Toast = Swal.mixin({
 });
 
 const fmt = (v) => (v != null ? Number(v).toFixed(2) : '0.00');
-
-// Only show options after 2+ characters typed
-const filterFromSecondChar = (option, inputValue) => {
-  if (!inputValue || inputValue.length < 2) return false;
-  return option.label.toLowerCase().includes(inputValue.toLowerCase());
-};
-
-const noOptMsg2Chars = ({ inputValue }) =>
-  !inputValue || inputValue.length < 2 ? 'Escribe al menos 2 caracteres' : 'Sin resultados';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function FField({ label, children, error }) {
@@ -193,14 +185,12 @@ function MargenForm({ codPais, representante, editingRow, controles, onSaved, on
             name="aplicacion"
             control={control}
             render={({ field }) => (
-              <Select
+              <BrandSelect
                 {...field}
                 options={controles?.marcas ?? []}
-                filterOption={filterFromSecondChar}
                 isClearable
                 isSearchable
                 placeholder="Escribe para buscar..."
-                noOptionsMessage={noOptMsg2Chars}
                 classNamePrefix="rselect"
                 instanceId="margen-aplicacion"
                 menuPosition="fixed"
@@ -214,14 +204,12 @@ function MargenForm({ codPais, representante, editingRow, controles, onSaved, on
             name="marca"
             control={control}
             render={({ field }) => (
-              <Select
+              <BrandSelect
                 {...field}
                 options={controles?.marcas ?? []}
-                filterOption={filterFromSecondChar}
                 isClearable
                 isSearchable
                 placeholder="Escribe para buscar..."
-                noOptionsMessage={noOptMsg2Chars}
                 classNamePrefix="rselect"
                 instanceId="margen-marca"
                 menuPosition="fixed"

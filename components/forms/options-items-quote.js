@@ -1,5 +1,5 @@
 'use client';
-import React from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios'
 import IconPlus from '../icon/icon-plus';
@@ -94,7 +94,27 @@ const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, 
 
   const hasSelection = !!item_select?.CodRepuesto;
 
+  // Bloquea los botones +/cambiar mientras hay una request en curso — sin
+  // esto, un doble click alcanzaba a disparar dos veces la misma acción
+  // antes de que la primera respuesta cerrara el modal, duplicando el
+  // registro. El popup central usa el mismo patrón que el resto del flujo
+  // de cotización (Swal + showLoading, se cierra con Swal.close()).
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const showLoadingPopup = (message) => {
+    Swal.fire({
+      html: message,
+      showConfirmButton: false,
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      didOpen: () => Swal.showLoading(),
+    });
+  };
+
   const addItem = async (item) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    showLoadingPopup(t.adding_item ?? 'Agregando ítem...');
     const data_add = {
       CodRepuesto:   item.CodRepuesto,
       CodCliente:    customer.CodCliente,
@@ -120,15 +140,23 @@ const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, 
       setOrder(updatedOrder);
       setItems(updatedItems);
       updateInputs(updatedItems);
+      Swal.close();
       if (updatedOrder.NroOrden) {
         router.push(`/admin/revision/quotes?customer=${customer.CodCliente}&option=quotes&id=${updatedOrder.NroOrden}`);
       }
       onAdded?.();
       close();
-    } catch (error) {}
+    } catch (error) {
+      Swal.close();
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   const addItemConfirmed = async (item) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    showLoadingPopup(t.adding_item ?? 'Agregando ítem...');
     const data_add = {
       Idioma: locale,
       NroOrden: order.NroOrden,
@@ -143,6 +171,7 @@ const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, 
     }
     try {
       const rs = await axios.post(url_add_item_confirmed, data_add);
+      Swal.close();
       if (rs.data.estado == 'OK') {
         setOrder(rs.data.dato2[0]);
         setItems(rs.data.dato3);
@@ -150,11 +179,16 @@ const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, 
         onAdded?.();
         close();
       }
-    } catch (error) {}
+    } catch (error) {
+      Swal.close();
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   const changeItemConfirmed = async (item) => {
-    if (!changePrice) return;
+    if (!changePrice || isSubmitting) return;
+    setIsSubmitting(true);
     Swal.fire({
       text: t.question_update_cofirmed_order,
       icon: 'question',
@@ -164,7 +198,7 @@ const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, 
       cancelButtonText: t.btn_cancel,
       reverseButtons: true
     }).then(async (result) => {
-      if (!result.isConfirmed) return;
+      if (!result.isConfirmed) { setIsSubmitting(false); return; }
       let CambiaPrecio = 0;
       await Swal.fire({
         title: t.question_do_you_want_the_current_sale_price,
@@ -176,6 +210,7 @@ const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, 
         reverseButtons: true
       }).then(r => { if (r.isConfirmed) CambiaPrecio = 1; });
 
+      showLoadingPopup(t.changing_item ?? 'Cambiando repuesto...');
       try {
         const rs = await axios.post(url_add_item_confirmed, {
           Idioma: locale, NroOrden: order.NroOrden, CodItem: (item_select.CodItem) || 0,
@@ -183,17 +218,25 @@ const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, 
           CodRepuestoSelect: item.CodRepuesto, CodRepuestoActual: item.CodRepuesto,
           NroParteCliente: item.NroParte, CambiaPrecio, ValToken: token
         });
+        Swal.close();
         if (rs.data.estado == 'OK') {
           setItems(rs.data.dato3);
           updateInputs(rs.data.dato3);
           onAdded?.();
           close();
         }
-      } catch (error) {}
+      } catch (error) {
+        Swal.close();
+      } finally {
+        setIsSubmitting(false);
+      }
     });
   }
 
   const changeItem = async (o) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    showLoadingPopup(t.changing_item ?? 'Cambiando repuesto...');
     try {
       const rs = await axiosClient.post(url_add_item, {
         CodRepuesto:   o.CodRepuesto,
@@ -230,9 +273,14 @@ const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, 
       setOrder(updatedOrder);
       setItems(updatedItems);
       updateInputs(updatedItems);
+      Swal.close();
       onAdded?.();
       close();
-    } catch (error) {}
+    } catch (error) {
+      Swal.close();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleAdd = (o) => confirmed
@@ -261,7 +309,8 @@ const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, 
               onClick={() => handleAdd(o)}
               type="button"
               title={t.change ?? 'Cambiar'}
-              className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/40 transition"
+              disabled={isSubmitting}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/40 transition disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <IconSwap />
             </button>
@@ -269,7 +318,8 @@ const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, 
             <button
               onClick={() => handleAdd(o)}
               type="button"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition"
+              disabled={isSubmitting}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <IconPlus className="h-3.5 w-3.5" />
             </button>

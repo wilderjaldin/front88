@@ -369,7 +369,7 @@ export default function SpareFormPage() {
                 <FieldError name="desRepuesto" />
               </div>
 
-              {/* 7. Tipo de Repuesto + Estado — juntos en la misma celda */}
+              {/* 9. Tipo de Repuesto + Estado — juntos en la misma celda */}
               <div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -382,7 +382,7 @@ export default function SpareFormPage() {
                       rules={{ required: 'Seleccione un tipo de repuesto' }}
                       render={({ field }) => (
                         <Select
-                          tabIndex={8}
+                          tabIndex={9}
                           options={types}
                           value={field.value}
                           onChange={(s) => field.onChange(s ?? null)}
@@ -405,7 +405,7 @@ export default function SpareFormPage() {
                       rules={{ required: 'Requerido' }}
                       render={({ field }) => (
                         <Select
-                          tabIndex={9}
+                          tabIndex={10}
                           options={status}
                           value={field.value}
                           onChange={(s) => field.onChange(s ?? null)}
@@ -420,7 +420,7 @@ export default function SpareFormPage() {
                 </div>
               </div>
 
-              {/* 11. Poco Inventario / Pedido especial sin Fecha / Pedido especial — grupo excluyente */}
+              {/* 13. Poco Inventario / Pedido especial sin Fecha / Pedido especial — grupo excluyente */}
               <div>
                 <div className="flex flex-wrap items-center gap-4">
 
@@ -503,7 +503,43 @@ export default function SpareFormPage() {
             {/* ── COLUMNA 2 ──────────────────────────────────────────────────── */}
             <div className="flex-1 flex flex-col gap-y-6 w-full">
 
-              {/* 2. Aplicación */}
+              {/* 2. Proveedor */}
+              <div>
+                <label className="block text-sm font-medium mb-1.5">
+                  {t.supplier ?? 'Proveedor'} <span className="text-red-500">*</span>
+                </label>
+                <Controller
+                  name="codPrv"
+                  control={control}
+                  rules={{ required: 'Seleccione un proveedor' }}
+                  render={({ field }) => (
+                    <AsyncSelect
+                      tabIndex={2}
+                      loadOptions={loadSuppliers}
+                      defaultOptions={false}
+                      value={field.value}
+                      onChange={(s) => field.onChange(s ?? null)}
+                      placeholder="Buscar proveedor..."
+                      noOptionsMessage={noOptsMsg}
+                      isClearable
+                      cacheOptions
+                      classNamePrefix="sf-select"
+                      className={`w-full ${errors.codPrv ? 'react-select-error' : ''}`}
+                      formatOptionLabel={(opt) => (
+                        <span>
+                          {opt.label}
+                          {opt.razSoc && opt.razSoc !== opt.label && (
+                            <span className="text-gray-400"> ({opt.razSoc})</span>
+                          )}
+                        </span>
+                      )}
+                    />
+                  )}
+                />
+                <FieldError name="codPrv" />
+              </div>
+
+              {/* 6. Aplicación */}
               <div>
                 <label className="block text-sm font-medium mb-1.5">
                   {t.application ?? 'Aplicación'} <span className="text-red-500">*</span>
@@ -518,72 +554,36 @@ export default function SpareFormPage() {
                   current={isEdit ? watch('codAplicacion') : null}
                   required="Seleccione una aplicación"
                   placeholder="Buscar aplicación..."
-                  tabIndex={2}
+                  tabIndex={6}
                   instanceId="select-aplicacion"
                   onBrandAdded={({ marcas }) => setBrands(marcas)}
                 />
                 <FieldError name="codAplicacion" />
               </div>
 
-              {/* 5. Proveedor + 6. Marca — Marca apilada debajo de Proveedor, en la misma celda */}
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1.5">
-                    {t.supplier ?? 'Proveedor'} <span className="text-red-500">*</span>
-                  </label>
-                  <Controller
-                    name="codPrv"
-                    control={control}
-                    rules={{ required: 'Seleccione un proveedor' }}
-                    render={({ field }) => (
-                      <AsyncSelect
-                        tabIndex={6}
-                        loadOptions={loadSuppliers}
-                        defaultOptions={false}
-                        value={field.value}
-                        onChange={(s) => field.onChange(s ?? null)}
-                        placeholder="Buscar proveedor..."
-                        noOptionsMessage={noOptsMsg}
-                        isClearable
-                        cacheOptions
-                        classNamePrefix="sf-select"
-                        className={`w-full ${errors.codPrv ? 'react-select-error' : ''}`}
-                        formatOptionLabel={(opt) => (
-                          <span>
-                            {opt.label}
-                            {opt.razSoc && opt.razSoc !== opt.label && (
-                              <span className="text-gray-400"> ({opt.razSoc})</span>
-                            )}
-                          </span>
-                        )}
-                      />
-                    )}
-                  />
-                  <FieldError name="codPrv" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1.5">
-                    {t.brand ?? 'Marca'} <span className="text-red-500">*</span>
-                  </label>
-                  <SelectBrand
-                    t={t}
-                    name="codMarca"
-                    control={control}
-                    errors={errors}
-                    setValue={setValue}
-                    brands={brands}
-                    current={isEdit ? watch('codMarca') : null}
-                    required="Seleccione una marca"
-                    placeholder="Buscar marca..."
-                    tabIndex={7}
-                    instanceId="select-marca"
-                    onBrandAdded={({ marcas }) => setBrands(marcas)}
-                  />
-                  <FieldError name="codMarca" />
-                </div>
+              {/* 7. Marca */}
+              <div>
+                <label className="block text-sm font-medium mb-1.5">
+                  {t.brand ?? 'Marca'} <span className="text-red-500">*</span>
+                </label>
+                <SelectBrand
+                  t={t}
+                  name="codMarca"
+                  control={control}
+                  errors={errors}
+                  setValue={setValue}
+                  brands={brands}
+                  current={isEdit ? watch('codMarca') : null}
+                  required="Seleccione una marca"
+                  placeholder="Buscar marca..."
+                  tabIndex={11}
+                  instanceId="select-marca"
+                  onBrandAdded={({ marcas }) => setBrands(marcas)}
+                />
+                <FieldError name="codMarca" />
               </div>
 
-              {/* 9. Estado Código */}
+              {/* 17. Estado Código */}
               <div className="max-w-[50%]">
                 <label className="block text-sm font-medium mb-1.5">
                   {t.status_code ?? 'Estado Código'}
@@ -593,7 +593,7 @@ export default function SpareFormPage() {
                   control={control}
                   render={({ field }) => (
                     <Select
-                      tabIndex={10}
+                      tabIndex={17}
                       options={status_code}
                       value={field.value}
                       onChange={(s) => field.onChange(s ?? null)}
@@ -644,7 +644,7 @@ export default function SpareFormPage() {
                 </div>
               </div>
 
-              {/* 10. Cant. Mínima + Unidad */}
+              {/* 7. Cant. Mínima + Unidad */}
               <div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -652,7 +652,7 @@ export default function SpareFormPage() {
                       {t.min_quantity ?? 'Cant. Mínima'}
                     </label>
                     <input
-                      tabIndex={11}
+                      tabIndex={7}
                       type="number"
                       min="0"
                       placeholder="1"
@@ -670,7 +670,7 @@ export default function SpareFormPage() {
                       rules={{ required: 'Requerido' }}
                       render={({ field }) => (
                         <Select
-                          tabIndex={12}
+                          tabIndex={8}
                           options={units}
                           value={field.value}
                           onChange={(s) => field.onChange(s ?? null)}
@@ -685,11 +685,11 @@ export default function SpareFormPage() {
                 </div>
               </div>
 
-              {/* 11. No Express — checkbox suelto, no forma parte del grupo excluyente "Pedidos" */}
+              {/* 12. No Express — checkbox suelto, no forma parte del grupo excluyente "Pedidos" */}
               <div>
                 <label className="flex items-center gap-2.5 cursor-pointer select-none h-[42px] m-0">
                   <input
-                    tabIndex={17}
+                    tabIndex={12}
                     type="checkbox"
                     {...register('blnNoExpress')}
                     className="form-checkbox"

@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import Select from '@/components/ui/Select';
+import BrandSelect from '@/components/ui/BrandSelect';
 import IconSave from '@/components/icon/icon-save';
 import axiosClient from '@/app/lib/axiosClient';
 import Swal from 'sweetalert2';
@@ -91,7 +91,8 @@ const NotFoundPartForm = ({ close, nroParte, codRegistro, brands, onSaved, t }) 
         {!isOther && (
           <>
             <p className={hintClass}>Caterpillar, Komatsu, John Deere, Case, etc.</p>
-            <Select
+            <BrandSelect
+              t={t}
               options={brands}
               value={brand}
               onChange={val => { setBrand(val); setError(''); }}
@@ -99,15 +100,6 @@ const NotFoundPartForm = ({ close, nroParte, codRegistro, brands, onSaved, t }) 
               menuPosition="fixed"
               menuShouldScrollIntoView={false}
               classNamePrefix="react-select"
-              filterOption={(option, inputValue) =>
-                inputValue.length >= 2 &&
-                option.label.toLowerCase().includes(inputValue.toLowerCase())
-              }
-              noOptionsMessage={({ inputValue }) =>
-                inputValue.length < 2
-                  ? (t?.type_to_search ?? 'Escribe al menos 2 caracteres')
-                  : (t?.no_options ?? 'Sin opciones')
-              }
             />
           </>
         )}

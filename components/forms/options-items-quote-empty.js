@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useForm } from "react-hook-form"
-import Select from '@/components/ui/Select';
+import BrandSelect from '@/components/ui/BrandSelect';
 import axios from 'axios'
 import Swal from 'sweetalert2'
 import { useOptionsSelect } from '@/app/options'
@@ -90,7 +90,7 @@ const OptionsItemsQuoteEmpty = ({ close, data, token, t, code }) => {
               <span className='text-sm text-gray-400 block'>Caterpillar, Komatsu, John Deere, Case, etc.</span>
             </label>
             <div className="relative flex-1">
-              <Select placeholder={t.select_option} className='w-full'
+              <BrandSelect t={t} showAllWhenEmpty placeholder={t.select_option} className='w-full'
 
                 options={brands}
                 {...register('brand', { required: { value: true, message: t.required_select } })}

@@ -6,6 +6,7 @@ import { useTranslation } from "@/app/locales";
 import { useRouter, useSearchParams } from 'next/navigation';
 import Modal from '@/components/modal';
 import Select from '@/components/ui/Select';
+import BrandSelect from '@/components/ui/BrandSelect';
 import { swalSuccess, swalError, swalConfirm, swalInfo } from '@/app/lib/swal';
 import axiosClient from '@/app/lib/axiosClient';
 import Link from 'next/link';
@@ -364,15 +365,14 @@ export default function QuoteIdentify() {
               <div className="flex items-center gap-2">
                 <label className={labelClass}>{t.brand}</label>
                 <div className="flex-1">
-                  <Select
+                  <BrandSelect
+                    t={t}
                     options={brands}
                     value={select_equipment}
                     onChange={value => { setValue('equipment_brand', value?.value ?? null); setSelectEquipment(value); }}
                     placeholder={t.select_option}
                     instanceId="eq-brand"
                     menuPosition="fixed"
-                    filterOption={(opt, input) => input.length >= 2 && opt.label.toLowerCase().includes(input.toLowerCase())}
-                    noOptionsMessage={({ inputValue }) => inputValue.length < 2 ? 'Escribe al menos 2 caracteres' : 'Sin opciones'}
                     styles={selectStyles}
                   />
                 </div>
@@ -397,15 +397,14 @@ export default function QuoteIdentify() {
               <div className="flex items-center gap-2">
                 <label className={labelClass}>{t.brand}</label>
                 <div className="flex-1">
-                  <Select
+                  <BrandSelect
+                    t={t}
                     options={brands}
                     value={select_engine}
                     onChange={value => { setValue('engine_brand', value?.value ?? null); setSelectEngine(value); }}
                     placeholder={t.select_option}
                     instanceId="en-brand"
                     menuPosition="fixed"
-                    filterOption={(opt, input) => input.length >= 2 && opt.label.toLowerCase().includes(input.toLowerCase())}
-                    noOptionsMessage={({ inputValue }) => inputValue.length < 2 ? 'Escribe al menos 2 caracteres' : 'Sin opciones'}
                     styles={selectStyles}
                   />
                 </div>

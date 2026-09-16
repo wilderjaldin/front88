@@ -2,7 +2,7 @@
 // components/forms/add-brand-customer-form.js
 import React from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import Select from '@/components/ui/Select';
+import BrandSelect from '@/components/ui/BrandSelect';
 import axiosClient from '@/app/lib/axiosClient';
 import Swal from 'sweetalert2';
 import { useTranslation } from '@/app/locales';
@@ -11,15 +11,6 @@ import { useTranslation } from '@/app/locales';
 // Body:    { codMarca: int }
 // Returns: MarcaClienteListadoDto[] → [{ codRegistro, codMarca, nomMarca, codEstado }]
 const URL_AGR_MARCA = (codCliente) => `/clientes/${codCliente}/marcas/agregar`;
-
-// Sin texto → muestra todo (el valor seleccionado queda visible)
-// 1 carácter → oculta (espera el 2do)
-// 2+ caracteres → filtra normalmente
-const filterFromSecondChar = (option, inputValue) => {
-  if (!inputValue) return true;
-  if (inputValue.length < 2) return false;
-  return option.label.toLowerCase().includes(inputValue.toLowerCase());
-};
 
 // Props:
 //   marcasCliente → MarcaClienteListadoDto[] ya asignadas (validación local duplicado)
@@ -81,21 +72,17 @@ const AddBrandCustomerForm = ({ marcasCliente = [], marcas = [], cliente, onCanc
             control={control}
             rules={{ required: { value: true, message: t.required_select } }}
             render={({ field }) => (
-              <Select
+              <BrandSelect
                 {...field}
+                t={t}
+                showAllWhenEmpty
                 options={marcas}
                 isSearchable isClearable
-                placeholder="Escribe al menos 2 caracteres..."
+                placeholder={t?.select_option ?? 'Selecciona una opción'}
                 instanceId="brand-form-select"
                 menuPosition="fixed"
                 classNamePrefix="select"
                 menuShouldScrollIntoView={false}
-                filterOption={filterFromSecondChar}
-                noOptionsMessage={({ inputValue }) =>
-                  !inputValue || inputValue.length < 2
-                    ? 'Escribe al menos 2 caracteres para buscar'
-                    : 'Sin resultados'
-                }
               />
             )}
           />

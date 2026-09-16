@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import axiosClient from '@/app/lib/axiosClient';
 import { useForm, Controller } from 'react-hook-form';
 import Select from '@/components/ui/Select';
+import BrandSelect from '@/components/ui/BrandSelect';
 import { Pagination } from '@mantine/core';
 import { swalError, swalSuccess } from '@/app/lib/swal';
 
@@ -38,11 +39,6 @@ const SortableHeader = ({ col, label, sortCol, sortDesc, onSort, className = '' 
     </span>
   </th>
 );
-
-const filterOpts = {
-  filterOption:     (opt, input) => input.length < 2 ? false : opt.label.toLowerCase().includes(input.toLowerCase()),
-  noOptionsMessage: ({ inputValue }) => inputValue.length < 2 ? 'Ingrese al menos 2 caracteres' : 'Sin resultados',
-};
 
 const ShowAssignmentsForm = ({ t, action_cancel }) => {
   const [records,       setRecords]       = useState([]);
@@ -213,8 +209,8 @@ const ShowAssignmentsForm = ({ t, action_cancel }) => {
               </label>
               <Controller name="marca" control={control}
                 render={({ field }) => (
-                  <Select {...field} isClearable options={marcas}
-                    placeholder="Seleccionar..." {...filterOpts} />
+                  <BrandSelect {...field} t={t} isClearable options={marcas}
+                    placeholder="Seleccionar..." />
                 )} />
             </div>
 

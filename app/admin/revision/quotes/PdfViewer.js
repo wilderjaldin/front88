@@ -10,13 +10,15 @@ import { Checkbox } from '@mantine/core';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
-const URL_PREVIEW = 'cotizacion/pdf/preview';
+const URL_PREVIEW     = 'cotizacion/pdf/preview';
+const URL_XLS_PREVIEW = 'cotizacion/xls/preview';
 
 export default function PdfViewer({ order, onClose }) {
   const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
   const [numPages,   setNumPages]   = useState(null);
   const [previewed,  setPreviewed]  = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [downloadingXls, setDownloadingXls] = useState(false);
 
   const [options, setOptions] = useState({
     ocultarTipo:       false,
@@ -81,6 +83,28 @@ export default function PdfViewer({ order, onClose }) {
     document.body.removeChild(link);
   };
 
+  const downloadExcel = async () => {
+    setDownloadingXls(true);
+    try {
+      const res = await axiosClient.post(URL_XLS_PREVIEW, buildPayload(options), { responseType: 'blob' });
+      const blobUrl = URL.createObjectURL(new Blob([res.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      }));
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `${t.quote}-${order.NroOrden}.xlsx`;
+      link.className = 'no-load';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error('Error al descargar Excel:', error);
+    } finally {
+      setDownloadingXls(false);
+    }
+  };
+
   const handleCheckboxChange = (field) => {
     setOptions(prev => ({ ...prev, [field]: !prev[field] }));
     setPreviewed(false);
@@ -127,6 +151,16 @@ export default function PdfViewer({ order, onClose }) {
             className="h-8 px-4 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 transition disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {t.download_pdf}
+          </button>
+          <button
+            onClick={downloadExcel}
+            disabled={!previewed || downloadingXls}
+            className="h-8 px-4 rounded-lg bg-success text-white text-sm font-medium hover:bg-success/90 transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+          >
+            {downloadingXls && (
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            )}
+            {t.download_excel}
           </button>
           {onClose && (
             <button onClick={onClose} className="h-8 px-4 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-600 hover:bg-gray-50 transition">

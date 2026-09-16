@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useForm, SubmitHandler } from "react-hook-form"
-import Select from '@/components/ui/Select';
+import BrandSelect from '@/components/ui/BrandSelect';
 import axios from 'axios'
 import Swal from 'sweetalert2'
 import { useOptionsSelect } from '@/app/options'
@@ -66,7 +66,7 @@ const AddBrandSupplierForm = ({ current_brands, action_cancel, supplier, token, 
           <div>
             <label htmlFor="brand-select">{ t.brand }</label>
             <div className="relative ">
-              <Select placeholder={t.select_option} className='w-full' options={brands}
+              <BrandSelect t={t} showAllWhenEmpty placeholder={t.select_option} className='w-full' options={brands}
                 {...register('brand', { required: { value: true, message: t.required_select } })}
                 isSearchable
                 id="brand-select"
