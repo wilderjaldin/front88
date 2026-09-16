@@ -239,12 +239,22 @@ export default function QuoteManualForm({ t, _customer_, _order_ = [], _items_, 
       return;
     }
     try {
+      // Antes solo mandaba Costo/Peso/Flete/Utilidad — faltaban el resto de
+      // campos ya cargados en el panel (Nro. Parte, Cant., Descripción,
+      // T. Entrega, Proveedor, Aplicación), usando los mismos nombres que ya
+      // usa adicionar-itemcotma para esos mismos datos.
       const rs = await axiosClient.post(URL_CALC_PRICE, {
-        CodCliente:  customer.CodCliente,
-        Costo:       costo,
-        Peso:        peso,
-        CostoFlete:       flete,
-        PorUtilidad: util,
+        CodCliente:    customer.CodCliente,
+        NroParte:      data.NroParte    ?? '',
+        Cantidad:      data.Cantidad    ?? 0,
+        Descripcion:   data.Descripcion ?? '',
+        Costo:         costo,
+        Peso:          peso,
+        CostoFlete:    flete,
+        Tentrega:      data.TEntrega        ?? '',
+        CodPrv:        data.Proveedor?.value  ?? 0,
+        CodAplicacion: data.Aplicacion?.value ?? 0,
+        PorUtilidad:   util,
       });
       if (rs.data.pesoFlete !== undefined) {
         setCalcResult({ ...rs.data, costo: rs.data.costo ?? costo });
