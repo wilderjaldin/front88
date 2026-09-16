@@ -134,16 +134,14 @@ const PriceParametersForm = ({ close, token, t, default_value, order, setItems, 
     setValue,
     watch,
     formState: { errors, isSubmitting },
-  } = useForm({ defaultValues: { utility: '', days: '', tipCambio: '', positions: initialPositions } });
+  } = useForm({ defaultValues: { utility: '', days: '', positions: initialPositions } });
 
   const utilityValue   = watch('utility');
   const daysValue      = watch('days');
-  const tipCambioValue = watch('tipCambio');
   const positionsValue = watch('positions');
 
-  const utilityBlocked   = !!(daysValue || tipCambioValue) && !utilityValue;
-  const daysBlocked      = !!(utilityValue || tipCambioValue) && !daysValue;
-  const tipCambioBlocked = !!(utilityValue || daysValue) && !tipCambioValue;
+  const utilityBlocked = !!daysValue && !utilityValue;
+  const daysBlocked    = !!utilityValue && !daysValue;
 
   const clearField = (name) => setValue(name, '', { shouldValidate: false });
 
@@ -157,9 +155,8 @@ const PriceParametersForm = ({ close, token, t, default_value, order, setItems, 
     try {
       const rs = await axiosClient.post('cotizaciondetalle/cambiar-parametro-precio', {
         NroCotizacion: order.NroOrden,
-        PorUtilidad:   data.utility   ? parseFloat(data.utility)   : null,
-        TiempoEntrega: data.days      ? data.days.trim()           : null,
-        TipCambio:     data.tipCambio ? parseFloat(data.tipCambio) : null,
+        PorUtilidad:   data.utility ? parseFloat(data.utility) : null,
+        TiempoEntrega: data.days    ? data.days.trim()         : null,
         Todos:         applyToAll ? 1 : 0,
         Items:         parsedPositions ? parsedPositions.join(',') : '',
       });
@@ -273,32 +270,6 @@ const PriceParametersForm = ({ close, token, t, default_value, order, setItems, 
                     />
                     <ClearBtn name="days" value={daysValue} />
                   </div>
-                </td>
-              </tr>
-              {/* Tipo de cambio */}
-              <tr>
-                <td className="py-2 pr-3 text-gray-600 dark:text-gray-300 text-right">{t.exchange_rate ?? 'Tipo Cambio'}</td>
-                <td className="py-2 text-center text-gray-400">—</td>
-                <td className="py-2">
-                  {(() => {
-                    const { onChange, ...rest } = register("tipCambio", {
-                      validate: v => !v || /^\d+(\.\d+)?$/.test(v.trim()) || (t.invalid_decimal ?? 'Valor decimal inválido'),
-                    });
-                    return (
-                      <>
-                        <div className="relative">
-                          <input type="text" autoComplete="off" {...rest}
-                            disabled={tipCambioBlocked}
-                            onChange={(e) => { e.target.value = sanitizeDecimal(e.target.value); onChange(e); }}
-                            placeholder="0.00"
-                            className={`${inputClass} w-full pr-8 ${errors.tipCambio ? 'border-red-400 focus:ring-red-300/30' : ''}`}
-                          />
-                          <ClearBtn name="tipCambio" value={tipCambioValue} />
-                        </div>
-                        {errors.tipCambio && <p className="mt-0.5 text-[11px] text-red-500">{errors.tipCambio.message}</p>}
-                      </>
-                    );
-                  })()}
                 </td>
               </tr>
             </tbody>

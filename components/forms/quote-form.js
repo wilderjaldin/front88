@@ -9,6 +9,12 @@ import IconPhoto from '../icon/icon-photo';
 import IconMail from '../icon/icon-mail';
 import IconAttachment from '../icon/icon-attachment';
 import IconDiscount from '../icon/icon-discount';
+import IconTag from '../icon/icon-tag';
+import IconClipboardText from '../icon/icon-clipboard-text';
+import IconCopy from '../icon/icon-copy';
+import IconCircleCheck from '../icon/icon-circle-check';
+import IconPencil from '../icon/icon-pencil';
+import IconX from '../icon/icon-x';
 import Modal from '@/components/modal';
 import OptionsItemsQuote from '@/components/forms/options-items-quote'
 import DiscountForm from "@/components/forms/discount-form"
@@ -176,6 +182,76 @@ function SortableRow({ id, index, children, className, t }) {
       </td>
       {children}
     </tr>
+  );
+}
+
+// Tipo de cambio editable solo cuando ya tiene un valor (!= 0) — en 0 no hay
+// nada que ajustar (cotización en la misma moneda, sin conversión).
+function TipoCambioValue({ value, nroOrden, t, disabled, onSaved }) {
+  const [editing, setEditing] = useState(false);
+  const [val,     setVal]     = useState(String(value ?? ''));
+  const [saving,  setSaving]  = useState(false);
+
+  if (!editing) {
+    return (
+      <span className="inline-flex items-center gap-1.5">
+        {value}
+        {!!value && !disabled && (
+          <button type="button" onClick={() => { setVal(String(value ?? '')); setEditing(true); }}
+            title={t.edit ?? 'Editar'}
+            className="text-gray-400 hover:text-primary transition">
+            <IconPencil className="h-3 w-3" />
+          </button>
+        )}
+      </span>
+    );
+  }
+
+  const handleSave = async () => {
+    const parsed = parseFloat(val);
+    if (!parsed || parsed <= 0) {
+      swalError(t.error ?? 'Error', t.invalid_decimal ?? 'Valor inválido', t.close ?? 'Cerrar');
+      return;
+    }
+    setSaving(true);
+    try {
+      const rs = await axiosClient.put('cotizaciondetalle/cambiar-tipo-cambio', {
+        nroCotizacion: nroOrden,
+        tipCambio:     parsed,
+      });
+      if (rs.data?.exito) {
+        swalSuccess(rs.data.mensaje ?? t.update_quote_success);
+        onSaved(parsed);
+        setEditing(false);
+      } else {
+        swalError(t.error ?? 'Error', rs.data?.mensaje ?? t.could_not_update_quote, t.close ?? 'Cerrar');
+      }
+    } catch (err) {
+      swalError(t.error ?? 'Error', err?.response?.data?.mensaje ?? t.could_not_update_quote, t.close ?? 'Cerrar');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <span className="inline-flex items-center gap-1">
+      <input
+        type="text" inputMode="decimal" autoFocus
+        value={val}
+        onChange={e => setVal(e.target.value.replace(/[^0-9.]/g, ''))}
+        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleSave(); } if (e.key === 'Escape') setEditing(false); }}
+        disabled={saving}
+        className="h-6 w-16 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-1.5 text-xs text-right focus:outline-none focus:ring-1 focus:ring-primary/40 disabled:opacity-50"
+      />
+      <button type="button" onClick={handleSave} disabled={saving} title={t.save ?? 'Guardar'}
+        className="h-6 w-6 flex items-center justify-center rounded text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 disabled:opacity-50 transition">
+        <IconCheck className="h-3.5 w-3.5 fill-green-600" />
+      </button>
+      <button type="button" onClick={() => setEditing(false)} disabled={saving} title={t.btn_cancel ?? 'Cancelar'}
+        className="h-6 w-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+        <IconX className="h-3 w-3" />
+      </button>
+    </span>
   );
 }
 
@@ -1756,7 +1832,8 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
               const colB = [
                 [t.assigned_seller, order.Vendedor || '—'],
                 [t.quote_date,      order.FecCotizacion || '—'],
-                [t.exchange_rate,       order.TipoCambio],
+                [t.exchange_rate, <TipoCambioValue value={order.TipoCambio} nroOrden={order.NroOrden} t={t} disabled={blocked}
+                  onSaved={(v) => setOrder(prev => ({ ...prev, TipoCambio: v }))} />],
                 [t.quote_total,        customFormat(order.Total)],
               ];
               const Row = ([label, val], i, last) => (
@@ -2040,11 +2117,13 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
               {/* Opciones de cotización */}
               <div className="flex flex-wrap items-center gap-1.5">
                 <button onClick={run(priceParameters)} type="button" disabled={isSubmitting || blocked}
-                  className="h-8 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-[11px] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                  className="inline-flex items-center gap-1.5 h-8 rounded-lg border border-amber-200 bg-amber-50 px-3 text-[11px] font-semibold text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                  <IconTag className="h-3.5 w-3.5" />
                   {t.price_parameter}
                 </button>
                 <button onClick={costSummary} type="button"
-                  className="h-8 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-[11px] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                  className="inline-flex items-center gap-1.5 h-8 rounded-lg border border-sky-200 bg-sky-50 px-3 text-[11px] font-semibold text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-400 transition">
+                  <IconClipboardText className="h-3.5 w-3.5" />
                   {t.cost_summary}
                 </button>
                 {(ordenado || entregado) && (
@@ -2054,11 +2133,13 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                   </button>
                 )}
                 <button onClick={run(cloneQuote)} type="button" disabled={isSubmitting || blocked}
-                  className="h-8 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-[11px] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                  className="inline-flex items-center gap-1.5 h-8 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-[11px] font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                  <IconCopy className="h-3.5 w-3.5" />
                   {t.duplicate}
                 </button>
                 <button onClick={run(() => validateQuote())} type="button" disabled={isSubmitting || isSelectItems || blocked}
-                  className="h-8 rounded-lg border border-primary/30 bg-primary/5 px-3 text-[11px] text-primary hover:bg-primary/10 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                  className="inline-flex items-center gap-1.5 h-8 rounded-lg border border-primary/30 bg-primary/5 px-3 text-[11px] font-semibold text-primary hover:bg-primary/10 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                  <IconCircleCheck className="h-3.5 w-3.5" />
                   {t.validate}
                 </button>
                 <button onClick={run(buyQuote)} type="button" disabled={isSubmitting || hasItemsWithoutPrice || blocked}
