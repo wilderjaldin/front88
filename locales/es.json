@@ -1411,5 +1411,6 @@
   "type_to_search_ph": "Escribe para buscar",
   "deleting_items": "Eliminando ítems...",
   "adding_item": "Agregando ítem...",
-  "changing_item": "Cambiando repuesto..."
+  "changing_item": "Cambiando repuesto...",
+  "mark_as": "Marcar como"
 }

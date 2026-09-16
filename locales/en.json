@@ -1409,5 +1409,6 @@
   "type_to_search_ph": "Type to search",
   "deleting_items": "Deleting items...",
   "adding_item": "Adding item...",
-  "changing_item": "Changing part..."
+  "changing_item": "Changing part...",
+  "mark_as": "Mark as"
 }

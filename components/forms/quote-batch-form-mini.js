@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import AsyncSelect from '@/components/ui/AsyncSelect';
+import { filterBrandOptions } from '@/components/ui/BrandSelect';
 import Modal from '@/components/modal';
 import { customFormat } from '@/app/lib/format';
 import axiosClient from '@/app/lib/axiosClient';
@@ -13,7 +14,6 @@ import { useRouter } from 'next/navigation';
 const URL_MARCAS = 'cotizaciones/marcas';
 const URL_SEARCH = 'cotizaciondetalle/buscar-parte-lote';
 
-const ASYNC_MIN = 2;
 const ASYNC_MAX = 30;
 
 const ICON_ERR = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg>`;
@@ -84,9 +84,7 @@ const QuoteBatchFormMini = ({ close, t, customer, order, setOrder, setItems, upd
   }, []);
 
   const loadMarcaOptions = useCallback((inputValue, callback) => {
-    const term = inputValue?.trim().toLowerCase() ?? '';
-    if (term.length < ASYNC_MIN) return callback([]);
-    callback(marcas.filter(m => m.label.toLowerCase().includes(term)).slice(0, ASYNC_MAX));
+    callback(filterBrandOptions(marcas, inputValue).slice(0, ASYNC_MAX));
   }, [marcas]);
 
   const onSearch = async (data) => {
@@ -214,8 +212,8 @@ const QuoteBatchFormMini = ({ close, t, customer, order, setOrder, setItems, upd
                 menuPosition="fixed"
                 menuShouldScrollIntoView={false}
                 noOptionsMessage={({ inputValue }) =>
-                  (inputValue?.trim().length ?? 0) < ASYNC_MIN
-                    ? `Ingresa ${ASYNC_MIN} caracteres`
+                  (inputValue?.trim().length ?? 0) === 0
+                    ? (t?.type_to_search_ph ?? 'Escribe para buscar')
                     : (t.no_results ?? 'Sin resultados')
                 }
                 value={field.value ?? null}

@@ -76,6 +76,9 @@ const URL_UPDATE_ALL         = 'cotizaciondetalle/actualizar-todo';
 const URL_SAVE_MONEDA        = 'cotizaciondetalle/cambiar-moneda';
 const URL_SAVE_TIPO_ENVIO    = 'cotizaciondetalle/cambiar-tipoenvio';
 const URL_SAVE_ESTADO        = 'cotizaciondetalle/cambiar-estado';
+// Endpoint propio de cotizaciondetalle para "Marcar como" — mismo body que
+// repuestosporcotizar/excluir-item (codRegistro va con el CodItem del ítem).
+const URL_EXCLUIR_ITEM       = 'cotizaciondetalle/excluir-item';
 
 const formatDateTime = (val) => {
   if (!val) return '—';
@@ -332,6 +335,15 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
   const [optsTipoRepuesto,  setOptsTipoRepuesto]  = useState([]);
   const [brands,    setBrands]    = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+  const statusMenuRef = useRef(null);
+
+  useEffect(() => {
+    if (!statusMenuOpen) return;
+    const handler = (e) => { if (statusMenuRef.current && !statusMenuRef.current.contains(e.target)) setStatusMenuOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [statusMenuOpen]);
 
   const hasItemsWithoutPrice = items.some(item => !item.Precio || item.Precio === 0);
   const vencido   = order.Vencido === true;
@@ -350,6 +362,10 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
 
 
   const [seleccionados, setSeleccionados] = useState([])
+
+  // "Marcar como" solo aplica a ítems sin precio todavía — si hay algo
+  // seleccionado que ya tiene precio, se bloquea el botón entero.
+  const canMarkStatus = seleccionados.length > 0 && seleccionados.every(i => !i.Precio || i.Precio === 0);
 
   // Bug real: comparaba "¿ya está seleccionado?" por referencia de objeto
   // (prev.includes(item)) pero sacaba por CodItem — cualquier acción que
@@ -962,7 +978,15 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
     }
   }
 
+  // applyFreight/deleteFreight: antes disparaban swalConfirm(...).then(...) sin
+  // esperarlo (sin return/await) — la función terminaba (y con ella el
+  // isSubmitting de run()) apenas se abría el diálogo de confirmación, no
+  // cuando la request realmente terminaba. El botón quedaba habilitado de
+  // nuevo mientras el usuario todavía estaba confirmando o la request seguía
+  // en curso — el mismo "doble click" que ya se corrigió en otras acciones.
+  // Ahora todo el flujo se espera con await, y se agrega el popup de carga.
   const applyFreight = async (mtoFlete, confirmado) => {
+    showLoadingPopup(t.updating);
     try {
       const rs = await axiosClient.put(URL_SAVE_FREIGHT, {
         NroCotizacion:   order.NroOrden,
@@ -970,19 +994,19 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
         Confirmado:      confirmado,
       });
       const { resultado, cotizacion, detalle, mensaje } = rs.data;
+      Swal.close();
 
       if (resultado === 'requiere_confirmacion') {
-        swalConfirm(
+        const r = await swalConfirm(
           mensaje ?? t.question_freight_distributed ?? '¿Deseas restablecer el flete interno?',
           '',
           { confirmText: t.yes ?? 'Sí', cancelText: t.no ?? 'No', confirmColor: '#4f46e5' }
-        ).then(async (r) => {
-          if (r.isConfirmed) {
-            await applyFreight(mtoFlete, true);
-          } else {
-            setValue('freight', '0');
-          }
-        });
+        );
+        if (r.isConfirmed) {
+          await applyFreight(mtoFlete, true);
+        } else {
+          setValue('freight', '0');
+        }
         return;
       }
 
@@ -991,6 +1015,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
         setItems(mapDetalle(detalle));
       });
     } catch (error) {
+      Swal.close();
       swalError(t.error, t.save_freight_error_server, t.close);
     }
   };
@@ -1001,19 +1026,22 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
   }
 
   const deleteFreight = async () => {
-    swalConfirm(t.question_delete_freight, '', { confirmText: t.yes_distribute, cancelText: t.btn_cancel, confirmColor: '#dc2626' }).then(async (result) => {
-      if (!result.isConfirmed) return;
-      try {
-        const rs = await axiosClient.put(URL_DELETE_FREIGHT, { NroCotizacion: order.NroOrden });
-        const { cotizacion, detalle } = rs.data;
-        swalSuccess(t.delete_freight_success).then(() => {
-          setOrder(prev => ({ ...mapCotizacion(cotizacion), CodContacto: prev.CodContacto }));
-          setItems(mapDetalle(detalle));
-        });
-      } catch (error) {
-        swalError(t.error, t.delete_freight_error_server, t.close);
-      }
-    });
+    const result = await swalConfirm(t.question_delete_freight, '', { confirmText: t.yes_distribute, cancelText: t.btn_cancel, confirmColor: '#dc2626' });
+    if (!result.isConfirmed) return;
+
+    showLoadingPopup(t.updating);
+    try {
+      const rs = await axiosClient.put(URL_DELETE_FREIGHT, { NroCotizacion: order.NroOrden });
+      const { cotizacion, detalle } = rs.data;
+      Swal.close();
+      swalSuccess(t.delete_freight_success).then(() => {
+        setOrder(prev => ({ ...mapCotizacion(cotizacion), CodContacto: prev.CodContacto }));
+        setItems(mapDetalle(detalle));
+      });
+    } catch (error) {
+      Swal.close();
+      swalError(t.error, t.delete_freight_error_server, t.close);
+    }
   }
 
   const showMore = async (item) => {
@@ -1128,6 +1156,46 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
       Swal.close();
     }
   }
+
+  // "Marcar como" (Inválido/Descontinuado/Sin Opción) sobre los ítems
+  // seleccionados — mismo body que items-assigned.js: codRegistro va con el
+  // CodItem del ítem de la cotización.
+  const handleMarkStatus = async (code) => {
+    if (isSubmitting || !canMarkStatus) return;
+    const label = code === 'IV' ? t.question_change_status_invalid
+      : code === 'DE'           ? t.question_change_status_discontinued
+      : t.question_change_status_no_option;
+
+    const result = await swalConfirm(label, '', { confirmText: t.yes ?? 'Sí', cancelText: t.btn_cancel ?? 'Cancelar', confirmColor: '#15803d' });
+    if (!result.isConfirmed) return;
+
+    setIsSubmitting(true);
+    showLoadingPopup(t.updating);
+    try {
+      const payload = seleccionados.map(i => ({
+        estadoCodigo: code,
+        codRegistro:  i.CodItem,
+        nroOrden:     order.NroOrden,
+        nroParte:     i.NroParte,
+      }));
+      const rs = await axiosClient.post(URL_EXCLUIR_ITEM, payload);
+      // La respuesta trae { codRegistro, nroOrden, nroParte, descripcion } por
+      // ítem — acá codRegistro es el CodItem que mandamos. Solo actualiza la
+      // descripción del ítem correspondiente, no lo saca de la lista.
+      const updatedDesc = new Map((rs.data ?? []).map(o => [o.codRegistro, o.descripcion]));
+      Swal.close();
+      swalSuccess(t.save_change_status_order_success);
+      setItems(prev => prev.map(i =>
+        updatedDesc.has(i.CodItem) ? { ...i, DesRepuesto: updatedDesc.get(i.CodItem) } : i
+      ));
+      setSeleccionados([]);
+    } catch (err) {
+      Swal.close();
+      swalError(t.error ?? 'Error', err?.response?.data?.mensaje ?? t.save_change_status_order_error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const priceParameters = async () => {
     try {
@@ -1932,6 +2000,35 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                     }}
                   />
                 </div>
+              </div>
+
+              {/* Marcar como — solo para ítems sin precio (Precio 0/vacío), como
+                  los "NO REGISTRADO, EN BREVE SERA ACTUALIZADO" resaltados en rojo */}
+              <div className="relative" ref={statusMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setStatusMenuOpen(o => !o)}
+                  disabled={isSubmitting || blocked || !canMarkStatus}
+                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border text-xs font-semibold transition border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-amber-50 dark:disabled:hover:bg-amber-900/20"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path strokeLinecap="round" d="M12 8v4m0 4h.01"/></svg>
+                  {t.mark_as ?? 'Marcar como'}
+                  <svg className={`w-3 h-3 transition-transform ${statusMenuOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6"/></svg>
+                </button>
+                {statusMenuOpen && (
+                  <div className="absolute left-0 top-full mt-1.5 z-30 min-w-[160px] rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg py-1 overflow-hidden">
+                    {[
+                      { code: 'IV', label: t.invalid,      color: 'text-red-600    hover:bg-red-50    dark:text-red-400    dark:hover:bg-red-900/20'    },
+                      { code: 'DE', label: t.discontinued, color: 'text-orange-600 hover:bg-orange-50 dark:text-orange-400 dark:hover:bg-orange-900/20' },
+                      { code: 'SO', label: t.no_option,    color: 'text-amber-600  hover:bg-amber-50  dark:text-amber-400  dark:hover:bg-amber-900/20'  },
+                    ].map(({ code, label, color }) => (
+                      <button key={code} type="button" onClick={() => { handleMarkStatus(code); setStatusMenuOpen(false); }}
+                        className={`w-full text-left px-4 py-2 text-xs font-semibold transition ${color}`}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="flex-1" />
