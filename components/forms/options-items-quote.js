@@ -87,7 +87,7 @@ function SectionLabel({ label }) {
   );
 }
 
-const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, token, t, order, setItems, setOrder, updateInputs, item_select = [], changePrice = false, onAdded }) => {
+const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, token, t, order, setItems, setOrder, updateInputs, item_select = [], changePrice = false, onAdded, nroParteBuscado, cambioParte }) => {
 
   const router = useRouter();
   const locale = useSelector(getLocale);
@@ -117,6 +117,7 @@ const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, 
     showLoadingPopup(t.adding_item ?? 'Agregando ítem...');
     const data_add = {
       CodRepuesto:   item.CodRepuesto,
+      NroParte:      data.nro_part      ?? '',
       CodCliente:    customer.CodCliente,
       NroCotizacion: order.NroOrden || 0,
       Cantidad:      data.quantity,
@@ -131,6 +132,7 @@ const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, 
       NroSerieMo:    data.engine_serie    ?? '',
       NotCliente:    order.NotaCliente    ?? '',
       NotUsuario:    order.NotaUsuario    ?? '',
+      NroParteCambio: cambioParte ?? '',
     };
     try {
       const rs = await axiosClient.post(url_add_item, data_add);
@@ -240,6 +242,7 @@ const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, 
     try {
       const rs = await axiosClient.post(url_add_item, {
         CodRepuesto:   o.CodRepuesto,
+        NroParte:      data.nro_part           ?? '',
         CodItem:       item_select.CodItem,
         CodCliente:    customer.CodCliente,
         NroCotizacion: order.NroOrden || 0,
@@ -255,6 +258,7 @@ const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, 
         NroSerieMo:    data.engine_serie          ?? '',
         NotCliente:    order.NotaCliente          ?? '',
         NotUsuario:    order.NotaUsuario          ?? '',
+        NroParteCambio: cambioParte ?? '',
       });
       const { cotizacion, detalle } = rs.data;
       const mapped = mapCotizacion(cotizacion);
@@ -346,7 +350,20 @@ const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, 
   });
 
   return (
-    <div className="overflow-x-auto">
+    <>
+      {nroParteBuscado && (
+        <div className="px-4 py-3 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-900/40 text-sm text-gray-700 dark:text-gray-200">
+          {t.available_options_for_code ?? 'TENEMOS LAS SIGUIENTES OPCIONES PARA EL CODIGO:'}{' '}
+          <span className="font-bold">{nroParteBuscado}</span>
+          {cambioParte && (
+            <>
+              {' -> '}
+              <span className="font-bold">{cambioParte}</span>
+            </>
+          )}
+        </div>
+      )}
+      <div className="overflow-x-auto">
       <table className="w-full border-collapse bg-white dark:bg-gray-900 text-sm">
         <thead>
           <tr>
@@ -374,7 +391,8 @@ const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, 
           )}
         </tbody>
       </table>
-    </div>
+      </div>
+    </>
   );
 };
 

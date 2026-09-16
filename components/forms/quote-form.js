@@ -664,7 +664,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
     esLocal:       o.esLocal,
   });
 
-  const showOptions = (opciones, data) => {
+  const showOptions = (opciones, data, nroParteBuscado, cambioParte) => {
     setModalTitle('');
     setModalSize('w-full max-w-5xl');
     setModalContent(
@@ -679,6 +679,8 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
         token={token}
         t={t}
         data={data}
+        nroParteBuscado={nroParteBuscado}
+        cambioParte={cambioParte}
         onAdded={() => {
           setValueQuote('nro_part', '');
           setValueQuote('quantity', '');
@@ -712,7 +714,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
     try {
       const rs = await axiosClient.post(URL_SEARCH, data_search);
       Swal.close();
-      const { resultado: _res, cotizacion, detalle, opcionesLocales, opcionesImportacion } = rs.data;
+      const { resultado: _res, cotizacion, detalle, opcionesLocales, opcionesImportacion, cambioParte } = rs.data;
       const resultado = String(_res ?? '').replace(/"/g, '').trim().toLowerCase();
 
       if (resultado === 'no_encontrado') {
@@ -757,7 +759,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
           ...(opcionesLocales ?? []),
           ...(opcionesImportacion ?? []),
         ].map(mapOpcion);
-        showOptions(opciones, data);
+        showOptions(opciones, data, data.nro_part, cambioParte);
         return;
       }
 
@@ -1053,7 +1055,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
         Cantidad:      item.Cantidad,
       });
 
-      const { resultado: _res2, opcionesLocales, opcionesImportacion, mensaje } = rs.data;
+      const { resultado: _res2, opcionesLocales, opcionesImportacion, mensaje, cambioParte } = rs.data;
       const resultado = String(_res2 ?? '').replace(/"/g, '').trim().toLowerCase();
 
       if (resultado === 'no_encontrado') {
@@ -1100,6 +1102,8 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
         item_select={item}
         t={t}
         data={data}
+        nroParteBuscado={data.nro_part}
+        cambioParte={cambioParte}
       />);
       setShowModal(true);
     } catch (error) {}

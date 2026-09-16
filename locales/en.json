@@ -1410,5 +1410,6 @@
   "deleting_items": "Deleting items...",
   "adding_item": "Adding item...",
   "changing_item": "Changing part...",
-  "mark_as": "Mark as"
+  "mark_as": "Mark as",
+  "available_options_for_code": "WE HAVE THE FOLLOWING OPTIONS FOR THE CODE:"
 }

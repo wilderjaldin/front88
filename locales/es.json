@@ -1412,5 +1412,6 @@
   "deleting_items": "Eliminando ítems...",
   "adding_item": "Agregando ítem...",
   "changing_item": "Cambiando repuesto...",
-  "mark_as": "Marcar como"
+  "mark_as": "Marcar como",
+  "available_options_for_code": "TENEMOS LAS SIGUIENTES OPCIONES PARA EL CODIGO:"
 }
