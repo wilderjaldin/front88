@@ -11,6 +11,8 @@ import IconUsers from '@/components/icon/icon-users';
 import IconChartSquare from '@/components/icon/icon-chart-square';
 import IconSettings from '@/components/icon/icon-settings';
 import IconHome from '@/components/icon/icon-home';
+import IconBox from '@/components/icon/icon-box';
+import IconShoppingBag from '@/components/icon/icon-shopping-bag';
 
 const URL_DASHBOARD = 'usuarios/dashboard';
 
@@ -40,14 +42,17 @@ export default function UserDashboard() {
   const usuario     = data?.usuario ?? {};
   const empresa      = data?.empresa ?? null; // solo viene para usuarios con rol Representante
   const paises       = data?.paisesPermitidos ?? [];
-  const cotizacionesVacias = { pendientes: 0, enProceso: 0, finalizadas: 0, anuladas: 0, total: 0 };
-  // El backend ahora separa "creadas" (las que este usuario originó) de
-  // "asignadas" (las que le tocan a él trabajar) — antes era un solo bloque
-  // que en la práctica era lo mismo que "asignadas".
+  // El backend separa "creadas" (las que este usuario originó) de
+  // "asignadas" (las que le tocan a él trabajar). Ya no trae pendientes/
+  // finalizadas/anuladas ni un bloque "porSeguimiento" aparte — ahora es un
+  // único desglose plano por estado de seguimiento (CodSeguimiento).
+  const cotizacionesVacias = { enProceso: 0, enviadas: 0, porIdentificar: 0, na: 0, total: 0 };
   const cotizacionesCreadas   = data?.cotizaciones?.creadas   ?? cotizacionesVacias;
   const cotizacionesAsignadas = data?.cotizaciones?.asignadas ?? cotizacionesVacias;
   const ordenes      = data?.ordenes ?? { completadas: 0, anuladas: 0, total: 0 };
   const clientes      = data?.clientes ?? 0;
+  const repuestosActivos    = data?.repuestosActivosRegistrados    ?? 0;
+  const proveedoresActivos  = data?.proveedoresActivosRegistrados  ?? 0;
   const auditoria     = data?.auditoria ?? {};
 
   const initials = (usuario.nomUsuario ?? user?.name ?? '')
@@ -55,27 +60,34 @@ export default function UserDashboard() {
 
   const pct = (value, total) => total > 0 ? `${Math.round((value / total) * 100)}%` : '—';
 
+  // Cada estado de seguimiento tiene su vista filtrada en Órdenes Realizadas
+  // (status + supplier=codUsuario del usuario de este dashboard).
+  const ordersLink = (statusCode) => `/admin/queries/orders-placed?status=${statusCode}&supplier=${usuario.codUsuario}`;
+
   const kpiCards = [
     {
-      label:  'Cotizaciones Pendientes',
-      value:  cotizacionesAsignadas.pendientes,
-      icon:   <IconChartSquare className="h-7 w-7" />,
-      light:  'bg-warning/10 text-warning',
-      border: 'border-warning/30',
-    },
-    {
-      label:  'En Proceso',
-      value:  cotizacionesAsignadas.enProceso,
+      label:  'Cotizaciones en Proceso',
+      value:  cotizacionesCreadas.enProceso,
+      code:   'EP',
       icon:   <IconChartSquare className="h-7 w-7" />,
       light:  'bg-info/10 text-info',
       border: 'border-info/30',
     },
     {
-      label:  'Cotizaciones Finalizadas',
-      value:  cotizacionesAsignadas.finalizadas,
+      label:  'Cotizaciones Enviadas',
+      value:  cotizacionesCreadas.enviadas,
+      code:   'EN',
       icon:   <IconChartSquare className="h-7 w-7" />,
       light:  'bg-success/10 text-success',
       border: 'border-success/30',
+    },
+    {
+      label:  'Cotizaciones por Identificar',
+      value:  cotizacionesCreadas.porIdentificar,
+      code:   'ID',
+      icon:   <IconChartSquare className="h-7 w-7" />,
+      light:  'bg-warning/10 text-warning',
+      border: 'border-warning/30',
     },
     {
       label:  'Clientes',
@@ -84,17 +96,34 @@ export default function UserDashboard() {
       light:  'bg-primary/10 text-primary',
       border: 'border-primary/30',
     },
+    {
+      label:  'Repuestos Activos',
+      value:  repuestosActivos,
+      icon:   <IconBox className="h-7 w-7" />,
+      light:  'bg-secondary/10 text-secondary',
+      border: 'border-secondary/30',
+    },
+    {
+      label:  'Proveedores Activos',
+      value:  proveedoresActivos,
+      icon:   <IconShoppingBag className="h-7 w-7" />,
+      light:  'bg-danger/10 text-danger',
+      border: 'border-danger/30',
+    },
   ];
 
-  const breakdownFor = (c) => [
-    { label: 'Pendientes',  value: c.pendientes,  color: 'text-warning',  dot: 'bg-warning'  },
-    { label: 'En Proceso',  value: c.enProceso,   color: 'text-info',     dot: 'bg-info'     },
-    { label: 'Finalizadas', value: c.finalizadas, color: 'text-success',  dot: 'bg-success'  },
-    { label: 'Anuladas',    value: c.anuladas,    color: 'text-danger',   dot: 'bg-danger'   },
-    { label: 'Total',       value: c.total,       color: 'text-gray-700 dark:text-gray-200 font-bold', dot: 'bg-gray-400' },
+  // Solo "creadas" tiene vista filtrada válida en Órdenes Realizadas — el link
+  // por status+supplier no corresponde a "asignadas", así que esa tabla va sin
+  // "Detalles" (withLinks = false).
+  const breakdownFor = (c, withLinks = true) => [
+    { label: 'Cotizaciones en Proceso',      value: c.enProceso,      color: 'text-info',     dot: 'bg-info',    code: withLinks ? 'EP' : null },
+    { label: 'Cotizaciones Enviadas',        value: c.enviadas,        color: 'text-success',  dot: 'bg-success', code: withLinks ? 'EN' : null },
+    { label: 'Cotizaciones por Identificar', value: c.porIdentificar, color: 'text-warning',  dot: 'bg-warning', code: withLinks ? 'ID' : null },
+    { label: 'N/A',                          value: c.na,              color: 'text-gray-500', dot: 'bg-gray-400', code: withLinks ? 'NA' : null },
+    { label: 'Total',                        value: c.total,           color: 'text-gray-700 dark:text-gray-200 font-bold', dot: 'bg-gray-400' },
   ];
-  const creadasBreakdown   = breakdownFor(cotizacionesCreadas);
-  const asignadasBreakdown = breakdownFor(cotizacionesAsignadas);
+  const creadasBreakdown   = breakdownFor(cotizacionesCreadas, true);
+  const asignadasBreakdown = breakdownFor(cotizacionesAsignadas, false);
 
   const ordersBreakdown = [
     { label: 'Completadas', value: ordenes.completadas, color: 'text-success', dot: 'bg-success' },
@@ -140,11 +169,11 @@ export default function UserDashboard() {
       </div>
 
       {/* ── KPI CARDS ────────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         {kpiCards.map((card) => (
           <div
             key={card.label}
-            className={`panel flex items-center gap-4 border ${card.border}`}
+            className={`panel relative flex items-center gap-4 border ${card.border} ${card.code ? 'pb-6' : ''}`}
           >
             <div className={`${card.light} rounded-xl p-3 shrink-0`}>
               {card.icon}
@@ -153,6 +182,11 @@ export default function UserDashboard() {
               <p className="text-2xl font-bold text-gray-800 dark:text-white">{card.value}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 leading-tight">{card.label}</p>
             </div>
+            {card.code && (
+              <Link href={ordersLink(card.code)} className="absolute bottom-2 right-3 text-[11px] font-medium text-primary hover:underline">
+                Ver más →
+              </Link>
+            )}
           </div>
         ))}
       </div>
@@ -282,9 +316,16 @@ export default function UserDashboard() {
             <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
               {creadasBreakdown.map((row) => (
                 <tr key={row.label}>
-                  <td className="py-2.5 flex items-center gap-2">
-                    <span className={`h-2 w-2 rounded-full shrink-0 ${row.dot}`} />
-                    <span className={`text-sm ${row.color}`}>{row.label}</span>
+                  <td className="py-2.5">
+                    <span className="flex items-center gap-2">
+                      <span className={`h-2 w-2 rounded-full shrink-0 ${row.dot}`} />
+                      <span className={`text-sm ${row.color}`}>{row.label}</span>
+                      {row.code && (
+                        <Link href={ordersLink(row.code)} className="text-[10px] font-medium text-primary hover:underline shrink-0">
+                          Detalles
+                        </Link>
+                      )}
+                    </span>
                   </td>
                   <td className={`py-2.5 text-right font-semibold ${row.color}`}>{row.value}</td>
                   <td className="py-2.5 text-right text-gray-400 pr-2 text-xs">{row.label === 'Total' ? '' : pct(row.value, cotizacionesCreadas.total)}</td>
@@ -307,9 +348,16 @@ export default function UserDashboard() {
             <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
               {asignadasBreakdown.map((row) => (
                 <tr key={row.label}>
-                  <td className="py-2.5 flex items-center gap-2">
-                    <span className={`h-2 w-2 rounded-full shrink-0 ${row.dot}`} />
-                    <span className={`text-sm ${row.color}`}>{row.label}</span>
+                  <td className="py-2.5">
+                    <span className="flex items-center gap-2">
+                      <span className={`h-2 w-2 rounded-full shrink-0 ${row.dot}`} />
+                      <span className={`text-sm ${row.color}`}>{row.label}</span>
+                      {row.code && (
+                        <Link href={ordersLink(row.code)} className="text-[10px] font-medium text-primary hover:underline shrink-0">
+                          Detalles
+                        </Link>
+                      )}
+                    </span>
                   </td>
                   <td className={`py-2.5 text-right font-semibold ${row.color}`}>{row.value}</td>
                   <td className="py-2.5 text-right text-gray-400 pr-2 text-xs">{row.label === 'Total' ? '' : pct(row.value, cotizacionesAsignadas.total)}</td>

@@ -49,6 +49,8 @@ export default function SparePartsIdentified() {
       const rs = await axiosClient.put(URL_ASSIGN, selected.map(o => o.codRegistro));
       setOrdersUnassigned((rs.data.noAsignados ?? []).map((o, i) => ({ ...o, id: i })));
       setOrdersAssigned((rs.data.asignados     ?? []).map((o, i) => ({ ...o, id: i })));
+      // Al asignar, saltar directo a la pestaña de asignados.
+      router.push('?option=assigned', { scroll: false });
     } catch {}
   };
 
@@ -57,6 +59,8 @@ export default function SparePartsIdentified() {
       const rs = await axiosClient.put(URL_UNASSIGN, selected.map(o => ({ CodRegistro: o.codRegistro })));
       setOrdersUnassigned((rs.data.noAsignados ?? []).map((o, i) => ({ ...o, id: i })));
       setOrdersAssigned((rs.data.asignados     ?? []).map((o, i) => ({ ...o, id: i })));
+      // Simétrico: al quitar la asignación, volver a la pestaña de origen.
+      router.push('?option=identify', { scroll: false });
     } catch {}
   };
 

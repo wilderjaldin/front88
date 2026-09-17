@@ -53,6 +53,9 @@ export default function SparePartsQuotation() {
       const rs      = await axiosClient.put(URL_ASSIGN, payload);
       setOrdersUnassigned((rs.data.noAsignados ?? []).map((o, i) => ({ ...o, id: i })));
       setOrdersAssigned((rs.data.asignados     ?? []).map((o, i) => ({ ...o, id: i })));
+      // Después de asignar, saltar directo a la pestaña de asignados para
+      // ver el resultado sin tener que cambiar de tab a mano.
+      router.push('?option=assigned', { scroll: false });
     } catch {}
   };
 
@@ -62,6 +65,9 @@ export default function SparePartsQuotation() {
       const rs      = await axiosClient.put(URL_UNASSIGN, payload);
       setOrdersUnassigned((rs.data.noAsignados ?? []).map((o, i) => ({ ...o, id: i })));
       setOrdersAssigned((rs.data.asignados     ?? []).map((o, i) => ({ ...o, id: i })));
+      // Simétrico a assignOrder: al quitar la asignación, volver a la
+      // pestaña de no asignados para ver el resultado directo.
+      router.push('?option=unassigned', { scroll: false });
     } catch {}
   };
 

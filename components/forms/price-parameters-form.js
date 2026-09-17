@@ -36,6 +36,16 @@ const swalError = (title, msg = '', confirmText = 'Cerrar') => Swal.fire({
   showConfirmButton: true, confirmButtonText: confirmText, confirmButtonColor: '#ef4444',
 });
 
+// Mismo patrón de popup central bloqueante usado en el resto del flujo de
+// cotización — se cierra con Swal.close() apenas termina la request.
+const showLoadingPopup = (message) => Swal.fire({
+  html: message,
+  showConfirmButton: false,
+  allowOutsideClick: false,
+  allowEscapeKey: false,
+  didOpen: () => Swal.showLoading(),
+});
+
 const sanitizeDecimal = (val) => {
   const clean = val.replace(/[^0-9.]/g, '');
   const dot = clean.indexOf('.');
@@ -152,6 +162,7 @@ const PriceParametersForm = ({ close, token, t, default_value, order, setItems, 
       parsedPositions = parsePositions(data.positions);
     }
 
+    showLoadingPopup(t.updating);
     try {
       const rs = await axiosClient.post('cotizaciondetalle/cambiar-parametro-precio', {
         NroCotizacion: order.NroOrden,
@@ -162,6 +173,7 @@ const PriceParametersForm = ({ close, token, t, default_value, order, setItems, 
       });
 
       const { cotizacion, detalle, mensaje } = rs.data;
+      Swal.close();
 
       if (!cotizacion) {
         swalInfo(mensaje ?? t.price_parameters_info ?? 'Revisa los parámetros', '', t.understood ?? 'Entendido');
@@ -202,6 +214,7 @@ const PriceParametersForm = ({ close, token, t, default_value, order, setItems, 
         setSeleccionados?.([]);
       });
     } catch (error) {
+      Swal.close();
       swalError(t.error ?? 'Error', t.price_parameters_quote_error ?? 'No se pudo guardar', t.close ?? 'Cerrar');
     }
   };

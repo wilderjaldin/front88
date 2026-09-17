@@ -729,6 +729,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
   const mapOpcion = (o) => ({
     CodRepuesto:   o.codRepuesto,
     NroParte:      o.nroParte,
+    DesRepuesto:   o.desRepuesto ?? '',
     TipRepuesto:   o.nomTipRepuesto,
     Aplicacion:    o.nomAplicacion,
     Marca:         o.nomMarca,
@@ -740,9 +741,25 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
     esLocal:       o.esLocal,
   });
 
+  // Título del modal de opciones — antes era un banner dentro del contenido,
+  // ahora va en el título del Modal (props nroParteBuscado/cambioParte ya no
+  // hacen falta en OptionsItemsQuote).
+  const buildOptionsTitle = (nroParteBuscado, cambioParte) => (
+    <>
+      {t.available_options_for_code ?? 'TENEMOS LAS SIGUIENTES OPCIONES PARA EL CODIGO:'}{' '}
+      <span className="text-primary">{nroParteBuscado}</span>
+      {cambioParte && (
+        <>
+          {' -> '}
+          <span className="text-primary">{cambioParte}</span>
+        </>
+      )}
+    </>
+  );
+
   const showOptions = (opciones, data, nroParteBuscado, cambioParte) => {
-    setModalTitle('');
-    setModalSize('w-full max-w-5xl');
+    setModalTitle(buildOptionsTitle(nroParteBuscado, cambioParte));
+    setModalSize('w-full max-w-6xl');
     setModalContent(
       <OptionsItemsQuote
         close={() => setShowModal(false)}
@@ -755,7 +772,6 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
         token={token}
         t={t}
         data={data}
-        nroParteBuscado={nroParteBuscado}
         cambioParte={cambioParte}
         onAdded={() => {
           setValueQuote('nro_part', '');
@@ -1142,6 +1158,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
       const mapOpt = (o) => ({
         CodRepuesto:   o.codRepuesto,
         NroParte:      o.nroParte,
+        DesRepuesto:   o.desRepuesto ?? '',
         TipRepuesto:   o.nomTipRepuesto,
         Aplicacion:    o.nomAplicacion,
         Marca:         o.nomMarca,
@@ -1164,8 +1181,8 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
       data.quantity = getValuesQuote(`items.${item.CodItem}.Cantidad`);
       data.position = item.CodItem;
 
-      setModalTitle('');
-      setModalSize('w-full max-w-5xl');
+      setModalTitle(buildOptionsTitle(data.nro_part, cambioParte));
+      setModalSize('w-full max-w-6xl');
       setModalContent(<OptionsItemsQuote
         close={() => setShowModal(false)}
         updateInputs={updateInputs}
@@ -1178,7 +1195,6 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
         item_select={item}
         t={t}
         data={data}
-        nroParteBuscado={data.nro_part}
         cambioParte={cambioParte}
       />);
       setShowModal(true);
@@ -1970,6 +1986,13 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                   ].map(({ label, opts, val, set, url, key, payloadKey, onSave }) => (
                     <div key={key} className="flex flex-col gap-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-800/30 p-2">
                       <span className="text-xs text-gray-500">{label}</span>
+                      {opts.length <= 1 ? (
+                        // Sin nada entre qué elegir — se muestra como texto
+                        // plano, sin Select ni botón de guardar.
+                        <span className="h-[34px] flex items-center text-sm font-medium text-gray-700 dark:text-gray-200">
+                          {opts[0]?.label ?? val?.label ?? '—'}
+                        </span>
+                      ) : (
                       <div className="flex items-center gap-1.5">
                         <div className="flex-1">
                           <Select
@@ -2014,6 +2037,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                           </svg>
                         </button>
                       </div>
+                      )}
                     </div>
                   ))}
                 </div>

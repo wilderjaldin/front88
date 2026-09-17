@@ -63,9 +63,9 @@ const mapDetalle = (detalle) => (detalle ?? []).map(d => ({
   ParPrecio:    d.parPrecio     ?? false,
 }));
 
-function TypeBadge({ label }) {
+function TypeBadge({ label, muted = false }) {
   return (
-    <span className="text-xs text-gray-600 dark:text-gray-400">
+    <span className={`text-xs ${muted ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-400'}`}>
       {label}
     </span>
   );
@@ -74,7 +74,7 @@ function TypeBadge({ label }) {
 function SectionLabel({ label }) {
   return (
     <tr>
-      <td colSpan={9} className="px-4 pt-4 pb-1">
+      <td colSpan={10} className="px-4 pt-4 pb-1">
         <div className="flex items-center gap-2">
           <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
           <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 px-1">
@@ -87,7 +87,7 @@ function SectionLabel({ label }) {
   );
 }
 
-const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, token, t, order, setItems, setOrder, updateInputs, item_select = [], changePrice = false, onAdded, nroParteBuscado, cambioParte }) => {
+const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, token, t, order, setItems, setOrder, updateInputs, item_select = [], changePrice = false, onAdded, cambioParte }) => {
 
   const router = useRouter();
   const locale = useSelector(getLocale);
@@ -295,15 +295,22 @@ const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, 
   const imports = options.filter(o => !o.esLocal);
   const hasBoth = locals.length > 0 && imports.length > 0;
 
-  const thClass = "text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 px-3 py-2.5 text-left whitespace-nowrap bg-gray-50 dark:bg-gray-800";
-  const tdClass = "px-3 py-2.5 text-xs text-gray-700 dark:text-gray-300";
+  // table-fixed + un % de ancho fijo por columna: así nunca se desborda el
+  // modal (nada de whitespace-nowrap — todo el texto debe poder partirse en
+  // más de una línea, incluso palabras largas sin espacios).
+  const thClass = "text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 px-2 py-2.5 text-left break-words bg-gray-50 dark:bg-gray-800";
+  const tdClass = "px-2 py-2.5 text-xs text-gray-700 dark:text-gray-300 break-words";
+  // Fila del ítem actual (con el check) — texto gris para dejarla claramente
+  // en segundo plano frente a las opciones que sí se pueden elegir.
+  const mutedTdClass = "px-2 py-2.5 text-xs text-gray-400 dark:text-gray-500 break-words";
 
   const renderRows = (rows) => rows.map((o, index) => {
 
     const isSelected = item_select?.CodRepuesto && item_select.CodRepuesto == o.CodRepuesto;
+    const cellClass = isSelected ? mutedTdClass : tdClass;
     return (
       <tr key={index} className={`border-b border-gray-100 dark:border-gray-700 transition-colors ${isSelected ? '' : 'hover:bg-gray-50 dark:hover:bg-gray-800/60'}`}>
-        <td className="px-3 py-2 w-12 text-center">
+        <td className="px-2 py-2 text-center" style={{ width: '5%' }}>
           {isSelected ? (
             <span className="inline-flex h-7 w-7 items-center justify-center">
               <IconCheck className="h-3.5 w-3.5 fill-gray-400 dark:fill-gray-500" />
@@ -314,7 +321,7 @@ const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, 
               type="button"
               title={t.change ?? 'Cambiar'}
               disabled={isSubmitting}
-              className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/40 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/40 transition disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <IconSwap />
             </button>
@@ -330,52 +337,45 @@ const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, 
           )}
         </td>
 
-        
-        <td className={tdClass}><TypeBadge label={o.TipRepuesto} /></td>
-        <td className={tdClass}>{o.Aplicacion}</td>
-        <td className={`${tdClass} font-medium`}>{o.Marca}</td>
-        <td className={tdClass}>{o.Proveedor}</td>
-        <td className={tdClass}>
-          <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-[10px] font-medium text-gray-600 dark:text-gray-300">
+
+        <td className={cellClass}><TypeBadge label={o.TipRepuesto} muted={isSelected} /></td>
+        <td className={cellClass}>{o.DesRepuesto}</td>
+        <td className={cellClass}>{o.Aplicacion}</td>
+        <td className={`${cellClass} font-medium`}>{o.Marca}</td>
+        <td className={cellClass}>{o.Proveedor}</td>
+        <td className={cellClass}>
+          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+            isSelected
+              ? 'bg-gray-50 dark:bg-gray-800 text-gray-400 dark:text-gray-500'
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+          }`}>
             {o.Estado}
           </span>
         </td>
-        <td className={`${tdClass} text-right font-semibold text-gray-900 dark:text-gray-100`}>
+        <td className={`${cellClass} text-right font-semibold ${isSelected ? '' : 'text-gray-900 dark:text-gray-100'}`}>
           {customFormat(o.Precio)}
         </td>
-        <td className={tdClass}>{o.DesTieEntrega}</td>
-        <td className={`${tdClass} text-right tabular-nums`}>{o.DiasVigencia}</td>
+        <td className={cellClass}>{o.DesTieEntrega}</td>
+        <td className={`${cellClass} text-right tabular-nums`}>{o.DiasVigencia}</td>
       </tr>
     );
   });
 
   return (
     <>
-      {nroParteBuscado && (
-        <div className="px-4 py-3 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-900/40 text-sm text-gray-700 dark:text-gray-200">
-          {t.available_options_for_code ?? 'TENEMOS LAS SIGUIENTES OPCIONES PARA EL CODIGO:'}{' '}
-          <span className="font-bold">{nroParteBuscado}</span>
-          {cambioParte && (
-            <>
-              {' -> '}
-              <span className="font-bold">{cambioParte}</span>
-            </>
-          )}
-        </div>
-      )}
-      <div className="overflow-x-auto">
-      <table className="w-full border-collapse bg-white dark:bg-gray-900 text-sm">
+      <table className="w-full table-fixed border-collapse bg-white dark:bg-gray-900 text-sm">
         <thead>
           <tr>
-            <th className={`${thClass} w-12`}></th>
-            <th className={thClass}>{t.spare_part_type}</th>
-            <th className={thClass}>{t.application}</th>
-            <th className={thClass}>{t.brand}</th>
-            <th className={thClass}>{t.supplier}</th>
-            <th className={thClass}>{t.status}</th>
-            <th className={`${thClass} text-right`}>{t.price_unit}</th>
-            <th className={thClass}>{t.delivery_time}</th>
-            <th className={`${thClass} text-right`}>{t.days_of_validity}</th>
+            <th className={thClass} style={{ width: '5%' }}></th>
+            <th className={thClass} style={{ width: '9%' }}>{t.spare_part_type}</th>
+            <th className={thClass} style={{ width: '22%' }}>{t.description}</th>
+            <th className={thClass} style={{ width: '10%' }}>{t.application}</th>
+            <th className={thClass} style={{ width: '10%' }}>{t.brand}</th>
+            <th className={thClass} style={{ width: '13%' }}>{t.supplier}</th>
+            <th className={thClass} style={{ width: '8%' }}>{t.status}</th>
+            <th className={`${thClass} text-right`} style={{ width: '9%' }}>{t.price_unit}</th>
+            <th className={thClass} style={{ width: '8%' }}>{t.delivery_time}</th>
+            <th className={`${thClass} text-right`} style={{ width: '6%' }}>{t.days_of_validity}</th>
           </tr>
         </thead>
         <tbody>
@@ -391,7 +391,6 @@ const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, 
           )}
         </tbody>
       </table>
-      </div>
     </>
   );
 };
