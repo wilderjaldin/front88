@@ -49,7 +49,11 @@ export default function UserDashboard() {
   const cotizacionesVacias = { enProceso: 0, enviadas: 0, porIdentificar: 0, na: 0, total: 0 };
   const cotizacionesCreadas   = data?.cotizaciones?.creadas   ?? cotizacionesVacias;
   const cotizacionesAsignadas = data?.cotizaciones?.asignadas ?? cotizacionesVacias;
-  const ordenes      = data?.ordenes ?? { completadas: 0, anuladas: 0, total: 0 };
+  const ordenes      = data?.ordenes ?? {};
+  const pendientesRecibir = ordenes.pendientesRecibir ?? { items: 0, unidades: 0 };
+  const productividad     = ordenes.productividad ?? {};
+  const mesActual         = productividad.mesActual   ?? { ocs: 0, items: 0 };
+  const mesAnterior       = productividad.mesAnterior ?? { ocs: 0, items: 0 };
   const clientes      = data?.clientes ?? 0;
   const repuestosActivos    = data?.repuestosActivosRegistrados    ?? 0;
   const proveedoresActivos  = data?.proveedoresActivosRegistrados  ?? 0;
@@ -125,11 +129,19 @@ export default function UserDashboard() {
   const creadasBreakdown   = breakdownFor(cotizacionesCreadas, true);
   const asignadasBreakdown = breakdownFor(cotizacionesAsignadas, false);
 
+  // enProceso = CM, recibidas = LE, anuladas = AN (estados de la OC)
   const ordersBreakdown = [
-    { label: 'Completadas', value: ordenes.completadas, color: 'text-success', dot: 'bg-success' },
-    { label: 'Anuladas',    value: ordenes.anuladas,    color: 'text-danger',  dot: 'bg-danger'  },
-    { label: 'Total',       value: ordenes.total,       color: 'text-gray-700 dark:text-gray-200 font-bold', dot: 'bg-gray-400' },
+    { label: 'En Proceso', value: ordenes.enProceso ?? 0, color: 'text-info',    dot: 'bg-info'    },
+    { label: 'Recibidas',  value: ordenes.recibidas ?? 0, color: 'text-success', dot: 'bg-success' },
+    { label: 'Anuladas',   value: ordenes.anuladas  ?? 0, color: 'text-danger',  dot: 'bg-danger'  },
+    { label: 'Total',      value: ordenes.total     ?? 0, color: 'text-gray-700 dark:text-gray-200 font-bold', dot: 'bg-gray-400' },
   ];
+
+  // variacionPorcentaje viene null si el mes anterior tuvo 0 OC
+  const variacionOcs = productividad.variacionOcs ?? 0;
+  const variacionPct = productividad.variacionPorcentaje;
+  const varColor = variacionOcs > 0 ? 'text-success' : variacionOcs < 0 ? 'text-danger' : 'text-gray-500';
+  const varSign  = variacionOcs > 0 ? '+' : '';
 
   if (loading) {
     return (
@@ -382,6 +394,50 @@ export default function UserDashboard() {
               ))}
             </tbody>
           </table>
+
+          <div className="border-t border-gray-100 dark:border-gray-800 pt-3 space-y-2 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-500 dark:text-gray-400">OC últimos 30 días</span>
+              <span className="font-semibold text-gray-700 dark:text-gray-200">{ordenes.ultimoMes ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-gray-500 dark:text-gray-400">Pendientes por recibir</span>
+              <span className="font-semibold text-warning text-right">
+                {pendientesRecibir.items} ítems
+                <span className="text-xs font-normal text-gray-400"> · {pendientesRecibir.unidades} unid.</span>
+              </span>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-100 dark:border-gray-800 pt-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Productividad</p>
+              <span className={`text-xs font-semibold ${varColor}`}>
+                {varSign}{variacionOcs} OC{variacionPct != null ? ` (${varSign}${variacionPct}%)` : ''}
+              </span>
+            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 dark:border-gray-700">
+                  <th className="pb-1.5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Mes</th>
+                  <th className="pb-1.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide">OC</th>
+                  <th className="pb-1.5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide">Ítems</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                <tr>
+                  <td className="py-2 text-gray-600 dark:text-gray-300">Actual</td>
+                  <td className="py-2 text-right font-semibold text-gray-700 dark:text-gray-200">{mesActual.ocs}</td>
+                  <td className="py-2 text-right font-semibold text-gray-700 dark:text-gray-200">{mesActual.items}</td>
+                </tr>
+                <tr>
+                  <td className="py-2 text-gray-600 dark:text-gray-300">Anterior</td>
+                  <td className="py-2 text-right text-gray-500">{mesAnterior.ocs}</td>
+                  <td className="py-2 text-right text-gray-500">{mesAnterior.items}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
       </div>

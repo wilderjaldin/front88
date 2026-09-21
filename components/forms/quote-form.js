@@ -2206,9 +2206,9 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                         return (
                         <SortableRow key={item.CodItem} id={item.CodItem} index={index + 1} t={t} className={`transition ${
                           sinPrecio
-                            ? 'bg-rose-50 dark:bg-rose-900/15 hover:bg-rose-100/70 dark:hover:bg-rose-900/25'
+                            ? 'bg-rose-100 dark:bg-rose-500/20 hover:bg-rose-200/70 dark:hover:bg-rose-500/30'
                             : item.ParPrecio
-                              ? 'bg-amber-50 dark:bg-amber-900/15 hover:bg-amber-100/70 dark:hover:bg-amber-900/25'
+                              ? 'bg-amber-100 dark:bg-amber-500/25 hover:bg-amber-200/70 dark:hover:bg-amber-500/35'
                               : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                         }`}>
                           <td className={`${tdClass} text-center`}>
@@ -2293,7 +2293,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
               <div className="flex flex-col gap-1.5 px-1 pt-2">
                 {items.some(i => !i.Precio || i.Precio === 0) && (
                   <div className="flex items-center gap-2">
-                    <span className="inline-block h-3 w-5 rounded-sm bg-rose-100 dark:bg-rose-900/40 border border-rose-300 dark:border-rose-700 shrink-0" />
+                    <span className="inline-block h-3 w-5 rounded-sm bg-rose-100 dark:bg-rose-500/30 border border-rose-300 dark:border-rose-500/60 shrink-0" />
                     <span className="text-[11px] text-gray-400 dark:text-gray-500">
                       {t.sin_precio_legend ?? 'Ítem sin precio / falta actualizar precio'}
                     </span>
@@ -2301,7 +2301,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                 )}
                 {items.some(i => i.ParPrecio) && (
                   <div className="flex items-center gap-2">
-                    <span className="inline-block h-3 w-5 rounded-sm bg-amber-200 dark:bg-amber-700/50 border border-amber-300 dark:border-amber-600 shrink-0" />
+                    <span className="inline-block h-3 w-5 rounded-sm bg-amber-200 dark:bg-amber-500/35 border border-amber-300 dark:border-amber-500/70 shrink-0" />
                     <span className="text-[11px] text-gray-400 dark:text-gray-500">
                       {t.par_precio_legend ?? 'Con parámetro de precio'}
                     </span>

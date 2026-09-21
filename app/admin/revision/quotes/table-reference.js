@@ -1,16 +1,14 @@
 'use client';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Checkbox } from '@mantine/core';
 import { useForm, Controller } from 'react-hook-form';
-import AsyncSelect from '@/components/ui/AsyncSelect';
-import axios from 'axios';
+import BrandSelect from '@/components/ui/BrandSelect';
+import axiosClient from '@/app/lib/axiosClient';
+import { swalSuccess, swalInfo, swalError } from '@/app/lib/swal';
 import IconBackSpace from '@/components/icon/icon-backspace';
 import { customFormat } from '@/app/lib/format';
 
-const url_validate = process.env.NEXT_PUBLIC_API_URL + 'referencia/ValidarReferencia';
-
-const ASYNC_MIN = 2;
-const ASYNC_MAX = 30;
+const url_validate = 'cotizaciondetalle/validar-referencia';
 
 const TableReference = ({ NroParte, t, items = [], token, options = [], close, quote_id = 0, brands = [] }) => {
 
@@ -19,12 +17,6 @@ const TableReference = ({ NroParte, t, items = [], token, options = [], close, q
   const [filter,           setFilter]          = useState('');
 
   const { setValue, getValues, control } = useForm();
-
-  const loadBrandOptions = useCallback((inputValue, callback) => {
-    const term = inputValue?.trim().toLowerCase() ?? '';
-    if (term.length < ASYNC_MIN) return callback([]);
-    callback(brands.filter(b => b.label.toLowerCase().includes(term)).slice(0, ASYNC_MAX));
-  }, [brands]);
 
   useEffect(() => {
     items.forEach(record => {
@@ -45,25 +37,36 @@ const TableReference = ({ NroParte, t, items = [], token, options = [], close, q
   const toggleRowOption = (row) =>
     setSelectedOptions(prev => prev.includes(row) ? prev.filter(x => x !== row) : [...prev, row]);
 
+  // Bloquea Validar (y Cerrar) mientras la request está en curso — sin esto un
+  // doble click enviaba dos veces la misma validación.
+  const [validating, setValidating] = useState(false);
+
   const validateItem = async () => {
+    if (validating) return;
+    setValidating(true);
     try {
       const data_send = [];
 
       selected_items.forEach(item => {
         const val    = getValues(`orders.${item.CodRegistro}.application`);
         const select = brands.find(b => b.value == val);
-        data_send.push({ NroOrden: quote_id, NroParte: item.NroParte, NomMarca: select?.label ?? '', ValToken: token });
+        data_send.push({ nroOrden: quote_id, nroParte: item.NroParte, nomMarca: select?.label ?? '' });
       });
 
       selected_options.forEach(item => {
-        data_send.push({ NroOrden: quote_id, NroParte: item.NroParte, NomMarca: item.NomMarca, ValToken: token });
+        data_send.push({ nroOrden: quote_id, nroParte: item.NroParte, nomMarca: item.NomMarca });
       });
 
-      const rs = await axios.post(url_validate, data_send);
-      if (rs.data.estado == 'OK') {
-        close();
-      }
-    } catch {}
+      const rs = await axiosClient.post(url_validate, data_send);
+      const { mensaje, enviados } = rs.data ?? {};
+      close();
+      // enviados = 0 → todo ya estaba cargado: aviso informativo, no éxito
+      if ((enviados ?? 0) > 0) swalSuccess(mensaje ?? t.validate_quote_success ?? 'Referencia validada');
+      else swalInfo(mensaje ?? 'Las referencias ya estaban cargadas', '', t.close ?? 'Cerrar');
+    } catch (err) {
+      swalError(t.error ?? 'Error', err?.response?.data?.mensaje ?? err?.response?.data?.message ?? '', t.close ?? 'Cerrar');
+    }
+    finally { setValidating(false); }
   };
 
   const filtered = items.filter(item =>
@@ -140,19 +143,13 @@ const TableReference = ({ NroParte, t, items = [], token, options = [], close, q
                       name={`orders.${item.CodRegistro}.application`}
                       control={control}
                       render={({ field }) => (
-                        <AsyncSelect
-                          loadOptions={loadBrandOptions}
-                          defaultOptions={false}
-                          cacheOptions
+                        <BrandSelect
+                          t={t}
+                          options={brands}
                           isClearable
                           placeholder="—"
                           menuPosition="fixed"
                           menuShouldScrollIntoView={false}
-                          noOptionsMessage={({ inputValue }) =>
-                            (inputValue?.trim().length ?? 0) < ASYNC_MIN
-                              ? `Ingresa ${ASYNC_MIN} caracteres`
-                              : (t.no_results ?? 'Sin resultados')
-                          }
                           value={brands.find(o => o.value === field.value) || null}
                           onChange={opt => field.onChange(opt?.value ?? null)}
                           styles={{
@@ -239,20 +236,23 @@ const TableReference = ({ NroParte, t, items = [], token, options = [], close, q
         <button
           type="button"
           onClick={close}
+          disabled={validating}
           className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-4
             text-sm text-gray-600 hover:bg-gray-50 transition
+            disabled:opacity-50 disabled:cursor-not-allowed
             dark:border-gray-600 dark:bg-transparent dark:text-gray-300 dark:hover:bg-gray-800"
         >
           {t.btn_close ?? 'Cerrar'}
         </button>
         <button
           type="button"
-          disabled={selected_items.length === 0 && selected_options.length === 0}
+          disabled={validating || (selected_items.length === 0 && selected_options.length === 0)}
           onClick={validateItem}
           className="flex h-9 items-center gap-1.5 rounded-lg bg-success px-5
             text-white text-sm font-medium shadow-sm hover:bg-success/90 transition
             disabled:opacity-40 disabled:cursor-not-allowed"
         >
+          {validating && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />}
           {t.validate ?? 'Validar'}
         </button>
       </div>

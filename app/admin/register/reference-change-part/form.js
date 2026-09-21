@@ -11,11 +11,13 @@ const Form = ({ t, brands = [], action_cancel, handleSave }) => {
     handleSubmit,
     setValue,
     control,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm();
 
-  const onSave = (data) => {
-    handleSave({
+  // async + await: isSubmitting queda en true mientras dura la request, así el
+  // botón Guardar se bloquea y no se puede registrar dos veces con doble click.
+  const onSave = async (data) => {
+    await handleSave({
       NroParteOriginal: data.nro_part,
       NroParteCambio:   data.reference,
       CodMarcaOriginal: data.application_part?.value ?? 0,
@@ -99,18 +101,24 @@ const Form = ({ t, brands = [], action_cancel, handleSave }) => {
           <button
             type="button"
             onClick={action_cancel}
+            disabled={isSubmitting}
             className="h-10 rounded-lg border border-gray-300 bg-white px-5
               text-sm text-gray-700 hover:bg-gray-50 transition
+              disabled:opacity-50 disabled:cursor-not-allowed
               dark:border-gray-600 dark:bg-transparent dark:text-gray-300 dark:hover:bg-gray-800"
           >
             {t.btn_cancel}
           </button>
           <button
             type="submit"
+            disabled={isSubmitting}
             className="flex h-10 items-center gap-2 rounded-lg bg-primary px-5
-              text-white text-sm font-medium shadow-sm hover:bg-primary/90 transition"
+              text-white text-sm font-medium shadow-sm hover:bg-primary/90 transition
+              disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <IconSave className="h-4 w-4" />
+            {isSubmitting
+              ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              : <IconSave className="h-4 w-4" />}
             {t.btn_save}
           </button>
         </div>
