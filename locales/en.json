@@ -1296,6 +1296,8 @@
   "quote_type": "Quote Type",
   "ordered_quote_title": "Quote ordered",
   "ordered_quote_message": "This quote has already been ordered and cannot be modified.",
+  "received_quote_title": "Quote received",
+  "received_quote_message": "This quote has already been received and cannot be modified.",
   "expired_quote_title": "Quote not current",
   "expired_quote_message": "This quote is no longer current. Prices and availability may have changed in the last 7 days. Items need to be updated to continue.",
   "update_quote_btn": "Update Quote",

@@ -1298,6 +1298,8 @@
   "quote_type": "Tipo de Cotización",
   "ordered_quote_title": "Cotización ordenada",
   "ordered_quote_message": "Esta cotización ya fue ordenada y no admite modificaciones.",
+  "received_quote_title": "Cotización recepcionada",
+  "received_quote_message": "Esta cotización ya fue recepcionada y no admite modificaciones.",
   "expired_quote_title": "Cotización no vigente",
   "expired_quote_message": "Esta cotización ya no se encuentra vigente. Los precios y disponibilidad pueden haber cambiado en los últimos 7 días. Se requiere actualizar los ítems para continuar.",
   "update_quote_btn": "Actualizar Cotización",
