@@ -53,6 +53,7 @@ const mapDetalleItem = (d) => ({
   CostoReal:             d.costoReal,
   Total:                 d.total,
   OrigenCompra:          d.origenCompra ?? '',
+  NumTransac:            d.numTransac ?? null,
   isDivide:              d.isDivide ?? 0,
   EsDividido:            d.esDividido ?? false,
   NumCorrelativo:        d.numCorrelativo ?? null,
@@ -268,6 +269,7 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
         origenCompra: i.OrigenCompra,
         costoSis: i.CostoSistema,
         costoInc: costoReal,
+        numTransac: i.NumTransac ?? null,
       };
     }).filter(Boolean);
 

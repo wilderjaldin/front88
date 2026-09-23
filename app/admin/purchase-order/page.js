@@ -217,6 +217,10 @@ export default function PurchaseOrder() {
         CostoReal:       d.costoReal,
         Total:           d.total,
         OrigenCompra:    d.origenCompra ?? '',
+        // Origen del ítem (vencotme = cotización, vencomme = orden de compra
+        // previa) — para representantes, generar-oc necesita saber de cuál
+        // tabla vino cada línea. Ya viene resuelto en numTransac.
+        NumTransac:      d.numTransac ?? null,
         isDivide:        d.isDivide ?? 0,
         EsDividido:      d.esDividido ?? false,
         NumCorrelativo:  d.numCorrelativo ?? null,
