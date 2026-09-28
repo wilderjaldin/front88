@@ -13,7 +13,7 @@ import BtnImprimir from "@/app/admin/document-delivery/BtnImprimir";
 
 const URL_CONTROLES = 'entregas/controles';
 const URL_ENTREGAS  = 'entregas';
-const URL_CANCEL    = 'entregas/anular';
+const URL_CANCEL    = 'entregas/anular-despacho';
 
 const thClass = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap";
 const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-3 py-2";

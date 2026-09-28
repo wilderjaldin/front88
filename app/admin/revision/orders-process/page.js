@@ -7,7 +7,6 @@ import AsyncSelect from '@/components/ui/AsyncSelect';
 import axiosClient from '@/app/lib/axiosClient';
 import { swalConfirm, swalError, swalSuccess } from '@/app/lib/swal';
 import Link from "next/link";
-import { Pagination } from '@mantine/core';
 import { useTranslation } from "@/app/locales";
 import { useSelector } from 'react-redux';
 import { selectToken } from '@/store/authSlice';
@@ -23,7 +22,6 @@ const URL_CONTROLES = 'ordenesenproceso/proceso/controles';
 const URL_DELIVERED    = 'ordenesenproceso/entregado';
 const URL_CANCEL_ORDER = 'ordenesenproceso/anular';
 
-const PAGE_SIZE      = 20;
 const ASYNC_MIN_CHARS = 2;
 const ASYNC_LIMIT     = 20;
 
@@ -76,7 +74,6 @@ export default function OrdersProcess() {
   const option      = searchParams.get("option") || "";
   const customer_id = searchParams.get("customer");
 
-  const urlPage     = Math.max(1, parseInt(searchParams.get("page")      || "1", 10));
   const urlSort     = searchParams.get("sort")     ?? '';
   const urlDir      = searchParams.get("dir")      ?? 'asc';
   const urlTerm     = searchParams.get("term")     ?? '';
@@ -87,6 +84,10 @@ export default function OrdersProcess() {
   const [orders,   setOrders]   = useState([]);
   const [total,    setTotal]    = useState(0);
   const [loading,  setLoading]  = useState(false);
+  // Scroll infinito: 'loading' es solo la carga inicial/de filtros (reemplaza la
+  // tabla); 'loadingMore' es el aviso de abajo mientras se anexa la siguiente página.
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [exhausted,   setExhausted]   = useState(false);
   const [selected, setSelected] = useState([]);
   const [estados,  setEstados]  = useState([]);
   const [clientes, setClientes] = useState([]);
@@ -140,29 +141,87 @@ export default function OrdersProcess() {
 
   useEffect(() => { if (option === "") setCustomer(null); }, [option]);
 
-  const lastKeyRef = useRef('');
+  const lastKeyRef     = useRef('');
+  const pageRef        = useRef(1);
+  const reqRef         = useRef(0);   // descarta respuestas de filtros/orden ya obsoletos
+  const loadingMoreRef = useRef(false);
+  const sentinelRef    = useRef(null);
 
+  const buildParams = useCallback((page) => {
+    const params = { page, term: urlTerm };
+    if (urlSort)    { params.sort = urlSort; params.dir = urlDir; }
+    if (urlEstado)    params.codEstado  = urlEstado;
+    if (urlCliente)   params.codCliente = urlCliente;
+    return params;
+  }, [urlSort, urlDir, urlTerm, urlEstado, urlCliente]);
+
+  // Primera página: se dispara al cambiar filtros u ordenamiento (la página ya no vive en la URL).
   const fetchOrders = useCallback(async () => {
-    const key = `${urlPage}|${urlSort}|${urlDir}|${urlTerm}|${urlEstado}|${urlCliente}`;
+    const key = `${urlSort}|${urlDir}|${urlTerm}|${urlEstado}|${urlCliente}`;
     if (lastKeyRef.current === key) return;
     lastKeyRef.current = key;
+    const reqId = ++reqRef.current;
+    pageRef.current = 1;
+    loadingMoreRef.current = false;
+    setLoadingMore(false);
+    setExhausted(false);
     setLoading(true);
     try {
-      const params = { page: urlPage, term: urlTerm };
-      if (urlSort)    { params.sort = urlSort; params.dir = urlDir; }
-      if (urlEstado)    params.codEstado  = urlEstado;
-      if (urlCliente)   params.codCliente = urlCliente;
-      const rs = await axiosClient.get(URL_PROCESO, { params });
+      const rs = await axiosClient.get(URL_PROCESO, { params: buildParams(1) });
+      if (reqId !== reqRef.current) return;
       setOrders(rs.data.datos ?? rs.data.Datos ?? []);
       setTotal(rs.data.total  ?? rs.data.Total  ?? 0);
       setSelected([]);
     } catch {}
-    finally { setLoading(false); }
-  }, [urlPage, urlSort, urlDir, urlTerm, urlEstado, urlCliente]);
+    finally { if (reqId === reqRef.current) setLoading(false); }
+  }, [urlSort, urlDir, urlTerm, urlEstado, urlCliente, buildParams]);
 
   useEffect(() => {
     if (!customer_id) fetchOrders();
   }, [customer_id, fetchOrders]);
+
+  // Siguientes páginas: se anexan a la lista (sin duplicar) y conservan la selección.
+  const loadMore = useCallback(async () => {
+    if (loadingMoreRef.current) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    const reqId    = reqRef.current;
+    const nextPage = pageRef.current + 1;
+    try {
+      const rs   = await axiosClient.get(URL_PROCESO, { params: buildParams(nextPage) });
+      if (reqId !== reqRef.current) return;
+      const rows = rs.data.datos ?? rs.data.Datos ?? [];
+      pageRef.current = nextPage;
+      setTotal(rs.data.total ?? rs.data.Total ?? total);
+      if (rows.length === 0) { setExhausted(true); return; }
+      setOrders(prev => {
+        const seen = new Set(prev.map(o => o.nroCotizacion));
+        return [...prev, ...rows.filter(o => !seen.has(o.nroCotizacion))];
+      });
+    } catch {
+      setExhausted(true); // evita reintentar en bucle si el endpoint falla
+    }
+    finally {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [buildParams, total]);
+
+  const hasMore = !exhausted && orders.length < total;
+
+  // Centinela al final de la tabla: al acercarse al viewport carga la siguiente página.
+  // Depende de orders.length para re-observar tras cada carga (si el contenido sigue
+  // sin llenar la pantalla, dispara otra).
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasMore || loading) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) loadMore(); },
+      { rootMargin: '300px' }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [hasMore, loading, loadMore, orders.length]);
 
   const applyFilter = ({ term, estado, codCliente }) => {
     const params = new URLSearchParams();
@@ -182,15 +241,8 @@ export default function OrdersProcess() {
   const handleSort = (col) => {
     const newDir = urlSort === col && urlDir === 'asc' ? 'desc' : 'asc';
     const params = new URLSearchParams(searchParams.toString());
-    params.delete("page");
     params.set("sort", col);
     params.set("dir", newDir);
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  };
-
-  const handlePageChange = (newPage) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (newPage > 1) params.set("page", String(newPage)); else params.delete("page");
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
@@ -209,6 +261,8 @@ export default function OrdersProcess() {
     setOrders(data?.datos ?? data?.Datos ?? []);
     setTotal(data?.total  ?? data?.Total  ?? total);
     setSelected([]);
+    pageRef.current = 1;
+    setExhausted(false);
   };
 
   const delivered = async () => {
@@ -500,15 +554,11 @@ export default function OrdersProcess() {
             </div>
           )}
 
-          {!loading && total > PAGE_SIZE && (
-            <div className="flex justify-center mt-4">
-              <Pagination
-                total={Math.ceil(total / PAGE_SIZE)}
-                value={urlPage}
-                onChange={handlePageChange}
-                size="sm"
-                radius="xl"
-              />
+          {!loading && orders.length > 0 && (
+            <div ref={sentinelRef} className="flex items-center justify-center py-6 text-xs text-gray-400">
+              {loadingMore
+                ? <span className="animate-pulse">{t.searching}</span>
+                : !hasMore && total > 0 && <span>{orders.length} / {total}</span>}
             </div>
           )}
         </>
