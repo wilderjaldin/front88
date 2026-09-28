@@ -1,11 +1,13 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useSelector } from 'react-redux';
 import { selectUser } from '@/store/authSlice';
 import { useTranslation } from '@/app/locales';
 import { useDynamicTitle } from '@/app/hooks/useDynamicTitle';
 import axiosClient from '@/app/lib/axiosClient';
+import { checkSession } from '@/app/lib/session';
 import IconUser from '@/components/icon/icon-user';
 import IconUsers from '@/components/icon/icon-users';
 import IconChartSquare from '@/components/icon/icon-chart-square';
@@ -17,8 +19,9 @@ import IconShoppingBag from '@/components/icon/icon-shopping-bag';
 const URL_DASHBOARD = 'usuarios/dashboard';
 
 export default function UserDashboard() {
-  const user = useSelector(selectUser);
-  const t    = useTranslation();
+  const user   = useSelector(selectUser);
+  const t      = useTranslation();
+  const router = useRouter();
   useDynamicTitle('Mi Dashboard');
 
   const [data,    setData]    = useState(null);
@@ -26,6 +29,12 @@ export default function UserDashboard() {
 
   useEffect(() => {
     getData();
+    // Punto de control de sesión/permisos: este dashboard se carga al iniciar
+    // sesión y al volver a la pantalla de inicio — es donde se detecta al
+    // usuario de oficina que cerró el navegador y volvió con permisos ya
+    // desactualizados o la sesión ya cerrada. No bloquea getData ni se espera.
+    checkSession(router, t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const getData = async () => {

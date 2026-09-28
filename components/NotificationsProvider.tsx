@@ -8,7 +8,8 @@ import axiosClient from "@/app/lib/axiosClient";
 import { useTranslation } from "@/app/locales";
 import { selectToken } from "@/store/authSlice";
 import { setTotalNoLeidos } from "@/store/notificationsSlice";
-import { getHubConnection, setHubToken, stopHubConnection } from "@/app/lib/signalr";
+import { getHubConnection, setHubToken, stopHubConnection, setOnReconnected } from "@/app/lib/signalr";
+import { checkSession, forceLogout } from "@/app/lib/session";
 
 const URL_NO_LEIDOS = "inbox/no-leidos";
 
@@ -260,12 +261,29 @@ export default function NotificationsProvider() {
       );
     };
 
+    // Corte directo de sesión (revocada por un admin) — sin session-check, no hay
+    // nada que refrescar. El aviso es un modal central bloqueante (swalError), no
+    // un toast de esquina: corta el acceso, así que debe confirmarse, no perderse.
+    const onSesionRevocada = () => { forceLogout(router, t); };
+
+    // Cambio de permisos en vivo: refresca token/permisos y avisa (modal central
+    // informativo), sin desloguear si la sesión sigue activa.
+    const onPermisosActualizados = () => { checkSession(router, t); };
+
     conn.on("nuevaMensaje", onNuevaMensaje);
     conn.on("mensajeVisto", onMensajeVisto);
     conn.on("mensajeArchivado", onMensajeArchivado);
     conn.on("seguimientoAsignado", onSeguimientoAsignado);
     conn.on("ordenCompraGenerada", onOrdenCompraGenerada);
     conn.on("ordenCompraAnulada", onOrdenCompraAnulada);
+    conn.on("sesionRevocada", onSesionRevocada);
+    conn.on("permisosActualizados", onPermisosActualizados);
+
+    // Red de seguridad: si la conexión se cae justo cuando cambian los permisos/
+    // sesión, al reconectar se vuelve a chequear (ver comentario en signalr.ts —
+    // este callback se reasigna en cada efecto, pero el registro real en el SDK
+    // ocurre una sola vez, al crear la conexión).
+    setOnReconnected(() => { checkSession(router, t); });
 
     if (conn.state === signalR.HubConnectionState.Disconnected) {
       conn.start().catch((err) => console.error("SignalR: error al conectar", err));
@@ -278,6 +296,8 @@ export default function NotificationsProvider() {
       conn.off("seguimientoAsignado", onSeguimientoAsignado);
       conn.off("ordenCompraGenerada", onOrdenCompraGenerada);
       conn.off("ordenCompraAnulada", onOrdenCompraAnulada);
+      conn.off("sesionRevocada", onSesionRevocada);
+      conn.off("permisosActualizados", onPermisosActualizados);
     };
   }, [token, dispatch, router, t]);
 

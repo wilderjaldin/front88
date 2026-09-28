@@ -10,6 +10,16 @@ export function setHubToken(token: string | null | undefined) {
 
 let connection: signalR.HubConnection | null = null;
 
+// El SDK no tiene "offreconnected" para desregistrar un callback puntual — sus
+// callbacks se acumulan. Por eso el registro real (connection.onreconnected)
+// se hace una sola vez, acá abajo, al crear la conexión; lo que puede cambiar
+// entre renders (router, t del componente) se pasa por esta referencia mutable
+// en vez de volver a llamar connection.onreconnected en cada efecto.
+let onReconnectedCallback: (() => void) | null = null;
+export function setOnReconnected(cb: (() => void) | null) {
+  onReconnectedCallback = cb;
+}
+
 export function getHubConnection(): signalR.HubConnection {
   if (!connection) {
     connection = new signalR.HubConnectionBuilder()
@@ -24,6 +34,9 @@ export function getHubConnection(): signalR.HubConnection {
       if (err) console.error("SignalR: conexión cerrada", err);
     });
     connection.onreconnecting((err) => console.warn("SignalR: reconectando...", err));
+    // Red de seguridad para el usuario que se queda desconectado justo en el
+    // momento de un cambio de permisos/sesión: al reconectar, vuelve a chequear.
+    connection.onreconnected(() => onReconnectedCallback?.());
   }
   return connection;
 }

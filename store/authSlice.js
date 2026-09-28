@@ -51,12 +51,23 @@ export const authSlice = createSlice({
 
       state.impersonated = false;
 
-    }
+    },
+    // Resultado de usuarios/session-check cuando permissionsChanged=true: pisa el
+    // token (ya viene con los permisos nuevos codificados en el back) y, si el back
+    // también manda el array de permisos, lo actualiza en el mismo golpe — a
+    // diferencia de setAuth, nunca toca `user` ni corre riesgo de vaciar `permissions`
+    // si esa clave no viene en el payload.
+    refreshSession: (state, action) => {
+      state.token = action.payload.token;
+      if (action.payload.permissions !== undefined) {
+        state.permissions = action.payload.permissions;
+      }
+    },
 
   },
 });
 
-export const { setAuth, setUser, setImpersonation, restoreAdmin } = authSlice.actions
+export const { setAuth, setUser, setImpersonation, restoreAdmin, refreshSession } = authSlice.actions
 
 export const selectToken = (state) => state.authState.token
 export const selectUser = (state) => state.authState.user
