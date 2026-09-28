@@ -189,7 +189,7 @@ export default function DeliveryReport() {
     );
     if (!isConfirmed) return;
     try {
-      const payload = { numEntregas: seleccionados.map(o => o.numEntrega) };
+      const payload = seleccionados.map(o => ({ numEntrega: o.numEntrega }));
       const rs = await axiosClient.post(URL_CANCEL, payload);
       setSeleccionados([]);
       lastKeyRef.current = '';
