@@ -5,6 +5,7 @@ import Swal from 'sweetalert2';
 import { swalSuccess, swalError } from '@/app/lib/swal';
 import IconArrowDown from '@/components/icon/icon-arrow-down';
 import SearchFilter from '@/components/SearchFilter';
+import { customFormat } from '@/app/lib/format';
 
 const PAGE_SIZE = 50;
 
@@ -82,6 +83,11 @@ const Pendings = ({ t, data = [], attachOrder, cancelReception, onSearch, onClea
   const toggleRow = (row) =>
     setSelected(prev => prev.includes(row) ? prev.filter(i => i !== row) : [...prev, row]);
 
+  // Suma en vivo del Monto de lo seleccionado — se muestra en la barra de
+  // acciones (no flotando sobre la columna, como en el sistema anterior) para
+  // que quede junto a los botones que ya dependen de la selección.
+  const selectedTotal = selected.reduce((sum, o) => sum + (Number(o.Monto) || 0), 0);
+
   const handleCancelReception = async () => {
     const result = await Swal.fire({
       title: t.question_cancel_the_order_reception,
@@ -138,6 +144,14 @@ const Pendings = ({ t, data = [], attachOrder, cancelReception, onSearch, onClea
           {t.cancel_reception}
         </button>
 
+        {selected.length > 0 && (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 dark:bg-primary/20 px-2.5 py-1 text-[11px] font-semibold text-primary">
+            {selected.length} {t.selected ?? 'seleccionado(s)'}
+            <span className="h-3 w-px bg-primary/30" />
+            {t.total ?? 'Total'} $us {customFormat(selectedTotal)}
+          </span>
+        )}
+
         <SearchFilter t={t} onSearch={onSearch} onClear={onClear} className="ml-auto" />
       </div>
 
@@ -160,11 +174,13 @@ const Pendings = ({ t, data = [], attachOrder, cancelReception, onSearch, onClea
                 <SortableHeader col="NomCliente"       label={t.customer}           sort={sortColumn} dir={sortDir} onSort={handleSort} />
                 <SortableHeader col="NroRecepcion"     label={t.nro_reception}      sort={sortColumn} dir={sortDir} onSort={handleSort} />
                 <SortableHeader col="DirEntrega"       label={t.delivery_address}   sort={sortColumn} dir={sortDir} onSort={handleSort} />
+                <SortableHeader col="Transporte"       label={t.transport}          sort={sortColumn} dir={sortDir} onSort={handleSort} />
+                <SortableHeader col="Monto"            label={t.amount_column ?? 'Monto'} sort={sortColumn} dir={sortDir} onSort={handleSort} className="text-right" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
               {pageData.length === 0 ? (
-                <tr><td colSpan={6} className="py-8 text-center text-xs text-gray-400">{t.no_matches}</td></tr>
+                <tr><td colSpan={8} className="py-8 text-center text-xs text-gray-400">{t.no_matches}</td></tr>
               ) : pageData.map((o, index) => (
                 <tr
                   key={o.id ?? index}
@@ -188,6 +204,8 @@ const Pendings = ({ t, data = [], attachOrder, cancelReception, onSearch, onClea
                   <td className={tdClass}>{o.NomCliente}</td>
                   <td className={tdClass}>{o.NroRecepcion}</td>
                   <td className={tdClass}>{o.DirEntrega}</td>
+                  <td className={tdClass}>{o.Transporte}</td>
+                  <td className={`${tdClass} text-right tabular-nums`}>{customFormat(o.Monto)}</td>
                 </tr>
               ))}
             </tbody>

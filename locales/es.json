@@ -441,6 +441,7 @@
   "is_standard": "¿Es Standard?",
   "registration_date" : "Fecha de ingreso",
   "amount" : "Cantidad",
+  "amount_column": "Monto",
   "question_delete_available_stock" : "¿Deseas eliminar la disponibilidad del Stock?",
   "available_stock_deleted" : "La disponibilidad del stock fué eliminado correctamente",
   "available_stock_deleted_error" : "Ocurrio un error al eliminar la disponibilidad del stock. Por favor, inténtalo nuevamente",

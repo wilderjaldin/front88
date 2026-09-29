@@ -37,6 +37,10 @@ const SelectCity = ({
   const [showModal, setShowModal] = useState(false);
 
   const isDisabled  = !isLoading && cities.length === 0;
+  // El botón [+] depende de si ya hay un país elegido, NO de si ese país
+  // ya tiene ciudades cargadas — de hecho el caso más común para usarlo es
+  // justo cuando la lista viene vacía (país sin ciudades registradas aún).
+  const addDisabled = isLoading || !selectedCountry;
   const placeholder = isLoading
     ? 'Cargando...'
     : isDisabled
@@ -89,7 +93,7 @@ const SelectCity = ({
             <button
               type="button"
               onClick={handleAdd}
-              disabled={isDisabled}
+              disabled={addDisabled}
               title={t.add_city}
               className="flex items-center justify-center px-3 border border-l-0 border-[#94a3b8]
                          rounded-r-lg bg-gray-100 dark:bg-gray-800

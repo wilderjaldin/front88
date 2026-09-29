@@ -956,7 +956,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
   const attach = () => {
     setModalTitle('');
     setModalSize('w-full max-w-6xl');
-    setModalContent(<AttachQuoteForm close={() => setShowModal(false)} nro={order.NroOrden} t={t} readOnly={entregado} />);
+    setModalContent(<AttachQuoteForm close={() => setShowModal(false)} nro={order.NroOrden} t={t} />);
     setShowModal(true);
   }
 
@@ -2093,8 +2093,13 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                   className="h-8 w-8 flex items-center justify-center rounded-lg bg-violet-50 text-violet-600 hover:bg-violet-100 transition disabled:opacity-50 disabled:cursor-not-allowed">
                   <IconDiscount className="h-4 w-4" />
                 </button>
-                <button onClick={run(attach)} title={t.attach} type="button" disabled={isSubmitting || blockedStrict}
-                  className="h-8 w-8 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                {/* Adjuntar NO pasa por run(): esa función corta silenciosamente si
+                    `blocked` es true (vencida/ordenada/recepcionada/entregada), y
+                    adjuntar documentos debe seguir disponible sin importar el estado
+                    de la cotización — a diferencia del resto de acciones de este bloque,
+                    tampoco pega directo a un endpoint al abrir (solo abre el modal). */}
+                <button onClick={attach} title={t.attach} type="button"
+                  className="h-8 w-8 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700">
                   <IconAttachment className="h-4 w-4" />
                 </button>
               </div>

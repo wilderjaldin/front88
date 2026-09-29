@@ -441,6 +441,7 @@
   "is_standard": "Is it a standard profit?",
   "registration_date" : "Registration Date",
   "amount" : "Quanity",
+  "amount_column": "Amount",
   "question_delete_available_stock" : "Eliminate Inventory?",
   "available_stock_deleted" : "Inventory eliminated",
   "available_stock_deleted_error" : " An error occurred, please try again or contact support ",

@@ -1,7 +1,6 @@
 'use client';
 import React, { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { Pagination } from '@mantine/core';
 import IconSave from '@/components/icon/icon-save';
 import IconDownload from '@/components/icon/icon-download';
 import IconTag from '@/components/icon/icon-tag';
@@ -39,7 +38,11 @@ const ORIGEN_DROPDOWN_MAX_HEIGHT = 176;
 
 const Receptions = ({ t, data, setReceptions, selected_orders, onRefresh, origenes = [] }) => {
 
-  const [page,   setPage]   = useState(1);
+  // Scroll infinito: toda la lista ya viene cargada del backend (recepcion/listar
+  // no pagina), así que acá no hay más requests — solo se van revelando más filas
+  // ya presentes en memoria a medida que se acerca el final de la tabla.
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const sentinelRef = useRef(null);
   const [saving, setSaving] = useState(false);
   const [savingNote, setSavingNote] = useState(false);
 
@@ -96,10 +99,23 @@ const Receptions = ({ t, data, setReceptions, selected_orders, onRefresh, origen
     });
   }, [data]);
 
-  useEffect(() => { setPage(1); }, [data]);
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [data]);
 
-  const totalPages = Math.ceil(data.length / PAGE_SIZE);
-  const pageData    = data.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pageData = data.slice(0, visibleCount);
+  const hasMore  = visibleCount < data.length;
+
+  // Centinela al final de la tabla: al acercarse al viewport revela el siguiente
+  // bloque ya cargado en memoria (sin red — recepcion/listar trae todo de una vez).
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasMore) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setVisibleCount(v => Math.min(v + PAGE_SIZE, data.length)); },
+      { rootMargin: '300px' }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [hasMore, data.length]);
 
   // Navegación tipo Excel entre celdas editables de la tabla.
   const cellRefs = useRef({});
@@ -532,9 +548,9 @@ const Receptions = ({ t, data, setReceptions, selected_orders, onRefresh, origen
         );
       })()}
 
-      {totalPages > 1 && (
-        <div className="flex justify-center mt-4">
-          <Pagination total={totalPages} value={page} onChange={setPage} size="sm" radius="xl" />
+      {data.length > 0 && (
+        <div ref={sentinelRef} className="flex items-center justify-center py-6 text-xs text-gray-400">
+          {!hasMore && <span>{pageData.length} / {data.length}</span>}
         </div>
       )}
 

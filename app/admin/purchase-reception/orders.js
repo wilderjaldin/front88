@@ -1,6 +1,5 @@
 'use client';
-import React, { useEffect, useMemo, useState } from 'react';
-import { Pagination } from '@mantine/core';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Select from '@/components/ui/Select';
 import SearchFilter from '@/components/SearchFilter';
 import IconArrowDown from '@/components/icon/icon-arrow-down';
@@ -79,7 +78,11 @@ const FilterChecklist = ({ title, options, selected, onToggle }) => (
 const Orders = ({ t, data, setOrders, attachOrder, loading, onRefresh, onSearch, onClear }) => {
 
   const [selected_orders, setSelectedOrders] = useState([]);
-  const [page, setPage] = useState(1);
+  // Scroll infinito: recepcion/listar trae todo de una vez, así que acá no hay
+  // más requests — solo se van revelando más filas ya presentes en memoria a
+  // medida que se acerca el final de la tabla.
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const sentinelRef = useRef(null);
   const [submitting, setSubmitting] = useState(false);
   const [savingChanges, setSavingChanges] = useState(false);
 
@@ -108,7 +111,7 @@ const Orders = ({ t, data, setOrders, attachOrder, loading, onRefresh, onSearch,
     })
   }, [data]);
 
-  useEffect(() => { setSelectedOrders([]); setPage(1); }, [data]);
+  useEffect(() => { setSelectedOrders([]); setVisibleCount(PAGE_SIZE); }, [data]);
 
   // Catálogos del filtro avanzado: se extraen del listado completo (ya no hay endpoint "controles").
   const catalogs = useMemo(() => {
@@ -158,10 +161,23 @@ const Orders = ({ t, data, setOrders, attachOrder, loading, onRefresh, onSearch,
     return list;
   }, [data, advFilters]);
 
-  useEffect(() => { setPage(1); }, [data, advFilters]);
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [data, advFilters]);
 
-  const totalPages = Math.ceil(filteredData.length / PAGE_SIZE);
-  const pageData    = filteredData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pageData = filteredData.slice(0, visibleCount);
+  const hasMore  = visibleCount < filteredData.length;
+
+  // Centinela al final de la tabla: al acercarse al viewport revela el siguiente
+  // bloque ya cargado en memoria (sin red).
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasMore) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setVisibleCount(v => Math.min(v + PAGE_SIZE, filteredData.length)); },
+      { rootMargin: '300px' }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [hasMore, filteredData.length]);
 
   const toggleAll = () =>
     setSelectedOrders(selected_orders.length === pageData.length ? [] : [...pageData]);
@@ -542,9 +558,9 @@ const Orders = ({ t, data, setOrders, attachOrder, loading, onRefresh, onSearch,
         </div>
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex justify-center mt-4">
-          <Pagination total={totalPages} value={page} onChange={setPage} size="sm" radius="xl" />
+      {filteredData.length > 0 && (
+        <div ref={sentinelRef} className="flex items-center justify-center py-6 text-xs text-gray-400">
+          {!hasMore && <span>{pageData.length} / {filteredData.length}</span>}
         </div>
       )}
 
