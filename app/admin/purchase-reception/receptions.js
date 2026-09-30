@@ -267,31 +267,38 @@ const Receptions = ({ t, data, setReceptions, selected_orders, onRefresh, origen
     }
   }
 
-  // Payload de recepcion/guardar-items — compartido entre "Guardar Recepción" y "Guardar Nota".
-  const buildItems = () => data.map((o) => ({
-    NumOrdenCompra: o.NumOrdenCompra,
-    nroCotizacion: o.NroOrden,
-    CodItem: o.CodItem,
-    CodRepuesto: o.CodRepuesto,
-    // NroParte/NroParteCompra en el payload corresponden a los campos crudos del backend
-    // (nroParte/nroParteCompra), invertidos respecto a como se mapean en pantalla.
-    NroParte: o.NroParteCliente,
-    NroParteCompra: o.NroParte,
-    CanRecibida: getValues(`orders_${o.id}_amount`) || 0,
-    DesRepuesto: o.Descripcion,
-    Nota: getValues(`orders_${o.id}_note`),
-    Presentacion: o.Presentacion,
-    Material: o.Material,
-    Origen: getValues(`orders_${o.id}_origen`),
-    HCode: o.HCode,
-  }));
+  // Payload de recepcion/guardar-items — a diferencia de buildNoteItems (Guardar
+  // Nota), acá se excluyen las filas con Can. Recibida en 0: no hay nada que
+  // reportar como recibido, así que ni siquiera se mandan al backend.
+  const buildItems = () => data
+    .filter(o => Number(getValues(`orders_${o.id}_amount`)) > 0)
+    .map((o) => ({
+      NumOrdenCompra: o.NumOrdenCompra,
+      nroCotizacion: o.NroOrden,
+      CodItem: o.CodItem,
+      CodRepuesto: o.CodRepuesto,
+      // NroParte/NroParteCompra en el payload corresponden a los campos crudos del backend
+      // (nroParte/nroParteCompra), invertidos respecto a como se mapean en pantalla.
+      NroParte: o.NroParteCliente,
+      NroParteCompra: o.NroParte,
+      CanRecibida: getValues(`orders_${o.id}_amount`) || 0,
+      DesRepuesto: o.Descripcion,
+      Nota: getValues(`orders_${o.id}_note`),
+      Presentacion: o.Presentacion,
+      Material: o.Material,
+      Origen: getValues(`orders_${o.id}_origen`),
+      HCode: o.HCode,
+    }));
 
   const saveDataReception = async () => {
     setSaving(true);
     try {
+      // 0 es válido (ítem sin recibir todavía, se excluye del payload en
+      // buildItems) — el único valor realmente inválido es el campo vacío, o
+      // recibir más de lo que falta.
       const different = data.some(o => {
         const amount = getValues(`orders_${o.id}_amount`);
-        return amount < 1 || amount > o.CantFaltante;
+        return amount === '' || amount == null || Number(amount) < 0 || Number(amount) > o.CantFaltante;
       });
 
       if (different) {
