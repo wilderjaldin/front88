@@ -316,7 +316,7 @@ const AttachQuoteForm = ({ close, t, nro, urls = {}, readOnly = false }) => {
                           </button>
                         )}
                         <a
-                          href={`${ARCHIVOS_URL}/${nro}/${f.codArchivo}`}
+                          href={`${ARCHIVOS_URL}/quotes/${nro}/${f.codArchivo}`}
                           download={f.nomArchivo}
                           title="Descargar"
                           className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition"

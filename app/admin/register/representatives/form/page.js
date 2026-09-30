@@ -300,6 +300,7 @@ export default function RepresentanteFormPage({
                 {...register('nitEmp', {
                   required:  t.required_field,
                   maxLength: { value: 15, message: 'Máximo 15 caracteres' },
+                  pattern:   { value: /^[0-9.\- ]*$/, message: 'Solo se permiten números, "-", "." y espacios' },
                 })}
                 className="form-input w-full"
               />

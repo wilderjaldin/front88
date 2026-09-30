@@ -161,7 +161,15 @@ const DatatablesUser = ({
                       </div>
                     </td>
                     <td className={tdClass}>{user.nomRol}</td>
-                    <td className={`${tdClass} font-medium text-gray-800 dark:text-gray-200`}>{user.nomUsuario}</td>
+                    <td className={`${tdClass} font-medium text-gray-800 dark:text-gray-200`}>
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          title={user.online ? 'Conectado' : 'Desconectado'}
+                          className={`h-2 w-2 rounded-full shrink-0 ${user.online ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                        />
+                        {user.nomUsuario}
+                      </div>
+                    </td>
                     <td className={`${tdClass} leading-tight`}>
                       <div className="space-y-0.5">
                         <div className="flex items-center gap-1">

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form"
 import { useTranslation } from "@/app/locales";
 import DatatablesUsers from './datatables-users';
@@ -17,12 +17,14 @@ import { usePermissions } from "@/app/hooks/usePermissions";
 import AccessDenied from "@/components/AccessDenied";
 import AllowedCountries from "./allowedCountries"
 import { PERMISSIONS } from "@/constants/permissions";
+import { getHubConnection } from "@/app/lib/signalr";
 
 // ── URLs ──────────────────────────────────────────────────────────────────────
 const URL_LISTAR_USUARIOS  = "/usuarios/listar";
 const URL_DETALLE_USUARIO  = "/usuarios/detalle";
 const URL_STATUS_USUARIO   = "/usuarios/status";
 const URL_CONTROLES        = "/usuarios/controles";
+const URL_PRESENCIA_DEBUG  = "/usuarios/presencia-debug"; // temporal, solo para inspeccionar la respuesta
 
 export default function Users() {
 
@@ -71,6 +73,60 @@ export default function Users() {
     getUsers(page, term);
   }, [page, term]);
 
+  // Refs con el page/term vigentes, para que el refetch de abajo (registrado
+  // una sola vez) siempre pida la página/búsqueda actuales y no las que había
+  // en el primer mount (closure obsoleta).
+  const pageRef = useRef(page);
+  const termRef = useRef(term);
+  useEffect(() => { pageRef.current = page; }, [page]);
+  useEffect(() => { termRef.current = term; }, [term]);
+
+  // Refetch al volver a la pestaña/ventana — el Router Cache de Next.js puede
+  // servir esta página desde caché al navegar y volver (sin remontar el
+  // componente ni re-ejecutar el efecto de arriba), así que sin esto el
+  // indicador online/offline y el resto de la lista quedaban congelados hasta
+  // un F5 completo. visibilitychange cubre volver desde otra pestaña/app;
+  // focus cubre volver a la ventana. Cualquiera de los dos alcanza para volver
+  // a pedir la lista completa (que ya trae `online` fresco del backend).
+  useEffect(() => {
+    const refetch = () => getUsers(pageRef.current, termRef.current);
+    const onVisibility = () => { if (document.visibilityState === 'visible') refetch(); };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', refetch);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', refetch);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Estado online/offline en vivo — reusa la conexión SignalR que ya arma/mantiene
+  // NotificationsProvider (montado en app/admin/layout.tsx); acá solo nos
+  // suscribimos a dos eventos propios, sin abrir conexión ni llamar start().
+  // Actualiza la fila en memoria por codUsuario, sin volver a pedir la lista.
+  useEffect(() => {
+    const conn = getHubConnection();
+
+    // String(): el payload del hub y el de /usuarios/listar podrían serializar
+    // codUsuario de forma distinta (number vs string) — comparar como texto
+    // evita que un desajuste de tipo haga que nunca "matchee" ninguna fila.
+    const setOnline = (codUsuario, online) => {
+      setUsers(prev => prev.map(u =>
+        String(u.codUsuario) === String(codUsuario) ? { ...u, online } : u
+      ));
+    };
+    const onUsuarioOnline  = (data) => setOnline(data?.codUsuario, true);
+    const onUsuarioOffline = (data) => setOnline(data?.codUsuario, false);
+
+    conn.on("usuarioOnline", onUsuarioOnline);
+    conn.on("usuarioOffline", onUsuarioOffline);
+
+    return () => {
+      conn.off("usuarioOnline", onUsuarioOnline);
+      conn.off("usuarioOffline", onUsuarioOffline);
+    };
+  }, []);
+
   // Roles + países: se cargan juntos y solo la primera vez que se abre el modal
   // de usuario, para no repetir la llamada cada vez que se abre el formulario.
   const loadControles = async () => {
@@ -102,6 +158,12 @@ export default function Users() {
       const data = Array.isArray(rs.data.data) ? rs.data.data : [];
       setTotal(rs.data.total ?? 0);
       setUsers(data.map((o, index) => ({ ...o, id: index })));
+
+      // Debug temporal — solo para ver qué devuelve este endpoint, no se usa
+      // para nada en pantalla. Quitar junto con URL_PRESENCIA_DEBUG.
+      axiosClient.get(URL_PRESENCIA_DEBUG)
+        .then(r => console.log('[presencia-debug]', r.data))
+        .catch(err => console.log('[presencia-debug] error', err?.response?.status, err?.response?.data));
     } catch (error) {
       if (error?.response?.status === 403) {
         setForbidden(true);

@@ -49,64 +49,66 @@ const API_FIELD_MAP = {
 };
 
 // ── Reglas espejo del DTO + validaciones adicionales de negocio ───────────────
-const RULES = {
+// Función (no objeto) porque los mensajes necesitan `t` — se llama dentro del
+// componente, que es donde vive useTranslation().
+const buildRules = (t) => ({
 
   nomContacto: {
-    required:  'El nombre del contacto es obligatorio',
-    minLength: { value: 3,  message: 'El nombre debe tener mínimo 3 caracteres' },
-    maxLength: { value: 80, message: 'El nombre no puede superar 80 caracteres' },
+    required:  t.contact_name_required,
+    minLength: { value: 3,  message: t.contact_name_min_length },
+    maxLength: { value: 80, message: t.contact_name_max_length },
     validate: {
       noOnlySpaces: (v) =>
-        sanitize(v).length > 0 || 'El nombre no puede estar vacío',
+        sanitize(v).length > 0 || t.contact_name_not_empty,
       lettersOnly: (v) =>
-        LETTERS_ONLY.test(sanitize(v)) || 'Solo letras, un espacio entre palabras, guion simple (Jean-Pierre) o apóstrofe simple (O\'Brien)',
+        LETTERS_ONLY.test(sanitize(v)) || t.contact_name_letters_only,
     },
   },
 
   nomCargo: {
-    maxLength: { value: 80, message: 'El cargo no puede superar 80 caracteres' },
+    maxLength: { value: 80, message: t.contact_position_max_length },
     validate: {
       minLen: (v) =>
         !v || sanitize(v).length === 0 || sanitize(v).length >= 5
-          || 'El cargo debe tener mínimo 5 caracteres',
+          || t.contact_position_min_length_5,
       lettersOnly: (v) =>
         !v || sanitize(v).length === 0 || LETTERS_ONLY.test(sanitize(v))
-          || 'Solo letras, un espacio entre palabras, guion simple o apóstrofe simple',
+          || t.contact_position_letters_only,
     },
   },
 
   email: {
-    maxLength: { value: 45, message: 'El correo no puede superar 45 caracteres' },
+    maxLength: { value: 60, message: t.contact_email_max_length },
     validate: {
       noSpaces: (v) =>
         !v || sanitize(v).length === 0 || !/\s/.test(v.trim())
-          || 'El correo no puede contener espacios',
+          || t.contact_email_no_spaces,
       noConsecDots: (v) =>
         !v || sanitize(v).length === 0 || !sanitize(v).includes('..')
-          || 'El correo no puede tener puntos consecutivos',
+          || t.contact_email_no_consec_dots,
       format: (v) =>
         !v || sanitize(v).length === 0 || EMAIL_REGEX.test(sanitize(v))
-          || 'Formato inválido. Ej: nombre@dominio.com',
+          || t.invalid_email_format,
     },
   },
 
   phone: {
-    maxLength: { value: 45, message: 'El teléfono no puede superar 45 caracteres' },
+    maxLength: { value: 45, message: t.contact_phone_max_length },
     validate: {
       validChars: (v) =>
         !v || sanitize(v).length === 0 || PHONE_REGEX.test(v.trim())
-          || 'Solo se permiten dígitos y los caracteres + - ( ) .',
+          || t.contact_phone_valid_chars,
       minDigits: (v) => {
         if (!v || sanitize(v).length === 0) return true;
-        return v.replace(/\D/g, '').length >= 4 || 'El teléfono debe tener al menos 4 dígitos';
+        return v.replace(/\D/g, '').length >= 4 || t.contact_phone_min_digits;
       },
       maxDigits: (v) => {
         if (!v || sanitize(v).length === 0) return true;
-        return v.replace(/\D/g, '').length <= 20 || 'El teléfono no puede tener más de 20 dígitos';
+        return v.replace(/\D/g, '').length <= 20 || t.contact_phone_max_digits;
       },
     },
   },
-};
+});
 
 // ── Error inline ──────────────────────────────────────────────────────────────
 const FieldError = ({ error }) =>
@@ -115,7 +117,7 @@ const FieldError = ({ error }) =>
     : null;
 
 // ── Grupo expandible ──────────────────────────────────────────────────────────
-const ExpandableGroup = ({ label, fields, register, rules, errors, visible, onExpand }) => {
+const ExpandableGroup = ({ label, fields, register, rules, errors, visible, onExpand, t }) => {
   const visibleFields = fields.slice(0, visible);
   const hasMore = visible < fields.length;
 
@@ -141,7 +143,7 @@ const ExpandableGroup = ({ label, fields, register, rules, errors, visible, onEx
                 <button
                   type="button"
                   onClick={onExpand}
-                  title={`Agregar otro ${label.toLowerCase()}`}
+                  title={(t.add_another_item ?? 'Agregar otro {item}').replace('{item}', label.toLowerCase())}
                   className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg
                              border border-gray-300 dark:border-gray-600 text-gray-400
                              hover:border-primary hover:text-primary transition-colors"
@@ -174,6 +176,7 @@ const ComponentContactForm = ({
   onSaved  = () => {},
 }) => {
   const t = useTranslation();
+  const RULES = buildRules(t);
 
   const [emailsVisible, setEmailsVisible] = useState(1);
   const [phonesVisible, setPhonesVisible] = useState(1);
@@ -236,7 +239,7 @@ const ComponentContactForm = ({
 
     // Guardia final: si tras sanitizar nomContacto queda vacío, abortar
     if (!payload.nomContacto) {
-      setError('nomContacto', { type: 'manual', message: 'El nombre del contacto es obligatorio' });
+      setError('nomContacto', { type: 'manual', message: t.contact_name_required });
       return;
     }
 
@@ -273,8 +276,8 @@ const ComponentContactForm = ({
   };
 
   const emailFields = [
-    { name: 'email_1', placeholder: 'correo@ejemplo.com' },
-    { name: 'email_2', placeholder: 'correo@ejemplo.com' },
+    { name: 'email_1', placeholder: t.contact_email_example_ph },
+    { name: 'email_2', placeholder: t.contact_email_example_ph },
   ];
   const phoneFields = [
     { name: 'phone_1', placeholder: '' },
@@ -288,7 +291,7 @@ const ComponentContactForm = ({
       {/* ── Nombre completo ───────────────────────────────────────────── */}
       <div className="flex items-start gap-2">
         <label className="w-36 shrink-0 text-sm text-gray-500 dark:text-gray-400 text-right pr-2 mt-2 required">
-          Nombre completo
+          {t.full_name}
         </label>
         <div className="flex-1">
           <input
@@ -296,7 +299,7 @@ const ComponentContactForm = ({
             autoComplete="off"
             spellCheck="false"
             {...register('nomContacto', RULES.nomContacto)}
-            placeholder="Ej: María García"
+            placeholder={t.contact_name_example_ph}
             className={`form-input w-full ${errors.nomContacto ? 'error' : ''}`}
           />
           <FieldError error={errors.nomContacto} />
@@ -315,7 +318,7 @@ const ComponentContactForm = ({
             autoComplete="off"
             spellCheck="false"
             {...register('nomCargo', RULES.nomCargo)}
-            placeholder="Ej: Gerente Comercial"
+            placeholder={t.contact_position_example_ph}
             className={`form-input flex-1 ${errors.nomCargo ? 'error' : ''}`}
           />
           <div className="w-9 shrink-0" />
@@ -332,24 +335,26 @@ const ComponentContactForm = ({
 
       {/* ── Correos ───────────────────────────────────────────────────── */}
       <ExpandableGroup
-        label="Correo electrónico"
+        label={t.email}
         fields={emailFields}
         register={register}
         rules={RULES.email}
         errors={errors}
         visible={emailsVisible}
         onExpand={() => setEmailsVisible(v => Math.min(v + 1, emailFields.length))}
+        t={t}
       />
 
       {/* ── Teléfonos ─────────────────────────────────────────────────── */}
       <ExpandableGroup
-        label="Teléfono"
+        label={t.phone}
         fields={phoneFields}
         register={register}
         rules={RULES.phone}
         errors={errors}
         visible={phonesVisible}
         onExpand={() => setPhonesVisible(v => Math.min(v + 1, phoneFields.length))}
+        t={t}
       />
 
       {/* ── Botones ───────────────────────────────────────────────────── */}
@@ -358,7 +363,7 @@ const ComponentContactForm = ({
           {t.btn_cancel}
         </button>
         <button type="submit" disabled={isSubmitting} className="btn btn-success">
-          {isSubmitting ? 'Guardando...' : isNew ? t.btn_register_contact : t.btn_update_contact}
+          {isSubmitting ? (t.saving ?? 'Guardando...') : isNew ? t.btn_register_contact : t.btn_update_contact}
         </button>
       </div>
     </form>

@@ -442,6 +442,27 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
 
   const [seleccionados, setSeleccionados] = useState([])
 
+  // Offset real del <header> del sitio para la barra sticky de abajo — no se
+  // puede hardcodear un top fijo porque el header cambia de alto según el tema
+  // (navbar-sticky/navbar-floating/navbar-static, configurable por usuario en
+  // Ajustes) y según el ancho de pantalla. Si el header no está realmente
+  // sticky/fixed (tema "navbar-static"), el offset queda en 0: el header ya
+  // se desplaza junto con el resto, así que la barra no necesita "esquivarlo".
+  const [toolbarTop, setToolbarTop] = useState(0);
+  useEffect(() => {
+    const header = document.querySelector('header');
+    if (!header) return;
+    const updateOffset = () => {
+      const pos = getComputedStyle(header).position;
+      setToolbarTop(pos === 'sticky' || pos === 'fixed' ? header.getBoundingClientRect().height : 0);
+    };
+    updateOffset();
+    const ro = new ResizeObserver(updateOffset);
+    ro.observe(header);
+    window.addEventListener('resize', updateOffset);
+    return () => { ro.disconnect(); window.removeEventListener('resize', updateOffset); };
+  }, []);
+
   // "Marcar como" solo aplica a ítems sin precio todavía — si hay algo
   // seleccionado que ya tiene precio, se bloquea el botón entero.
   const canMarkStatus = seleccionados.length > 0 && seleccionados.every(i => !i.Precio || i.Precio === 0);
@@ -2066,8 +2087,13 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
       {order.NroOrden && (
         <>
           {/* Toolbar + Table */}
-          <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0 mt-4">
-            <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+          {/* Sin overflow-hidden acá: la barra de abajo necesita "escapar" del panel
+              para poder quedar sticky al hacer scroll (overflow-hidden en un ancestro
+              corta el position:sticky). El redondeado de las esquinas ahora lo pone
+              cada bloque por su cuenta (rounded-t-md en la barra, rounded-b-md en el
+              contenedor de la tabla) en vez de depender del recorte del padre. */}
+          <div className="panel border border-gray-200 dark:border-gray-700 p-0 mt-4">
+            <div style={{ top: toolbarTop }} className="sticky z-20 rounded-t-md flex flex-wrap items-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
 
               {/* Acciones sobre ítems */}
               <div className="flex flex-wrap items-center gap-1.5">
@@ -2154,6 +2180,12 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                 )}
               </div>
 
+              {seleccionados.length > 0 && (
+                <span className="inline-flex items-center rounded-full bg-primary/10 dark:bg-primary/20 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
+                  {seleccionados.length} {t.selected ?? 'seleccionado(s)'}
+                </span>
+              )}
+
               <div className="flex-1" />
 
               {/* Opciones de cotización */}
@@ -2192,7 +2224,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
 
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-b-md">
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
                 <table className="w-full border-collapse bg-white dark:bg-gray-900" ref={tablaRef}>
                   <thead>
@@ -2221,13 +2253,20 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                       {items.map((item, index) => {
                         const sinPrecio = !item.Precio || item.Precio === 0;
+                        const isSelected = seleccionados.some(i => i.CodItem === item.CodItem);
                         return (
                         <SortableRow key={item.CodItem} id={item.CodItem} index={index + 1} t={t} className={`transition ${
-                          sinPrecio
-                            ? 'bg-rose-100 dark:bg-rose-500/20 hover:bg-rose-200/70 dark:hover:bg-rose-500/30'
-                            : item.ParPrecio
-                              ? 'bg-amber-100 dark:bg-amber-500/25 hover:bg-amber-200/70 dark:hover:bg-amber-500/35'
-                              : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                          // Selección: reemplaza el fondo directamente (mismo criterio de
+                          // color que usa el resto de la app para filas seleccionadas), con
+                          // prioridad sobre el aviso de "sin precio"/"con parámetro" — el
+                          // checkbox marcado ya deja claro cuál está seleccionado.
+                          isSelected
+                            ? 'bg-primary/10 dark:bg-primary/15 hover:bg-primary/15 dark:hover:bg-primary/20'
+                            : sinPrecio
+                              ? 'bg-rose-100 dark:bg-rose-500/20 hover:bg-rose-200/70 dark:hover:bg-rose-500/30'
+                              : item.ParPrecio
+                                ? 'bg-amber-100 dark:bg-amber-500/25 hover:bg-amber-200/70 dark:hover:bg-amber-500/35'
+                                : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                         }`}>
                           <td className={`${tdClass} text-center`}>
                             <input type="checkbox" className="form-checkbox border-gray-400 rounded"

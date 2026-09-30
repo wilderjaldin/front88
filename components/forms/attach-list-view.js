@@ -49,7 +49,7 @@ const AttachListView = ({ close, t, nro, urls = {} }) => {
                   <tr key={f.codRegistro ?? index} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                     <td className="px-2 py-1.5">
                       <a
-                        href={`${ARCHIVOS_URL}/${nro}/${f.codArchivo}`}
+                        href={`${ARCHIVOS_URL}/quotes/${nro}/${f.codArchivo}`}
                         download={f.nomArchivo}
                         title="Descargar"
                         className="inline-flex p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition"

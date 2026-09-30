@@ -48,9 +48,15 @@ const DispatchDataModal = ({ t, row, onClose, onSaved }) => {
   const [items, setItems]               = useState([]);
   const [loadingItems, setLoadingItems] = useState(true);
   const [saving, setSaving]             = useState(false);
+  const [destino, setDestino]           = useState(null);
+  // Overlay de carga inicial: cubre el modal mientras están en vuelo los dos
+  // requests de apertura (entregas/controles y adjuntar-items/detalle-despacho)
+  // — sin esto los Select se veían vacíos un instante sin ningún indicio de que
+  // todavía estaban cargando opciones.
+  const [loadingControls, setLoadingControls] = useState(true);
 
   useEffect(() => {
-    axiosClient.get(URL_CONTROLS, { params: { incluirDirecciones: true } }).then(rs => {
+    axiosClient.get(URL_CONTROLS, { params: { incluirDirecciones: true, numEmbalaje: row?.NumEmbalaje } }).then(rs => {
       const vendedores      = rs.data?.vendedores ?? [];
       const despachadores   = rs.data?.despachadores ?? [];
       const direcciones     = rs.data?.direccionesEntrega ?? [];
@@ -63,6 +69,7 @@ const DispatchDataModal = ({ t, row, onClose, onSaved }) => {
       setTransportTypes(transportes);
       setPaymentTerms(condicionesPago);
       setCurrencies(monedas);
+      setDestino(rs.data?.destino ?? null);
 
       // Si ya existe un despacho para este embalaje, sus valores guardados
       // se cargan aparte (ver efecto de detalle-despacho) y pisan estos defaults.
@@ -84,8 +91,9 @@ const DispatchDataModal = ({ t, row, onClose, onSaved }) => {
       const defaultCurrency = monedas.find(o => (o.label || '').toUpperCase() === 'DOLARES');
       if (defaultCurrency) setValue('currency', defaultCurrency);
       else if (monedas.length === 1) setValue('currency', monedas[0]);
-    }).catch(() => {});
-  }, [setValue, row?.NumDespacho]);
+    }).catch(() => {})
+      .finally(() => setLoadingControls(false));
+  }, [setValue, row?.NumDespacho, row?.NumEmbalaje]);
 
   // Editando un despacho ya existente: precarga sus valores guardados, incluidos
   // los ítems (detalle-despacho ya los trae — no hace falta entregas/adjuntar-items).
@@ -223,16 +231,58 @@ const DispatchDataModal = ({ t, row, onClose, onSaved }) => {
     }
   };
 
+  // Cubre tanto entregas/controles (Selects) como adjuntar-items/detalle-despacho
+  // (tabla de ítems) — mientras cualquiera de los dos siga en vuelo, el modal
+  // completo queda tapado en vez de mostrar Selects vacíos.
+  const loadingInitial = loadingControls || loadingItems;
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-        <div>
-          <span className="font-semibold">{t.customer}:</span>{' '}
-          <span>{row?.Cliente}</span>
+    // El overlay vive FUERA del <div space-y-4> a propósito: space-y-4 aplica
+    // margin-top a "todo hijo que no sea el primero", así que si el overlay
+    // entraba y salía como primer hijo de ese mismo div, el panel de Cliente
+    // ganaba/perdía ese margen con él — de ahí el salto al terminar de cargar.
+    // Como hermano del contenedor, no participa de esa regla de espaciado.
+    <div className="relative">
+      {loadingInitial && (
+        <div className="absolute inset-0 z-20 rounded-lg bg-white/80 dark:bg-gray-900/80 flex flex-col items-center justify-center gap-3">
+          <span className="h-9 w-9 rounded-full border-[3px] border-primary border-t-transparent animate-spin inline-block" />
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{t.loading ?? 'Cargando...'}</p>
         </div>
-        <div>
-          <span className="font-semibold">{t.nro_packaging}:</span>{' '}
-          <span>{row?.NumEmbalaje}</span>
+      )}
+
+      <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-4 py-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{t.customer}</p>
+          <div className="mt-0.5 flex items-center gap-1.5">
+            {destino?.codPais && (
+              <img
+                src={`/assets/flags/${destino.codPais.toLowerCase()}.svg`}
+                alt={destino.codPais}
+                className="h-3.5 w-5 rounded-sm object-cover shrink-0"
+                onError={e => { e.currentTarget.style.display = 'none'; }}
+              />
+            )}
+            {/* row?.Cliente es el dato de la fila de la lista (empresa del
+                representante), no necesariamente el destino real del embalaje
+                — se ve a través del overlay semitransparente mientras carga
+                y luego "salta" al valor correcto. Mientras no llega `destino`,
+                mejor un placeholder que un dato que puede ser otro cliente. */}
+            {loadingControls ? (
+              <span className="inline-block h-4 w-32 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" />
+            ) : (
+              <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">
+                {destino?.razonSocial ?? row?.Cliente}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Identificador principal del despacho — resaltado porque es la referencia
+            que se usa en el resto del sistema (impresiones, listado) para este registro. */}
+        <div className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-primary/10 dark:bg-primary/20 px-3 py-1.5">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-primary/70">{t.nro_packaging}</span>
+          <span className="text-base font-bold text-primary">EM-{row?.NumEmbalaje}</span>
         </div>
       </div>
 
@@ -449,6 +499,7 @@ const DispatchDataModal = ({ t, row, onClose, onSaved }) => {
           <IconSave className="h-4 w-4" />
           {saving ? (t.saving ?? 'Guardando…') : (t.btn_save ?? 'Guardar')}
         </button>
+      </div>
       </div>
     </div>
   );

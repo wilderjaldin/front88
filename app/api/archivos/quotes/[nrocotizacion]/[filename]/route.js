@@ -13,6 +13,11 @@ const MIME_TYPES = {
   '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 };
 
+// "quotes" es un segmento literal de la URL (como "parts" en la ruta hermana),
+// no un parámetro — así el patrón de URL calca la estructura real en disco
+// (ArchivosPath/quotes/{nroCotizacion}/{filename}, ver GuardarArchAdjAsync en
+// api88) y coincide con la regla "Archivos estaticos" de web.config, que en
+// producción sirve /archivos/quotes/... directo desde IIS sin pasar por Node.
 export async function GET(request, { params }) {
   const { nrocotizacion, filename } = await params;
   const archivosPath = process.env.ARCHIVOS_PATH;
