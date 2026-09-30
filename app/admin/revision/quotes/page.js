@@ -124,6 +124,7 @@ export default function Quotes() {
           ConsiderarEnvioAduana:  cotizacion.considerarEnvioAduana  ?? false,
           Pais:                   cotizacion.pais                   ?? '',
           MtoFleteInternac:       cotizacion.mtoFleteInternac       ?? 0,
+          MtoFleteItem:           cotizacion.mtoFleteItem           ?? 0,
           MtoAduanaItem:          cotizacion.mtoAduanaItem          ?? 0,
         });
 

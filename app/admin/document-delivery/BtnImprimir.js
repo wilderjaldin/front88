@@ -178,8 +178,17 @@ const BtnImprimir = ({ t, row, className = "", onOpenDispatch }) => {
                   onClick={() => runCombinedDownload([...selected])}
                   className="w-full h-10 inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition"
                 >
-                  <IconDownload className="h-3.5 w-3.5" />
-                  {t.download_selected ?? 'Descargar seleccionados'}{selected.size > 0 ? ` (${selected.size})` : ''}
+                  {downloading ? (
+                    <>
+                      <span className="h-3.5 w-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                      {t.downloading ?? 'Descargando...'}
+                    </>
+                  ) : (
+                    <>
+                      <IconDownload className="h-3.5 w-3.5" />
+                      {t.download_selected ?? 'Descargar seleccionados'}{selected.size > 0 ? ` (${selected.size})` : ''}
+                    </>
+                  )}
                 </button>
               </div>
             )}
@@ -198,8 +207,17 @@ const BtnImprimir = ({ t, row, className = "", onOpenDispatch }) => {
                   onClick={() => runCombinedDownload(selectableTypes.map(rt => rt.key))}
                   className="w-full h-10 inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition"
                 >
-                  <IconDownload className="h-3.5 w-3.5" />
-                  {t.download_all ?? 'Descargar todo'}
+                  {downloading ? (
+                    <>
+                      <span className="h-3.5 w-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                      {t.downloading ?? 'Descargando...'}
+                    </>
+                  ) : (
+                    <>
+                      <IconDownload className="h-3.5 w-3.5" />
+                      {t.download_all ?? 'Descargar todo'}
+                    </>
+                  )}
                 </button>
               </div>
             )}

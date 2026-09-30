@@ -725,6 +725,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
     ConsiderarEnvioAduana:  cotizacion.considerarEnvioAduana  ?? false,
     Pais:                   cotizacion.pais                   ?? '',
     MtoFleteInternac:       cotizacion.mtoFleteInternac       ?? 0,
+    MtoFleteItem:           cotizacion.mtoFleteItem           ?? 0,
     MtoAduanaItem:          cotizacion.mtoAduanaItem          ?? 0,
   });
 
@@ -2093,7 +2094,15 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
               cada bloque por su cuenta (rounded-t-md en la barra, rounded-b-md en el
               contenedor de la tabla) en vez de depender del recorte del padre. */}
           <div className="panel border border-gray-200 dark:border-gray-700 p-0 mt-4">
-            <div style={{ top: toolbarTop }} className="sticky z-20 rounded-t-md flex flex-wrap items-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+            {/* Sin z-index acá a propósito: un z explícito crea su propio stacking
+                context y terminaba ganándole a los menús de los <Select> de "Datos
+                de la Cotización" (Moneda/Tipo Envío/Estado, más arriba en la página) —
+                esos usan menuPosition="fixed" con el z-index bajo por defecto de
+                react-select, así que con la barra en z-20 quedaban tapados al abrirse
+                sobre la zona donde la barra queda pegada. Sticky sin z-index ya alcanza
+                para quedar por encima de las filas de la tabla (contenido normal, sin
+                position), que es lo único que necesita tapar mientras se hace scroll. */}
+            <div style={{ top: toolbarTop }} className="sticky rounded-t-md flex flex-wrap items-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
 
               {/* Acciones sobre ítems */}
               <div className="flex flex-wrap items-center gap-1.5">
@@ -2469,7 +2478,8 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                     </p>
                     <div className="flex items-center justify-between pl-2">
                       <span className="text-xs text-gray-500">{t.freight}:</span>
-                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{customFormat(order.MtoFleteInternac)}</span>
+                      { console.log('ORDER', order) }
+                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{customFormat(order.MtoFleteInternac + order.MtoFleteItem )}</span>
                     </div>
                     <div className="flex items-center justify-between pl-2">
                       {order.ConsiderarEnvioAduana && <span className="text-xs text-gray-500">{t.customs ?? 'Aduana'}:</span>}

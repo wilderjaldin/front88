@@ -1368,7 +1368,7 @@
   "nit_number_label": "ID / Tax No.",
   "document_number": "Document number",
   "nro_of": "No. of {label}",
-  "only_numbers_dash": "Only numbers and the '-' character are allowed",
+  "only_numbers_dash": "Only numbers, \".\", \"-\" and spaces are allowed",
   "document_number_required": "The document number is required",
   "invalid_url": "Enter a valid URL (e.g: https://example.com)",
   "is_reseller": "Is Reseller",

@@ -1370,7 +1370,7 @@
   "nit_number_label": "Num. NIT / CI",
   "document_number": "Número de documento",
   "nro_of": "Nro. de {label}",
-  "only_numbers_dash": "Solo se permiten números y el carácter -",
+  "only_numbers_dash": "Solo se permiten números, \".\", \"-\" y espacios",
   "document_number_required": "El número de documento es requerido",
   "invalid_url": "Ingresa una URL válida (ej: https://ejemplo.com)",
   "is_reseller": "Es Revendedor",
