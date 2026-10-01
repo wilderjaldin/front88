@@ -959,7 +959,6 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
       updateInputs(updatedItems);
     } catch (error) {
       Swal.close();
-
     }
   }
   const message = () => {
@@ -1498,6 +1497,14 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
             ? { ...i, NotasAdicionales: updatedNotes }
             : i));
         }}
+        nroCotizacion={order.NroOrden}
+        onQuoteUpdated={({ cotizacion, detalle }) => {
+          const updatedOrder = mapCotizacion(cotizacion);
+          const updatedItems = mapDetalle(detalle);
+          setOrder(prev => ({ ...updatedOrder, CodContacto: prev.CodContacto }));
+          setItems(updatedItems);
+          updateInputs(updatedItems);
+        }}
       />
     );
     setShowModal(true);
@@ -1715,6 +1722,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                   <div className="flex-1 relative">
                     <input onKeyDown={handleKeyDown} type="text" autoComplete="off"
                       {...registerSearchQuote("nro_part", { required: true })}
+                      onInput={e => { e.target.value = e.target.value.toUpperCase(); }}
                       disabled={blocked}
                       placeholder={t.enter_nro_part}
                       className={`h-9 w-full rounded-lg border px-3 text-sm focus:outline-none focus:ring-2 bg-white dark:bg-gray-900 transition ${errorsSearchQuote.nro_part ? 'border-red-400 dark:border-red-500 focus:ring-red-300/30' : 'border-gray-300 dark:border-gray-700 focus:ring-primary/30'}`} />
@@ -2395,12 +2403,16 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
               <div className="p-4 space-y-3">
                 <div>
                   <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{t.note_to_customer}</label>
-                  <textarea defaultValue={order.NotaCliente} {...registerNoteQuote("note_customer")} rows={3} disabled={blocked}
+                  <textarea defaultValue={order.NotaCliente} {...registerNoteQuote("note_customer")}
+                    onInput={e => { e.target.value = e.target.value.toUpperCase(); }}
+                    rows={3} disabled={blocked}
                     className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 resize-y" />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 block">{t.note_to_user}</label>
-                  <textarea defaultValue={order.NotaUsuario} {...registerNoteQuote("note_user")} rows={3} disabled={blocked}
+                  <textarea defaultValue={order.NotaUsuario} {...registerNoteQuote("note_user")}
+                    onInput={e => { e.target.value = e.target.value.toUpperCase(); }}
+                    rows={3} disabled={blocked}
                     className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 resize-y" />
                 </div>
                 <div className="pt-1 space-y-0.5">

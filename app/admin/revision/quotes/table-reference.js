@@ -110,9 +110,9 @@ const TableReference = ({ NroParte, t, items = [], token, options = [], close, q
           </p>
           <div className="h-0.5 w-8 rounded bg-primary/60 mt-0.5" />
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-auto max-h-72">
           <table className="w-full border-collapse">
-            <thead>
+            <thead className="sticky top-0 z-10">
               <tr>
                 <th className={`${thClass} w-10`}>
                   <Checkbox
@@ -183,9 +183,9 @@ const TableReference = ({ NroParte, t, items = [], token, options = [], close, q
           </p>
           <div className="h-0.5 w-8 rounded bg-primary/60 mt-0.5" />
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-auto max-h-72">
           <table className="w-full border-collapse">
-            <thead>
+            <thead className="sticky top-0 z-10">
               <tr>
                 <th className={`${thClass} w-10`}>
                   <Checkbox

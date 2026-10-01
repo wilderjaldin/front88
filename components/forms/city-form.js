@@ -117,7 +117,7 @@ const CityForm = ({ pais = null, onCancel, onSaved }) => {
           type="text"
           autoComplete="off"
           value={nomCiudad}
-          onChange={e => { setNomCiudad(e.target.value); setError(''); }}
+          onChange={e => { setNomCiudad(e.target.value.toUpperCase()); setError(''); }}
           onKeyDown={e => e.key === 'Enter' && handleSubmit()}
           placeholder={t.enter_city_name}
           className={`form-input w-full ${error ? 'error' : ''}`}

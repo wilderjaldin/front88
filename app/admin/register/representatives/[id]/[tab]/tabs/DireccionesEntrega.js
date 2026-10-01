@@ -10,6 +10,7 @@ import axiosClient from '@/app/lib/axiosClient';
 import SelectCountry from '@/components/select-country';
 import SelectCity from '@/components/select-city';
 import Swal from 'sweetalert2';
+import { registerUpper } from '@/app/lib/uppercaseField';
 import IconPlus from '@/components/icon/icon-plus';
 import IconPencil from '@/components/icon/icon-pencil';
 import IconTrashLines from '@/components/icon/icon-trash-lines';
@@ -211,13 +212,13 @@ function DireccionForm({ codEmp, representante, editingRow, paises, onSaved, onC
 
       {/* Nom. Empresa */}
       <FField label={t.company_name}>
-        <input type="text" {...register('nomEmpresa')} className="form-input w-full" placeholder={t.company_name_ph} />
+        <input type="text" {...registerUpper(register, 'nomEmpresa')} className="form-input w-full" placeholder={t.company_name_ph} />
       </FField>
 
       {/* Contacto + Email */}
       <div className="grid grid-cols-2 gap-4">
         <FField label={t.contact_name}>
-          <input type="text" {...register('nomContacto')} className="form-input w-full" />
+          <input type="text" {...registerUpper(register, 'nomContacto')} className="form-input w-full" />
         </FField>
         <FField label={t.email}>
           <input type="email" {...register('email')} className="form-input w-full" />
@@ -257,7 +258,7 @@ function DireccionForm({ codEmp, representante, editingRow, paises, onSaved, onC
 
       {/* Dirección */}
       <FField label={t.address}>
-        <input type="text" {...register('direccion')} className="form-input w-full" />
+        <input type="text" {...registerUpper(register, 'direccion')} className="form-input w-full" />
       </FField>
 
       {/* Teléfono + Estado + Cód. Postal */}
@@ -268,7 +269,7 @@ function DireccionForm({ codEmp, representante, editingRow, paises, onSaved, onC
         {isUS && (
           <>
             <FField label={t.state_province}>
-              <input type="text" {...register('nomEstado')} className="form-input w-full" />
+              <input type="text" {...registerUpper(register, 'nomEstado')} className="form-input w-full" />
             </FField>
             <FField label={t.zip}>
               <input type="text" {...register('codPostal')} className="form-input w-full" />

@@ -108,7 +108,7 @@ const NotFoundPartForm = ({ close, nroParte, codRegistro, brands, onSaved, t }) 
           <input
             type="text"
             value={otherBrand}
-            onChange={e => { setOtherBrand(e.target.value); setError(''); }}
+            onChange={e => { setOtherBrand(e.target.value.toUpperCase()); setError(''); }}
             autoComplete="off"
             placeholder={t?.enter_brand ?? 'Nombre del fabricante'}
             className={`form-input h-9 text-sm w-full ${error ? 'border-red-400' : ''}`}

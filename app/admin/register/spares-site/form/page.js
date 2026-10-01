@@ -11,6 +11,7 @@ import IconArrowBackward from '@/components/icon/icon-arrow-backward';
 import IconSave from '@/components/icon/icon-save';
 import SelectBrand from '@/components/select-brand';
 import Link from 'next/link';
+import { registerUpper } from '@/app/lib/uppercaseField';
 
 // ── Estilos react-select ───────────────────────────────────────────────────────
 const selectStyles = {
@@ -297,7 +298,7 @@ export default function SparesSiteFormPage() {
                 autoComplete="off"
                 placeholder="Ej: 3415661"
                 disabled={(isEdit) ? true : false}
-                {...register('nroParte', {
+                {...registerUpper(register, 'nroParte', {
                   required:  'Campo requerido',
                   maxLength: { value: 100, message: 'Máximo 100 caracteres' },
                 })}
@@ -356,7 +357,7 @@ export default function SparesSiteFormPage() {
                 type="text"
                 autoComplete="off"
                 placeholder="Descripción del repuesto"
-                {...register('desRepuesto', {
+                {...registerUpper(register, 'desRepuesto', {
                   required:  'Campo requerido',
                   maxLength: { value: 300, message: 'Máximo 300 caracteres' },
                 })}
@@ -418,7 +419,7 @@ export default function SparesSiteFormPage() {
                 type="text"
                 autoComplete="off"
                 placeholder="H Code"
-                {...register('hCode')}
+                {...registerUpper(register, 'hCode')}
                 className="form-input w-full"
               />
             </div>

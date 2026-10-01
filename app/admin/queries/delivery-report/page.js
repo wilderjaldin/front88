@@ -10,6 +10,8 @@ import Select from '@/components/ui/Select';
 import { Pagination } from '@mantine/core';
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 import BtnImprimir from "@/app/admin/document-delivery/BtnImprimir";
+import IconTruck from "@/components/icon/icon-truck";
+import { downloadShippingReport } from "@/app/lib/embalajeReports";
 
 const URL_CONTROLES = 'entregas/controles';
 const URL_ENTREGAS  = 'entregas';
@@ -69,6 +71,21 @@ export default function DeliveryReport() {
   const [loading,       setLoading]       = useState(false);
   const [seleccionados,  setSeleccionados]  = useState([]);
   const [inputCustomer,  setInputCustomer]  = useState('');
+  // Reporte "Envío": el endpoint todavía no existe en el backend — el 404 se
+  // atrapa acá y se avisa en vez de mostrar un error críptico. id del embalaje
+  // en descarga, para deshabilitar solo ese botón mientras pide el PDF.
+  const [downloadingShipping, setDownloadingShipping] = useState(null);
+
+  const handleDownloadShipping = async (numEmbalaje) => {
+    setDownloadingShipping(numEmbalaje);
+    try {
+      await downloadShippingReport(numEmbalaje);
+    } catch {
+      swalError(t.error, t.shipping_report_unavailable ?? 'El reporte de Envío todavía no está disponible.', t.close);
+    } finally {
+      setDownloadingShipping(null);
+    }
+  };
 
   const lastKeyRef = useRef('');
 
@@ -367,6 +384,18 @@ export default function DeliveryReport() {
                           row={{ NumEmbalaje: o.nroEmbalaje, NumDespacho: o.numEntrega, CodPais: o.codPais }}
                           className="h-7 w-7 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
                         />
+                        {/* Reporte de Envío — endpoint pendiente de confirmar en el backend */}
+                        <button
+                          type="button"
+                          title={t.shipping_report ?? 'Reporte de Envío'}
+                          disabled={downloadingShipping === o.nroEmbalaje}
+                          onClick={() => handleDownloadShipping(o.nroEmbalaje)}
+                          className="h-7 w-7 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {downloadingShipping === o.nroEmbalaje
+                            ? <span className="h-3.5 w-3.5 rounded-full border-2 border-gray-400 border-t-transparent animate-spin" />
+                            : <IconTruck className="h-4 w-4" />}
+                        </button>
                       </div>
                     </td>
                     <td className={tdClass}>

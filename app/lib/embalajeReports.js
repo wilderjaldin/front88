@@ -43,6 +43,13 @@ export const downloadNafta = async (numEmbalaje) => {
   saveBlob(res.data, `NAFTA${numEmbalaje}.pdf`);
 };
 
+// Provisional: GET envio/pdf-ejemplo — un PDF de ejemplo fijo, sin parámetros,
+// mientras el backend prepara el reporte real por embalaje.
+export const downloadShippingReport = async (numEmbalaje) => {
+  const res = await axiosClient.get(`envio/pdf-ejemplo`, { responseType: 'blob' });
+  saveBlob(res.data, `ENV${numEmbalaje}.pdf`);
+};
+
 // tipos: subconjunto de ['etiqueta', 'invoice', 'lista-empaque', 'recibo-entrega'].
 // El backend combina esos reportes en un único PDF (QuestPDF Document.Merge).
 export const downloadCombinedReports = async (numEmbalaje, numDespacho, tipos) => {

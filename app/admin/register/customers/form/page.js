@@ -8,6 +8,7 @@ import { swalSuccess, swalError } from '@/app/lib/swal';
 import { useTranslation } from '@/app/locales';
 import SelectCountry from '@/components/select-country';
 import SelectCity from '@/components/select-city';
+import { registerUpper } from '@/app/lib/uppercaseField';
 
 // Casilla como "chip" clickeable — mismo patrón que los checkboxes del form de repuestos.
 // El <label> envuelve el <input>, así que un click en cualquier parte ya lo togglea
@@ -279,7 +280,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                 {t.customer} <span className="text-red-500">*</span>
               </label>
               <input
-                {...register('nomCliente', {
+                {...registerUpper(register, 'nomCliente', {
                   required: t.customer_name_required,
                   maxLength: { value: 50, message: t.max_n_characters.replace('{n}', 50) },
                   pattern: {
@@ -322,7 +323,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
             <div>
               <label className="block text-sm font-medium mb-1">{t.office_address}</label>
               <input
-                {...register('dirCliente', {
+                {...registerUpper(register, 'dirCliente', {
                   maxLength: { value: 150, message: t.max_n_characters.replace('{n}', 150) },
                   pattern: {
                     value: /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ0-9\s\.\,\-\#\/\(\)]+$/,
@@ -365,7 +366,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                     {t.state} <span className="text-red-500">*</span>
                   </label>
                   <input
-                    {...register('estado', {
+                    {...registerUpper(register, 'estado', {
                       required: isUS ? t.state_required_usa : false,
                       maxLength: { value: 60, message: t.max_n_characters.replace('{n}', 60) },
                       pattern: {
@@ -507,7 +508,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
             <div>
               <label className="block text-sm font-medium mb-1">{t.main_activity}</label>
               <input
-                {...register('actPrincipal', {
+                {...registerUpper(register, 'actPrincipal', {
                   maxLength: { value: 50, message: t.max_n_characters.replace('{n}', 50) },
                   pattern: {
                     value: /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ0-9\s\.\,\-]+$/,

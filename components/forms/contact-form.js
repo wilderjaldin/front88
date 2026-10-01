@@ -5,6 +5,7 @@ import { useTranslation } from '@/app/locales';
 import axiosClient from '@/app/lib/axiosClient';
 import { swalSuccess, swalError } from '@/app/lib/swal';
 import IconPlus from '@/components/icon/icon-plus';
+import { registerUpper } from '@/app/lib/uppercaseField';
 
 // ── URLs ──────────────────────────────────────────────────────────────────────
 const URL_GUARDAR = (codCliente) => `/clientes/${codCliente}/contactos/guardar`;
@@ -298,7 +299,7 @@ const ComponentContactForm = ({
             type="text"
             autoComplete="off"
             spellCheck="false"
-            {...register('nomContacto', RULES.nomContacto)}
+            {...registerUpper(register, 'nomContacto', RULES.nomContacto)}
             placeholder={t.contact_name_example_ph}
             className={`form-input w-full ${errors.nomContacto ? 'error' : ''}`}
           />
@@ -317,7 +318,7 @@ const ComponentContactForm = ({
             type="text"
             autoComplete="off"
             spellCheck="false"
-            {...register('nomCargo', RULES.nomCargo)}
+            {...registerUpper(register, 'nomCargo', RULES.nomCargo)}
             placeholder={t.contact_position_example_ph}
             className={`form-input flex-1 ${errors.nomCargo ? 'error' : ''}`}
           />

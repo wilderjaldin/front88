@@ -7,6 +7,7 @@ import axiosClient from '@/app/lib/axiosClient';
 import SelectCountry from '@/components/select-country';
 import SelectCity from '@/components/select-city';
 import { swalSuccess, swalError } from '@/app/lib/swal';
+import { registerUpper } from '@/app/lib/uppercaseField';
 
 // ── URLs ──────────────────────────────────────────────────────────────────────
 const URL_PAISES   = `/clientes/paises`;
@@ -175,7 +176,7 @@ const ShippingForm = ({
         </label>
         <div className="flex-1">
           <input type="text" autoComplete="off"
-            {...register('company', { required: t.required_field })}
+            {...registerUpper(register, 'company', { required: t.required_field })}
             className={`form-input w-full ${errors.company ? 'error' : ''}`} />
           {errors.company && <span className="text-red-400 text-xs mt-1 block">{errors.company.message}</span>}
         </div>
@@ -188,7 +189,7 @@ const ShippingForm = ({
         </label>
         <div className="flex-1">
           <input type="text" autoComplete="off"
-            {...register('contact', { required: t.required_field })}
+            {...registerUpper(register, 'contact', { required: t.required_field })}
             className={`form-input w-full ${errors.contact ? 'error' : ''}`} />
           {errors.contact && <span className="text-red-400 text-xs mt-1 block">{errors.contact.message}</span>}
         </div>
@@ -236,7 +237,7 @@ const ShippingForm = ({
         </label>
         <div className="flex-1">
           <input type="text" autoComplete="off"
-            {...register('address', { required: t.required_field })}
+            {...registerUpper(register, 'address', { required: t.required_field })}
             className={`form-input w-full ${errors.address ? 'error' : ''}`} />
           {errors.address && <span className="text-red-400 text-xs mt-1 block">{errors.address.message}</span>}
         </div>
@@ -267,7 +268,7 @@ const ShippingForm = ({
       {isUsa && (
         <div className="flex items-center gap-2">
           <label className="w-32 shrink-0 text-sm text-gray-500 dark:text-gray-400 text-right pr-2">{t.state}</label>
-          <input type="text" autoComplete="off" {...register('state')} placeholder="Ej: California" className="form-input flex-1" />
+          <input type="text" autoComplete="off" {...registerUpper(register, 'state')} placeholder="Ej: California" className="form-input flex-1" />
           <label className="shrink-0 text-sm text-gray-500 dark:text-gray-400 px-2">{t.zip}</label>
           <input type="text" autoComplete="off" {...register('zip')} placeholder="Ej: 90210" className="form-input w-32" />
         </div>

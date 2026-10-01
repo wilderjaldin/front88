@@ -9,6 +9,7 @@ import Select from '@/components/ui/Select';
 import IconPlusProps from '@/components/icon/icon-plus';
 import IconPencil from '@/components/icon/icon-pencil';
 import ShippingForm from '@/app/admin/register/customers/form/shipping';
+import { registerUpper } from '@/app/lib/uppercaseField';
 
 // Mismo diseño/funcionalidad que app/admin/revision/quotes/steps/shipping.js
 // (paso "Envío / Lugar de Entrega" del wizard de compra), pero como componente
@@ -231,7 +232,7 @@ const DeliveryAddressForm = ({ close, order_id, customer, t }) => {
               <input
                 type="text"
                 autoComplete="off"
-                {...register('cuentaTransporte')}
+                {...registerUpper(register, 'cuentaTransporte')}
                 placeholder="—"
                 className="form-input h-8 text-sm flex-1"
               />
@@ -311,7 +312,7 @@ const DeliveryAddressForm = ({ close, order_id, customer, t }) => {
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               <label className="w-28 shrink-0 text-xs font-medium text-gray-400 text-right">{t.name ?? 'Nombre'}</label>
-              <input type="text" autoComplete="off" {...register('name')} placeholder={t.enter_name ?? 'Ingresa el nombre'}
+              <input type="text" autoComplete="off" {...registerUpper(register, 'name')} placeholder={t.enter_name ?? 'Ingresa el nombre'}
                 className="form-input h-8 text-sm flex-1" />
             </div>
             <div className="flex items-center gap-2">
@@ -334,7 +335,7 @@ const DeliveryAddressForm = ({ close, order_id, customer, t }) => {
           </label>
           <textarea
             rows={2}
-            {...register('note')}
+            {...registerUpper(register, 'note')}
             className="form-input text-sm flex-1 resize-none"
           />
         </div>

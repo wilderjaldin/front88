@@ -124,29 +124,28 @@ export default function PackagingPage() {
 
       const rs = await axiosClient.post(URL_ATTACH_ITEM, data);
       const list = Array.isArray(rs.data) ? rs.data : (rs.data?.dato ?? []);
-      // adicionar-item no devuelve NroOrdenCompra/NroRecepcion por item — se
-      // recuperan de las órdenes pendientes originalmente seleccionadas (mismo NroOrden).
-      const orderMap = new Map(selected.map(o => [String(o.NroOrden), o]));
-      setPackagings(list.map((o, index) => {
-        const src = orderMap.get(String(o.nroCotizacion));
-        return {
-          id:              index,
-          CodItem:         o.codItem,
-          CodRepuesto:     o.codRepuesto,
-          NroOrden:        o.nroCotizacion,
-          NroOrdenCompra:  src?.NroOrdenCompra,
-          NroRecepcion:    src?.NroRecepcion,
-          NomCliente:      o.cliente,
-          NroParteCliente: o.nroParte,
-          NroParteCompra:  o.nroParteCompra,
-          Descripcion:     o.desRepuesto,
-          CantRecibida:    o.canRecibida,
-          Origen:          o.origen,
-          HCode:           o.hCode,
-          Material:        o.material,
-          Presentacion:    o.presentacion,
-        };
-      }));
+      // adicionar-item ahora devuelve numRecepcion/numOrdenCompra por item — antes
+      // se recuperaban desde las órdenes seleccionadas vía un Map keyeado solo por
+      // NroOrden (cotización), así que si dos órdenes seleccionadas compartían la
+      // misma cotización con distinta recepción/OC, todos los items de esa
+      // cotización quedaban con el par de la última orden procesada.
+      setPackagings(list.map((o, index) => ({
+        id:              index,
+        CodItem:         o.codItem,
+        CodRepuesto:     o.codRepuesto,
+        NroOrden:        o.nroCotizacion,
+        NroOrdenCompra:  o.numOrdenCompra,
+        NroRecepcion:    o.numRecepcion,
+        NomCliente:      o.cliente,
+        NroParteCliente: o.nroParte,
+        NroParteCompra:  o.nroParteCompra,
+        Descripcion:     o.desRepuesto,
+        CantRecibida:    o.canRecibida,
+        Origen:          o.origen,
+        HCode:           o.hCode,
+        Material:        o.material,
+        Presentacion:    o.presentacion,
+      })));
       router.push(`?option=${TAB_KEYS[1]}`, { scroll: false });
     } catch (error) {
       const apiMsg = error?.response?.data?.mensaje;

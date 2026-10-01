@@ -16,6 +16,7 @@ import IconArrowBackward from '@/components/icon/icon-arrow-backward';
 import IconSave from '@/components/icon/icon-save';
 import SelectBrand from '@/components/select-brand';
 import SpareFiles from '../SpareFiles';
+import { registerUpper } from '@/app/lib/uppercaseField';
 
 const URL_CONTROLS = 'repuestos/controles?incluirEstados=true';
 const URL_DETAIL   = 'repuestos/detalle';
@@ -341,7 +342,7 @@ export default function SpareFormPage() {
                   type="text"
                   autoComplete="off"
                   placeholder="Ej: 3415661"
-                  {...register('nroParte', {
+                  {...registerUpper(register, 'nroParte', {
                     required:  'Campo requerido',
                     maxLength: { value: 25, message: 'Máximo 25 caracteres' },
                   })}
@@ -360,7 +361,7 @@ export default function SpareFormPage() {
                   type="text"
                   autoComplete="off"
                   placeholder="Descripción del repuesto"
-                  {...register('desRepuesto', {
+                  {...registerUpper(register, 'desRepuesto', {
                     required:  'Campo requerido',
                     maxLength: { value: 300, message: 'Máximo 300 caracteres' },
                   })}
@@ -746,7 +747,7 @@ export default function SpareFormPage() {
                 tabIndex={18}
                 rows={2}
                 placeholder={t.write_a_note ?? 'Escribe una nota...'}
-                {...register('notaAdicional')}
+                {...registerUpper(register, 'notaAdicional')}
                 className="form-textarea w-full resize-none"
               />
             </div>

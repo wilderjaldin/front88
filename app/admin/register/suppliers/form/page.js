@@ -8,6 +8,7 @@ import SelectCity from '@/components/select-city';
 import { swalSuccess, swalError } from '@/app/lib/swal';
 import Select from '@/components/ui/Select';
 import IconSave from '@/components/icon/icon-save';
+import { registerUpper } from '@/app/lib/uppercaseField';
 
 const URL_CIUDADES = '/ciudades';
 const URL_GUARDAR  = '/proveedores/guardar';
@@ -231,7 +232,7 @@ const SupplierForm = ({
             Estado <span className="text-red-500">*</span>
           </label>
           <input
-            {...register('estado', {
+            {...registerUpper(register, 'estado', {
               required: isUS ? 'El estado es requerido para USA' : false,
               maxLength: { value: 60, message: 'Máximo 60 caracteres' },
               pattern: { value: /^[a-zA-Z\s]+$/, message: 'Solo se permiten letras' },
@@ -264,7 +265,7 @@ const SupplierForm = ({
         </label>
         <input
           type="text" autoComplete="off"
-          {...register('nomPrv', { required: { value: true, message: t.required_field } })}
+          {...registerUpper(register, 'nomPrv', { required: { value: true, message: t.required_field } })}
           className={`form-input w-full ${errors.nomPrv ? 'error' : ''}`}
         />
         {errors.nomPrv && <p className="text-red-400 text-xs mt-1">{errors.nomPrv.message}</p>}
@@ -277,7 +278,7 @@ const SupplierForm = ({
         </label>
         <input
           type="text" autoComplete="off"
-          {...register('razSoc')}
+          {...registerUpper(register, 'razSoc')}
           className="form-input w-full"
         />
       </div>
@@ -289,7 +290,7 @@ const SupplierForm = ({
         </label>
         <input
           type="text" autoComplete="off"
-          {...register('dirPrv')}
+          {...registerUpper(register, 'dirPrv')}
           className="form-input w-full"
         />
       </div>
@@ -321,7 +322,7 @@ const SupplierForm = ({
           </label>
           <input
             type="text" autoComplete="off"
-            {...register('numDoc')}
+            {...registerUpper(register, 'numDoc')}
             className="form-input w-full"
           />
         </div>
@@ -345,7 +346,7 @@ const SupplierForm = ({
           </label>
           <input
             type="text" autoComplete="off"
-            {...register('nomChe')}
+            {...registerUpper(register, 'nomChe')}
             className="form-input w-full"
           />
         </div>

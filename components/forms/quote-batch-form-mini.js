@@ -8,6 +8,7 @@ import Modal from '@/components/modal';
 import { customFormat } from '@/app/lib/format';
 import axiosClient from '@/app/lib/axiosClient';
 import Swal from 'sweetalert2';
+import { registerUpper } from '@/app/lib/uppercaseField';
 import IconInfoCircle from '../icon/icon-info-circle';
 import { useRouter } from 'next/navigation';
 
@@ -175,7 +176,7 @@ const QuoteBatchFormMini = ({ close, t, customer, order, setOrder, setItems, upd
       <div className="px-4 py-4 space-y-3">
         <textarea
           rows={8}
-          {...register('batch', { required: { value: true, message: t.required_field } })}
+          {...registerUpper(register, 'batch', { required: { value: true, message: t.required_field } })}
           placeholder={"01643-32780 2\n19M7824 1\n001811A 3"}
           className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900
             px-3 py-2 text-sm font-mono resize-none

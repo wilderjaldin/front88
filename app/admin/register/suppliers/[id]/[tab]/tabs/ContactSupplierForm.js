@@ -5,6 +5,7 @@ import { useTranslation } from '@/app/locales';
 import axiosClient from '@/app/lib/axiosClient';
 import { swalSuccess, swalError } from '@/app/lib/swal';
 import IconPlus from '@/components/icon/icon-plus';
+import { registerUpper } from '@/app/lib/uppercaseField';
 
 const URL_SAVE = (codPrv) => `/proveedores/${codPrv}/contactos/guardar`;
 
@@ -217,7 +218,7 @@ export default function ContactForm({ contacto = null, proveedor, onCancel, onSa
         <div className="flex-1">
           <input
             type="text" autoComplete="off" spellCheck="false"
-            {...register('nomContacto', RULES.nomContacto)}
+            {...registerUpper(register, 'nomContacto', RULES.nomContacto)}
             placeholder={t.contact_name_example_ph}
             className={`form-input w-full ${errors.nomContacto ? 'error' : ''}`}
           />
@@ -234,7 +235,7 @@ export default function ContactForm({ contacto = null, proveedor, onCancel, onSa
           </label>
           <input
             type="text" autoComplete="off" spellCheck="false"
-            {...register('nomCargo', RULES.nomCargo)}
+            {...registerUpper(register, 'nomCargo', RULES.nomCargo)}
             placeholder={t.contact_position_example_ph}
             className={`form-input flex-1 ${errors.nomCargo ? 'error' : ''}`}
           />
