@@ -1331,6 +1331,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
         order={order}
         token={token}
         default_value={rs.data.porUtilidad}
+        default_kg_value={rs.data.kgFlete}
         items={items}
         seleccionados={seleccionados}
         setSeleccionados={setSeleccionados}

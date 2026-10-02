@@ -123,7 +123,7 @@ const parsePositions = (str) => {
   return [...result].sort((a, b) => a - b);
 };
 
-const PriceParametersForm = ({ close, token, t, default_value, order, setItems, setOrder, items = [], seleccionados = [], setSeleccionados }) => {
+const PriceParametersForm = ({ close, token, t, default_value, default_kg_value, order, setItems, setOrder, items = [], seleccionados = [], setSeleccionados }) => {
 
   const allSelected = seleccionados.length > 0 && seleccionados.length === items.length;
   const partialSelected = seleccionados.length > 0 && !allSelected;
@@ -165,13 +165,6 @@ const PriceParametersForm = ({ close, token, t, default_value, order, setItems, 
 
     showLoadingPopup(t.updating);
     try {
-      // MtoFlete ($/Kg): el backend todavía no lo recibe en este endpoint —
-      // CambiarParametroPrecioRequest solo tiene PorUtilidad/TiempoEntrega/
-      // Todos/Items hoy. Lo mando igual (nombre tentativo, calcado de la
-      // columna MtoFlete que ya existe en la tabla cotparpre) para no tener
-      // que tocar esto de nuevo apenas se agregue del lado del backend —
-      // mientras tanto, ASP.NET Core ignora en silencio cualquier propiedad
-      // que el DTO no declare, así que no rompe nada, pero tampoco hace nada.
       const rs = await axiosClient.post('cotizaciondetalle/cambiar-parametro-precio', {
         NroCotizacion: order.NroOrden,
         PorUtilidad:   data.utility ? parseFloat(data.utility) : null,
@@ -279,11 +272,11 @@ const PriceParametersForm = ({ close, token, t, default_value, order, setItems, 
                 </td>
               </tr>
               {/* $/Kg — por ítem, como Utilidad (no es un dato de la cotización
-                  completa como Tipo de Cambio). Sin Default confirmado todavía
-                  (mostrar-parametro-precio hoy solo trae porUtilidad). */}
+                  completa como Tipo de Cambio). Default = kgFlete, que ya trae
+                  mostrar-parametro-precio junto a porUtilidad. */}
               <tr>
                 <td className="py-2 pr-3 text-gray-600 dark:text-gray-300 text-right">{t.cost_per_kg ?? '$/Kg'}</td>
-                <td className="py-2 text-center text-gray-400">—</td>
+                <td className="py-2 text-center font-semibold text-gray-700 dark:text-gray-200">{default_kg_value ?? '—'}</td>
                 <td className="py-2">
                   {(() => {
                     const { onChange, ...rest } = register("kgRate", {
