@@ -1,17 +1,20 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useForm, Controller } from "react-hook-form";
 import { useTranslation } from "@/app/locales";
 import axiosClient from '@/app/lib/axiosClient';
 import { swalConfirm, swalError, swalSuccess } from '@/app/lib/swal';
 import Select from '@/components/ui/Select';
-import { Pagination } from '@mantine/core';
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 import BtnImprimir from "@/app/admin/document-delivery/BtnImprimir";
 import IconTruck from "@/components/icon/icon-truck";
+import IconClipboardText from "@/components/icon/icon-clipboard-text";
 import { downloadShippingReport } from "@/app/lib/embalajeReports";
+import Modal from "@/components/modal";
+const DeliveryCostSummary = dynamic(() => import('@/components/delivery-cost-summary'), { ssr: false });
 
 const URL_CONTROLES = 'entregas/controles';
 const URL_ENTREGAS  = 'entregas';
@@ -56,24 +59,36 @@ export default function DeliveryReport() {
   const pathname     = usePathname();
   const searchParams = useSearchParams();
 
-  // URL como fuente de verdad
-  const urlPage    = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+  // URL como fuente de verdad — la página ya no vive acá (scroll infinito la maneja sola).
   const urlSort    = searchParams.get('sort')       ?? 'delivery';
   const urlDir     = searchParams.get('dir')        ?? 'desc';
   const urlCutomer = parseInt(searchParams.get('codcutomer') || '0', 10);
   const urlTo      = parseInt(searchParams.get('to') || '0', 10);
+  const urlTerm    = searchParams.get('term') ?? '';
 
   const [orders,        setOrders]        = useState([]);
   const [customers,     setCustomers]     = useState([]);
   const [destinos,      setDestinos]      = useState([]);
   const [total,         setTotal]         = useState(0);
-  const [totalPages,    setTotalPages]    = useState(1);
   const [loading,       setLoading]       = useState(false);
+  // Scroll infinito: 'loading' es solo la carga inicial/de filtros (reemplaza la
+  // tabla); 'loadingMore' es el aviso de abajo mientras se anexa la siguiente página.
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [exhausted,   setExhausted]   = useState(false);
   const [seleccionados,  setSeleccionados]  = useState([]);
   const [inputCustomer,  setInputCustomer]  = useState('');
   // Reporte "Envío": va por Núm. Entrega (numEntrega), no por Núm. Embalaje.
   // numEntrega en descarga, para deshabilitar solo ese botón mientras pide el PDF.
   const [downloadingShipping, setDownloadingShipping] = useState(null);
+
+  // Modal "Resumen de Costos" por entrega — backend todavía no expone el reporte.
+  const [showModal,   setShowModal]   = useState(false);
+  const [modalEntrega, setModalEntrega] = useState(null);
+
+  const openCostSummary = (numEntrega) => {
+    setModalEntrega(numEntrega);
+    setShowModal(true);
+  };
 
   const handleDownloadShipping = async (numEntrega) => {
     setDownloadingShipping(numEntrega);
@@ -91,10 +106,14 @@ export default function DeliveryReport() {
     }
   };
 
-  const lastKeyRef = useRef('');
+  const lastKeyRef     = useRef('');
+  const pageRef        = useRef(1);
+  const reqRef         = useRef(0);   // descarta respuestas de filtros/orden ya obsoletos
+  const loadingMoreRef = useRef(false);
+  const sentinelRef    = useRef(null);
 
-  const { control, handleSubmit, reset } = useForm({
-    defaultValues: { customer: null, destino: null },
+  const { control, handleSubmit, reset, register } = useForm({
+    defaultValues: { customer: null, destino: null, term: '' },
   });
 
   // Cargar controles y restaurar Selects desde URL
@@ -108,8 +127,8 @@ export default function DeliveryReport() {
         // Restaurar selecciones desde URL params
         const selCliente = urlCutomer ? clientes.find(c => String(c.value) === String(urlCutomer)) ?? null : null;
         const selDestino = urlTo      ? destinos.find(d => String(d.value) === String(urlTo))      ?? null : null;
-        if (selCliente || selDestino) {
-          reset({ customer: selCliente, destino: selDestino });
+        if (selCliente || selDestino || urlTerm) {
+          reset({ customer: selCliente, destino: selDestino, term: urlTerm });
         }
       })
       .catch(() => {});
@@ -117,51 +136,102 @@ export default function DeliveryReport() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const buildFetchParams = useCallback((page) => ({
+    page, sort: urlSort, dir: urlDir,
+    codcutomer: urlCutomer || undefined,
+    to:         urlTo      || undefined,
+    term:       urlTerm    || undefined,
+  }), [urlSort, urlDir, urlCutomer, urlTo, urlTerm]);
+
+  // Primera página: se dispara al cambiar filtros u ordenamiento (la página ya no vive en la URL).
   const fetchOrders = useCallback(async () => {
-    const key = `${urlPage}|${urlSort}|${urlDir}|${urlCutomer}|${urlTo}`;
+    const key = `${urlSort}|${urlDir}|${urlCutomer}|${urlTo}|${urlTerm}`;
     if (lastKeyRef.current === key) return;
     lastKeyRef.current = key;
+    const reqId = ++reqRef.current;
+    pageRef.current = 1;
+    loadingMoreRef.current = false;
+    setLoadingMore(false);
+    setExhausted(false);
     setLoading(true);
     setSeleccionados([]);
     try {
-      const rs = await axiosClient.get(URL_ENTREGAS, {
-        params: { page: urlPage, sort: urlSort, dir: urlDir, codcutomer: urlCutomer, to: urlTo },
-      });
+      const rs = await axiosClient.get(URL_ENTREGAS, { params: buildFetchParams(1) });
+      if (reqId !== reqRef.current) return;
       setOrders(rs.data?.datos ?? []);
       setTotal(rs.data?.total ?? 0);
-      setTotalPages(rs.data?.totalPaginas ?? 1);
     } catch {
       swalError('Error', 'No se pudo cargar la lista de entregas.');
     } finally {
-      setLoading(false);
+      if (reqId === reqRef.current) setLoading(false);
     }
-  }, [urlPage, urlSort, urlDir, urlCutomer, urlTo]);
+  }, [urlSort, urlDir, urlCutomer, urlTo, urlTerm, buildFetchParams]);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
+  // Siguientes páginas: se anexan a la lista (sin duplicar) y conservan la selección.
+  const loadMore = useCallback(async () => {
+    if (loadingMoreRef.current) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    const reqId    = reqRef.current;
+    const nextPage = pageRef.current + 1;
+    try {
+      const rs   = await axiosClient.get(URL_ENTREGAS, { params: buildFetchParams(nextPage) });
+      if (reqId !== reqRef.current) return;
+      const rows = rs.data?.datos ?? [];
+      pageRef.current = nextPage;
+      setTotal(rs.data?.total ?? total);
+      if (rows.length === 0) { setExhausted(true); return; }
+      setOrders(prev => {
+        const seen = new Set(prev.map(o => o.numEntrega));
+        return [...prev, ...rows.filter(o => !seen.has(o.numEntrega))];
+      });
+    } catch {
+      setExhausted(true); // evita reintentar en bucle si el endpoint falla
+    } finally {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [buildFetchParams, total]);
+
+  const hasMore = !exhausted && orders.length < total;
+
+  // Centinela al final de la tabla: al acercarse al viewport carga la siguiente página.
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasMore || loading) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) loadMore(); },
+      { rootMargin: '300px' }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [hasMore, loading, loadMore, orders.length]);
+
   const buildParams = (overrides = {}) => {
     const base = {
-      page:       urlPage,
       sort:       urlSort,
       dir:        urlDir,
       codcutomer: urlCutomer || undefined,
       to:         urlTo      || undefined,
+      term:       urlTerm    || undefined,
     };
     const merged = { ...base, ...overrides };
     const p = new URLSearchParams();
-    if (merged.page && merged.page > 1)  p.set('page', String(merged.page));
     if (merged.sort !== 'delivery')      p.set('sort', merged.sort);
     if (merged.dir  !== 'desc')          p.set('dir',  merged.dir);
     if (merged.codcutomer)               p.set('codcutomer', String(merged.codcutomer));
     if (merged.to)                       p.set('to',   String(merged.to));
+    if (merged.term)                     p.set('term', String(merged.term));
     return p.toString();
   };
 
   const onSubmit = (data) => {
     const q = buildParams({
-      page:       1,
       codcutomer: data.customer?.value ?? 0,
       to:         data.destino?.value  ?? 0,
+      term:       data.term?.trim() || '',
     });
     lastKeyRef.current = '';
     router.push(`${pathname}${q ? `?${q}` : ''}`);
@@ -174,22 +244,16 @@ export default function DeliveryReport() {
   };
 
   const clearFilters = () => {
-    reset({ customer: null, destino: null });
+    reset({ customer: null, destino: null, term: '' });
     setInputCustomer('');
     lastKeyRef.current = '';
-    const q = buildParams({ page: 1, codcutomer: 0, to: 0 });
+    const q = buildParams({ codcutomer: 0, to: 0, term: '' });
     router.push(`${pathname}${q ? `?${q}` : ''}`);
   };
 
   const handleSort = (col) => {
     const newDir = urlSort === col && urlDir === 'asc' ? 'desc' : 'asc';
-    const q = buildParams({ page: 1, sort: col, dir: newDir });
-    lastKeyRef.current = '';
-    router.replace(`${pathname}${q ? `?${q}` : ''}`, { scroll: false });
-  };
-
-  const handlePageChange = (newPage) => {
-    const q = buildParams({ page: newPage });
+    const q = buildParams({ sort: col, dir: newDir });
     lastKeyRef.current = '';
     router.replace(`${pathname}${q ? `?${q}` : ''}`, { scroll: false });
   };
@@ -245,6 +309,16 @@ export default function DeliveryReport() {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-wrap items-end gap-2">
+
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-gray-500 dark:text-gray-400 px-1">{t.delivery_number ?? 'Núm. Entrega'}</span>
+            <input
+              type="text"
+              {...register('term')}
+              placeholder={t.delivery_number_ph ?? 'Buscar...'}
+              className="h-10 w-40 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
 
           <div className="flex flex-col gap-1">
             <span className="text-xs text-gray-500 dark:text-gray-400 px-1">{t.customer}</span>
@@ -400,6 +474,14 @@ export default function DeliveryReport() {
                             ? <span className="h-3.5 w-3.5 rounded-full border-2 border-gray-400 border-t-transparent animate-spin" />
                             : <IconTruck className="h-4 w-4" />}
                         </button>
+                        <button
+                          type="button"
+                          title={t.cost_summary ?? 'Resumen Costo'}
+                          onClick={() => openCostSummary(o.numEntrega)}
+                          className="h-7 w-7 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
+                        >
+                          <IconClipboardText className="h-4 w-4" />
+                        </button>
                       </div>
                     </td>
                     <td className={tdClass}>
@@ -445,18 +527,22 @@ export default function DeliveryReport() {
         </div>
       )}
 
-      {/* Paginación */}
-      {!loading && totalPages > 1 && (
-        <div className="flex justify-center mt-4">
-          <Pagination
-            total={totalPages}
-            value={urlPage}
-            onChange={handlePageChange}
-            size="sm"
-            radius="xl"
-          />
+      {/* Scroll infinito: centinela que dispara la siguiente página al acercarse. */}
+      {!loading && orders.length > 0 && (
+        <div ref={sentinelRef} className="flex items-center justify-center py-6 text-xs text-gray-400">
+          {loadingMore
+            ? <span className="animate-pulse">{t.searching ?? 'Buscando...'}</span>
+            : !hasMore && total > 0 && <span>{orders.length} / {total}</span>}
         </div>
       )}
+
+      <Modal
+        showModal={showModal}
+        closeModal={() => setShowModal(false)}
+        title={t.cost_summary ?? 'Resumen Costo'}
+        size="w-full max-w-6xl"
+        content={modalEntrega && <DeliveryCostSummary close={() => setShowModal(false)} t={t} numEntrega={modalEntrega} />}
+      />
     </>
   );
 }

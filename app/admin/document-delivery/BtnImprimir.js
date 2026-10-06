@@ -6,7 +6,7 @@ import IconDownload from '@/components/icon/icon-download';
 import Modal from '@/components/modal';
 import { swalError } from '@/app/lib/swal';
 import {
-  downloadLabel, downloadPackingList, downloadDeliveryReceipt, downloadInvoice, downloadNafta, downloadCombinedReports,
+  downloadLabel, downloadPackingList, downloadDeliveryReceipt, downloadInvoice, downloadInvoiceExcel, downloadNafta, downloadCombinedReports,
 } from '@/app/lib/embalajeReports';
 
 // "tipo" es el valor que espera el endpoint combinado (?tipos=...).
@@ -86,6 +86,18 @@ const BtnImprimir = ({ t, row, className = "", onOpenDispatch }) => {
     }
   };
 
+  // Invoice Excel: solo "Uno por uno" — endpoint todavía no existe en el backend.
+  const downloadInvoiceExcelOnly = async () => {
+    setDownloading(true);
+    try {
+      await downloadInvoiceExcel(row.NumEmbalaje, row.NumDespacho);
+    } catch (error) {
+      swalError(t.error, t.invoice_excel_unavailable ?? 'El Invoice Excel todavía no está disponible.', t.close);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const toggleSelected = (key) => {
     setSelected(prev => {
       const next = new Set(prev);
@@ -132,14 +144,26 @@ const BtnImprimir = ({ t, row, className = "", onOpenDispatch }) => {
             {mode === 'individual' && (
               <div className="grid grid-cols-2 gap-3">
                 {REPORT_TYPES.map(rt => (
-                  <button
-                    key={rt.key}
-                    disabled={downloading}
-                    onClick={() => runDownloads([rt.key])}
-                    className={reportButtonClass}
-                  >
-                    {label(rt)}
-                  </button>
+                  <React.Fragment key={rt.key}>
+                    <button
+                      disabled={downloading}
+                      onClick={() => runDownloads([rt.key])}
+                      className={reportButtonClass}
+                    >
+                      {label(rt)}
+                    </button>
+                    {/* Invoice Excel solo en modo individual — endpoint todavía no existe. */}
+                    {rt.key === 'invoice' && (
+                      <button
+                        type="button"
+                        disabled={downloading}
+                        onClick={downloadInvoiceExcelOnly}
+                        className={reportButtonClass}
+                      >
+                        {t.invoice_excel ?? 'Invoice Excel'}
+                      </button>
+                    )}
+                  </React.Fragment>
                 ))}
                 {/* NAFTA solo aplica a envíos con destino Chile, Perú o USA. */}
                 <button

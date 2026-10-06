@@ -27,6 +27,7 @@ export const PERMISSIONS = {
   CAMBIAR_COTIZACION            : "A6B491DF",
   CAMBIAR_PARAMETROS_PRECIO     : "883B46F7",
   VER_RESUMEN_COSTOS            : "5F6BF9AD",
+  VER_RESUMEN_REPUESTO          : "4U8CV10G",
   DUPLICAR                      : "43EC3714",
   VALIDAR                       : "4671D04B",
   DAR_COMPRAR                   : "B527820C",

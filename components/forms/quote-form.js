@@ -31,6 +31,8 @@ import { customFormat } from '@/app/lib/format';
 import { useSelector } from 'react-redux';
 import { getLocale } from '@/store/localeSlice';
 import { selectUser } from '@/store/authSlice';
+import { usePermissions } from '@/app/hooks/usePermissions';
+import { PERMISSIONS } from '@/constants/permissions';
 import Swal from 'sweetalert2'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import IconTrashLines from '../icon/icon-trash-lines';
@@ -413,6 +415,8 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const statusMenuRef = useRef(null);
+  const { hasPermission } = usePermissions();
+  const canViewSpareSummary = hasPermission(PERMISSIONS.VER_RESUMEN_REPUESTO);
 
   useEffect(() => {
     if (!statusMenuOpen) return;
@@ -1492,6 +1496,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
         close={() => setShowModal(false)}
         t={t}
         codRepuesto={item.CodRepuesto}
+        readOnly={blocked}
         initialNotes={item.NotasAdicionales ?? []}
         onNotesUpdated={(updatedNotes) => {
           setItems(prev => prev.map(i => i.CodItem === item.CodItem
@@ -2305,8 +2310,8 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                                   className="text-primary text-xs font-semibold border border-primary/30 rounded px-2 py-0.5 hover:bg-primary/5 transition disabled:opacity-50 disabled:cursor-not-allowed">
                                   {item.NroParte}
                                 </button>
-                              ) : item.CodRepuesto ? (
-                                <button onClick={run(() => showSpareSummary(item))} type="button" disabled={isSubmitting}
+                              ) : item.CodRepuesto && canViewSpareSummary ? (
+                                <button onClick={() => showSpareSummary(item)} type="button" disabled={isSubmitting}
                                   title={t.spare_summary ?? 'Resumen del Repuesto'}
                                   className="text-xs font-medium text-gray-800 dark:text-gray-100 hover:text-primary hover:underline transition disabled:opacity-50 disabled:cursor-not-allowed">
                                   {item.NroParte}

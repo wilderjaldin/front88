@@ -5,7 +5,6 @@ import { useRepresentative } from '../../RepresentativeContext';
 import { useForm, Controller } from 'react-hook-form';
 import { useDevice } from '@/context/device-context';
 import { Pagination } from '@mantine/core';
-import Select from '@/components/ui/Select';
 import BrandSelect from '@/components/ui/BrandSelect';
 import axiosClient from '@/app/lib/axiosClient';
 import Swal from 'sweetalert2';
@@ -163,7 +162,7 @@ function MargenForm({ codPais, representante, editingRow, controles, onSaved, on
           name="proveedor"
           control={control}
           render={({ field }) => (
-            <Select
+            <BrandSelect
               {...field}
               options={controles?.proveedores ?? []}
               isClearable

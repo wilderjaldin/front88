@@ -491,7 +491,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                   validate: v => {
                     if (!v || !v.trim()) return true; // opcional
                     try {
-                      const url = new URL(v.startsWith('http') ? v : `https://${v}`);
+                      const url = new URL(/^https?:\/\//i.test(v) ? v : `https://${v}`);
                       return (url.hostname.includes('.')) || t.invalid_url;
                     } catch {
                       return t.invalid_url;

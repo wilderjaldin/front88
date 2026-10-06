@@ -1,5 +1,6 @@
 'use client';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import Select from '@/components/ui/Select';
 import SearchFilter from '@/components/SearchFilter';
 import IconArrowDown from '@/components/icon/icon-arrow-down';
@@ -29,6 +30,8 @@ const mapOrder = (o, index) => ({
   id:              index,
   NumOrdenCompra:  o.numOrdenCompra,
   NroOrden:        o.nroOrden,
+  CodCliente:      o.codCliente,
+  CatCotizacion:   o.catCotizacion,
   NomPrv:          o.proveedor,
   Dias:            o.intDias,
   NumTracking:     o.numTracking,
@@ -42,6 +45,8 @@ const mapOrder = (o, index) => ({
   Recepcion3:      o.recepcion3 ?? false,
   TieneNota:       o.tieneNota ?? false,
 });
+
+const CATEGORY_OPTION = { NR: 'quotes', SC: 'quotes-without-code', MA: 'manual' };
 
 // Estados fijos del negocio (no vienen de un catálogo del backend).
 const STATUS_OPTIONS = [
@@ -483,7 +488,12 @@ const Orders = ({ t, data, setOrders, attachOrder, loading, onRefresh, onSearch,
                         title={o.TieneNota ? (t.has_note ?? 'Tiene nota') : undefined}
                         className={`mt-1 h-2 w-2 rounded-full shrink-0 ${o.TieneNota ? 'bg-amber-400 dark:bg-amber-500' : 'invisible'}`}
                       />
-                      <span className="break-words min-w-0">{o.NroOrden}</span>
+                      <Link
+                        href={`/admin/revision/quotes?customer=${o.CodCliente}&option=${CATEGORY_OPTION[o.CatCotizacion] ?? 'quotes'}&id=${o.NroOrden}`}
+                        className="break-words min-w-0 text-primary hover:underline"
+                      >
+                        {o.NroOrden}
+                      </Link>
                     </div>
                   </td>
                   <td className={`${tdClass} font-medium truncate`} title={o.NomPrv}>{o.NomPrv}</td>

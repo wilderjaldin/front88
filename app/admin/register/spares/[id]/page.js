@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import axiosClient from '@/app/lib/axiosClient';
 import Swal from 'sweetalert2';
@@ -15,8 +16,13 @@ import IconTag from '@/components/icon/icon-tag';
 import IconUser from '@/components/icon/icon-user';
 import IconTrendingUp from '@/components/icon/icon-trending-up';
 import IconNotes from '@/components/icon/icon-notes';
+import IconClipboardText from '@/components/icon/icon-clipboard-text';
 
 const URL_DETAIL = 'repuestos/ver';
+
+// Mismo mapeo que usa NotificationsProvider para armar el link de una
+// cotización a partir de su categoría (NR/SC/MA).
+const CATEGORY_OPTION = { NR: 'quotes', SC: 'quotes-without-code', MA: 'manual' };
 
 // ── Paleta de acentos por categoría ─────────────────────────────────────────
 const COLORS = {
@@ -315,6 +321,57 @@ export default function SpareDetail() {
                     <td className="py-2 text-gray-500">{fmtDateTime(h.fecRegistra)}</td>
                   </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      )}
+
+      {/* ── Cotizaciones donde se incluyó este repuesto ─────────────────────── */}
+      {spare?.cotizaciones?.length > 0 && (
+        <Panel color="indigo" icon={<IconClipboardText className="h-3.5 w-3.5" />} title="Cotizaciones" className="mt-5">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+                  <th className="pb-2 pr-4">Nro. Cotización</th>
+                  <th className="pb-2 pr-4">Cliente</th>
+                  <th className="pb-2 pr-4">País</th>
+                  <th className="pb-2 pr-4">Estado</th>
+                  <th className="pb-2">Fecha</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                {spare.cotizaciones.map((c) => {
+                  const option = CATEGORY_OPTION[c.categoria] ?? 'quotes';
+                  return (
+                    <tr key={c.nroCotizacion}>
+                      <td className="py-2 pr-4">
+                        <Link
+                          href={`/admin/revision/quotes?customer=${c.codCliente}&option=${option}&id=${c.nroCotizacion}`}
+                          className="font-semibold text-primary hover:underline"
+                        >
+                          {c.nroCotizacion}
+                        </Link>
+                      </td>
+                      <td className="py-2 pr-4 text-gray-700 dark:text-gray-200">{fmt(c.cliente)}</td>
+                      <td className="py-2 pr-4">
+                        <div className="flex items-center gap-1.5">
+                          {c.codPais && (
+                            <img
+                              src={`/assets/flags/${c.codPais.toLowerCase()}.svg`}
+                              alt={c.codPais}
+                              className="h-3.5 w-5 rounded-sm object-cover shrink-0"
+                            />
+                          )}
+                          <span className="text-gray-500">{fmt(c.pais)}</span>
+                        </div>
+                      </td>
+                      <td className="py-2 pr-4"><Badge color="amber">{c.estado}</Badge></td>
+                      <td className="py-2 text-gray-500">{fmtDate(c.fecha)}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

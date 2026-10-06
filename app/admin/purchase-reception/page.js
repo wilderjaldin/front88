@@ -66,6 +66,8 @@ export default function PurchaseReception() {
         id:              index,
         NumOrdenCompra:  o.numOrdenCompra,
         NroOrden:        o.nroOrden,
+        CodCliente:      o.codCliente,
+        CatCotizacion:   o.catCotizacion,
         NomPrv:          o.proveedor,
         Dias:            o.intDias,
         NumTracking:     o.numTracking,

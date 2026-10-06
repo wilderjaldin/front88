@@ -360,8 +360,9 @@ const ComponentSpareForm = ({ action_cancel, token, t, spare = [], updateList })
                     control={control}
                     rules={{ required: { value: true, message: t.required_select } }}
                     render={({ field }) => (
-                      <Select
+                      <BrandSelect
                         {...field}
+                        t={t}
                         id="select_type"
                         placeholder={t.select_option}
                         classNamePrefix="select"

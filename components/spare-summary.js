@@ -6,6 +6,7 @@ import { customFormat } from '@/app/lib/format';
 import AddNoteField from '@/components/forms/AddNoteField';
 import EditSpareQuickForm from '@/components/forms/edit-spare-quick-form';
 import IconPencil from '@/components/icon/icon-pencil';
+import IconEye from '@/components/icon/icon-eye';
 import { swalError } from '@/app/lib/swal';
 
 const Field = ({ label, value }) => (
@@ -27,7 +28,7 @@ const formatDateTime = (val) => {
   return new Date(val).toLocaleString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
-const SpareSummary = ({ close, t, codRepuesto, nroCotizacion, onNotesUpdated, onQuoteUpdated, initialNotes = [] }) => {
+const SpareSummary = ({ close, t, codRepuesto, nroCotizacion, onNotesUpdated, onQuoteUpdated, initialNotes = [], readOnly = false }) => {
   const [data, setData] = useState(null);
   const [notes, setNotes] = useState(initialNotes);
   const [loading, setLoading] = useState(true);
@@ -72,14 +73,27 @@ const SpareSummary = ({ close, t, codRepuesto, nroCotizacion, onNotesUpdated, on
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{data.desRepuesto}</p>
         </div>
         {!editing && (
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            title={t.btn_edit ?? 'Editar'}
-            className="shrink-0 h-8 w-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-primary hover:bg-primary/10 transition"
-          >
-            <IconPencil className="h-4 w-4" />
-          </button>
+          <div className="shrink-0 flex items-center gap-1">
+            <a
+              href={`/admin/register/spares/${codRepuesto}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={t.view_more ?? 'Ver más'}
+              className="h-8 w-8 flex items-center justify-center rounded-lg text-sky-500 hover:text-sky-600 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-900/20 transition"
+            >
+              <IconEye className="h-4 w-4" />
+            </a>
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                title={t.btn_edit ?? 'Editar'}
+                className="h-8 w-8 flex items-center justify-center rounded-lg text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-900/20 transition"
+              >
+                <IconPencil className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         )}
       </div>
       <div className="h-0.5 w-8 rounded bg-primary/60 mb-1" />
@@ -134,18 +148,20 @@ const SpareSummary = ({ close, t, codRepuesto, nroCotizacion, onNotesUpdated, on
             {/* AddNoteField ya trae su propia tarjeta (encabezado + textarea + botón)
                 — se distingue de los Field de arriba y el historial, que son solo
                 informativos, por ser lo único con lo que se interactúa acá. */}
-            <div className="mt-3">
-              <AddNoteField
-                t={t}
-                codRepuesto={codRepuesto}
-                rows={2}
-                onSaved={(updatedNotes) => {
-                  setNotes(updatedNotes);
-                  onNotesUpdated?.(updatedNotes);
-                }}
-                onError={(error) => swalError(t.error, error?.response?.data?.mensaje ?? 'No se pudo guardar la nota')}
-              />
-            </div>
+            {!readOnly && (
+              <div className="mt-3">
+                <AddNoteField
+                  t={t}
+                  codRepuesto={codRepuesto}
+                  rows={2}
+                  onSaved={(updatedNotes) => {
+                    setNotes(updatedNotes);
+                    onNotesUpdated?.(updatedNotes);
+                  }}
+                  onError={(error) => swalError(t.error, error?.response?.data?.mensaje ?? 'No se pudo guardar la nota')}
+                />
+              </div>
+            )}
           </div>
 
           <div className="flex justify-center pt-3 pb-1">

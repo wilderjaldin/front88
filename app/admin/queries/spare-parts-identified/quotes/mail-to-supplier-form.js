@@ -7,7 +7,7 @@ import { useSelector } from 'react-redux';
 import { selectUser } from '@/store/authSlice';
 import { useForm } from 'react-hook-form';
 import { swalSuccess, swalError, swalMailNotSent } from '@/app/lib/swal';
-import Select from '@/components/ui/Select';
+import BrandSelect from '@/components/ui/BrandSelect';
 import ContactSupplierForm from '@/app/admin/register/suppliers/[id]/[tab]/tabs/ContactSupplierForm';
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false });
@@ -186,20 +186,12 @@ const MailToSupplierForm = ({ close, t, order, selected = [] }) => {
         <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">
           Proveedor
         </label>
-        <Select
+        <BrandSelect
           isClearable
           options={suppliers}
           value={selectedSupplier}
           onChange={handleSelectSupplier}
           placeholder="Seleccionar proveedor..."
-          filterOption={(option, inputValue) =>
-            inputValue.length < 2
-              ? false
-              : option.label.toLowerCase().includes(inputValue.toLowerCase())
-          }
-          noOptionsMessage={({ inputValue }) =>
-            inputValue.length < 2 ? 'Ingrese al menos 2 caracteres' : 'Sin resultados'
-          }
         />
       </div>
 

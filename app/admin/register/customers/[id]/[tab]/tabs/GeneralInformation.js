@@ -203,7 +203,7 @@ export default function GeneralInformation({ cliente, onEdit, t, general, setGen
               <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{t.website}</span>
               {g.sitWeb ? (
                 <a
-                  href={g.sitWeb.match(/^https?:\/\//) ? g.sitWeb : `https://${g.sitWeb}`}
+                  href={g.sitWeb.match(/^https?:\/\//i) ? g.sitWeb : `https://${g.sitWeb}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="no-load inline-flex items-center gap-1 text-sm text-primary hover:underline truncate"

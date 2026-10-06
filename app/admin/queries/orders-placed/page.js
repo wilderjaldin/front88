@@ -293,7 +293,7 @@ export default function OrdersPlaced() {
           {/* Fila 1: input + botones */}
           <div className="flex items-center gap-2">
             <input
-              type="number"
+              type="text"
               placeholder={t.nro_order_quote_ph}
               {...register("nroOrden")}
               className="h-10 w-full rounded-lg border border-gray-300 dark:border-gray-700

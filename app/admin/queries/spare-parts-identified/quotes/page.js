@@ -446,7 +446,8 @@ export default function QuoteIdentify() {
                 <div className="flex items-center gap-2">
                   <label className={labelClass}>{t.supplier_suggestion}</label>
                   <div className="flex-1 min-w-0">
-                    <Select
+                    <BrandSelect
+                      t={t}
                       options={suppliers_suggestion}
                       isSearchable
                       isClearable={false}

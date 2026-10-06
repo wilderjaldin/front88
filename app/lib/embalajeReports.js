@@ -2,8 +2,8 @@ import axiosClient from '@/app/lib/axiosClient';
 
 // Reportes de embalaje — GET embalajes/{numEmbalaje}/{reporte}/pdf. Compartido entre
 // document-delivery/BtnImprimir.js y el modal post-guardado de /admin/dispatch.
-const saveBlob = (blobData, filename) => {
-  const blob = new Blob([blobData], { type: 'application/pdf' });
+export const saveBlob = (blobData, filename, type = 'application/pdf') => {
+  const blob = new Blob([blobData], { type });
   const blobUrl = window.URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = blobUrl;
@@ -36,6 +36,11 @@ export const downloadDeliveryReceipt = async (numEmbalaje) => {
 export const downloadInvoice = async (numEmbalaje, numDespacho) => {
   const res = await axiosClient.get(`embalajes/${numEmbalaje}/invoice/pdf`, { responseType: 'blob' });
   saveBlob(res.data, `D${numDespacho}.pdf`);
+};
+
+export const downloadInvoiceExcel = async (numEmbalaje, numDespacho) => {
+  const res = await axiosClient.get(`embalajes/${numEmbalaje}/invoice/excel`, { responseType: 'blob' });
+  saveBlob(res.data, `D${numDespacho}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 };
 
 export const downloadNafta = async (numEmbalaje) => {

@@ -12,6 +12,7 @@ import IconX from '@/components/icon/icon-x';
 import IconBackSpace from '@/components/icon/icon-backspace';
 import IconPlus from '@/components/icon/icon-plus';
 import Select from '@/components/ui/Select';
+import BrandSelect from '@/components/ui/BrandSelect';
 import AsyncSelect from '@/components/ui/AsyncSelect';
 import { Controller, useForm } from 'react-hook-form';
 import { Pagination } from '@mantine/core';
@@ -513,7 +514,8 @@ const DatatablesSpares = ({
                   styles={compactSelectStylesWidth('270px')}
                 />
               ) : (
-                <Select
+                <BrandSelect
+                  t={t}
                   options={suppliers}
                   value={field.value}
                   onChange={(s) => field.onChange(s ?? null)}
