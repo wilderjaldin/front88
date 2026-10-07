@@ -465,7 +465,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                   {...register('numNit', {
                     maxLength: { value: 45, message: t.max_n_characters.replace('{n}', 45) },
                     pattern: {
-                      value: /^[0-9.\- ]*$/,
+                      value: /^[0-9.\-kK ]*$/,
                       message: t.only_numbers_dash,
                     },
                     validate: v => {

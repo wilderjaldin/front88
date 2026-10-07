@@ -540,7 +540,7 @@ export default function DeliveryReport() {
         showModal={showModal}
         closeModal={() => setShowModal(false)}
         title={t.cost_summary ?? 'Resumen Costo'}
-        size="w-full max-w-6xl"
+        size="w-full max-w-4xl"
         content={modalEntrega && <DeliveryCostSummary close={() => setShowModal(false)} t={t} numEntrega={modalEntrega} />}
       />
     </>

@@ -21,7 +21,7 @@ const BtnPrintOrder = ({ close, token, t, order, className="" }) => {
  
   const print = () => {
     setShowModal(true)
-    setModalSize('w-full max-w-2xl');
+    setModalSize('w-full max-w-4xl');
     setTimeout(() => {
       setModalContent(<PdfViewerOrder order={order} token={token} />);
     }, 500); // 100ms suele ser suficiente

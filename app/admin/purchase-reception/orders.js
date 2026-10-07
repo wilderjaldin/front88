@@ -1,6 +1,7 @@
 'use client';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useHeaderOffset } from '@/app/hooks/useHeaderOffset';
 import Select from '@/components/ui/Select';
 import SearchFilter from '@/components/SearchFilter';
 import IconArrowDown from '@/components/icon/icon-arrow-down';
@@ -81,6 +82,7 @@ const FilterChecklist = ({ title, options, selected, onToggle }) => (
 );
 
 const Orders = ({ t, data, setOrders, attachOrder, loading, onRefresh, onSearch, onClear }) => {
+  const headerOffset = useHeaderOffset();
 
   const [selected_orders, setSelectedOrders] = useState([]);
   // Scroll infinito: recepcion/listar trae todo de una vez, así que acá no hay
@@ -328,7 +330,9 @@ const Orders = ({ t, data, setOrders, attachOrder, loading, onRefresh, onSearch,
       </div>
 
       {/* Barra de acciones */}
-      <div className="flex flex-wrap items-center gap-1.5 mb-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 shadow-sm">
+      {/* Sticky sin z-index a propósito (igual que la barra de cotización): un z explícito
+          taparía los desplegables de react-select que se abren sobre la tabla. */}
+      <div style={{ top: headerOffset }} className="sticky flex flex-wrap items-center gap-1.5 mb-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 shadow-sm">
         <button
           type="button"
           onClick={handleAttachOrder}
@@ -430,7 +434,7 @@ const Orders = ({ t, data, setOrders, attachOrder, loading, onRefresh, onSearch,
       </div>
 
       {/* Tabla */}
-      <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
+      <div className="panel static overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
         <div className="overflow-x-auto">
           <table className="w-full table-fixed border-collapse bg-white dark:bg-gray-900">
             <thead>

@@ -212,10 +212,13 @@ export default function Quotes() {
           </li>
           {customer.NomCliente !== '---' && (
             <li className="before:content-['/'] before:mx-2">
-              <span
+              <Link
+                href={`/admin/register/customers/${customer.CodCliente}/general`}
+                target="_blank"
+                rel="noopener noreferrer"
                 title={customer.NomPais || undefined}
-                className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-0.5
-                  text-xs font-semibold text-primary"
+                className="no-load inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-0.5
+                  text-xs font-semibold text-primary hover:bg-primary/20 transition"
               >
                 {customer.CodPais && (
                   <img
@@ -225,7 +228,7 @@ export default function Quotes() {
                   />
                 )}
                 {customer.NomCliente}
-              </span>
+              </Link>
             </li>
           )}
         </ul>

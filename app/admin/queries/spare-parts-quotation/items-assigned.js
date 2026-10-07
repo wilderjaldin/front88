@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Pagination } from '@mantine/core';
 import Swal from 'sweetalert2';
 import Modal from '@/components/modal';
 import DeleteForm from './delete-form';
@@ -12,6 +11,7 @@ import IconBackSpace from '@/components/icon/icon-backspace';
 import Link from 'next/link';
 import axiosClient from '@/app/lib/axiosClient';
 import { swalSuccess, swalError, swalConfirm } from '@/app/lib/swal';
+import { useHeaderOffset } from '@/app/hooks/useHeaderOffset';
 
 const URL_EXPORT      = 'repuestosporcotizar/exportar';
 const URL_SAVE_NOTE   = 'repuestosporcotizar/guardar-notas';
@@ -357,7 +357,10 @@ const ItemsAssigned = ({ token, t, data, unassignOrder, setOrdersAssigned, setOr
   const [filter,    setFilter]    = useState('');
   const [sortCol,   setSortCol]   = useState('');
   const [sortDir,   setSortDir]   = useState('asc');
-  const [page,      setPage]      = useState(1);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const sentinelRef = useRef(null);
+  const resetVisible = () => setVisibleCount(PAGE_SIZE);
+  const headerOffset = useHeaderOffset();
 
   const [show_modal,    setShowModal]    = useState(false);
   const [modal_title,   setModalTitle]   = useState('');
@@ -384,7 +387,7 @@ const ItemsAssigned = ({ token, t, data, unassignOrder, setOrdersAssigned, setOr
 
   const { register, getValues, setValue } = useForm();
 
-  useEffect(() => { setSelected([]); setPage(1); }, [data]);
+  useEffect(() => { setSelected([]); resetVisible(); }, [data]);
 
   useEffect(() => {
     data.forEach(o => {
@@ -435,13 +438,28 @@ const ItemsAssigned = ({ token, t, data, unassignOrder, setOrdersAssigned, setOr
     return result;
   }, [sourceData, filter, sortCol, sortDir]);
 
-  const totalPages = Math.ceil(filteredData.length / PAGE_SIZE);
-  const pageData   = filteredData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  useEffect(() => { resetVisible(); }, [filter, sortCol, sortDir, grupoActivo]);
+
+  const pageData = filteredData.slice(0, visibleCount);
+  const hasMore  = visibleCount < filteredData.length;
+
+  // Centinela al final de la tabla: al acercarse al viewport revela el siguiente
+  // bloque ya cargado en memoria (sin red).
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasMore) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setVisibleCount(v => Math.min(v + PAGE_SIZE, filteredData.length)); },
+      { rootMargin: '300px' }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [hasMore, filteredData.length]);
 
   const handleSort = (col) => {
     if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortCol(col); setSortDir('asc'); }
-    setPage(1);
+    resetVisible();
   };
 
   const toggleAll = () =>
@@ -551,7 +569,7 @@ const ItemsAssigned = ({ token, t, data, unassignOrder, setOrdersAssigned, setOr
           <div className="mt-1 h-0.5 w-10 rounded bg-primary/60" />
         </div>
         <div className="relative">
-          <input type="text" value={filter} onChange={e => { setFilter(e.target.value); setPage(1); }} placeholder={t.filter}
+          <input type="text" value={filter} onChange={e => setFilter(e.target.value)} placeholder={t.filter}
             className="h-10 w-52 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 pe-8 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
           {filter && (
             <button onClick={() => setFilter('')} className="absolute inset-y-0 end-2 flex items-center text-gray-400 hover:text-gray-600">
@@ -560,6 +578,10 @@ const ItemsAssigned = ({ token, t, data, unassignOrder, setOrdersAssigned, setOr
           )}
         </div>
       </div>
+
+      {/* Barra de acciones + Grupos: sticky sin z-index a propósito (igual que en
+          cotización y recepción de compra) para no tapar los desplegables nativos. */}
+      <div style={{ top: headerOffset }} className="sticky bg-white dark:bg-gray-900">
 
       {/* Barra de acciones */}
       <div className="flex flex-wrap items-center gap-1.5 mb-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 shadow-sm">
@@ -656,13 +678,15 @@ const ItemsAssigned = ({ token, t, data, unassignOrder, setOrdersAssigned, setOr
         setItemsEnGrupos={setItemsEnGrupos}
         selected={selected}
         setSelected={setSelected}
-        setPage={setPage}
+        setPage={resetVisible}
         setOrdersAssigned={setOrdersAssigned}
         setOrdersUnassigned={setOrdersUnassigned}
       />
 
+      </div>
+
       {/* Tabla */}
-      <div className="panel overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
+      <div className="panel static overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse bg-white dark:bg-gray-900">
             <thead>
@@ -730,9 +754,9 @@ const ItemsAssigned = ({ token, t, data, unassignOrder, setOrdersAssigned, setOr
         </div>
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex justify-center mt-4">
-          <Pagination total={totalPages} value={page} onChange={setPage} size="sm" radius="xl" />
+      {filteredData.length > 0 && (
+        <div ref={sentinelRef} className="flex items-center justify-center py-6 text-xs text-gray-400">
+          {!hasMore && <span>{pageData.length} / {filteredData.length}</span>}
         </div>
       )}
 

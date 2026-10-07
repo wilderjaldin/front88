@@ -1,5 +1,5 @@
 ﻿"use client";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useTranslation } from "@/app/locales";
 import { useSelector } from 'react-redux';
@@ -7,18 +7,16 @@ import { getLocale } from '@/store/localeSlice';
 import { selectToken } from '@/store/authSlice';
 import DatatablesSparesLot from "@/components/datatables/components-datatables-spares-lot";
 import Select from '@/components/ui/Select';
-import AsyncSelect from '@/components/ui/AsyncSelect';
-import Swal from 'sweetalert2';
+import BrandSelect from '@/components/ui/BrandSelect';
+import { swalError, swalInfo } from '@/app/lib/swal';
 import axiosClient from '@/app/lib/axiosClient';
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
+import { registerUpper } from "@/app/lib/uppercaseField";
 import IconSave from '@/components/icon/icon-save';
 
 const URL_SAVE     = 'repuestos/guardar-lote';
 const URL_DOWNLOAD = 'repuestos/descargar-errores-lote';
 const URL_CONTROLS = 'repuestos/controles?incluirEstados=true&incluirCategorias=true';
-
-const ASYNC_LIMIT     = 20;
-const ASYNC_MIN_CHARS = 2;
 
 const selectStyles = {
   control: (base, state) => ({
@@ -49,11 +47,15 @@ const selectStyles = {
 };
 
 // ── Parseo líneas TSV (texto pegado o convertido desde Excel) ─────────────────
+const isBinary  = (v) => ['0', '1'].includes((v ?? '').trim());
+const isNumeric = (v) => (v ?? '').trim() !== '' && !isNaN(Number((v ?? '').trim()));
+
 function parseLines(text, units) {
   const lines         = text.split(/\r\n|\r|\n/);
   const rows          = [];
   const invalid_lines = [];
   const bad_units     = [];
+  const bad_values    = [];
 
   for (const [i, line] of lines.entries()) {
     if (!line.trim()) continue;
@@ -61,6 +63,13 @@ function parseLines(text, units) {
     if (spare.length < 10) { invalid_lines.push(i + 1); continue; }
     const unit = spare[5] ? spare[5].toUpperCase() : '';
     if (!units.some(obj => obj.label?.toUpperCase() === unit)) bad_units.push(unit);
+
+    const lineNo = i + 1;
+    if (!isBinary(spare[6]))  bad_values.push(`${lineNo}: Ped. Especial`);
+    if (!isNumeric(spare[7])) bad_values.push(`${lineNo}: Can. Días`);
+    if (!isBinary(spare[8]))  bad_values.push(`${lineNo}: Ped. Especial Sin Fecha`);
+    if (!isBinary(spare[9]))  bad_values.push(`${lineNo}: Poco Inventario`);
+
     rows.push({
       id: i, nro_part: spare[0], description: spare[1],
       cost: spare[2], weight: spare[3], min_amount: spare[4],
@@ -68,7 +77,7 @@ function parseLines(text, units) {
       special_order_without_date: spare[8], low_inventory: spare[9],
     });
   }
-  return { rows, invalid_lines, bad_units };
+  return { rows, invalid_lines, bad_units, bad_values };
 }
 
 const COLOR_MAP = {
@@ -128,31 +137,22 @@ export default function SparesInLot() {
       .catch(err => console.error('controls', err));
   }, []);
 
-  // ── AsyncSelect loaders ───────────────────────────────────────────────────
-  const filterOpts = useCallback((options, input) => {
-    const term = input.trim().toLowerCase();
-    if (term.length < ASYNC_MIN_CHARS) return [];
-    return options.filter(o => o.label.toLowerCase().includes(term)).slice(0, ASYNC_LIMIT);
-  }, []);
-
-  const loadSuppliers = useCallback((input, cb) => cb(filterOpts(suppliers, input)), [suppliers, filterOpts]);
-  const loadBrands    = useCallback((input, cb) => cb(filterOpts(brands,    input)), [brands,    filterOpts]);
-
-  const noOptsMsg = ({ inputValue }) =>
-    inputValue.length < ASYNC_MIN_CHARS ? `Ingresa ${ASYNC_MIN_CHARS} caracteres para buscar` : 'Sin resultados';
-
   // ── Import (paso 1 → tabla) ───────────────────────────────────────────────
   const onImport = async (data) => {
     setImporting(true);
     try {
-      const { rows, invalid_lines, bad_units } = parseLines(data.codes ?? '', units);
+      const { rows, invalid_lines, bad_units, bad_values } = parseLines(data.codes ?? '', units);
 
       if (invalid_lines.length > 0) {
-        Swal.fire({ title: t.error, text: `${t.invalid_format_lines}: ${invalid_lines.join(', ')}`, icon: 'error', confirmButtonColor: '#dc2626', confirmButtonText: t.close });
+        swalError(t.error, `${t.invalid_format_lines}: ${invalid_lines.join(', ')}`, t.close);
         return;
       }
       if (bad_units.length > 0) {
-        Swal.fire({ title: t.error, text: `${t.incorrect_units}: [${bad_units.join(', ')}]`, icon: 'error', confirmButtonColor: '#dc2626', confirmButtonText: t.close });
+        swalError(t.error, `${t.incorrect_units}: [${bad_units.join(', ')}]`, t.close);
+        return;
+      }
+      if (bad_values.length > 0) {
+        swalError(t.error, `${t.incorrect_values ?? 'Valores incorrectos'}: ${bad_values.join(', ')}`, t.close);
         return;
       }
 
@@ -160,7 +160,7 @@ export default function SparesInLot() {
       setShowForm(true);
     } catch (err) {
       console.error(err);
-      Swal.fire({ title: t.error, text: t.unexpected_error || 'Error inesperado al procesar.', icon: 'error', confirmButtonColor: '#dc2626', confirmButtonText: t.close });
+      swalError(t.error, t.unexpected_error || 'Error inesperado al procesar.', t.close);
     } finally {
       setImporting(false);
     }
@@ -195,7 +195,7 @@ export default function SparesInLot() {
       setShowForm(false);
       setShowResult(true);
     } catch (err) {
-      Swal.fire({ position: 'top-end', icon: 'error', title: err?.response?.data?.message || 'Error al guardar', showConfirmButton: false, timer: 3000 });
+      swalError(t.error, err?.response?.data?.message || 'Error al guardar', t.close);
     } finally {
       setSaving(false);
     }
@@ -226,7 +226,7 @@ export default function SparesInLot() {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch {
-      Swal.fire({ position: 'top-end', icon: 'warning', title: 'No hay errores disponibles (sesión expirada)', showConfirmButton: false, timer: 2500 });
+      swalInfo(t.error ?? 'Aviso', 'No hay errores disponibles (sesión expirada)', t.close);
     }
   };
 
@@ -265,7 +265,7 @@ export default function SparesInLot() {
               <textarea
                 rows={8}
                 placeholder={"3801262\tM BEARING SET...\t40.40\t2\t1\tUNIDAD\t0\t0\t0\t0"}
-                {...register("codes", { required: { value: true, message: t.required_field } })}
+                {...registerUpper(register, "codes", { required: { value: true, message: t.required_field } })}
                 className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-3 text-sm font-mono text-gray-800 dark:text-gray-200 placeholder:text-gray-300 dark:placeholder:text-gray-600 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 resize-y"
               />
               {errors.codes && <span className="text-red-500 text-xs mt-1 block">{errors.codes.message}</span>}
@@ -395,10 +395,10 @@ export default function SparesInLot() {
                   <label className="block text-sm font-medium mb-1.5">{t.supplier} <span className="text-red-500">*</span></label>
                   <Controller name="supplier" control={control} rules={{ required: 'Seleccione un proveedor' }}
                     render={({ field }) => (
-                      <AsyncSelect loadOptions={loadSuppliers} defaultOptions={false}
+                      <BrandSelect t={t} options={suppliers}
                         value={field.value} onChange={(s) => field.onChange(s ?? null)}
-                        placeholder="Buscar proveedor..." noOptionsMessage={noOptsMsg}
-                        isClearable cacheOptions classNamePrefix="select" styles={selectStyles} className="w-full"
+                        placeholder="Buscar proveedor..."
+                        isClearable classNamePrefix="select" styles={selectStyles} className="w-full"
                         error={!!errors.supplier} />
                     )} />
                   {errors.supplier && <span className="text-red-500 text-xs mt-1 block">{errors.supplier.message}</span>}
@@ -409,10 +409,10 @@ export default function SparesInLot() {
                   <label className="block text-sm font-medium mb-1.5">{t.application} <span className="text-red-500">*</span></label>
                   <Controller name="application" control={control} rules={{ required: t.required_select }}
                     render={({ field }) => (
-                      <AsyncSelect loadOptions={loadBrands} defaultOptions={false}
+                      <BrandSelect t={t} options={brands}
                         value={field.value} onChange={(s) => field.onChange(s ?? null)}
-                        placeholder="Buscar aplicación..." noOptionsMessage={noOptsMsg}
-                        isClearable cacheOptions classNamePrefix="select" styles={selectStyles} className="w-full"
+                        placeholder="Buscar aplicación..."
+                        isClearable classNamePrefix="select" styles={selectStyles} className="w-full"
                         error={!!errors.application} />
                     )} />
                   {errors.application && <span className="text-red-500 text-xs mt-1 block">{errors.application.message}</span>}
@@ -437,10 +437,10 @@ export default function SparesInLot() {
                   <label className="block text-sm font-medium mb-1.5">{t.brand} <span className="text-red-500">*</span></label>
                   <Controller name="brand" control={control} rules={{ required: t.required_select }}
                     render={({ field }) => (
-                      <AsyncSelect loadOptions={loadBrands} defaultOptions={false}
+                      <BrandSelect t={t} options={brands}
                         value={field.value} onChange={(s) => field.onChange(s ?? null)}
-                        placeholder="Buscar marca..." noOptionsMessage={noOptsMsg}
-                        isClearable cacheOptions classNamePrefix="select" styles={selectStyles} className="w-full"
+                        placeholder="Buscar marca..."
+                        isClearable classNamePrefix="select" styles={selectStyles} className="w-full"
                         error={!!errors.brand} />
                     )} />
                   {errors.brand && <span className="text-red-500 text-xs mt-1 block">{errors.brand.message}</span>}

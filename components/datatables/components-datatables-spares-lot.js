@@ -24,6 +24,9 @@ const DatatablesSparesLot = ({ t, data = [] }) => {
         noRecordsText="No results match your search query"
         highlightOnHover
         className="table-hover whitespace-nowrap"
+        fz="xs"
+        verticalSpacing="xs"
+        horizontalSpacing="sm"
         records={records}
         columns={[
           { accessor: 'nro_part',                   title: t.nro_part },
@@ -37,7 +40,7 @@ const DatatablesSparesLot = ({ t, data = [] }) => {
           { accessor: 'special_order_without_date', title: 'Ped. Especial Sin Fecha' },
           { accessor: 'low_inventory',              title: 'Poco Inventario' },
         ]}
-        minHeight={200}
+        minHeight={150}
         {...(paginated ? {
           totalRecords: rowData.length,
           recordsPerPage: pageSize,

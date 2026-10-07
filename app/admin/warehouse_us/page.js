@@ -8,10 +8,12 @@ import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 import TablePending from "@/app/admin/warehouse_us/table-pending";
 import TableInWarehouse from "@/app/admin/warehouse_us/table-in-warehouse";
 import TableAttached from "@/app/admin/warehouse_us/table-attached";
+import TableWarehouseItems from "@/app/admin/warehouse_us/table-warehouse-items";
 
 const URL_LIST = 'ordenescompra/recepcion-usa';
 const URL_IN_WAREHOUSE = 'ordenescompra/embalaje-usa';
 const URL_ITEMS = 'ordenescompra/detalleitemembalaje-usa';
+const URL_IN_WAREHOUSE_ITEMS = 'ordenescompra/enbodega-usa';
 
 const TAB_KEYS = ['pending', 'in_warehouse', 'attached'];
 
@@ -32,6 +34,14 @@ const mapInWarehouseOrder = (o) => ({
   Cliente:  o.cliente,
   CodPais:  o.codPais,
   Estado:   o.estadoOrden,
+});
+
+const mapWarehouseItem = (d) => ({
+  NroOrden:    d.nroCotizacion,
+  Cliente:     d.cliente,
+  NroParte:    d.nroParte,
+  Descripcion: d.desRepuesto,
+  Cantidad:    d.canRecibida,
 });
 
 const mapAttachedItem = (d) => ({
@@ -58,6 +68,8 @@ export default function WarehouseUs() {
   const [loadingInWarehouse, setLoadingInWarehouse] = useState(false);
   const [termInWarehouse, setTermInWarehouse] = useState('');
   const [attachedItems, setAttachedItems] = useState([]);
+  const [warehouseItems, setWarehouseItems] = useState([]);
+  const [itemsSource, setItemsSource] = useState('attached');
   const [loadingItems, setLoadingItems] = useState(false);
 
   const option = searchParams.get("option") || "";
@@ -128,20 +140,30 @@ export default function WarehouseUs() {
     router.push(`?option=${TAB_KEYS[index]}`, { scroll: false });
   };
 
-  const handleViewItems = async (selected) => {
-    if (selected.length === 0) return;
+  const loadItems = async (url, payload, mapper, source) => {
     setLoadingItems(true);
     try {
-      const rs = await axiosClient.post(URL_ITEMS, {
-        nrocotizacion: selected.map(o => o.NroOrden),
-      });
-      setAttachedItems((rs.data ?? []).map(mapAttachedItem));
+      const rs = await axiosClient.post(url, payload);
+      const data = (rs.data ?? []).map(mapper);
+      if (source === 'warehouse') setWarehouseItems(data);
+      else setAttachedItems(data);
+      setItemsSource(source);
       router.push(`?option=attached`, { scroll: false });
     } catch (error) {
 
     } finally {
       setLoadingItems(false);
     }
+  };
+
+  const handleViewItems = async (selected) => {
+    if (selected.length === 0) return;
+    await loadItems(URL_ITEMS, { NumOrdenCompra: selected.map(o => o.NumOrdenCompra) }, mapAttachedItem, 'attached');
+  };
+
+  const handleViewInWarehouseItems = async (selected) => {
+    if (selected.length === 0) return;
+    await loadItems(URL_IN_WAREHOUSE_ITEMS, { nroCotizacion: selected.map(o => o.NroOrden) }, mapWarehouseItem, 'warehouse');
   };
 
   useDynamicTitle(`${t.warehouse_us}`);
@@ -193,10 +215,12 @@ export default function WarehouseUs() {
           <TablePending t={t} title={t.unreceived_purchase_orders} orders={orders} loading={loading} term={termPending} onRefresh={clearPending} onViewItems={handleViewItems} onSearch={searchPending} onClear={clearPending} />
         )}
         {activeTab === 1 && (
-          <TableInWarehouse t={t} orders={inWarehouseOrders} loading={loadingInWarehouse} term={termInWarehouse} onRefresh={clearInWarehouse} onViewItems={handleViewItems} onSearch={searchInWarehouse} onClear={clearInWarehouse} />
+          <TableInWarehouse t={t} orders={inWarehouseOrders} loading={loadingInWarehouse} term={termInWarehouse} onRefresh={clearInWarehouse} onViewItems={handleViewInWarehouseItems} onSearch={searchInWarehouse} onClear={clearInWarehouse} />
         )}
         {activeTab === 2 && (
-          attachedItems.length === 0 && !loadingItems ? (
+          itemsSource === 'warehouse' ? (
+            <TableWarehouseItems t={t} items={warehouseItems} loading={loadingItems} />
+          ) : attachedItems.length === 0 && !loadingItems ? (
             <div className="panel flex flex-col items-center justify-center gap-2 border border-dashed border-gray-300 dark:border-gray-700 py-16 text-center">
               <h2 className="text-base font-semibold text-gray-700 dark:text-gray-200">{t.attached_items}</h2>
               <p className="text-sm text-gray-400">{t.select_orders_hint}</p>
