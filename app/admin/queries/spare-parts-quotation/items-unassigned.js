@@ -1,13 +1,12 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Pagination } from '@mantine/core';
 import axios from 'axios';
 import axiosClient from '@/app/lib/axiosClient';
 import { swalSuccess, swalError } from '@/app/lib/swal';
 import Link from 'next/link';
-import IconSearch from '@/components/icon/icon-search';
-import IconBackSpace from '@/components/icon/icon-backspace';
+import SearchFilter from '@/components/SearchFilter';
 
 const url_search    = process.env.NEXT_PUBLIC_API_URL + 'repporcotizar/BuscarListaSinAsignar';
 const URL_SAVE_APPS = 'repuestosporcotizar/guardar-aplicacion';
@@ -20,8 +19,6 @@ const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-3 py-2";
 
 const ItemsUnassigned = ({ token, t, data, assignOrder }) => {
   const [selected, setSelected] = useState([]);
-  const [filter,   setFilter]   = useState('');
-  const [search,   setSearch]   = useState('');
   const [page,     setPage]     = useState(1);
   const [records,  setRecords]  = useState(data);
 
@@ -33,35 +30,27 @@ const ItemsUnassigned = ({ token, t, data, assignOrder }) => {
     records.forEach(o => setValue(`app.${o.codRegistro}`, o.nomMarca ?? ''));
   }, [records]);
 
-  const filteredData = useMemo(() => {
-    if (!filter.trim()) return records;
-    const f = filter.trim().toLowerCase();
-    return records.filter(item =>
-      (item.nomCliente      ?? '').toLowerCase().includes(f) ||
-      (item.nroCotizacion?.toString() ?? '').includes(f) ||
-      (item.nroParte        ?? '').toLowerCase().includes(f) ||
-      (item.nomMarca        ?? '').toLowerCase().includes(f)
-    );
-  }, [records, filter]);
-
-  const totalPages = Math.ceil(filteredData.length / PAGE_SIZE);
-  const pageData   = filteredData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.ceil(records.length / PAGE_SIZE);
+  const pageData   = records.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const toggleAll = () =>
     setSelected(selected.length === pageData.length ? [] : [...pageData]);
   const toggleRow = (row) =>
     setSelected(prev => prev.includes(row) ? prev.filter(x => x !== row) : [...prev, row]);
 
-  const handleSearch = async () => {
-    if (!search.trim()) return;
+  const handleSearch = async (term) => {
+    const nroParte = (term ?? '').trim();
+    if (!nroParte) { setRecords(data); setPage(1); return; }
     try {
-      const rs = await axios.post(url_search, { NroParte: search.trim(), IndiceOrdenar: 0, ValToken: token });
+      const rs = await axios.post(url_search, { NroParte: nroParte, IndiceOrdenar: 0, ValToken: token });
       if (rs.data.estado === 'OK') {
         setRecords((rs.data.dato ?? []).map((o, i) => ({ ...o, id: i })));
         setPage(1);
       }
     } catch {}
   };
+
+  const handleClear = () => { setRecords(data); setPage(1); };
 
   const handleSaveAplication = async () => {
     const payload = pageData.map(o => ({
@@ -85,52 +74,12 @@ const ItemsUnassigned = ({ token, t, data, assignOrder }) => {
         <div className="flex-1">
           <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
             {t.unassigned_quote_items}
-            <span className="ml-2 text-sm font-normal text-gray-400">({filteredData.length})</span>
+            <span className="ml-2 text-sm font-normal text-gray-400">({records.length})</span>
           </h2>
           <div className="mt-1 h-0.5 w-10 rounded bg-primary/60" />
         </div>
 
-        {/* Búsqueda por nro parte (API) */}
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSearch()}
-              placeholder={t.nro_part}
-              className="h-10 w-44 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 pe-8 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
-            {search && (
-              <button onClick={() => { setSearch(''); setRecords(data); }} className="absolute inset-y-0 end-2 flex items-center text-gray-400 hover:text-gray-600">
-                <IconBackSpace className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-          <button
-            onClick={handleSearch}
-            className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/20 text-primary hover:bg-primary/40 transition"
-            title={t.search}
-          >
-            <IconSearch className="h-4 w-4" />
-          </button>
-
-          {/* Filtro local */}
-          <div className="relative">
-            <input
-              type="text"
-              value={filter}
-              onChange={e => { setFilter(e.target.value); setPage(1); }}
-              placeholder={t.filter}
-              className="h-10 w-44 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 pe-8 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
-            {filter && (
-              <button onClick={() => setFilter('')} className="absolute inset-y-0 end-2 flex items-center text-gray-400 hover:text-gray-600">
-                <IconBackSpace className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-        </div>
+        <SearchFilter t={t} onSearch={handleSearch} onClear={handleClear} placeholder={t.nro_part} className="w-64" />
       </div>
 
       {/* Barra de acciones */}

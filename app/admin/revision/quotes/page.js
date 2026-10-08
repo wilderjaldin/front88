@@ -155,13 +155,17 @@ export default function Quotes() {
         return;
       }
     } catch (error) {
-      if (error?.response?.status === 404) {
+      const status = error?.response?.status;
+      if (status === 404 || status === 403) {
+        const title = status === 403
+          ? (t.quote_access_denied ?? 'Esta cotización no está disponible para tu usuario')
+          : (t.quote_not_found ?? 'Cotización no encontrada');
         Swal.fire({
           html: `<div style="padding:12px 0 6px">
             <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#fca5a5,#ef4444);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 8px 24px rgba(239,68,68,0.3)">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg>
             </div>
-            <h2 style="color:#1e293b;font-size:17px;font-weight:700;margin:0 0 8px;line-height:1.3">${t.quote_not_found ?? 'Cotización no encontrada'}</h2>
+            <h2 style="color:#1e293b;font-size:17px;font-weight:700;margin:0 0 8px;line-height:1.3">${title}</h2>
             <p style="color:#64748b;font-size:13px;margin:0">#${order_id}</p>
           </div>`,
           showConfirmButton: true,
@@ -169,7 +173,7 @@ export default function Quotes() {
           confirmButtonColor: '#ef4444',
           allowOutsideClick: false,
         }).then(() => {
-          router.push(`/admin/revision/orders-process?customer=${customer_id}&option=quotes`);
+          router.push(`/admin/queries/orders-placed`);
         });
       }
     }

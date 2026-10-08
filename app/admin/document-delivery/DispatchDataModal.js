@@ -421,27 +421,29 @@ const DispatchDataModal = ({ t, row, onClose, onSaved }) => {
           {errors.payment_terms && <span className="text-red-400 text-xs mt-1 block" role="alert">{errors.payment_terms?.message?.toString()}</span>}
         </div>
 
-        <div>
-          <label className="block text-xs font-medium mb-1" htmlFor="delivery_address">{t.delivery_address}</label>
-          <Controller
-            name="delivery_address"
-            control={control}
-            render={({ field }) => (
-              <Select
-                {...field}
-                isClearable
-                options={addresses}
-                id="delivery_address"
-                instanceId="delivery_address"
-                menuPosition="fixed"
-                menuShouldScrollIntoView={false}
-                styles={selectStyles}
-                placeholder={t.select_option}
-              />
-            )}
-          />
-          {errors.delivery_address && <span className="text-red-400 text-xs mt-1 block" role="alert">{errors.delivery_address?.message?.toString()}</span>}
-        </div>
+        {addresses.length > 0 && (
+          <div>
+            <label className="block text-xs font-medium mb-1" htmlFor="delivery_address">{t.delivery_address}</label>
+            <Controller
+              name="delivery_address"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  {...field}
+                  isClearable
+                  options={addresses}
+                  id="delivery_address"
+                  instanceId="delivery_address"
+                  menuPosition="fixed"
+                  menuShouldScrollIntoView={false}
+                  styles={selectStyles}
+                  placeholder={t.select_option}
+                />
+              )}
+            />
+            {errors.delivery_address && <span className="text-red-400 text-xs mt-1 block" role="alert">{errors.delivery_address?.message?.toString()}</span>}
+          </div>
+        )}
 
         <div>
           <label className="block text-xs font-medium mb-1" htmlFor="delivery_location">{t.delivery_place} <span className="text-red-500">*</span></label>

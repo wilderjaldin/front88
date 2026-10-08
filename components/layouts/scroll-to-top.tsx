@@ -27,7 +27,7 @@ const ScrollToTop = () => {
     return (
         <div className="fixed bottom-6 z-50 ltr:right-6 rtl:left-6">
             {showTopButton && (
-                <button type="button" className="btn btn-outline-warning animate-pulse rounded-full bg-[#fafafa] p-2 dark:bg-[#060818] dark:hover:bg-primary" onClick={goToTop}>
+                <button type="button" className="btn btn-outline-warning animate-pulse rounded-full bg-[#F2F4F7] p-2 dark:bg-[#060818] dark:hover:bg-primary" onClick={goToTop}>
                     <svg width="24" height="24" className="h-4 w-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path
                             opacity="0.5"

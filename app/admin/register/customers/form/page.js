@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import Select from '@/components/ui/Select';
 import IconSave from '@/components/icon/icon-save';
+import IconUserPlus from '@/components/icon/icon-user-plus';
 import axiosClient from '@/app/lib/axiosClient';
 import { swalSuccess, swalError } from '@/app/lib/swal';
 import { useTranslation } from '@/app/locales';
@@ -15,14 +16,14 @@ import { registerUpper } from '@/app/lib/uppercaseField';
 // de forma nativa — no hace falta (ni conviene) un onClick propio encima.
 const ToggleChip = ({ checked, label, disabled, register }) => (
   <label
-    style={{ height: 42, boxSizing: 'border-box' }}
+    style={{ height: 34, boxSizing: 'border-box' }}
     className={`flex items-center gap-2 rounded-lg border px-3 select-none transition-all m-0
       ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
       ${checked
         ? 'border-primary bg-primary/5'
         : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/60 hover:border-primary/60'}`}
   >
-    <input type="checkbox" disabled={disabled} {...register} className="h-10 w-4 m-0 rounded border-gray-300 accent-primary cursor-pointer disabled:cursor-not-allowed" />
+    <input type="checkbox" disabled={disabled} {...register} className="h-4 w-4 m-0 rounded border-gray-300 accent-primary cursor-pointer disabled:cursor-not-allowed" />
     <span className="text-sm font-medium">{label}</span>
   </label>
 );
@@ -62,6 +63,15 @@ const isEstadoZipCountry = (value) => value === 'US' || value === 33 || value ==
 
 const FieldError = ({ error }) =>
   error ? <p className="text-xs text-red-500 mt-1">{error.message}</p> : null;
+
+// react-select arma su propio control height vía estilos de emotion — una
+// clase externa no siempre le gana, así que el alto se fuerza acá por `styles`
+// (mismo criterio que ya usa components-datatables-spares.js).
+const compactSelectStyles = {
+  control: (base) => ({ ...base, minHeight: '34px', height: '34px' }),
+  valueContainer: (base) => ({ ...base, padding: '0 8px' }),
+  indicatorsContainer: (base) => ({ ...base, height: '34px' }),
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
@@ -103,6 +113,11 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
       noConsiderarIva: false,
       // Revendedor
       esRevendedor:  false,
+      // Contacto (opcional, solo al crear)
+      contactName:   '',
+      contactCargo:  '',
+      contactEmail:  '',
+      contactPhone:  '',
     },
   });
 
@@ -110,6 +125,13 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
   const watchNoIva        = watch('noConsiderarIva');
   const watchTipDoc       = watch('tipDocumento');
   const isUS              = isEstadoZipCountry(watchPais?.value);
+
+  // Contacto: todo el bloque es opcional — el nombre solo se exige si se
+  // completó algún otro campo del contacto (cargo, correo o teléfono).
+  const watchContactCargo = watch('contactCargo');
+  const watchContactEmail = watch('contactEmail');
+  const watchContactPhone = watch('contactPhone');
+  const hasContactData    = !!(watchContactCargo?.trim() || watchContactEmail?.trim() || watchContactPhone?.trim());
 
   // ── Carga controles ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -229,6 +251,15 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
         NoConsiderarIva: data.noConsiderarIva,
         // Revendedor
         esRevendedor:  data.esRevendedor,
+        // Contacto opcional — solo al crear, solo si se completó el nombre.
+        ...(!isEdit && data.contactName?.trim() && {
+          contacto: {
+            nomContacto: data.contactName.trim(),
+            nomCargo:    data.contactCargo?.trim() || null,
+            mail1:       data.contactEmail?.trim().toLowerCase() || null,
+            numTel1:     data.contactPhone?.trim() || null,
+          },
+        }),
       };
 
       const res = isEdit
@@ -263,7 +294,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
 
   return (
     <>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleSubmit(onSubmit)} className="customer-form space-y-4">
 
         {/* Columna 1 — Cliente + Dirección (formato US) + IVA
             Columna 2 — Documento + datos adicionales + Es Revendedor
@@ -272,7 +303,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
         <div className="flex flex-col lg:flex-row items-start gap-x-6 gap-y-4">
 
           {/* Columna 1 */}
-          <div className="flex-1 w-full flex flex-col gap-4">
+          <div className="flex-1 w-full flex flex-col gap-3">
 
             {/* Cliente */}
             <div>
@@ -289,7 +320,6 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                   },
                   validate: v => v.trim().length > 0 || t.name_not_empty,
                 })}
-                placeholder={t.customer_full_name_ph}
                 className="form-input w-full"
               />
               <FieldError error={errors.nomCliente} />
@@ -330,7 +360,6 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                     message: t.valid_address_chars,
                   },
                 })}
-                placeholder={t.office_address_ph}
                 className="form-input w-full"
               />
               <FieldError error={errors.dirCliente} />
@@ -359,7 +388,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
             {/* Estado y Código Postal — aparece con animación suave al seleccionar US */}
             <div
               className={`grid grid-cols-2 gap-3 overflow-hidden transition-all duration-300 ease-in-out
-                ${isUS ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}
+                ${isUS ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0 pointer-events-none -mt-1.5 -mb-1.5'}`}
             >
                 <div>
                   <label className="block text-sm font-medium mb-1">
@@ -374,7 +403,6 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                         message: t.only_letters,
                       },
                     })}
-                    placeholder={t.state_ph}
                     className="form-input w-full"
                   />
                   <FieldError error={errors.estado} />
@@ -391,7 +419,6 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                         message: t.invalid_zip_format,
                       },
                     })}
-                    placeholder={t.zip_ph}
                     className="form-input w-full"
                   />
                   <FieldError error={errors.zip} />
@@ -401,10 +428,6 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
             {/* % IVA */}
             <div>
               <label className="block text-sm font-medium mb-1">{t.pct_iva_label}</label>
-              {/* Altura fijada por inline style en ambos (input y chip): .form-input trae su propio
-                  padding/line-height que nunca calzó pixel-a-pixel contra clases de altura (h-[42px]
-                  ni items-stretch) frente al chip, que arma la suya solo con utilidades. Un style
-                  height explícito en los dos deja el resultado 100% determinista. */}
               <div className="flex items-center gap-3">
                 <input
                   type="number"
@@ -416,14 +439,12 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                     max: { value: 100, message: t.max_value_n.replace('{n}', 100) },
                   })}
                   disabled={watchNoIva}
-                  style={{ height: 42, boxSizing: 'border-box' }}
                   className="form-input w-20 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
-                <ToggleChip
-                  checked={watchNoIva}
-                  label={t.no_consider_iva}
-                  register={register('noConsiderarIva')}
-                />
+                <label className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-300 cursor-pointer select-none whitespace-nowrap">
+                  <input type="checkbox" {...register('noConsiderarIva')} className="form-checkbox h-4 w-4 rounded border-gray-300 accent-primary cursor-pointer" />
+                  {t.no_consider_iva}
+                </label>
               </div>
               <FieldError error={errors.pctIva} />
             </div>
@@ -431,7 +452,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
           </div>
 
           {/* Columna 2 */}
-          <div className="flex-1 w-full flex flex-col gap-4">
+          <div className="flex-1 w-full flex flex-col gap-3">
 
             {/* Tipo de documento + Número — en una sola fila */}
             <div className="grid grid-cols-2 gap-3">
@@ -454,6 +475,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                       instanceId="doctype"
                       menuPosition="fixed"
                       menuShouldScrollIntoView={false}
+                      styles={compactSelectStyles}
                     />
                   )}
                 />
@@ -474,7 +496,6 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                       return true;
                     },
                   })}
-                  placeholder={watchTipDoc ? t.nro_of.replace('{label}', watchTipDoc.label) : t.document_number}
                   disabled={!watchTipDoc}
                   className="form-input w-full disabled:opacity-50 disabled:cursor-not-allowed"
                 />
@@ -498,7 +519,6 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                     }
                   },
                 })}
-                placeholder={t.website_ph}
                 className="form-input w-full"
               />
               <FieldError error={errors.sitWeb} />
@@ -515,7 +535,6 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                     message: t.only_letters_numbers_basic,
                   },
                 })}
-                placeholder={t.main_activity_ph}
                 className="form-input w-full"
               />
               <FieldError error={errors.actPrincipal} />
@@ -536,6 +555,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
                     instanceId="idioma"
                     menuPosition="fixed"
                     menuShouldScrollIntoView={false}
+                    styles={compactSelectStyles}
                   />
                 )}
               />
@@ -554,6 +574,81 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
           </div>
 
         </div>
+
+        {/* Contacto (opcional) — solo al crear; para editar contactos existentes
+            está la pestaña Contactos del cliente. Panel con tinte propio (no gris
+            neutro como el resto del form) para que se note que es un bloque aparte
+            y opcional, no otro campo más del cliente. */}
+        {!isEdit && (
+          <div className="rounded-xl border border-sky-200 dark:border-sky-900/50 bg-sky-50/60 dark:bg-sky-900/10 p-4">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-sky-700 dark:text-sky-400 mb-3">
+              <IconUserPlus className="h-4 w-4" />
+              {t.contact_optional_title ?? 'Datos de Contacto (opcional)'}
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">{t.full_name}</label>
+                <input
+                  {...registerUpper(register, 'contactName', {
+                    maxLength: { value: 80, message: t.contact_name_max_length },
+                    validate: {
+                      required: v => !hasContactData || !!v?.trim() || t.contact_name_required,
+                      minLength: v => !hasContactData || v.trim().length >= 3 || t.contact_name_min_length,
+                      letters: v => {
+                        const trimmed = v?.trim() ?? '';
+                        if (!trimmed) return true;
+                        return /^[a-zA-ZáéíóúÁÉÍÓÚäëïöüÄËÏÖÜñÑàèìòùÀÈÌÒÙçÇ]+([ '\-][a-zA-ZáéíóúÁÉÍÓÚäëïöüÄËÏÖÜñÑàèìòùÀÈÌÒÙçÇ]+)*$/.test(trimmed)
+                          || (t.only_letters ?? 'Solo letras y espacios');
+                      },
+                    },
+                  })}
+                  className="form-input w-full"
+                />
+                <FieldError error={errors.contactName} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">{t.job_title}</label>
+                <input
+                  {...registerUpper(register, 'contactCargo', {
+                    maxLength: { value: 80, message: t.contact_position_max_length },
+                    validate: v => !v?.trim() || v.trim().length >= 5 || t.contact_position_min_length_5,
+                  })}
+                  className="form-input w-full"
+                />
+                <FieldError error={errors.contactCargo} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">{t.email}</label>
+                <input
+                  {...register('contactEmail', {
+                    maxLength: { value: 60, message: t.contact_email_max_length },
+                    validate: v => !v?.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) || t.invalid_email_format,
+                  })}
+                  className="form-input w-full"
+                />
+                <FieldError error={errors.contactEmail} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">{t.phone}</label>
+                <input
+                  {...register('contactPhone', {
+                    maxLength: { value: 45, message: t.contact_phone_max_length },
+                    validate: v => {
+                      if (!v?.trim()) return true;
+                      if (!/^[0-9\s+\-().]+$/.test(v.trim())) return t.contact_phone_valid_chars;
+                      const digits = v.replace(/\D/g, '').length;
+                      if (digits < 4) return t.contact_phone_min_digits;
+                      if (digits > 20) return t.contact_phone_max_digits;
+                      return true;
+                    },
+                  })}
+                  className="form-input w-full"
+                />
+                <FieldError error={errors.contactPhone} />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Botones */}
         <div className="flex justify-end gap-3 pt-2">

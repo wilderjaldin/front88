@@ -512,7 +512,7 @@ export default function UserSettings() {
         <div className="space-y-6 max-w-xl">
 
           {/* Tabs */}
-          <div className="relative flex rounded-xl bg-gray-100 dark:bg-gray-800 p-1">
+          <div className="relative flex rounded-xl border border-gray-200 bg-white dark:border-0 dark:bg-gray-800 p-1">
             <span
               aria-hidden="true"
               className="pointer-events-none absolute top-1 bottom-1 rounded-lg bg-slate-700 shadow-sm transition-all duration-200 ease-out"

@@ -12,8 +12,10 @@ import { useTranslation } from "@/app/locales";
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 import IconSearch from "@/components/icon/icon-search";
 import IconBackSpace from "@/components/icon/icon-backspace";
+import IconUser from "@/components/icon/icon-user";
 
 const URL_ORDERS    = 'cotizaciones/ordenes-realizadas';
+const URL_MINE      = 'cotizaciones/mis-cotizaciones';
 const URL_CONTROLES = 'cotizaciones/ordenes-realizadas/controles';
 
 const PAGE_SIZE      = 20;
@@ -84,6 +86,7 @@ export default function OrdersPlaced() {
   const urlCliente   = searchParams.get("customer") ?? '';
   const urlPais      = searchParams.get("country")  ?? '';
   const urlVendedor  = searchParams.get("supplier") ?? '';
+  const urlMine      = searchParams.get("mine") === "1";
 
   const [orders,     setOrders]     = useState([]);
   const [total,      setTotal]      = useState(0);
@@ -115,7 +118,10 @@ export default function OrdersPlaced() {
     reset(prev => ({
       ...prev,
       codCliente:  urlCliente  ? clientes.find(c  => String(c.value)  === String(urlCliente))  ?? null : prev.codCliente,
-      codPais:     urlPais     ? paises.find(p    => String(p.value)  === urlPais)              ?? null : prev.codPais,
+      // Un solo país disponible → se fija de una vez, no hace falta elegirlo.
+      codPais:     paises.length === 1 ? paises[0]
+                 : urlPais              ? paises.find(p => String(p.value) === urlPais) ?? null
+                 : prev.codPais,
       codVendedor: urlVendedor ? vendedores.find(v => String(v.value) === urlVendedor)          ?? null : prev.codVendedor,
     }));
   }, [clientes.length, paises.length, vendedores.length]);
@@ -127,7 +133,9 @@ export default function OrdersPlaced() {
       nroOrden:    urlTerm,
       estado:      urlEstado || null,
       codCliente:  urlCliente  ? clientes.find(c  => String(c.value)  === String(urlCliente))  ?? prev.codCliente  : null,
-      codPais:     urlPais     ? paises.find(p    => String(p.value)  === urlPais)              ?? prev.codPais     : null,
+      codPais:     paises.length === 1 ? paises[0]
+                 : urlPais              ? paises.find(p => String(p.value) === urlPais) ?? prev.codPais
+                 : null,
       codVendedor: urlVendedor ? vendedores.find(v => String(v.value) === urlVendedor)          ?? prev.codVendedor : null,
     }));
   }, [urlTerm, urlEstado, urlCliente, urlPais, urlVendedor]);
@@ -144,25 +152,28 @@ export default function OrdersPlaced() {
     [clientes]
   );
 
-  // Fetch server-side
+  // Fetch server-side — "Mis Cotizaciones" va a un endpoint propio (sin los
+  // filtros de catálogo: solo term/page/sort/dir, ya viene acotado al usuario).
   const fetchOrders = useCallback(async () => {
-    const key = `${urlPage}|${urlSort}|${urlDir}|${urlTerm}|${urlEstado}|${urlCliente}|${urlPais}|${urlVendedor}`;
+    const key = `${urlMine}|${urlPage}|${urlSort}|${urlDir}|${urlTerm}|${urlEstado}|${urlCliente}|${urlPais}|${urlVendedor}`;
     if (lastKeyRef.current === key) return;
     lastKeyRef.current = key;
     setLoading(true);
     try {
       const params = { page: urlPage };
-      if (urlSort)      { params.sort = urlSort; params.dir = urlDir; }
-      if (urlTerm)        params.term     = urlTerm;
-      if (urlEstado)      params.status   = urlEstado;
-      if (urlCliente)     params.customer = urlCliente;
-      if (urlPais)        params.country  = urlPais;
-      if (urlVendedor)    params.supplier = urlVendedor;
-      const rs = await axiosClient.get(URL_ORDERS, { params });
+      if (urlSort) { params.sort = urlSort; params.dir = urlDir; }
+      if (urlTerm)  params.term = urlTerm;
+      if (!urlMine) {
+        if (urlEstado)   params.status   = urlEstado;
+        if (urlCliente)  params.customer = urlCliente;
+        if (urlPais)     params.country  = urlPais;
+        if (urlVendedor) params.supplier = urlVendedor;
+      }
+      const rs = await axiosClient.get(urlMine ? URL_MINE : URL_ORDERS, { params });
       setOrders(rs.data.Datos  ?? rs.data.datos  ?? []);
       setTotal( rs.data.Total  ?? rs.data.total  ?? 0);
     } catch {} finally { setLoading(false); }
-  }, [urlPage, urlSort, urlDir, urlTerm, urlEstado, urlCliente, urlPais, urlVendedor]);
+  }, [urlMine, urlPage, urlSort, urlDir, urlTerm, urlEstado, urlCliente, urlPais, urlVendedor]);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
@@ -196,10 +207,18 @@ export default function OrdersPlaced() {
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
+  const toggleMine = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("page");
+    if (urlMine) params.delete("mine"); else params.set("mine", "1");
+    lastKeyRef.current = '';
+    router.push(`${pathname}${params.toString() ? `?${params.toString()}` : ''}`);
+  };
+
   const TAB = { NR: 'quotes', SC: 'quotes-without-code', MA: 'manual' };
   const quoteUrl = (o) => `/admin/revision/quotes?customer=${o.codCliente}&option=${TAB[o.tipCot] ?? 'quotes'}&id=${o.nroCotizacion}`;
 
-  const hasFilters = urlTerm || urlEstado || urlCliente || urlPais || urlVendedor;
+  const hasFilters = urlTerm || urlEstado || urlCliente || urlPais || urlVendedor || urlMine;
 
 
   useDynamicTitle(`${t.query} | ${t.orders_done}`);
@@ -261,10 +280,17 @@ export default function OrdersPlaced() {
               )} />
             </div>
 
-            {/* País */}
-            {paises.length > 0 && (
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-gray-500 dark:text-gray-400 px-1">{t.country}</span>
+            {/* País — con una sola opción no tiene sentido un <Select>, se fija sola */}
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-gray-500 dark:text-gray-400 px-1">{t.country}</span>
+              {paises.length === 1 ? (
+                <div
+                  className="flex h-10 items-center rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 text-sm text-gray-600 dark:text-gray-300"
+                  style={{ minWidth: '160px', width: '160px' }}
+                >
+                  {paises[0].label}
+                </div>
+              ) : (
                 <Controller name="codPais" control={control} render={({ field }) => (
                   <Select isClearable options={paises}
                     value={field.value} onChange={opt => field.onChange(opt ?? null)}
@@ -272,26 +298,34 @@ export default function OrdersPlaced() {
                     styles={{ control: (b) => ({ ...b, minWidth: '160px', width: '160px' }) }}
                   />
                 )} />
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Vendedor Asignado */}
-            {vendedores.length > 0 && (
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-gray-500 dark:text-gray-400 px-1">{t.assigned_seller}</span>
-                <Controller name="codVendedor" control={control} render={({ field }) => (
-                  <Select isClearable options={vendedores}
-                    value={field.value} onChange={opt => field.onChange(opt ?? null)}
-                    placeholder={t.all}
-                    styles={{ control: (b) => ({ ...b, minWidth: '200px', width: '200px' }) }}
-                  />
-                )} />
-              </div>
-            )}
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-gray-500 dark:text-gray-400 px-1">{t.assigned_seller}</span>
+              <Controller name="codVendedor" control={control} render={({ field }) => (
+                <Select isClearable options={vendedores}
+                  value={field.value} onChange={opt => field.onChange(opt ?? null)}
+                  placeholder={t.all}
+                  styles={{ control: (b) => ({ ...b, minWidth: '200px', width: '200px' }) }}
+                />
+              )} />
+            </div>
 
           </div>
           {/* Fila 1: input + botones */}
           <div className="flex items-center gap-2">
+            <button type="button" onClick={toggleMine}
+              className={`flex h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-medium border transition whitespace-nowrap ${
+                urlMine
+                  ? 'bg-primary text-white border-primary hover:bg-primary/90'
+                  : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+              }`}
+            >
+              <IconUser className="h-4 w-4" />
+              {t.my_quotes ?? 'Mis Cotizaciones'}
+            </button>
             <input
               type="text"
               placeholder={t.nro_order_quote_ph}
@@ -328,8 +362,15 @@ export default function OrdersPlaced() {
 
       {/* Empty */}
       {!loading && orders.length === 0 && (
-        <div className="flex items-center justify-center py-14">
-          <p className="text-sm text-gray-400">{t.empty_results}</p>
+        <div className="panel flex flex-col items-center justify-center gap-2 border border-dashed border-gray-300 dark:border-gray-700 py-16 text-center">
+          <h2 className="text-base font-semibold text-gray-700 dark:text-gray-200">{t.empty_results}</h2>
+          <p className="text-sm text-gray-400">{t.empty_results_hint ?? 'Probá con otros filtros o verificá el dato ingresado.'}</p>
+          {hasFilters && (
+            <button type="button" onClick={clearFilter}
+              className="mt-2 inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-gray-300 dark:border-gray-600 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+              {t.btn_clear ?? 'Limpiar'}
+            </button>
+          )}
         </div>
       )}
 

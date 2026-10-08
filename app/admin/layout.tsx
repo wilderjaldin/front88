@@ -51,7 +51,7 @@ export default function DefaultLayout({ children }: { children: React.ReactNode 
             {/* END TOP NAVBAR */}
 
             {/* BEGIN CONTENT AREA */}
-            <div className={`p-6`}>
+            <div className="px-8 py-6">
               <Suspense fallback={<Loading />}>
                 {routeAllowed ? children : <AccessDenied />}
               </Suspense>

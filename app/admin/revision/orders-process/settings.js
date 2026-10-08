@@ -188,7 +188,7 @@ export default function Settings({ customer_id, setCustomer, onCustomerLoaded, t
     <div>
       <div className="flex items-center mb-5">
         <div className="flex-1 flex justify-center">
-          <div className="relative flex rounded-xl bg-gray-100 dark:bg-gray-800 p-1">
+          <div className="relative flex rounded-xl border border-gray-200 bg-white dark:border-0 dark:bg-gray-800 p-1">
             <span
               aria-hidden="true"
               className="pointer-events-none absolute top-1 bottom-1 rounded-lg bg-slate-700 dark:bg-slate-500 shadow-sm transition-all duration-200 ease-out"

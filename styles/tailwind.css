@@ -45,7 +45,7 @@
 @tailwind components;
 @tailwind utilities;
 body{
-    background-color: rgb(250 250 250/var(--tw-bg-opacity,1));
+    background-color: rgb(242 244 247/var(--tw-bg-opacity,1));
 }
 @layer components {
     html {
@@ -53,11 +53,18 @@ body{
     }
 
     body {
-        @apply bg-[#fafafa] font-nunito;
+        @apply bg-[#F2F4F7] font-nunito;
     }
 
     body.dark {
         @apply bg-[#060818];
+    }
+
+    /* El panel admin usa MantineProvider, cuyo CSS (@mantine/core/styles.css)
+       pisa el background-color de <body> con el suyo propio — el color de
+       página real en esa sección es el de .main-content, no el de body. */
+    .main-content {
+        @apply bg-[#F2F4F7] dark:bg-[#060818];
     }
 
     /* Panel */
@@ -70,7 +77,7 @@ body{
         @apply sticky top-0 z-[100];
     }
     .navbar-floating header {
-        @apply bg-[#fafafa]/90 px-6 pt-4 dark:bg-[#060818]/90;
+        @apply bg-[#F2F4F7]/90 px-6 pt-4 dark:bg-[#060818]/90;
     }
     .navbar-floating header > div > div:first-child {
         @apply rounded-md;
@@ -1179,6 +1186,37 @@ label.required::after {
 }
 .user-form .usr-select__value-container {
   padding: 2px 12px;
+}
+
+/* Form de cliente (registro/edición) — inputs y <Select> más bajos que el
+   default (~38px) para que el formulario entre más compacto. classNamePrefix
+   acá es "select" (el default de components/ui/Select.jsx), no uno propio. */
+.customer-form .form-input,
+.customer-form .form-textarea {
+  padding-top: 0.375rem;
+  padding-bottom: 0.375rem;
+}
+.customer-form .select__control {
+  min-height: 34px;
+}
+.customer-form .select__value-container {
+  padding: 0 8px;
+}
+.customer-form .select__indicators,
+.customer-form .select__dropdown-indicator,
+.customer-form .select__clear-indicator {
+  padding: 4px;
+}
+/* En oscuro, el borde default de .form-input/.select__control (#17263c) casi
+   no se distingue del fondo del modal (#111c30) — mismo tono que ya usan
+   SelectCountry/SelectCity a propósito para su botón "+", para que todo el
+   form se vea consistente y los bordes sean visibles. */
+.dark .customer-form .form-input,
+.dark .customer-form .form-textarea {
+  border-color: #94a3b8;
+}
+.dark .customer-form .select__control {
+  border-color: #94a3b8 !important;
 }
 
 /* ───────────────────────────────────────────────────────────────────────────

@@ -370,7 +370,7 @@ const DatatablesSpares = ({
 
       {/* Título + acciones + filtros — sticky justo debajo del header global,
           así no hay que volver a subir para cambiar de vista o tocar un filtro. */}
-      <div className="sticky z-30 bg-white dark:bg-[#060818] pb-3" style={{ top: stickyTop }}>
+      <div className="z-30 dark:bg-[#060818] pb-3" style={{ top: stickyTop }}>
 
       {/* Header: título + acciones */}
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
