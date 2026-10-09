@@ -860,6 +860,7 @@
   "download_pdf" : "Download PDF",
   "download_excel" : "Download Excel",
   "purchase_order_preview" : "Purchase Order Preview",
+  "preview_purchase_order" : "Preview Purchase Order",
   "mail_to_customer": "Email Customer",
   "mail_to_supplier" : "Email Supplier",
   "invalid" : "Not Valid",

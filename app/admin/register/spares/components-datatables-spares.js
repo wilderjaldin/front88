@@ -9,10 +9,9 @@ import Dropdown from '@/components/dropdown';
 import IconCaretDown from '@/components/icon/icon-caret-down';
 import IconSearch from '@/components/icon/icon-search-filled';
 import IconX from '@/components/icon/icon-x';
-import IconBackSpace from '@/components/icon/icon-backspace';
 import IconPlus from '@/components/icon/icon-plus';
 import Select from '@/components/ui/Select';
-import BrandSelect from '@/components/ui/BrandSelect';
+import BrandSelect, { filterBrandOptions } from '@/components/ui/BrandSelect';
 import AsyncSelect from '@/components/ui/AsyncSelect';
 import { Controller, useForm } from 'react-hook-form';
 import { Pagination } from '@mantine/core';
@@ -158,18 +157,18 @@ const DatatablesSpares = ({
 
   // ── AsyncSelect: filtra en memoria, sin requests adicionales ────────────
   const ASYNC_LIMIT = 20;
-  const ASYNC_MIN_CHARS = 2;
+  const ASYNC_MIN_CHARS = 1;
   // Con pocos proveedores alcanza con mostrar la lista completa en un Select normal;
   // pasado ese umbral se vuelve más práctico filtrar por teclado (AsyncSelect).
   const SUPPLIER_ASYNC_THRESHOLD = 70;
   const suppliersNeedsAsync = suppliers.length > SUPPLIER_ASYNC_THRESHOLD;
 
+  // Misma lógica de búsqueda que BrandSelect: 1-2 caracteres → "empieza con",
+  // 3+ caracteres → "contiene" ordenado por posición del match.
   const filterOptions = (options, inputValue) => {
-    const term = inputValue.trim().toLowerCase();
+    const term = inputValue.trim();
     if (term.length < ASYNC_MIN_CHARS) return [];
-    return options
-      .filter(o => o.label.toLowerCase().includes(term))
-      .slice(0, ASYNC_LIMIT);
+    return filterBrandOptions(options, term).slice(0, ASYNC_LIMIT);
   };
 
   const loadSuppliers = useCallback(
@@ -589,7 +588,7 @@ const DatatablesSpares = ({
                 options={typesSpare}
                 value={typesSpare.find(o => o.value === field.value) ?? null}
                 onChange={(s) => field.onChange(s?.value ?? '')}
-                placeholder={`${t.search}...`}
+                placeholder="Seleccionar..."
                 isClearable
                 menuPortalTarget={portalTarget}
                 styles={compactSelectStylesWidthUpper('160px')}
@@ -611,11 +610,9 @@ const DatatablesSpares = ({
           <button
             type="button"
             onClick={clearAll}
-            title={t.btn_reset ?? 'Restablecer'}
-            className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 bg-amber-50 text-amber-700 text-xs font-medium hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/40 transition"
+            className="flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
           >
-            <IconBackSpace className="h-3.5 w-3.5" />
-            {t.btn_reset ?? 'Restablecer'}
+            {t.btn_clear ?? 'Limpiar'}
           </button>
         </div>
       </form>

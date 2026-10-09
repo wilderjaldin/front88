@@ -1,13 +1,13 @@
-'use client';
+﻿'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import axiosClient from '@/app/lib/axiosClient';
 import { swalError } from '@/app/lib/swal';
 import { useDynamicTitle } from '@/app/hooks/useDynamicTitle';
 import { useStickyTop } from '@/app/hooks/useStickyTop';
-import IconSearch from '@/components/icon/icon-search-filled';
 import IconPlus from '@/components/icon/icon-plus';
-import IconX from '@/components/icon/icon-x';
+import Select from '@/components/ui/Select';
+import SearchFilter from '@/components/SearchFilter';
 import Modal from '@/components/modal';
 import DatatablesCustomers from './datatables-customers';
 import CustomerForm from './form/page';
@@ -20,6 +20,10 @@ import IconLayoutGrid from '@/components/icon/icon-layout-grid';
 
 const URL_BASE  = '/clientes';
 const PAGE_SIZE = 20;
+
+// El menú se saca del flujo normal con un portal a <body> — si no, el z-index
+// local de la tabla (thead sticky) lo tapa aunque el <Select> esté "por encima" en el DOM.
+const portalTarget = typeof document !== 'undefined' ? document.body : undefined;
 
 export default function CustomersPage() {
 
@@ -39,8 +43,6 @@ export default function CustomersPage() {
   const currentPais   = searchParams.get('pais')  || null;
   const currentEstado = searchParams.get('estado') || 'AC'; // 'AC' | 'IN' | 'ALL'
 
-  const [termInput, setTermInput] = useState(currentTerm);
-
   const [clientes, setClientes] = useState([]);
   const [total,    setTotal]    = useState(0);
   const [loading,  setLoading]  = useState(true);
@@ -52,9 +54,6 @@ export default function CustomersPage() {
   // mismo patrón que el listado de repuestos.
   const stickyTop = useStickyTop();
 
-  // Sincronizar el input si la URL cambia externamente (ej: botón atrás del navegador)
-  useEffect(() => { setTermInput(currentTerm); }, [currentTerm]);
-
   // ── Construir y navegar a la nueva URL ────────────────────────────────────
   const pushFilters = ({ page = 1, term = currentTerm, pais = currentPais, estado = currentEstado }) => {
     const params = new URLSearchParams();
@@ -65,11 +64,9 @@ export default function CustomersPage() {
     router.push(`?${params.toString()}`, { scroll: false });
   };
 
-  // Búsqueda explícita — solo se dispara con Enter o clic en "Buscar", no en cada tecla
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    pushFilters({ page: 1, term: termInput });
-  };
+  // Búsqueda explícita — SearchFilter solo dispara con Enter o clic en la lupa
+  const handleSearch = (term) => pushFilters({ page: 1, term });
+  const handleClearSearch = () => pushFilters({ page: 1, term: '' });
 
   // ── Carga de listado — SOLO se dispara cuando cambia la URL ───────────────
   const fetchClientes = useCallback(async () => {
@@ -106,6 +103,10 @@ export default function CustomersPage() {
     pushFilters({ page: 1, estado });
   };
 
+  const handleClear = () => {
+    pushFilters({ page: 1, term: '', pais: null, estado: 'AC' });
+  };
+
   const handlePageChange = (p) => {
     pushFilters({ page: p });
   };
@@ -131,7 +132,7 @@ export default function CustomersPage() {
       </ul>
 
       {/* Título + acciones + filtros — sticky justo debajo del header global */}
-      <div className="sticky z-30 bg-white dark:bg-[#060818] pb-3" style={{ top: stickyTop }}>
+      <div className="z-30 dark:bg-[#060818] pb-3" style={{ top: stickyTop }}>
 
         {/* Título + acciones de página */}
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -175,117 +176,51 @@ export default function CustomersPage() {
           </div>
         </div>
 
-        {/* Barra de filtros — País a la izquierda, Buscar + Estado agrupados a la derecha */}
-        <div className="mt-3 flex flex-wrap items-end justify-between gap-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2.5 shadow-sm">
+        {/* Barra de filtros — un solo grupo (País, Estado, Buscar, Limpiar
+            juntos), pegado a la derecha de la barra como bloque. */}
+        <div className="mt-3 flex flex-wrap items-end gap-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2.5 shadow-sm">
 
-          {/* País */}
-          {paises.length > 1 ? (
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[11px] text-gray-500 dark:text-gray-400 px-1">{t.country}</span>
-              <div className="flex flex-wrap items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => handleSelectPais(null)}
-                  className={`flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-medium
-                              border transition-all duration-150
-                              ${currentPais === null
-                                ? 'bg-primary text-white border-primary shadow-sm'
-                                : 'bg-white dark:bg-gray-900 text-gray-500 border-gray-300 dark:border-gray-700 hover:border-primary/50 hover:text-primary'}`}
+          <div className="flex flex-wrap items-end gap-3 ml-auto">
+            {/* País — con una sola opción no tiene sentido un <Select>, se fija sola */}
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-gray-500 dark:text-gray-400 px-1">{t.country}</span>
+              {paises.length === 1 ? (
+                <div
+                  className="flex h-10 items-center rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 text-sm text-gray-600 dark:text-gray-300"
+                  style={{ minWidth: '220px', width: '220px' }}
                 >
-                  <span className="text-base leading-none">🌐</span>
-                  {t.all}
-                </button>
-
-                {paises.map((p) => {
-                  const isSelected = currentPais === p.codPais;
-                  return (
-                    <button
-                      key={p.codPais}
-                      type="button"
-                      onClick={() => handleSelectPais(p.codPais)}
-                      title={p.nomPais}
-                      className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium
-                                  border transition-all duration-150
-                                  ${isSelected
-                                    ? 'border-primary bg-primary/5 text-primary shadow-sm dark:bg-primary/10'
-                                    : 'bg-white dark:bg-gray-900 text-gray-500 border-gray-200 dark:border-gray-700 hover:border-primary/40 hover:text-primary'}`}
-                    >
-                      <img
-                        src={`/assets/flags/${p.codPais.trim().toLowerCase()}.svg`}
-                        alt={p.codPais}
-                        className={`h-4 w-6 rounded-sm object-cover border
-                                    ${isSelected
-                                      ? 'border-primary/30'
-                                      : 'border-gray-200 dark:border-gray-600 grayscale opacity-60'}`}
-                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                      />
-                      <span className="max-w-[80px] truncate">{p.nomPais}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ) : paises.length === 1 ? (
-            <div className="flex items-center gap-2 h-8">
-              <img
-                src={`/assets/flags/${paises[0].codPais.trim().toLowerCase()}.svg`}
-                alt={paises[0].codPais}
-                className="h-4 w-6 rounded-sm object-cover border border-gray-200 dark:border-gray-600"
-                onError={(e) => { e.currentTarget.style.display = 'none'; }}
-              />
-              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{paises[0].nomPais}</span>
-            </div>
-          ) : <div />}
-
-          {/* Buscar (input → estados → botón buscar, en ese orden) */}
-          <form onSubmit={handleSearchSubmit} className="flex items-end gap-1.5">
-            <div className="relative w-64">
-              <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-gray-400">
-                <IconSearch className="h-3 w-3" />
-              </span>
-              <input
-                type="text"
-                value={termInput}
-                onChange={(e) => setTermInput(e.target.value)}
-                placeholder={t.name_or_document_ph}
-                className="h-8 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 pl-7 pr-7 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
-              {termInput && (
-                <button
-                  type="button"
-                  onClick={() => { setTermInput(''); pushFilters({ page: 1, term: '' }); }}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition"
-                >
-                  <IconX className="h-3.5 w-3.5" />
-                </button>
+                  {paises[0].nomPais}
+                </div>
+              ) : (
+                <Select isClearable options={paises.map(p => ({ value: p.codPais, label: p.nomPais }))}
+                  value={currentPais ? { value: currentPais, label: paises.find(p => p.codPais === currentPais)?.nomPais } : null}
+                  onChange={opt => handleSelectPais(opt?.value ?? null)}
+                  placeholder={t.all}
+                  menuPortalTarget={portalTarget}
+                  styles={{ control: (b) => ({ ...b, minWidth: '220px', width: '220px' }), menuPortal: (b) => ({ ...b, zIndex: 9999 }) }}
+                />
               )}
             </div>
 
-            <div className="flex h-8 items-center rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden">
-              {ESTADO_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => handleSelectEstado(opt.value)}
-                  className={`h-8 px-3 text-xs font-medium transition ${
-                    currentEstado === opt.value
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
+            {/* Estado */}
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-gray-500 dark:text-gray-400 px-1">{t.status}</span>
+              <Select isClearable={false} options={ESTADO_OPTIONS}
+                value={ESTADO_OPTIONS.find(o => o.value === currentEstado) ?? null}
+                onChange={opt => handleSelectEstado(opt.value)}
+                menuPortalTarget={portalTarget}
+                styles={{ control: (b) => ({ ...b, minWidth: '140px', width: '140px' }), menuPortal: (b) => ({ ...b, zIndex: 9999 }) }}
+              />
             </div>
 
-            <button
-              type="submit"
-              className="flex h-8 items-center gap-1.5 rounded-lg px-3 bg-primary/20 text-primary text-xs font-medium hover:bg-primary/40 transition"
+            <SearchFilter t={t} value={currentTerm} onSearch={handleSearch} onClear={handleClearSearch}
+              placeholder={t.name_or_document_ph} className="w-64" />
+            <button type="button" onClick={handleClear}
+              className="flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm transition bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
             >
-              <IconSearch className="h-3 w-3" />
-              {t.search}
+              {t.btn_clear ?? 'Limpiar'}
             </button>
-          </form>
+          </div>
         </div>
       </div>
 

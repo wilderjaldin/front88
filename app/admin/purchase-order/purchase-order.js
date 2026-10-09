@@ -626,9 +626,9 @@ const PurchaseOrderDetails = ({ CadNroOrden, token, t, order, setOrder, items, s
               <button
                 disabled={isSelect || bloqueado}
                 onClick={generateOrder}
-                className="h-9 flex items-center gap-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white px-4 text-sm font-medium transition disabled:opacity-40 disabled:cursor-not-allowed"
+                className="h-9 flex items-center gap-1.5 rounded-lg bg-primary hover:bg-primary/90 text-white px-4 text-sm font-medium transition disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {t.generate_purchase_order}
+                {t.preview_purchase_order ?? 'Vista Previa Orden de Compra'}
               </button>
             )}
             <button

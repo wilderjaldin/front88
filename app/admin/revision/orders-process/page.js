@@ -13,9 +13,13 @@ import { selectToken } from '@/store/authSlice';
 import { customFormat } from '@/app/lib/format';
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
 import BtnPrintQuote from "@/components/BtnPrintQuote";
-import IconSearch from "@/components/icon/icon-search";
-import IconBackSpace from "@/components/icon/icon-backspace";
+import IconSearchFilled from "@/components/icon/icon-search-filled";
+import IconX from "@/components/icon/icon-x";
 import Settings from "./settings";
+
+// El menú se saca del flujo normal con un portal a <body> — mismo patrón que
+// clientes/proveedores/representantes, para que no quede tapado por nada local.
+const portalTarget = typeof document !== 'undefined' ? document.body : undefined;
 
 const URL_PROCESO   = 'ordenesenproceso/proceso';
 const URL_CONTROLES = 'ordenesenproceso/proceso/controles';
@@ -92,9 +96,11 @@ export default function OrdersProcess() {
   const [estados,  setEstados]  = useState([]);
   const [clientes, setClientes] = useState([]);
 
-  const { register, handleSubmit, control, reset } = useForm({
+  const { register, handleSubmit, control, reset, watch } = useForm({
     defaultValues: { term: urlTerm, estado: urlEstado || null, codCliente: null },
   });
+
+  const termValue = watch('term');
 
   // Cargar controles una sola vez
   useEffect(() => {
@@ -299,8 +305,6 @@ export default function OrdersProcess() {
     }
   };
 
-  const hasFilters = urlTerm || urlEstado || urlCliente;
-
   useDynamicTitle(`${customer ? t.orders_in_process + ' | ' + customer.label : t.revision} | ${t.orders_in_process}`);
 
   return (
@@ -336,7 +340,7 @@ export default function OrdersProcess() {
       {!customer_id && (
         <>
           {/* Header: título + filtros */}
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
             {/* Título */}
             <div>
               <h1 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
@@ -345,82 +349,94 @@ export default function OrdersProcess() {
               <div className="h-0.5 w-10 rounded bg-primary/60 mt-1" />
             </div>
 
-            {/* Filtros */}
+            {/* Filtros — mismo patrón que clientes/proveedores/representantes:
+                un solo grupo pegado a la derecha, dentro de una caja con borde. */}
             <form
               onSubmit={handleSubmit(applyFilter)}
-              className="flex flex-wrap items-center gap-2"
+              className="flex flex-wrap items-end gap-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2.5 shadow-sm ml-auto"
             >
               {/* Estado */}
-              <Controller
-                name="estado"
-                control={control}
-                render={({ field }) => (
-                  <Select
-                    isClearable
-                    options={estados}
-                    value={estados.find(o => o.value === field.value) ?? null}
-                    onChange={opt => field.onChange(opt?.value ?? null)}
-                    placeholder={t.condition}
-                    styles={{ control: (base) => ({ ...base, minWidth: '150px', height: '40px' }) }}
-                  />
-                )}
-              />
+              <div className="flex flex-col gap-1">
+                <span className="text-xs text-gray-500 dark:text-gray-400 px-1">{t.condition}</span>
+                <Controller
+                  name="estado"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      isClearable
+                      options={estados}
+                      value={estados.find(o => o.value === field.value) ?? null}
+                      onChange={opt => field.onChange(opt?.value ?? null)}
+                      placeholder={t.all}
+                      menuPortalTarget={portalTarget}
+                      styles={{ control: (b) => ({ ...b, minWidth: '150px', width: '150px' }), menuPortal: (b) => ({ ...b, zIndex: 9999 }) }}
+                    />
+                  )}
+                />
+              </div>
 
               {/* Cliente (AsyncSelect, filtra desde 2 chars) */}
-              <Controller
-                name="codCliente"
-                control={control}
-                render={({ field }) => (
-                  <AsyncSelect
-                    loadOptions={loadClientes}
-                    defaultOptions={false}
-                    value={field.value}
-                    onChange={opt => field.onChange(opt ?? null)}
-                    isClearable
-                    placeholder={t.customer}
-                    noOptionsMessage={({ inputValue }) =>
-                      inputValue.length < ASYNC_MIN_CHARS
-                        ? `Ingresa ${ASYNC_MIN_CHARS} caracteres`
-                        : t.no_results ?? 'Sin resultados'
-                    }
-                    styles={{ control: (base) => ({ ...base, minWidth: '200px', height: '40px' }) }}
+              <div className="flex flex-col gap-1">
+                <span className="text-xs text-gray-500 dark:text-gray-400 px-1">{t.customer}</span>
+                <Controller
+                  name="codCliente"
+                  control={control}
+                  render={({ field }) => (
+                    <AsyncSelect
+                      loadOptions={loadClientes}
+                      defaultOptions={false}
+                      value={field.value}
+                      onChange={opt => field.onChange(opt ?? null)}
+                      isClearable
+                      placeholder={`${t.search}...`}
+                      noOptionsMessage={({ inputValue }) =>
+                        inputValue.length < ASYNC_MIN_CHARS
+                          ? `Ingresa ${ASYNC_MIN_CHARS} caracteres`
+                          : t.no_results ?? 'Sin resultados'
+                      }
+                      menuPortalTarget={portalTarget}
+                      styles={{ control: (b) => ({ ...b, minWidth: '440px', width: '440px' }), menuPortal: (b) => ({ ...b, zIndex: 9999 }) }}
+                    />
+                  )}
+                />
+              </div>
+
+              {/* Buscar — mismo "pill" que SearchFilter (input + x + lupa adosada) */}
+              <div className="flex items-stretch h-9 w-64 rounded-lg shadow-sm border border-gray-300 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-900">
+                <div className="relative flex-1 min-w-0">
+                  <input
+                    type="text"
+                    autoComplete="off"
+                    placeholder={t.search}
+                    {...register("term")}
+                    className="w-full h-full px-3 pe-7 text-sm bg-transparent border-0 focus:outline-none"
                   />
-                )}
-              />
+                  {termValue && (
+                    <button
+                      type="button"
+                      onClick={() => reset(prev => ({ ...prev, term: '' }))}
+                      className="absolute inset-y-0 end-1.5 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition"
+                    >
+                      <IconX className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+                <button
+                  type="submit"
+                  className="flex items-center justify-center w-10 shrink-0 bg-primary text-white hover:bg-primary/90 transition"
+                  title={t.search}
+                >
+                  <IconSearchFilled className="h-4 w-4" />
+                </button>
+              </div>
 
-              {/* Buscar */}
-              <input
-                type="text"
-                placeholder={t.search}
-                {...register("term")}
-                className="h-10 w-48 rounded-lg border border-gray-300 dark:border-gray-700
-                  bg-white dark:bg-gray-900 px-4 text-sm
-                  focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
-
-              {/* Lupa (submit) */}
-              <button
-                type="submit"
-                className="flex h-10 w-10 items-center justify-center rounded-lg
-                  bg-primary/20 text-primary hover:bg-primary/40 transition"
-                title={t.search}
-              >
-                <IconSearch className="h-4 w-4" />
-              </button>
-
-              {/* Limpiar — siempre presente (solo deshabilitado) para que no salte el layout */}
+              {/* Limpiar */}
               <button
                 type="button"
                 onClick={clearFilter}
-                disabled={!hasFilters}
-                className="flex h-10 items-center justify-center rounded-lg px-2
-                  bg-gray-200 text-gray-700 hover:bg-gray-300 transition
-                  dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700
-                  disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-200 dark:disabled:hover:bg-gray-800"
-                title={t.btn_clear}
+                className="flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm transition bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
               >
-                <IconBackSpace className="h-4 w-4 mr-1.5" />
-                {t.btn_clear}
+                {t.btn_clear ?? 'Limpiar'}
               </button>
             </form>
           </div>

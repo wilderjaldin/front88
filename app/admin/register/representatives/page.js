@@ -1,21 +1,21 @@
-﻿'use client';
-import { useEffect, useRef, useState } from 'react';
+'use client';
+import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSelector } from 'react-redux';
 import { useTranslation } from '@/app/locales';
 import { useDynamicTitle } from '@/app/hooks/useDynamicTitle';
+import { useStickyTop } from '@/app/hooks/useStickyTop';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/constants/permissions';
 import { selectUser } from '@/store/authSlice';
 import axiosClient from '@/app/lib/axiosClient';
-import { useDebounce } from 'use-debounce';
+import { swalConfirm, swalSuccess, swalError } from '@/app/lib/swal';
 import { useDevice } from '@/context/device-context';
 import { Pagination } from '@mantine/core';
-import Swal from 'sweetalert2';
 import AccessDenied from '@/components/AccessDenied';
-import IconSearch from '@/components/icon/icon-search';
+import Select from '@/components/ui/Select';
+import SearchFilter from '@/components/SearchFilter';
 import IconPlus from '@/components/icon/icon-plus';
-import IconX from '@/components/icon/icon-x';
 import IconSettings from '@/components/icon/icon-settings';
 import IconTrashLines from '@/components/icon/icon-trash-lines';
 import IconListCheck from '@/components/icon/icon-list-check';
@@ -25,18 +25,21 @@ const URL_LIST   = '/representantes/listar';
 const URL_DELETE = '/representantes/eliminar';
 const PAGE_SIZE  = 20;
 
-const Toast = Swal.mixin({
-  toast: true, position: 'top-end',
-  showConfirmButton: false, timer: 3000, timerProgressBar: true,
-});
+// El menú se saca del flujo normal con un portal a <body> — si no, el z-index
+// local de la tabla (thead sticky) lo tapa aunque el <Select> esté "por encima" en el DOM.
+const portalTarget = typeof document !== 'undefined' ? document.body : undefined;
 
-const parseTerm = (raw) => {
-  const match = raw.match(/estado:\s*(AC|IN)/i);
-  if (match) {
-    return { term: raw.replace(match[0], '').trim(), codEstado: match[1].toUpperCase() };
-  }
-  return { term: raw.trim(), codEstado: null };
-};
+const thClass = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap";
+const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-3 py-2";
+
+const EstadoBadge = ({ codEstado, t }) => (
+  <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${codEstado === 'AC'
+    ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+    : 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300'
+    }`}>
+    {codEstado === 'AC' ? t.active : t.inactive}
+  </span>
+);
 
 // ── WhatsApp icon ─────────────────────────────────────────────────────────────
 function WaIcon({ className = 'h-3 w-3' }) {
@@ -65,10 +68,7 @@ const RepCard = ({ row, t, onEdit, onDelete }) => (
           )}
         </div>
       </div>
-      <span className={`ml-2 shrink-0 px-2 py-0.5 rounded-full text-[11px] font-medium
-        ${row.codEstado === 'AC' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`}>
-        {row.codEstado === 'AC' ? t.active : t.inactive}
-      </span>
+      <EstadoBadge codEstado={row.codEstado} t={t} />
     </div>
     <div className="px-4 py-3 space-y-1.5 text-xs">
       <div className="flex gap-2">
@@ -99,9 +99,9 @@ const RepCard = ({ row, t, onEdit, onDelete }) => (
         {row.nomMoneda && (
           <div><span className="text-gray-400">Moneda </span><span className="font-medium text-gray-700 dark:text-gray-200">{row.nomMoneda}</span></div>
         )}
-        <div><span className="text-gray-400">IVA </span><span className={`font-medium ${row.blnIvaEnPrecio ? 'text-success' : 'text-gray-500'}`}>{row.blnIvaEnPrecio ? 'Sí' : 'No'}</span></div>
+        <div><span className="text-gray-400">IVA </span><span className={`font-medium ${row.blnIvaEnPrecio ? 'text-green-600' : 'text-gray-500'}`}>{row.blnIvaEnPrecio ? 'Sí' : 'No'}</span></div>
         {row.porFee > 0 && (
-          <div><span className="text-gray-400">Fee </span><span className="font-medium text-warning">{row.porFee}%</span></div>
+          <div><span className="text-gray-400">Fee </span><span className="font-medium text-amber-600">{row.porFee}%</span></div>
         )}
         {row.nomDestinoEntrega && (
           <div className="col-span-2"><span className="text-gray-400">Destino </span><span className="font-medium text-gray-700 dark:text-gray-200">{row.nomDestinoEntrega}</span></div>
@@ -126,6 +126,12 @@ const RepCard = ({ row, t, onEdit, onDelete }) => (
     </div>
   </div>
 );
+
+const ESTADO_OPTIONS_BASE = [
+  { value: 'ALL', label: 'Todos' },
+  { value: 'AC',  label: 'Activos' },
+  { value: 'IN',  label: 'Inactivos' },
+];
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function RepresentativesPage() {
@@ -157,37 +163,37 @@ export default function RepresentativesPage() {
       .catch(() => router.replace('/admin/register/company/me'));
   }, [isRep, user?.countryCode]);
 
+  // ── Parámetros actuales de la URL — fuente de verdad, igual que en clientes ──
+  const currentPage   = Number(searchParams.get('page')) || 1;
+  const currentTerm   = searchParams.get('term')   || '';
+  const currentEstado = searchParams.get('estado') || 'ALL';
+
   const [rows,    setRows]    = useState([]);
   const [total,   setTotal]   = useState(0);
-  const [page,    setPage]    = useState(() => Number(searchParams.get('page')) || 1);
-  const [term,    setTerm]    = useState('');
   const [loading, setLoading] = useState(true);
   const [view,    setView]    = useState('list');
 
-  const [debouncedTerm] = useDebounce(term, 350);
-  const firstRender      = useRef(true);
-
   useEffect(() => { setView(isMobile ? 'grid' : 'list'); }, [isMobile]);
 
-  // Reset to page 1 when search changes (skip initial mount)
-  useEffect(() => {
-    if (firstRender.current) { firstRender.current = false; return; }
-    setPage(1);
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('page', '1');
-    router.replace(`?${params.toString()}`, { scroll: false });
-  }, [debouncedTerm]);
+  // El header global es sticky en top:0 (salvo en modo "Estática") — el bloque
+  // de título/acciones/filtros se engancha justo debajo de su borde inferior,
+  // mismo patrón que clientes/proveedores.
+  const stickyTop = useStickyTop();
 
-  useEffect(() => {
-    fetchList(page, debouncedTerm);
-  }, [page, debouncedTerm]);
+  // ── Construir y navegar a la nueva URL ────────────────────────────────────
+  const pushFilters = ({ page = 1, term = currentTerm, estado = currentEstado }) => {
+    const params = new URLSearchParams();
+    if (page > 1)                params.set('page', page);
+    if (term)                    params.set('term', term.trim());
+    if (estado && estado !== 'ALL') params.set('estado', estado);
+    router.push(`?${params.toString()}`, { scroll: false });
+  };
 
-  const fetchList = async (p = 1, raw = '') => {
+  const fetchList = async () => {
     setLoading(true);
     try {
-      const { term: searchTerm, codEstado } = parseTerm(raw);
-      const params = { page: p, pageSize: PAGE_SIZE, term: searchTerm };
-      if (codEstado) params.codEstado = codEstado;
+      const params = { page: currentPage, pageSize: PAGE_SIZE, term: currentTerm };
+      if (currentEstado !== 'ALL') params.codEstado = currentEstado;
       const rs = await axiosClient.get(URL_LIST, { params });
       setRows(rs.data?.data ?? []);
       setTotal(rs.data?.total ?? 0);
@@ -195,39 +201,34 @@ export default function RepresentativesPage() {
     finally { setLoading(false); }
   };
 
-  const handlePageChange = (p) => {
-    setPage(p);
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('page', String(p));
-    router.push(`?${params.toString()}`, { scroll: false });
-  };
+  useEffect(() => { fetchList(); }, [currentPage, currentTerm, currentEstado]);
+
+  const handleSearch      = (term) => pushFilters({ page: 1, term });
+  const handleClearSearch = () => pushFilters({ page: 1, term: '' });
+  const handleSelectEstado = (opt) => pushFilters({ page: 1, estado: opt?.value ?? 'ALL' });
+  const handleClear = () => pushFilters({ page: 1, term: '', estado: 'ALL' });
+
+  const handlePageChange = (p) => pushFilters({ page: p });
 
   const openCreate = () => router.push('/admin/register/representatives/form');
   const openEdit   = (row) => router.push(`/admin/register/representatives/${row.codEmp}/general`);
 
   const handleDelete = (row) => {
-    Swal.fire({
-      title: '¿Eliminar representante?',
-      text: row.razSoc, icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#dc2626',
-      confirmButtonText: 'Sí, eliminar',
-      cancelButtonText: t.btn_cancel,
-      reverseButtons: true,
+    swalConfirm('¿Eliminar representante?', row.razSoc, {
+      confirmText: 'Sí, eliminar', cancelText: t.btn_cancel ?? 'Cancelar', confirmColor: '#dc2626',
     }).then(async (result) => {
       if (!result.isConfirmed) return;
       try {
         const rs = await axiosClient.delete(`${URL_DELETE}/${row.codEmp}`);
         setRows(rs.data?.data ?? []);
         setTotal(rs.data?.total ?? 0);
-        Toast.fire({ icon: 'success', title: 'Representante eliminado' });
+        swalSuccess('Representante eliminado');
       } catch (err) {
-        Toast.fire({ icon: 'error', title: err?.response?.data?.message ?? err?.response?.data?.mensaje ?? 'Error al eliminar' });
+        swalError(t.error ?? 'Error', err?.response?.data?.message ?? err?.response?.data?.mensaje ?? 'Error al eliminar', t.close);
       }
     });
   };
 
-  const { codEstado: activeCodEstado } = parseTerm(debouncedTerm);
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   // Mismo criterio que el useEffect de arriba: isRep muestra este spinner
@@ -242,98 +243,86 @@ export default function RepresentativesPage() {
   if (!isAdmin) return <AccessDenied />;
 
   return (
-    <div className="space-y-6">
-
+    <div>
       {/* Breadcrumb */}
-      <ul className="flex items-center gap-1 text-sm text-gray-500 flex-wrap">
-        <li>{t.register}</li>
-        <li className="before:content-['/'] before:mx-2">Representantes</li>
+      <ul className="flex space-x-2 rtl:space-x-reverse mb-4">
+        <li className="text-sm text-gray-500">{t.register}</li>
+        <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2 text-sm text-gray-800 dark:text-gray-100">
+          Representantes
+        </li>
       </ul>
 
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div>
-          <h1 className="text-lg font-semibold text-gray-800 dark:text-white">
-            Representantes{' '}
-            <span className="text-base font-normal text-gray-400">({total})</span>
-          </h1>
-          <div className="h-0.5 w-10 rounded bg-primary/60 mt-1" />
+      {/* Título + acciones + filtros — sticky justo debajo del header global */}
+      <div className="z-30 dark:bg-[#060818] pb-3" style={{ top: stickyTop }}>
+
+        {/* Título + acciones de página */}
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+              Representantes <span className="font-normal text-gray-400">({total})</span>
+            </h1>
+            <div className="h-0.5 w-10 rounded bg-primary/60 mt-1" />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 items-center rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden">
+              <button
+                type="button"
+                className={`flex h-9 w-9 items-center justify-center transition ${view === 'list' ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400'}`}
+                onClick={() => setView('list')}
+                title={t.list ?? 'Lista'}
+              >
+                <IconListCheck className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                className={`flex h-9 w-9 items-center justify-center transition ${view === 'grid' ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400'}`}
+                onClick={() => setView('grid')}
+                title={t.grid ?? 'Cuadrícula'}
+              >
+                <IconLayoutGrid className="h-4 w-4" />
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={openCreate}
+              className="flex h-9 items-center gap-1.5 rounded-lg bg-primary px-4 text-white text-sm font-medium shadow-sm hover:bg-primary/90 transition"
+            >
+              <IconPlus className="h-4 w-4" />
+              Agregar
+            </button>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-start gap-3">
-          {/* Search + hint */}
-          <div className="flex flex-col gap-1.5 min-w-[280px]">
-            <div className="relative">
-              <input
-                type="text"
-                value={term}
-                onChange={e => setTerm(e.target.value)}
-                placeholder="Buscar representante..."
-                className={`w-full rounded-lg border px-4 py-2 pr-10 text-sm bg-white dark:bg-gray-900
-                  focus:outline-none focus:ring-2 focus:ring-primary/40
-                  ${activeCodEstado ? 'border-primary/50' : 'border-gray-300 dark:border-gray-700'}`}
+        {/* Barra de filtros — mismo patrón que clientes/proveedores: Estado +
+            búsqueda juntos, pegados a la derecha de la barra como bloque. */}
+        <div className="mt-3 flex flex-wrap items-end gap-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2.5 shadow-sm">
+          <div className="flex flex-wrap items-end gap-3 ml-auto">
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-gray-500 dark:text-gray-400 px-1">{t.status}</span>
+              <Select isClearable={false} options={ESTADO_OPTIONS_BASE}
+                value={ESTADO_OPTIONS_BASE.find(o => o.value === currentEstado) ?? null}
+                onChange={opt => handleSelectEstado(opt)}
+                menuPortalTarget={portalTarget}
+                styles={{ control: (b) => ({ ...b, minWidth: '140px', width: '140px' }), menuPortal: (b) => ({ ...b, zIndex: 9999 }) }}
               />
-              {term ? (
-                <button type="button" onClick={() => setTerm('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-600 transition">
-                  <IconX className="h-4 w-4" />
-                </button>
-              ) : (
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400">
-                  <IconSearch className="h-4 w-4" />
-                </span>
-              )}
             </div>
-            {activeCodEstado ? (
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full
-                  ${activeCodEstado === 'AC' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                  Estado: {activeCodEstado === 'AC' ? 'Activos' : 'Inactivos'}
-                  <button type="button"
-                    onClick={() => setTerm(term.replace(/estado:\s*(AC|IN)/i, '').trim())}
-                    className="ml-0.5 hover:opacity-70">
-                    <IconX className="h-3 w-3" />
-                  </button>
-                </span>
-                <button type="button" onClick={() => setTerm('')}
-                  className="text-[11px] text-primary hover:underline">
-                  Limpiar todo
-                </button>
-              </div>
-            ) : (
-              <p className="text-[11px] text-gray-400">
-                Prefijos: <span className="font-mono">estado:AC</span> · <span className="font-mono">estado:IN</span>
-              </p>
-            )}
-          </div>
 
-          {/* View toggle */}
-          <div className="flex items-center rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden">
-            <button type="button" onClick={() => setView('list')}
-              className={`p-2 transition ${view === 'list' ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
-              <IconListCheck className="h-4 w-4" />
-            </button>
-            <button type="button" onClick={() => setView('grid')}
-              className={`p-2 transition ${view === 'grid' ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
-              <IconLayoutGrid className="h-4 w-4" />
+            <SearchFilter t={t} value={currentTerm} onSearch={handleSearch} onClear={handleClearSearch}
+              placeholder="Buscar representante..." className="w-64" />
+            <button type="button" onClick={handleClear}
+              className="flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm transition bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+            >
+              {t.btn_clear ?? 'Limpiar'}
             </button>
           </div>
-
-          {/* Add */}
-          <button
-            type="button"
-            onClick={openCreate}
-            className="group flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-white text-sm font-medium shadow-sm hover:bg-primary/90 transition-all"
-          >
-            <IconPlus className="h-4 w-4 transition-transform duration-200 group-hover:rotate-90" />
-            Agregar
-          </button>
         </div>
       </div>
 
       {/* ── LIST ── */}
       {view === 'list' && (
-        <div className="panel mt-5 overflow-hidden border-0 p-0">
+        <div className="panel mt-3 overflow-hidden border border-gray-200 dark:border-gray-700 p-0">
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -343,38 +332,57 @@ export default function RepresentativesPage() {
               Sin representantes registrados
             </div>
           ) : (
-            <div className="datatables">
+            <>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm whitespace-nowrap">
-                  <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-                    <tr className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                      <th className="px-4 py-3 text-left">Representante</th>
-                      <th className="px-4 py-3 text-left">Ubicación</th>
-                      <th className="px-4 py-3 text-left">Contacto</th>
-                      <th className="px-4 py-3 text-left">Comercial</th>
-                      <th className="px-4 py-3 text-center">Es Rep.</th>
-                      <th className="px-4 py-3 text-left">Destino</th>
-                      <th className="px-4 py-3 text-left">{t.status}</th>
-                      <th className="px-4 py-3 text-center w-20">Acciones</th>
+                <table className="w-full border-collapse bg-white dark:bg-gray-900">
+                  <thead className="sticky top-0 z-10">
+                    <tr>
+                      <th className={`${thClass} w-[70px]`}></th>
+                      <th className={thClass}>Representante</th>
+                      <th className={thClass}>Ubicación</th>
+                      <th className={thClass}>Contacto</th>
+                      <th className={thClass}>Comercial</th>
+                      <th className={`${thClass} text-center`}>Es Rep.</th>
+                      <th className={thClass}>Destino</th>
+                      <th className={thClass}>{t.status}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                     {rows.map((row) => (
-                      <tr key={row.codEmp}
-                        className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                      <tr key={row.codEmp} className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50">
+
+                        {/* Acciones */}
+                        <td className={`${tdClass} px-2`}>
+                          <div className="inline-flex items-center gap-1">
+                            <button
+                              className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                              onClick={() => openEdit(row)}
+                              title="Configurar"
+                            >
+                              <IconSettings className="w-4 h-4 text-gray-500" />
+                            </button>
+                            <button
+                              className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                              onClick={() => handleDelete(row)}
+                              title="Eliminar"
+                            >
+                              <IconTrashLines className="w-4 h-4 text-red-500" />
+                            </button>
+                          </div>
+                        </td>
 
                         {/* Representante */}
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
+                        <td className={tdClass}>
+                          <div className="flex items-center gap-2.5">
+                            <div className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11px] font-bold shrink-0">
                               {row.razSoc?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                             </div>
                             <div className="min-w-0">
-                              <p className="font-medium text-gray-800 dark:text-white truncate max-w-[160px]" title={row.razSoc}>{row.razSoc}</p>
+                              <p className="font-medium text-gray-800 dark:text-gray-100 truncate max-w-[160px]" title={row.razSoc}>{row.razSoc}</p>
                               {(row.docFactura && row.nitEmp) && (
-                                <div className="flex items-center gap-1 text-xs mt-0.5">
-                                  {row.docFactura && <span className="text-gray-600 dark:text-gray-400">{row.docFactura}:</span>}
-                                  {row.nitEmp && <span className="text-gray-700 dark:text-gray-200 font-medium">{row.nitEmp}</span>}
+                                <div className="flex items-center gap-1 text-[11px] mt-0.5">
+                                  <span className="text-gray-400">{row.docFactura}:</span>
+                                  <span className="text-gray-600 dark:text-gray-300 font-medium">{row.nitEmp}</span>
                                 </div>
                               )}
                             </div>
@@ -382,8 +390,8 @@ export default function RepresentativesPage() {
                         </td>
 
                         {/* Ubicación */}
-                        <td className="px-4 py-3">
-                          <div className="text-xs space-y-0.5">
+                        <td className={tdClass}>
+                          <div className="leading-tight">
                             <div className="flex items-center gap-1.5 text-gray-700 dark:text-gray-300 font-medium">
                               {row.codPais && (
                                 <img src={`/assets/flags/${row.codPais.toLowerCase()}.svg`}
@@ -393,60 +401,48 @@ export default function RepresentativesPage() {
                               {[row.pais ?? row.codPais, row.ciudad ?? row.codCiudad].filter(Boolean).join(' · ')}
                             </div>
                             {row.dirEmp && (
-                              <div
-                                className="text-gray-500 max-w-[200px] truncate cursor-default"
-                                title={row.dirEmp}
-                              >
-                                {row.dirEmp}
-                              </div>
+                              <div className="text-gray-400 max-w-[200px] truncate" title={row.dirEmp}>{row.dirEmp}</div>
                             )}
                           </div>
                         </td>
 
                         {/* Contacto */}
-                        <td className="px-4 py-3">
-                          <div className="text-xs space-y-0.5">
-                            {row.nomContacto && (
-                              <div className="font-medium text-gray-700 dark:text-gray-200">{row.nomContacto}</div>
-                            )}
-                            {row.corEle && (
-                              <div className="text-gray-600 dark:text-gray-400 truncate max-w-[180px]">{row.corEle}</div>
-                            )}
-                            {row.telEmp && (
-                              <div className="text-gray-600 dark:text-gray-400">{row.telEmp}</div>
-                            )}
-                            {row.numCelWp && (
-                              <div className="flex items-center gap-1 text-green-600">
-                                <WaIcon /> {row.numCelWp}
-                              </div>
-                            )}
-                            {!row.nomContacto && !row.corEle && !row.telEmp && !row.numCelWp && (
-                              <span className="text-gray-300">—</span>
-                            )}
-                          </div>
+                        <td className={tdClass}>
+                          {row.nomContacto || row.corEle || row.telEmp || row.numCelWp ? (
+                            <div className="leading-tight space-y-0.5">
+                              {row.nomContacto && <div className="font-medium text-gray-700 dark:text-gray-200">{row.nomContacto}</div>}
+                              {row.corEle      && <div className="text-gray-500 truncate max-w-[180px]">{row.corEle}</div>}
+                              {row.telEmp      && <div className="text-gray-500">{row.telEmp}</div>}
+                              {row.numCelWp    && (
+                                <div className="flex items-center gap-1 text-green-600">
+                                  <WaIcon /> {row.numCelWp}
+                                </div>
+                              )}
+                            </div>
+                          ) : <span className="text-gray-300">—</span>}
                         </td>
 
                         {/* Comercial */}
-                        <td className="px-4 py-3">
-                          <div className="text-xs space-y-1">
+                        <td className={tdClass}>
+                          <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <span className="text-gray-400 w-16 shrink-0">Moneda</span>
+                              <span className="text-gray-400 w-14 shrink-0">Moneda</span>
                               <span className="text-gray-700 dark:text-gray-200 font-medium">{row.nomMoneda || '—'}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="text-gray-400 w-16 shrink-0">IVA precio</span>
+                              <span className="text-gray-400 w-14 shrink-0">IVA precio</span>
                               <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium
                                 ${row.blnIvaEnPrecio
-                                  ? 'bg-success/10 text-success'
+                                  ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
                                   : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}`}>
                                 {row.blnIvaEnPrecio ? 'Sí' : 'No'}
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="text-gray-400 w-16 shrink-0">% Fee</span>
+                              <span className="text-gray-400 w-14 shrink-0">% Fee</span>
                               <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium
                                 ${(row.porFee ?? 0) > 0
-                                  ? 'bg-warning/10 text-warning'
+                                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
                                   : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}`}>
                                 {row.porFee ?? 0}%
                               </span>
@@ -455,8 +451,8 @@ export default function RepresentativesPage() {
                         </td>
 
                         {/* Es Representante */}
-                        <td className="px-4 py-3 text-center">
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold
+                        <td className={`${tdClass} text-center`}>
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold
                             ${row.blnEsRepresentante
                               ? 'bg-primary/10 text-primary'
                               : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'}`}>
@@ -465,34 +461,13 @@ export default function RepresentativesPage() {
                         </td>
 
                         {/* Destino entrega */}
-                        <td className="px-4 py-3">
-                          <span className="text-sm text-gray-700 dark:text-gray-300">
-                            {row.nomDestinoEntrega || '—'}
-                          </span>
+                        <td className={tdClass}>
+                          {row.nomDestinoEntrega || <span className="text-gray-300">—</span>}
                         </td>
 
                         {/* Estado */}
-                        <td className="px-4 py-3">
-                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold
-                            ${row.codEstado === 'AC'
-                              ? 'bg-success/10 text-success'
-                              : 'bg-danger/10 text-danger'}`}>
-                            {row.codEstado === 'AC' ? t.active : t.inactive}
-                          </span>
-                        </td>
-
-                        {/* Acciones */}
-                        <td className="px-4 py-3">
-                          <div className="flex items-center justify-center gap-1">
-                            <button type="button" onClick={() => openEdit(row)} title="Configurar"
-                              className="p-1.5 rounded-md text-gray-400 hover:bg-warning/10 hover:text-warning transition">
-                              <IconSettings className="h-4 w-4" />
-                            </button>
-                            <button type="button" onClick={() => handleDelete(row)} title="Eliminar"
-                              className="p-1.5 rounded-md text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 transition">
-                              <IconTrashLines className="h-4 w-4" />
-                            </button>
-                          </div>
+                        <td className={tdClass}>
+                          <EstadoBadge codEstado={row.codEstado} t={t} />
                         </td>
 
                       </tr>
@@ -505,21 +480,21 @@ export default function RepresentativesPage() {
                 <div className="flex justify-center py-4 border-t border-gray-100 dark:border-gray-700">
                   <Pagination
                     total={totalPages}
-                    value={page}
+                    value={currentPage}
                     onChange={handlePageChange}
                     size="sm"
                     radius="xl"
                   />
                 </div>
               )}
-            </div>
+            </>
           )}
         </div>
       )}
 
       {/* ── GRID ── */}
       {view === 'grid' && (
-        <>
+        <div className="mt-3">
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -539,7 +514,7 @@ export default function RepresentativesPage() {
                 <div className="flex justify-center mt-4">
                   <Pagination
                     total={totalPages}
-                    value={page}
+                    value={currentPage}
                     onChange={handlePageChange}
                     size="sm"
                     radius="xl"
@@ -548,7 +523,7 @@ export default function RepresentativesPage() {
               )}
             </>
           )}
-        </>
+        </div>
       )}
 
     </div>

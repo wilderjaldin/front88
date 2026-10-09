@@ -860,6 +860,7 @@
   "download_pdf" : "Descargar PDF",
   "download_excel" : "Descargar Excel",
   "purchase_order_preview" : "Vista Previa OC",
+  "preview_purchase_order" : "Vista Previa Orden de Compra",
   "mail_to_customer": "Mail a Cliente",
   "mail_to_supplier" : "Mail a Proveedor",
   "invalid" : "Inválido",
