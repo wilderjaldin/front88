@@ -19,7 +19,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useTranslation } from "@/app/locales";
 import { useDispatch, useSelector } from 'react-redux';
 import { useForm } from "react-hook-form"
-import { selectUser, setAuth, selectToken, selectImpersonated } from '@/store/authSlice';
+import { selectUser, setAuth, selectToken, selectImpersonated, selectSessions, switchAccount, removeAccount, accountKey } from '@/store/authSlice';
+import IconUserPlus from '@/components/icon/icon-user-plus';
 import { getLocale, setLocale } from '@/store/localeSlice';
 import { selectTotalNoLeidos } from '@/store/notificationsSlice';
 import useAuthGuard from '@/components/layouts/useAuthGuard';
@@ -45,12 +46,40 @@ import { PERMISSIONS } from "@/constants/permissions";
 const URL_USUARIOS = "usuarios/mensaje";
 const URL_INICIAR_MSG = "inbox/iniciar";
 
+// Avatar circular con iniciales + color determinístico por cuenta — mismo
+// espíritu que el selector de cuentas de Google (cada cuenta tiene un color
+// de avatar fijo), adaptado para que además lleve la bandera de país como
+// badge (acá la bandera identifica la cuenta más que una foto de perfil).
+const AVATAR_COLORS = ['bg-indigo-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500', 'bg-sky-500', 'bg-violet-500', 'bg-teal-500', 'bg-orange-500'];
+const avatarColor = (seed: string) => {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
+};
+const initialsOf = (name?: string) => name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) ?? '?';
+
+const AccountAvatar = ({ user, size = 'h-10 w-10 text-sm' }: { user: any; size?: string }) => (
+  <div className="relative shrink-0">
+    <div className={`${size} rounded-full flex items-center justify-center font-semibold text-white ${avatarColor(user?.email ?? user?.Email ?? user?.name ?? '?')}`}>
+      {initialsOf(user?.name)}
+    </div>
+    {user?.countryCode && (
+      <img
+        className="absolute -bottom-0.5 -right-0.5 h-3.5 w-5 rounded-sm object-cover border-2 border-white dark:border-[#1a2941]"
+        src={`/assets/flags/${user.countryCode.toLowerCase()}.svg`}
+        alt=""
+      />
+    )}
+  </div>
+);
+
 const Header = () => {
   useAuthGuard();
 
   const visibleMenu = useVisibleMenu();
   const { hasPermission } = usePermissions();
   const impersonated = useSelector(selectImpersonated);
+  const sessions = useSelector(selectSessions);
   const pathname = usePathname();
   const dispatch = useDispatch();
   const router = useRouter();
@@ -113,6 +142,20 @@ const Header = () => {
   const logout = () => {
     dispatch(setAuth({ token: null, user: null, permissions: null }))
     router.push('/');
+  }
+
+  const handleSwitchAccount = (user: any) => {
+    const key = accountKey(user);
+    if (!key) return;
+    dispatch(switchAccount({ key }));
+    router.push('/admin/dashboard');
+  }
+
+  const handleRemoveAccount = (e: any, user: any) => {
+    e.stopPropagation();
+    const key = accountKey(user);
+    if (!key) return;
+    dispatch(removeAccount({ key }));
   }
 
   const changeLanguage = (locale: string) => {
@@ -371,103 +414,122 @@ const Header = () => {
                     />
                   }
                 >
-                  <ul className="w-[260px] !py-0 text-gray-700 dark:text-gray-200">
+                  <ul className="w-[300px] !py-0 text-gray-700 dark:text-gray-200">
 
-                    {/* PERFIL */}
+                    {/* PERFIL — tarjeta de la cuenta activa, estilo "card" de Google */}
                     <li>
-                      <div className="flex items-start gap-3 px-4 py-4">
-
-                        {/* Bandera dinámica */}
-                        <img
-                          className="h-10 w-10 rounded-md object-cover border border-gray-200 dark:border-gray-700"
-                          src={
-                            user_redux?.countryCode
-                              ? `/assets/flags/${user_redux.countryCode.toLowerCase()}.svg`
-                              : "/assets/flags/bo.svg"
-                          }
-                          alt={user_redux?.countryCode || "country"}
-                        />
-
-                        <div className="flex-1 min-w-0">
-
-                          {/* Nombre completo */}
-                          <h4
-                            className="
-                text-sm font-semibold
-                leading-tight
-                break-words
-              "
-                          >
-                            {user_redux?.name}
-                          </h4>
-
-                          {/* Rol como badge */}
-                          <span
-                            className="
-                inline-block mt-1
-                text-xs
-                px-2 py-0.5
-                rounded-full
-                bg-gray-100 dark:bg-gray-800
-                text-gray-600 dark:text-gray-300
-              "
-                          >
-                            {user_redux?.rol}
-                          </span>
-
-                          {/* Email */}
+                      <div className="flex flex-col items-center text-center gap-2 px-4 pt-5 pb-4">
+                        <AccountAvatar user={user_redux} size="h-14 w-14 text-lg" />
+                        <div className="min-w-0">
+                          <h4 className="text-sm font-semibold leading-tight break-words">{user_redux?.name}</h4>
                           {(user_redux?.Email || user_redux?.email) && (
-                            <p className="mt-1.5 text-[11px] text-gray-400 dark:text-gray-500 truncate">
+                            <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500 truncate">
                               {user_redux.Email ?? user_redux.email}
                             </p>
                           )}
-
+                          <span className="inline-block mt-1.5 text-[11px] px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
+                            {user_redux?.rol}
+                          </span>
                         </div>
                       </div>
                     </li>
 
-                    {/* DASHBOARD + SETTINGS */}
-                    <li className="border-t border-gray-200 dark:border-gray-700">
+                    {/* CUENTAS — multi-sesión tipo Google. La activa se repite acá
+                        (con badge "Activa") junto a las demás, para que se lea como
+                        UNA sola lista intercambiable, igual que el selector de Google.
+                        Se oculta durante impersonación: no tiene sentido añadir/
+                        cambiar de cuenta mientras se está "viendo como" otro usuario. */}
+                    {!impersonated && (
+                      <li className="border-t border-gray-200 dark:border-gray-700 py-1">
+                        {/* div, no <ul> — el CSS global ".dropdown ul" le pondría borde
+                            y sombra propios a cualquier <ul> anidado acá adentro,
+                            generando el efecto "tarjeta dentro de tarjeta". */}
+                        <div>
+                          {/* Activa — misma fila que las demás, pero marcada y sin acción */}
+                          <div className="w-full flex items-center gap-3 px-4 py-2">
+                            <AccountAvatar user={user_redux} />
+                            <div className="flex-1 min-w-0">
+                              <p className="truncate font-medium text-sm text-gray-800 dark:text-gray-100">{user_redux?.name}</p>
+                              <p className="truncate text-xs text-gray-400">{user_redux?.Email ?? user_redux?.email}</p>
+                            </div>
+                            <span className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                              {t.active ?? 'Activa'}
+                            </span>
+                          </div>
+
+                          {/* En segundo plano — click para activar */}
+                          {sessions.map((s: any) => (
+                            <button
+                              key={accountKey(s.user)}
+                              type="button"
+                              onClick={() => handleSwitchAccount(s.user)}
+                              className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition group"
+                            >
+                              <AccountAvatar user={s.user} />
+                              <div className="flex-1 min-w-0 text-left">
+                                <p className="truncate font-medium text-sm text-gray-800 dark:text-gray-100">{s.user?.name}</p>
+                                <p className="truncate text-xs text-gray-400">{s.user?.Email ?? s.user?.email}</p>
+                              </div>
+                              <span
+                                role="button"
+                                onClick={(e) => handleRemoveAccount(e, s.user)}
+                                className="opacity-0 group-hover:opacity-100 shrink-0 p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-red-500 transition"
+                              >
+                                <IconX className="h-3.5 w-3.5" />
+                              </span>
+                            </button>
+                          ))}
+
+                          {/* Añadir otra cuenta */}
+                          <button
+                            type="button"
+                            onClick={() => router.push('/?addAccount=1')}
+                            className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+                          >
+                            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 shrink-0">
+                              <IconUserPlus className="h-4.5 w-4.5" />
+                            </span>
+                            <span className="text-sm text-gray-700 dark:text-gray-200">{t.add_account ?? 'Añadir otra cuenta'}</span>
+                          </button>
+                        </div>
+                      </li>
+                    )}
+
+                    {/* LOGOUT — cierra todas las cuentas (activa + segundo plano) */}
+                    {!impersonated && (
+                      <li className="border-t border-gray-200 dark:border-gray-700">
+                        <button
+                          type="button"
+                          onClick={() => logout()}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+                        >
+                          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-red-50 dark:bg-red-900/20 shrink-0">
+                            <IconLogout className="h-4.5 w-4.5 rotate-90" />
+                          </span>
+                          {sessions.length > 0 ? (t.logout_all_accounts ?? 'Cerrar sesión en todas las cuentas') : t.logout}
+                        </button>
+                      </li>
+                    )}
+
+                    {/* Bloque secundario — navegación propia de la app, separada de
+                        la gestión de cuentas (igual que Google separa cuentas de
+                        "gestionar cuenta de Google / plan / almacenamiento"). */}
+                    <li className="border-t border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/40">
                       <Link
                         href="/admin/users/dashboard"
-                        className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+                        className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
                       >
                         <IconLayoutGrid className="h-4 w-4 text-gray-400" />
                         {t.dashboard}
                       </Link>
-                    </li>
-                    <li>
                       <Link
                         href="/admin/users/settings"
-                        className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+                        className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
                       >
                         <IconSettings className="h-4 w-4 text-gray-400" />
                         {t.settings}
                       </Link>
                     </li>
-
-                    {/* LOGOUT */}
-                    {!(impersonated) &&
-                      <li className="border-t border-gray-200 dark:border-gray-700">
-                        <button
-                          type="button"
-                          onClick={() => logout()}
-                          className="
-            w-full
-            flex items-center
-            px-4 py-3
-            text-sm
-            text-red-600
-            hover:bg-gray-50
-            dark:hover:bg-gray-800
-            transition
-          "
-                        >
-                          <IconLogout className="h-4.5 w-4.5 mr-2 rotate-90" />
-                          {t.logout}
-                        </button>
-                      </li>
-                    }
 
                   </ul>
                 </Dropdown>

@@ -8,6 +8,14 @@ import IconListCheck  from '@/components/icon/icon-list-check';
 import IconLayoutGrid from '@/components/icon/icon-layout-grid';
 import IconPlus       from '@/components/icon/icon-plus';
 
+// No hay un ícono de "subir archivo" en components/icon — inline, mismo
+// criterio que ya usa spares-suppliers/page.js para sus íconos extra.
+const IconUpload = ({ className = 'h-3.5 w-3.5' }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+  </svg>
+);
+
 import { useDevice } from '@/context/device-context';
 
 const thClass = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap";
@@ -25,6 +33,7 @@ const DatatablesSparesSite = ({
   handleClear,
   handleNew,
   handleEdit,
+  handleImport,
 }) => {
   const { isMobile }    = useDevice();
   const [view, setView] = useState(isMobile ? 'grid' : 'list');
@@ -76,6 +85,15 @@ const DatatablesSparesSite = ({
             placeholder={t.filter ?? 'Filtrar'}
             className="w-64"
           />
+
+          <button
+            type="button"
+            onClick={handleImport}
+            className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+          >
+            <IconUpload />
+            {t.import_from_excel ?? 'Importar desde Excel'}
+          </button>
 
           <button
             type="button"

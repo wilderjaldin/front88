@@ -9,6 +9,8 @@ import Conditions from './tabs/Conditions';
 import Formula    from './tabs/Formula';
 import Annexes    from './tabs/Annexes';
 import Freight    from './tabs/Freight';
+import Spares     from './tabs/Spares';
+import SparesLot  from './tabs/SparesLot';
 
 const TAB_MAP = {
   general:    General,
@@ -17,6 +19,8 @@ const TAB_MAP = {
   formula:    Formula,
   annexes:    Annexes,
   freight:    Freight,
+  spares:     Spares,
+  'spares-lot': SparesLot,
 };
 
 const TAB_TITLES = {
@@ -26,6 +30,8 @@ const TAB_TITLES = {
   formula:    'Proveedores | Fórmula',
   annexes:    'Proveedores | Anexos',
   freight:    'Proveedores | Costo Flete',
+  spares:     'Proveedores | Repuestos',
+  'spares-lot': 'Proveedores | Repuestos Lote',
 };
 
 export default function SupplierTabPage() {

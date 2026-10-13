@@ -8,12 +8,16 @@ import { useTranslation } from "@/app/locales";
 import Link from 'next/link';
 import axios from 'axios';
 import Swal from 'sweetalert2';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
-import { setAuth } from '@/store/authSlice';
+import { setAuth, addAccount, selectUser, selectSessions, accountKey } from '@/store/authSlice';
 import IconMail from '../icon/icon-mail';
 
 const URL_LOGIN = process.env.NEXT_PUBLIC_API_URL + 'usuarios/login';
+
+interface Props {
+  addAccountMode?: boolean;
+}
 
 const EyeOpen = () => (
   <svg className="h-4 w-4" fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512">
@@ -26,10 +30,13 @@ const EyeClosed = () => (
   </svg>
 );
 
-const ComponentsAuthLoginForm = () => {
+const ComponentsAuthLoginForm = ({ addAccountMode = false }: Props) => {
   const router   = useRouter();
   const dispatch = useDispatch();
   const t        = useTranslation();
+
+  const activeUser = useSelector(selectUser);
+  const sessions   = useSelector(selectSessions);
 
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading,    setIsLoading]    = useState(false);
@@ -46,6 +53,60 @@ const ComponentsAuthLoginForm = () => {
         password: data.password,
         RememberMe: data.rememberme,
       });
+
+      if (addAccountMode) {
+        const newKey = accountKey(res.data.user);
+        const isDuplicate =
+          (newKey && accountKey(activeUser) === newKey) ||
+          sessions.some((s: any) => newKey && accountKey(s.user) === newKey);
+
+        if (isDuplicate) {
+          setIsLoading(false);
+          const isDark = document.body.classList.contains('dark');
+          Swal.fire({
+            background: isDark ? '#0e1726' : '#ffffff',
+            html: `
+              <div style="padding:12px 0 6px">
+                <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#fde68a,#f59e0b);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;box-shadow:0 8px 24px rgba(245,158,11,0.3)">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#fff" stroke-width="2.5"/><path d="M12 8h.01M12 12v4" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg>
+                </div>
+                <h2 style="color:${isDark ? '#fff' : '#1e293b'};font-size:17px;font-weight:700;margin:0 0 10px;line-height:1.3">${t.account_already_added ?? 'Esta cuenta ya está añadida'}</h2>
+                <p style="color:${isDark ? '#cbd5e1' : '#64748b'};font-size:13px;margin:0">${t.account_already_added_hint ?? 'Ya iniciaste sesión con esa cuenta en este navegador.'}</p>
+              </div>`,
+            showConfirmButton: true,
+            confirmButtonText: t.close ?? 'Cerrar',
+            confirmButtonColor: '#d97706',
+          });
+          return;
+        }
+
+        dispatch(addAccount({
+          token:       res.data.token,
+          user:        res.data.user,
+          permissions: res.data.permissions,
+        }));
+
+        const addedName = res.data.user?.name;
+        const isDark = document.body.classList.contains('dark');
+        Swal.fire({
+          background: isDark ? '#0e1726' : '#ffffff',
+          html: `
+            <div style="padding:12px 0 6px">
+              <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#86efac,#16a34a);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;box-shadow:0 8px 24px rgba(22,163,74,0.3)">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <h2 style="color:${isDark ? '#fff' : '#1e293b'};font-size:17px;font-weight:700;margin:0 0 10px;line-height:1.3">${t.account_added ?? 'Cuenta añadida'}</h2>
+              <p style="color:${isDark ? '#cbd5e1' : '#64748b'};font-size:13px;margin:0">${addedName ?? ''}</p>
+            </div>`,
+          showConfirmButton: true,
+          confirmButtonText: t.btn_continue ?? 'Continuar',
+          confirmButtonColor: '#16a34a',
+          timer: 2500,
+          timerProgressBar: true,
+        }).then(() => router.push('/admin/dashboard'));
+
+        return;
+      }
 
       dispatch(setAuth({
         token:       res.data.token,

@@ -65,9 +65,10 @@ export default function SparesSitePage() {
     router.push(`?${params.toString()}`);
   };
 
-  const handleClear = () => router.push('?');
-  const handleNew   = () => router.push('/admin/register/spares-site/form');
-  const handleEdit  = (spare) =>
+  const handleClear  = () => router.push('?');
+  const handleNew    = () => router.push('/admin/register/spares-site/form');
+  const handleImport = () => router.push('/admin/register/spares-site/import');
+  const handleEdit   = (spare) =>
     router.push(`/admin/register/spares-site/form?nroParte=${encodeURIComponent(spare.nroParte2)}`);
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -92,6 +93,7 @@ export default function SparesSitePage() {
         handleClear={handleClear}
         handleNew={handleNew}
         handleEdit={handleEdit}
+        handleImport={handleImport}
       />
     </div>
   );

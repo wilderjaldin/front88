@@ -18,6 +18,8 @@ const TABS = [
   { key: 'formula',    label: 'Fórmula'                 },
   { key: 'annexes',    label: 'Anexos'                  },
   { key: 'freight',    label: 'Costo Flete'             },
+  { key: 'spares',     label: 'Repuestos'               },
+  { key: 'spares-lot', label: 'Repuestos Lote'          },
 ];
 
 export default function SupplierLayout({ children }) {
