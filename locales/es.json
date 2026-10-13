@@ -802,6 +802,7 @@
   "save_packaging" : "Guardar Embalaje",
   "print_packaging" : "Imprimir Embalaje",
   "days_of_process" : "Días de Proceso",
+  "delivery_days" : "Días Entrega",
   "revised" : "Revisado",
   "receive_all" : "Recibir Todo",
   "nro_part_customer" : "Nro. Parte Cliente",

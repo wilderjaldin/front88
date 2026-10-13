@@ -70,6 +70,7 @@ export default function PurchaseReception() {
         CatCotizacion:   o.catCotizacion,
         NomPrv:          o.proveedor,
         Dias:            o.intDias,
+        DiasEntrega:     o.diasEntrega,
         NumTracking:     o.numTracking,
         Nota:            o.nota,
         CodPaisCliente:  o.codPaisCliente,

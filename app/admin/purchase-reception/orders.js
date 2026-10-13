@@ -35,6 +35,7 @@ const mapOrder = (o, index) => ({
   CatCotizacion:   o.catCotizacion,
   NomPrv:          o.proveedor,
   Dias:            o.intDias,
+  DiasEntrega:     o.diasEntrega,
   NumTracking:     o.numTracking,
   Nota:            o.nota,
   CodPaisCliente:  o.codPaisCliente,
@@ -451,6 +452,7 @@ const Orders = ({ t, data, setOrders, attachOrder, loading, onRefresh, onSearch,
                 <th className={`${thClass} w-16 text-center`}>{t.nro_order}</th>
                 <th className={`${thClass} w-48`}>{t.supplier}</th>
                 <th className={`${thClass} w-16 text-center`}>{t.days_of_process}</th>
+                <th className={`${thClass} w-16 text-center`}>{t.delivery_days ?? 'Días Entrega'}</th>
                 <th className={`${thClass} w-24`}>{t.status}</th>
                 <th className={`${thClass} w-28`}>{t.country}</th>
                 <th className={`${thClass} w-10 text-center`}>R1</th>
@@ -464,11 +466,11 @@ const Orders = ({ t, data, setOrders, attachOrder, loading, onRefresh, onSearch,
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
               {loading ? (
                 <tr>
-                  <td colSpan={12} className="py-10 text-center text-sm text-gray-400">{t.loading}</td>
+                  <td colSpan={13} className="py-10 text-center text-sm text-gray-400">{t.loading}</td>
                 </tr>
               ) : pageData.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="py-10 text-center text-sm text-gray-400">{t.empty_results}</td>
+                  <td colSpan={13} className="py-10 text-center text-sm text-gray-400">{t.empty_results}</td>
                 </tr>
               ) : pageData.map((o, i) => (
                 <tr
@@ -502,6 +504,7 @@ const Orders = ({ t, data, setOrders, attachOrder, loading, onRefresh, onSearch,
                   </td>
                   <td className={`${tdClass} font-medium truncate`} title={o.NomPrv}>{o.NomPrv}</td>
                   <td className={`${tdClass} text-center`}>{o.Dias}</td>
+                  <td className={`${tdClass} text-center`}>{o.DiasEntrega}</td>
                   <td className={tdClass}>
                     {o.NomStatus ? (
                       <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 dark:text-gray-300">

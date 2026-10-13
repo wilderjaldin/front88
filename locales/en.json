@@ -802,6 +802,7 @@
   "save_packaging" : "Save Packaging",
   "print_packaging" : "Print Packaging",
   "days_of_process" : "Days",
+  "delivery_days" : "Delivery Days",
   "revised" : "Revised",
   "receive_all" : "Receive all",
   "nro_part_customer" : "Customer Part #",
