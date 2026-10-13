@@ -10,13 +10,6 @@ const URL_VALIDATE      = "repuestossite/importar/validar";
 const URL_IMPORT        = "repuestossite/importar/registrar";
 const URL_EXPORT_ERRORS = "repuestossite/importar/exportar-errores";
 
-// Formato esperado del Excel (mismo orden que exige el backend) — se muestra
-// como referencia visual en el paso 1, igual al que se definió con el usuario.
-const EXPECTED_COLUMNS = [
-  "NroParte", "DesRepuesto", "apicacion", "categoria", "hcode",
-  "blnseo", "peso", "pesoVolumen", "largo", "ancho", "alto",
-];
-
 function buildWarningsMap(warnings) {
   const map = new Map();
   warnings.forEach((w) => {
@@ -220,26 +213,7 @@ export default function SparesSiteImportPage() {
 
       {/* ══════════════ PASO 1 — Cargar archivo ══════════════ */}
       {step === 1 && (
-        <div className="grid gap-6 lg:grid-cols-2">
-
-          <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6 shadow-sm">
-            <h2 className="text-base font-semibold text-gray-800 dark:text-gray-100 mb-1">Formato esperado</h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-              El Excel debe tener estas columnas, en este orden, con los encabezados exactos:
-            </p>
-            <div className="flex flex-wrap gap-1.5 mb-4">
-              {EXPECTED_COLUMNS.map((c) => (
-                <span key={c} className="px-2 py-1 rounded-md text-[11px] font-mono bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">{c}</span>
-              ))}
-            </div>
-            <ul className="space-y-1.5 text-xs text-gray-500 dark:text-gray-400">
-              <li>· <strong className="text-gray-700 dark:text-gray-300">apicacion</strong>: nombre de la marca del equipo — si no se tiene el dato, dejarlo vacío.</li>
-              <li>· <strong className="text-gray-700 dark:text-gray-300">categoria</strong>: si no se tiene el dato, colocar <span className="font-mono">SIN CLASIFICAR</span> o dejarlo vacío (se asigna igual).</li>
-              <li>· <strong className="text-gray-700 dark:text-gray-300">blnseo</strong>: 0 o 1 — vacío se toma como 0.</li>
-              <li>· <strong className="text-gray-700 dark:text-gray-300">peso / pesoVolumen / largo / ancho / alto</strong>: numéricos, vacío se toma como 0.</li>
-              <li>· Un <strong className="text-gray-700 dark:text-gray-300">Nro. Parte</strong> que ya exista en el sistema (o repetido en el archivo) se excluye — esta importación no actualiza registros existentes.</li>
-            </ul>
-          </div>
+        <div className="max-w-xl">
 
           <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6 shadow-sm">
             <h2 className="text-base font-semibold text-gray-800 dark:text-gray-100 mb-1">Carga el archivo Excel</h2>
