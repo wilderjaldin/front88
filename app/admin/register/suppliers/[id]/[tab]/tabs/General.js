@@ -151,13 +151,17 @@ export default function GeneralSupplier() {
         </div>
 
         {/* ── Tiempos Operativos ────────────────────────────────────── */}
-        {(general.diasProceso != null || general.diasShipingExpress != null || general.diasShipingStandard != null) && (
+        {(general.diasProceso != null || general.diasShipingExpress != null || general.diasShipingStandard != null || general.diasVigenciaRepuesto != null) && (
           <div>
             <SectionTitle>Tiempos Operativos</SectionTitle>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               <Field label={t.days_of_process}      value={general.diasProceso} />
               <Field label="Días Shipping Express"  value={general.diasShipingExpress} />
               <Field label="Días Shipping Estándar" value={general.diasShipingStandard} />
+              <Field
+                label={t.spares_validity_days ?? 'Días Vigencia Repuesto'}
+                value={general.diasVigenciaRepuesto === 0 ? (t.indefinite ?? 'Indefinido') : general.diasVigenciaRepuesto}
+              />
             </div>
           </div>
         )}

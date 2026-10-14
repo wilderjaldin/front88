@@ -50,9 +50,10 @@ const SupplierForm = ({
       zip:                 '',
       tipDoc:              null,
       numDoc:              '',
-      diasProceso:         0,
-      diasShipingExpress:  0,
-      diasShipingStandard: 0,
+      diasProceso:          0,
+      diasShipingExpress:   0,
+      diasShipingStandard:  0,
+      diasVigenciaRepuesto: 90,
       blnStock:            false,
       blnExpress:          false,
       prvIdioma:           IDIOMA_OPTIONS[0],
@@ -60,6 +61,7 @@ const SupplierForm = ({
   });
 
   const selectedCountry = watch('country');
+  const isVigenciaIndefinida = Number(watch('diasVigenciaRepuesto')) === 0;
   const isUS = isEstadoZipCountry(selectedCountry?.value);
 
   useEffect(() => {
@@ -71,7 +73,7 @@ const SupplierForm = ({
       reset({
         nomPrv: '', razSoc: '', dirPrv: '', sitWeb: '', nomChe: '',
         country: null, city: null, estado: '', zip: '', tipDoc: null, numDoc: '',
-        diasProceso: 0, diasShipingExpress: 0, diasShipingStandard: 0,
+        diasProceso: 0, diasShipingExpress: 0, diasShipingStandard: 0, diasVigenciaRepuesto: 90,
         blnStock: false, blnExpress: false, prvIdioma: IDIOMA_OPTIONS[0],
       });
       setCiudades([]);
@@ -94,9 +96,10 @@ const SupplierForm = ({
       zip:                 proveedor.codZip              ?? proveedor.zip    ?? '',
       tipDoc:              tipDocObj,
       numDoc:              proveedor.numDoc              ?? '',
-      diasProceso:         proveedor.diasProceso         ?? 0,
-      diasShipingExpress:  proveedor.diasShipingExpress  ?? 0,
-      diasShipingStandard: proveedor.diasShipingStandard ?? 0,
+      diasProceso:           proveedor.diasProceso           ?? 0,
+      diasShipingExpress:    proveedor.diasShipingExpress    ?? 0,
+      diasShipingStandard:   proveedor.diasShipingStandard   ?? 0,
+      diasVigenciaRepuesto: proveedor.diasVigenciaRepuesto ?? 90,
       blnStock:            proveedor.blnStock            ?? false,
       blnExpress:          proveedor.blnExpress          ?? false,
       prvIdioma:           idiomaObj,
@@ -158,6 +161,7 @@ const SupplierForm = ({
       diasProceso:         Number(data.diasProceso)         || 0,
       diasShipingExpress:  Number(data.diasShipingExpress)  || 0,
       diasShipingStandard: Number(data.diasShipingStandard) || 0,
+      diasVigenciaRepuesto: Number(data.diasVigenciaRepuesto) || 0,
       blnStock:            data.blnStock                    ?? false,
       blnExpress:          data.blnExpress                  ?? false,
       prvIdioma:           data.prvIdioma?.value            ?? 'ES',
@@ -355,24 +359,41 @@ const SupplierForm = ({
       <div className="border-t border-gray-100 dark:border-gray-700" />
 
       {/* Días */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="space-y-1">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label className="flex items-end min-h-[2rem] text-xs font-medium text-gray-700 dark:text-gray-300 leading-tight">
             {t.days_of_process}
           </label>
           <input type="number" min="0" {...register('diasProceso')} className="form-input w-full" />
         </div>
         <div className="space-y-1">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label className="flex items-end min-h-[2rem] text-xs font-medium text-gray-700 dark:text-gray-300 leading-tight">
             Shipping Express Days
           </label>
           <input type="number" min="0" {...register('diasShipingExpress')} className="form-input w-full" />
         </div>
         <div className="space-y-1">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label className="flex items-end min-h-[2rem] text-xs font-medium text-gray-700 dark:text-gray-300 leading-tight">
             Shipping Standard Days
           </label>
           <input type="number" min="0" {...register('diasShipingStandard')} className="form-input w-full" />
+        </div>
+        <div className="space-y-1">
+          <label className="flex items-end min-h-[2rem] text-xs font-medium text-gray-700 dark:text-gray-300 leading-tight">
+            {t.spares_validity_days ?? 'Días de Vigencia Repuestos'}
+          </label>
+          <input type="number" min="0" disabled={isVigenciaIndefinida}
+            {...register('diasVigenciaRepuesto')}
+            className="form-input w-full disabled:opacity-50 disabled:cursor-not-allowed" />
+          <label className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isVigenciaIndefinida}
+              onChange={(e) => setValue('diasVigenciaRepuesto', e.target.checked ? 0 : 90)}
+              className="h-4 w-4 rounded border-gray-300 accent-primary cursor-pointer"
+            />
+            {t.indefinite ?? 'Indefinido'}
+          </label>
         </div>
       </div>
 

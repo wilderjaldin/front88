@@ -51,9 +51,6 @@ export const MENU_CONFIG: MenuItem[] = [
       { labelKey: 'users', href: '/admin/users', permission: PERMISSIONS.VER_USUARIOS },
       { labelKey: 'roles', href: '/admin/roles', permission: PERMISSIONS.VER_ROLES },
       { labelKey: 'permissions', href: '/admin/permissions', permission: PERMISSIONS.VER_PERMISOS },
-      // Sin `permission`: el backend (MarcasController) solo exige rol "Super
-      // Administrador" ([RequireRole]), no un permiso de la tabla de permisos.
-      { labelKey: 'brands', href: '/admin/brands', rol: 'Super Administrador' },
     ],
   },
   // ── REGISTROS ────────────────────────────────────────────────────────────
@@ -76,6 +73,7 @@ export const MENU_CONFIG: MenuItem[] = [
       { labelKey: 'utility', href: '/admin/register/utility', permission: PERMISSIONS.MENU_UTILIDAD },
       { labelKey: 'categorization', href: '/admin/register/categorization', permission: PERMISSIONS.MENU_CATEGORIZACION },
       { labelKey: 'exchange_rate', href: '/admin/register/exchange-rate', permission: PERMISSIONS.MENU_TIPO_CAMBIO },
+      { labelKey: 'brands', href: '/admin/brands', permission: PERMISSIONS.MENU_MARCAS },
     ],
   },
 

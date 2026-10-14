@@ -76,6 +76,7 @@ export const PERMISSIONS = {
   REPUESTOS_POR_VERIFICAR       : "E94D007E",
 
   // ── Menú Registrar (visibilidad de cada submenú) ───────────────
+  MENU_MARCAS                   : "J1V2EFOM",
   MENU_REPUESTOS                : "D643C291",
   MENU_REPUESTOS_SITE           : "9F0FCF6D",
   MENU_REPUESTOS_LOTE           : "1169F573",

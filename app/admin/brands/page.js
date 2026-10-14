@@ -1,8 +1,8 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useSelector } from 'react-redux';
-import { selectIsSuperAdmin } from '@/store/authSlice';
+import { usePermissions } from '@/app/hooks/usePermissions';
+import { PERMISSIONS } from '@/constants/permissions';
 import axiosClient from '@/app/lib/axiosClient';
 import { swalError, swalSuccess, swalConfirm } from '@/app/lib/swal';
 import { useDynamicTitle } from '@/app/hooks/useDynamicTitle';
@@ -52,11 +52,12 @@ const formatDate = (iso) => {
 };
 
 export default function BrandsPage() {
-  const isSuperAdmin = useSelector(selectIsSuperAdmin);
+  const { hasPermission } = usePermissions();
+  const canView = hasPermission(PERMISSIONS.MENU_MARCAS);
   const t            = useTranslation();
   const router       = useRouter();
   const searchParams = useSearchParams();
-  useDynamicTitle(`${t.brands ?? 'Marcas'} | ${t.admin ?? 'Administración'}`);
+  useDynamicTitle(`${t.brands ?? 'Marcas'} | ${t.register ?? 'Registrar'}`);
 
   // ── Parámetros actuales de la URL — fuente de verdad, igual que en clientes ──
   const currentPage   = Number(searchParams.get('page')) || 1;
@@ -92,7 +93,7 @@ export default function BrandsPage() {
     }
   }, [currentPage, currentTerm, currentEstado]);
 
-  useEffect(() => { if (isSuperAdmin) fetchBrands(); }, [isSuperAdmin, fetchBrands]);
+  useEffect(() => { if (canView) fetchBrands(); }, [canView, fetchBrands]);
 
   const handleSearch      = (term) => pushFilters({ page: 1, term });
   const handleClearSearch = () => pushFilters({ page: 1, term: '' });
@@ -134,13 +135,13 @@ export default function BrandsPage() {
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
-  if (!isSuperAdmin) return <AccessDenied />;
+  if (!canView) return <AccessDenied />;
 
   return (
     <div>
       {/* Breadcrumb */}
       <ul className="flex space-x-2 rtl:space-x-reverse mb-4">
-        <li className="text-sm text-gray-500">{t.admin ?? 'Administración'}</li>
+        <li className="text-sm text-gray-500">{t.register ?? 'Registrar'}</li>
         <li className="before:content-['/'] ltr:before:mr-2 rtl:before:ml-2 text-sm text-gray-800 dark:text-gray-100">
           {t.brands ?? 'Marcas'}
         </li>

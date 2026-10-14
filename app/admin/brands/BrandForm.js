@@ -12,6 +12,11 @@ const ESTADO_OPTIONS = (t) => [
   { value: 'IN', label: t.inactive ?? 'Inactiva' },
 ];
 
+// El menú se saca del flujo normal con un portal a <body> — si no, el
+// `overflow-hidden` del modal (components/modal.js) lo recorta/"escapa" con
+// bordes rectos en vez de quedar contenido por las esquinas redondeadas.
+const portalTarget = typeof document !== 'undefined' ? document.body : undefined;
+
 // Crea o edita una marca — un solo componente para ambos casos, igual que
 // SupplierForm/CustomerForm (marca=null → alta, marca={...} → edición).
 export default function BrandForm({ marca, onCancel, onSaved }) {
@@ -87,6 +92,8 @@ export default function BrandForm({ marca, onCancel, onSaved }) {
                 options={ESTADO_OPTIONS(t)}
                 value={ESTADO_OPTIONS(t).find(o => o.value === field.value) ?? null}
                 onChange={opt => field.onChange(opt.value)}
+                menuPortalTarget={portalTarget}
+                styles={{ menuPortal: (b) => ({ ...b, zIndex: 9999 }) }}
               />
             )}
           />
