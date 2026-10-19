@@ -61,7 +61,6 @@ const SupplierForm = ({
   });
 
   const selectedCountry = watch('country');
-  const isVigenciaIndefinida = Number(watch('diasVigenciaRepuesto')) === 0;
   const isUS = isEstadoZipCountry(selectedCountry?.value);
 
   useEffect(() => {
@@ -382,18 +381,14 @@ const SupplierForm = ({
           <label className="flex items-end min-h-[2rem] text-xs font-medium text-gray-700 dark:text-gray-300 leading-tight">
             {t.spares_validity_days ?? 'Días de Vigencia Repuestos'}
           </label>
-          <input type="number" min="0" disabled={isVigenciaIndefinida}
-            {...register('diasVigenciaRepuesto')}
-            className="form-input w-full disabled:opacity-50 disabled:cursor-not-allowed" />
-          <label className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={isVigenciaIndefinida}
-              onChange={(e) => setValue('diasVigenciaRepuesto', e.target.checked ? 0 : 90)}
-              className="h-4 w-4 rounded border-gray-300 accent-primary cursor-pointer"
-            />
-            {t.indefinite ?? 'Indefinido'}
-          </label>
+          <input
+            type="number" min="1"
+            {...register('diasVigenciaRepuesto', {
+              min: { value: 1, message: (t.min_value_n ?? 'Mínimo {n}').replace('{n}', 1) },
+            })}
+            className={`form-input w-full ${errors.diasVigenciaRepuesto ? 'error' : ''}`}
+          />
+          {errors.diasVigenciaRepuesto && <p className="text-red-400 text-xs mt-1">{errors.diasVigenciaRepuesto.message}</p>}
         </div>
       </div>
 
