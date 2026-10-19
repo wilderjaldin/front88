@@ -46,8 +46,27 @@ function CellValue({ colKey, value, t }) {
 // ── Panel "Agregar en lote" — wizard de 4 pasos, mismo patrón que
 // spares-site/import y spares-suppliers (Cargar → Previsualizar → Limpieza →
 // Resultado). Dos métodos de carga, cada uno con su propio par de endpoints:
-//   texto (pegado, TSV: NroParte · DesRepuesto · CodEstado) → .../importar/texto/*
-//   excel (archivo, encabezados NroParte|DesRepuesto|CodEstado) → .../importar/excel/*
+//   texto (pegado, TSV: NroParte · DesRepuesto) → .../importar/texto/*
+//   excel (archivo, encabezados NroParte|DesRepuesto) → .../importar/excel/*
+// No se pide Estado — un repuesto recién importado no tiene sentido que
+// entre como inactivo, el backend lo da de alta activo por defecto.
+// Un copy real de Excel pega las celdas separadas por TAB — pero si alguien
+// tipea la fila a mano (sin TAB) separando Nro. Parte y Descripción con un
+// espacio, el backend terminaba uniendo todo en una sola columna. Acá se
+// normaliza antes de mandarlo: si la línea ya trae TAB se respeta tal cual;
+// si no, se corta en el primer espacio (Nro. Parte no lleva espacios).
+function normalizePastedText(raw) {
+  return raw
+    .split(/\r\n|\r|\n/)
+    .map((line) => {
+      if (!line.trim() || line.includes('\t')) return line;
+      const idx = line.indexOf(' ');
+      if (idx === -1) return line;
+      return `${line.slice(0, idx)}\t${line.slice(idx + 1).trim()}`;
+    })
+    .join('\n');
+}
+
 function BulkAddPanel({ codPrv, onClose, onImported }) {
   const t = useTranslation();
   const fileInputRef = useRef(null);
@@ -94,7 +113,7 @@ function BulkAddPanel({ codPrv, onClose, onImported }) {
         form.append('archivo', file);
         rs = await axiosClient.post(urlFor('excel', 'validar'), form, { headers: { 'Content-Type': 'multipart/form-data' } });
       } else {
-        rs = await axiosClient.post(urlFor('texto', 'validar'), { texto: text });
+        rs = await axiosClient.post(urlFor('texto', 'validar'), { texto: normalizePastedText(text) });
       }
       setMode(m);
       setPreview(rs.data);
@@ -123,10 +142,10 @@ function BulkAddPanel({ codPrv, onClose, onImported }) {
         form.append('archivo', file);
         rs = await axiosClient.post(urlFor('excel', 'registrar'), form, { headers: { 'Content-Type': 'multipart/form-data' } });
       } else {
-        rs = await axiosClient.post(urlFor('texto', 'registrar'), { texto: text });
+        rs = await axiosClient.post(urlFor('texto', 'registrar'), { texto: normalizePastedText(text) });
       }
       setImportResult(rs.data);
-      setStep(4);
+      setStep(3);
       onImported?.();
     } catch (err) {
       swalError(t.error ?? 'Error', err?.response?.data?.message ?? (t.import_error ?? 'No se pudo completar la importación.'), t.close);
@@ -168,7 +187,12 @@ function BulkAddPanel({ codPrv, onClose, onImported }) {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const columns    = preview?.columns ?? [];
+  // Estado/Acción son columnas internas que manda el backend en el preview,
+  // pero no aportan nada a quien está importando (solo le importa que se
+  // registre, sea 1 fila o miles) — se ocultan acá, sin pedirle al backend
+  // que deje de mandarlas.
+  const HIDDEN_PREVIEW_COLUMNS = ['Estado', 'Acción'];
+  const columns    = (preview?.columns ?? []).filter(c => !HIDDEN_PREVIEW_COLUMNS.includes(c.label));
   const cleanRows  = preview?.rows ?? [];
   const errorRows  = (preview?.errorRows ?? []).map((row, i) => ({ row, obs: preview?.warnings?.[i] ?? '' }));
   const cleanCount = preview?.totalValidos ?? 0;
@@ -177,8 +201,7 @@ function BulkAddPanel({ codPrv, onClose, onImported }) {
   const STEPS = [
     { n: 1, label: t.load_data ?? 'Cargar' },
     { n: 2, label: t.preview ?? 'Previsualizar' },
-    { n: 3, label: t.cleanup ?? 'Limpieza' },
-    { n: 4, label: t.result ?? 'Resultado' },
+    { n: 3, label: t.result ?? 'Resultado' },
   ];
 
   return (
@@ -219,14 +242,14 @@ function BulkAddPanel({ codPrv, onClose, onImported }) {
             {/* Pegar */}
             <div>
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
-                {t.paste_from_excel ?? 'Pegar desde Excel'} — {t.columns ?? 'Columnas'}: Nro. Parte · Descripción · Estado
+                {t.paste_from_excel ?? 'Pegar desde Excel'} — {t.columns ?? 'Columnas'}: Nro. Parte<span className="text-red-500">*</span> · Descripción<span className="text-red-500">*</span>
               </label>
               <textarea
                 rows={6}
                 value={text}
                 disabled={!!file}
                 onChange={(e) => setText(e.target.value)}
-                placeholder={'3415661\tACCELERATOR COIEL\tAC'}
+                placeholder={'3415661\tACCELERATOR COIEL'}
                 className="form-textarea w-full font-mono text-xs disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
@@ -258,7 +281,9 @@ function BulkAddPanel({ codPrv, onClose, onImported }) {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                   </svg>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{t.drag_or_click ?? 'Arrastra aquí o haz clic para seleccionar'}</p>
-                  <p className="text-[11px] text-gray-400 mt-0.5">.xlsx · .xls — {t.headers ?? 'encabezados'}: NroParte | DesRepuesto | CodEstado</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">
+                    .xlsx · .xls — {t.headers ?? 'encabezados'}: NroParte<span className="text-red-500">*</span> | DesRepuesto<span className="text-red-500">*</span>
+                  </p>
                 </div>
               )}
             </div>
@@ -329,40 +354,6 @@ function BulkAddPanel({ codPrv, onClose, onImported }) {
             )}
           </div>
 
-          <button type="button" onClick={() => setStep(3)}
-            className="flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-white hover:bg-primary/90 transition">
-            {t.continue_to_cleanup ?? 'Continuar a Limpieza'}
-          </button>
-        </>
-      )}
-
-      {/* PASO 3 — Limpieza */}
-      {step === 3 && preview && (
-        <>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/30 px-3 py-1 text-xs font-semibold text-green-700 dark:text-green-400">
-                {cleanCount} {t.ready_to_import ?? 'listos para importar'}
-              </span>
-              {errorCount > 0 && (
-                <span className="inline-flex items-center rounded-full bg-red-100 dark:bg-red-900/30 px-3 py-1 text-xs font-semibold text-red-700 dark:text-red-400">
-                  {errorCount} {t.excluded ?? 'excluidos'}
-                </span>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setStep(2)}
-                className="flex h-9 items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
-                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
-                {t.btn_back ?? 'Volver'}
-              </button>
-              <button type="button" onClick={handleImport} disabled={loadingImport || cleanCount === 0}
-                className="flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-xs font-medium text-white hover:bg-primary/90 transition disabled:opacity-60 disabled:cursor-not-allowed">
-                {loadingImport ? (t.importing ?? 'Importando…') : `${t.btn_import ?? 'Importar'} ${cleanCount}`}
-              </button>
-            </div>
-          </div>
-
           {errorCount > 0 && mode === 'excel' && (
             <div className="flex items-center justify-between rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-2.5">
               <p className="text-xs text-red-600 dark:text-red-500">{errorCount} {t.excluded_rows_hint ?? 'filas excluidas. Descarga el Excel, corrígelas y vuelve a cargarlas.'}</p>
@@ -372,11 +363,16 @@ function BulkAddPanel({ codPrv, onClose, onImported }) {
               </button>
             </div>
           )}
+
+          <button type="button" onClick={handleImport} disabled={loadingImport || cleanCount === 0}
+            className="flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-white hover:bg-primary/90 transition disabled:opacity-60 disabled:cursor-not-allowed">
+            {loadingImport ? (t.importing ?? 'Importando…') : `${t.btn_import ?? 'Importar'} ${cleanCount}`}
+          </button>
         </>
       )}
 
-      {/* PASO 4 — Resultado */}
-      {step === 4 && importResult && (
+      {/* PASO 3 — Resultado */}
+      {step === 3 && importResult && (
         <div className="flex flex-col items-center justify-center py-10 gap-5">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
             <svg className="h-8 w-8 text-green-600 dark:text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

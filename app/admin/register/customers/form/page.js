@@ -313,7 +313,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
               <input
                 {...registerUpper(register, 'nomCliente', {
                   required: t.customer_name_required,
-                  maxLength: { value: 50, message: t.max_n_characters.replace('{n}', 50) },
+                  maxLength: { value: 80, message: t.max_n_characters.replace('{n}', 80) },
                   pattern: {
                     value: /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ0-9\s\-\.\,\&']+$/,
                     message: t.only_letters_numbers_basic,
@@ -529,7 +529,7 @@ const CustomerForm = ({ cliente = null, onCancel, onSaved }) => {
               <label className="block text-sm font-medium mb-1">{t.main_activity}</label>
               <input
                 {...registerUpper(register, 'actPrincipal', {
-                  maxLength: { value: 50, message: t.max_n_characters.replace('{n}', 50) },
+                  maxLength: { value: 200, message: t.max_n_characters.replace('{n}', 200) },
                   pattern: {
                     value: /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ0-9\s\.\,\-]+$/,
                     message: t.only_letters_numbers_basic,

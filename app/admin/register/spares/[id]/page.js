@@ -183,7 +183,13 @@ export default function SpareDetail() {
                 {spare?.proveedor && (
                   <span className="text-xs text-gray-500">
                     <span className="text-gray-400">Proveedor: </span>
-                    <span className="font-medium text-gray-700 dark:text-gray-200">{spare.proveedor}</span>
+                    {spare?.codPrv ? (
+                      <Link href={`/admin/register/suppliers/${spare.codPrv}/general`} className="font-medium text-primary hover:underline">
+                        {spare.proveedor}
+                      </Link>
+                    ) : (
+                      <span className="font-medium text-gray-700 dark:text-gray-200">{spare.proveedor}</span>
+                    )}
                   </span>
                 )}
                 {spare?.tipRepuesto && (
@@ -260,7 +266,14 @@ export default function SpareDetail() {
 
         <Panel color="blue" icon={<IconTag className="h-3.5 w-3.5" />} title="Clasificación">
           <dl className="space-y-3">
-            <Field label="Proveedor"  value={fmt(spare?.proveedor)}   />
+            <Field
+              label="Proveedor"
+              value={spare?.codPrv ? (
+                <Link href={`/admin/register/suppliers/${spare.codPrv}/general`} className="text-primary hover:underline">
+                  {fmt(spare?.proveedor)}
+                </Link>
+              ) : fmt(spare?.proveedor)}
+            />
             <Field label="Marca"      value={fmt(spare?.marca)}       />
             <Field label="Aplicación" value={fmt(spare?.aplicacion)}  />
             <Field label="Tipo"       value={fmt(spare?.tipRepuesto)} />

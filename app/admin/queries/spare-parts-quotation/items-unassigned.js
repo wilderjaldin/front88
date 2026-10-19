@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Pagination } from '@mantine/core';
 import axios from 'axios';
 import axiosClient from '@/app/lib/axiosClient';
 import { swalSuccess, swalError } from '@/app/lib/swal';
@@ -11,27 +10,23 @@ import SearchFilter from '@/components/SearchFilter';
 const url_search    = process.env.NEXT_PUBLIC_API_URL + 'repporcotizar/BuscarListaSinAsignar';
 const URL_SAVE_APPS = 'repuestosporcotizar/guardar-aplicacion';
 
-const PAGE_SIZE = 20;
-
 const thClass = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap select-none";
 const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-3 py-2";
 
 
 const ItemsUnassigned = ({ token, t, data, assignOrder }) => {
   const [selected, setSelected] = useState([]);
-  const [page,     setPage]     = useState(1);
   const [records,  setRecords]  = useState(data);
 
   const { register, getValues, setValue } = useForm();
 
-  useEffect(() => { setRecords(data); setSelected([]); setPage(1); }, [data]);
+  useEffect(() => { setRecords(data); setSelected([]); }, [data]);
 
   useEffect(() => {
     records.forEach(o => setValue(`app.${o.codRegistro}`, o.nomMarca ?? ''));
   }, [records]);
 
-  const totalPages = Math.ceil(records.length / PAGE_SIZE);
-  const pageData   = records.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pageData = records;
 
   const toggleAll = () =>
     setSelected(selected.length === pageData.length ? [] : [...pageData]);
@@ -40,17 +35,16 @@ const ItemsUnassigned = ({ token, t, data, assignOrder }) => {
 
   const handleSearch = async (term) => {
     const nroParte = (term ?? '').trim();
-    if (!nroParte) { setRecords(data); setPage(1); return; }
+    if (!nroParte) { setRecords(data); return; }
     try {
       const rs = await axios.post(url_search, { NroParte: nroParte, IndiceOrdenar: 0, ValToken: token });
       if (rs.data.estado === 'OK') {
         setRecords((rs.data.dato ?? []).map((o, i) => ({ ...o, id: i })));
-        setPage(1);
       }
     } catch {}
   };
 
-  const handleClear = () => { setRecords(data); setPage(1); };
+  const handleClear = () => { setRecords(data); };
 
   const handleSaveAplication = async () => {
     const payload = pageData.map(o => ({
@@ -61,6 +55,10 @@ const ItemsUnassigned = ({ token, t, data, assignOrder }) => {
       const rs = await axiosClient.put(URL_SAVE_APPS, payload);
       swalSuccess(rs.data?.mensaje ?? t.save_apps_quote_success);
       setSelected([]);
+      setRecords(prev => prev.map(r => {
+        const saved = payload.find(p => p.CodRegistro === r.codRegistro);
+        return saved ? { ...r, nomMarca: saved.NomAplicacion } : r;
+      }));
     } catch (err) {
       const msg = err?.response?.data?.mensaje;
       swalError(t.error ?? 'Error', msg ?? t.save_apps_quote_error_server);
@@ -79,13 +77,16 @@ const ItemsUnassigned = ({ token, t, data, assignOrder }) => {
           <div className="mt-1 h-0.5 w-10 rounded bg-primary/60" />
         </div>
 
-        <SearchFilter t={t} onSearch={handleSearch} onClear={handleClear} placeholder={t.nro_part} className="w-64" />
+        <SearchFilter t={t} onSearch={handleSearch} onClear={handleClear} placeholder={t.nro_part} className="w-64" uppercase />
       </div>
 
       {/* Barra de acciones */}
       <div className="flex flex-wrap items-center gap-1.5 mb-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 shadow-sm">
         <button
-          onClick={() => assignOrder(selected)}
+          onClick={() => assignOrder(selected.map(o => {
+            const current = records.find(r => r.codRegistro === o.codRegistro);
+            return { ...o, nomAplicacion: current?.nomMarca ?? '' };
+          }))}
           disabled={selected.length === 0}
           className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 disabled:opacity-35 disabled:cursor-not-allowed transition"
         >
@@ -174,7 +175,12 @@ const ItemsUnassigned = ({ token, t, data, assignOrder }) => {
                   <td className={tdClass}>
                     <input
                       type="text"
-                      {...register(`app.${o.codRegistro}`)}
+                      {...register(`app.${o.codRegistro}`, {
+                        onChange: (e) => {
+                          const upper = e.target.value.toUpperCase();
+                          if (upper !== e.target.value) setValue(`app.${o.codRegistro}`, upper);
+                        },
+                      })}
                       className="h-7 w-full rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
                     />
                   </td>
@@ -188,12 +194,6 @@ const ItemsUnassigned = ({ token, t, data, assignOrder }) => {
           </table>
         </div>
       </div>
-
-      {totalPages > 1 && (
-        <div className="flex justify-center mt-4">
-          <Pagination total={totalPages} value={page} onChange={setPage} size="sm" radius="xl" />
-        </div>
-      )}
     </div>
   );
 };

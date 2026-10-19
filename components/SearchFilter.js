@@ -6,7 +6,7 @@ import IconX from '@/components/icon/icon-x';
 // Filtro de búsqueda estándar: input + botón "x" para limpiar (inline, solo
 // visible con texto) + botón de lupa adosado a la derecha. La búsqueda se
 // dispara al enviar el form (Enter o click en la lupa), no al escribir.
-const SearchFilter = ({ t, value = '', onSearch, onClear, placeholder, className = 'w-80' }) => {
+const SearchFilter = ({ t, value = '', onSearch, onClear, placeholder, className = 'w-80', uppercase = false }) => {
   const [term, setTerm] = useState(value);
   // Solo hay algo que "limpiar" a nivel API si la última acción confirmada
   // (búsqueda enviada o sincronizada desde afuera) dejó un término activo.
@@ -37,7 +37,7 @@ const SearchFilter = ({ t, value = '', onSearch, onClear, placeholder, className
         <input
           type="text"
           value={term}
-          onChange={e => setTerm(e.target.value)}
+          onChange={e => setTerm(uppercase ? e.target.value.toUpperCase() : e.target.value)}
           placeholder={placeholder ?? t?.filter}
           className="w-full h-full px-3 pe-7 text-sm bg-transparent border-0 focus:outline-none"
         />

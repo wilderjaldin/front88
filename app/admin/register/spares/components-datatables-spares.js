@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import IconPencil from '@/components/icon/icon-pencil';
 import IconToggleOn from '@/components/icon/icon-toggle-on';
 import IconTrash from '@/components/icon/icon-trash';
@@ -301,7 +302,18 @@ const DatatablesSpares = ({
       case 'descripcion':
         return <div className="truncate" style={{ maxWidth: 200 }} title={s.descripcion}>{s.descripcion}</div>;
       case 'proveedor':
-        return <div className="truncate" style={{ maxWidth: 130 }} title={s.proveedor}>{s.proveedor}</div>;
+        return s.codPrv ? (
+          <Link
+            href={`/admin/register/suppliers/${s.codPrv}/general`}
+            className="block truncate text-primary hover:underline"
+            style={{ maxWidth: 130 }}
+            title={s.proveedor}
+          >
+            {s.proveedor}
+          </Link>
+        ) : (
+          <div className="truncate" style={{ maxWidth: 130 }} title={s.proveedor}>{s.proveedor}</div>
+        );
       case 'marca':
         return <div className="truncate" style={{ maxWidth: 100 }} title={s.marca}>{s.marca}</div>;
       case 'aplicacion':

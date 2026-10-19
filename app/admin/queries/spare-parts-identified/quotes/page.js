@@ -251,8 +251,18 @@ export default function QuoteIdentify() {
   };
 
   const handleEmailSupplier = () => {
+    // "selected" son los registros de "items" (estado), que solo reflejan la
+    // carga inicial — lo que el usuario tipeó en los inputs (description /
+    // description_real) vive en el form (react-hook-form), desacoplado de ese
+    // estado hasta que se guarda. Se releen acá con getValues() para que el
+    // correo salga con lo último escrito, no con datos viejos.
+    const selectedConValoresActuales = selected.map(item => ({
+      ...item,
+      desRepuesto: getValues(`items.${item.codItem}.description`)      || item.desRepuesto,
+      desRepReal:  getValues(`items.${item.codItem}.description_real`) || item.desRepReal,
+    }));
     setModalTitle(t.mail_to_supplier ?? 'Mail a Proveedor'); setModalSize('w-full max-w-3xl');
-    setModalContent(<MailToSupplierForm order={quote} selected={selected} close={() => setShowModal(false)} t={t} />);
+    setModalContent(<MailToSupplierForm order={quote} selected={selectedConValoresActuales} close={() => setShowModal(false)} t={t} />);
     setShowModal(true);
   };
   const handleMailToCustomer = () => {

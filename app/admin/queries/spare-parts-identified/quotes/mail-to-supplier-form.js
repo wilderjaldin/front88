@@ -65,11 +65,15 @@ const MailToSupplierForm = ({ close, t, order, selected = [] }) => {
 
   const getData = async () => {
     try {
+      // El correo al proveedor siempre sale en inglés ("Part Description",
+      // "Quote Request"), así que se usa la descripción traducida
+      // (desRepReal — "Traducir Descripción (EN)") cuando existe; si el ítem
+      // no tiene traducción cargada, cae a la descripción original.
       const payload = {
         nroCotizacion: order.nroCotizacion,
         items: selected.map(item => ({
           cantidad:        item.cantidad,
-          descripcionItem: item.desRepuesto,
+          descripcionItem: item.desRepReal?.trim() ? item.desRepReal : item.desRepuesto,
         })),
       };
       const rs = await axiosClient.post(URL_DATA_EMAIL, payload);

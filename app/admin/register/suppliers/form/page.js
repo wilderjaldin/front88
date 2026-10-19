@@ -232,14 +232,10 @@ const SupplierForm = ({
       >
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Estado <span className="text-red-500">*</span>
+            Estado
           </label>
           <input
-            {...registerUpper(register, 'estado', {
-              required: isUS ? 'El estado es requerido para USA' : false,
-              maxLength: { value: 60, message: 'Máximo 60 caracteres' },
-              pattern: { value: /^[a-zA-Z\s]+$/, message: 'Solo se permiten letras' },
-            })}
+            {...registerUpper(register, 'estado')}
             placeholder="Ej: California"
             className="form-input w-full"
           />
@@ -247,13 +243,10 @@ const SupplierForm = ({
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            ZIP <span className="text-red-500">*</span>
+            ZIP
           </label>
           <input
-            {...register('zip', {
-              required: isUS ? 'El ZIP es requerido para USA' : false,
-              pattern: { value: /^\d{5}(-\d{4})?$/, message: 'Formato inválido. Ej: 90210 o 90210-1234' },
-            })}
+            {...register('zip')}
             placeholder="Ej: 90210"
             className="form-input w-full"
           />

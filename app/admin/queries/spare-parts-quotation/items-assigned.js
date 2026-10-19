@@ -7,7 +7,6 @@ import DeleteForm from './delete-form';
 import ShowAssignmentsForm from './show-assignments-form';
 import MailToCustomerForm from './mail-to-customer-form';
 import MailToSupplierForm from './mail-to-supplier-form';
-import IconBackSpace from '@/components/icon/icon-backspace';
 import Link from 'next/link';
 import axiosClient from '@/app/lib/axiosClient';
 import { swalSuccess, swalError, swalConfirm } from '@/app/lib/swal';
@@ -23,8 +22,6 @@ const URL_GRUPOS_ASIGNAR  = 'repuestosporcotizar/grupos/asignar';
 const URL_GRUPOS_QUITAR   = 'repuestosporcotizar/grupos/quitar';
 const URL_GRUPOS_ITEMS    = (id) => `repuestosporcotizar/grupos/${id}/items`;
 const URL_GRUPOS_ELIMINAR = (id) => `repuestosporcotizar/grupos/${id}`;
-
-const PAGE_SIZE = 20;
 
 const thClass = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap select-none";
 const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-3 py-2";
@@ -51,12 +48,38 @@ const SortableHeader = ({ col, label, sortCol, sortDir, onSort, className = '' }
   </th>
 );
 
+// ── Filtro avanzado — mismo patrón que purchase-reception/orders.js ───────────
+const EMPTY_ADV_FILTERS = { ordenes: [], creador: [], clientes: [], paises: [], aplicaciones: [] };
+
+const FilterChecklist = ({ title, options, selected, onToggle }) => (
+  <div className="border border-gray-200 dark:border-gray-700 rounded-lg flex flex-col min-w-[120px] flex-1">
+    <div className="px-1.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+      {title}
+    </div>
+    <div className="overflow-y-auto max-h-52 divide-y divide-gray-100 dark:divide-gray-700">
+      {options.length === 0 ? (
+        <div className="px-1.5 py-2 text-[11px] text-gray-400 text-center">—</div>
+      ) : options.map(opt => (
+        <label key={opt.value} className="flex items-center gap-1.5 px-1.5 py-0.5 text-[11px] leading-tight text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer">
+          <input
+            type="checkbox"
+            className="form-checkbox h-3 w-3 shrink-0"
+            checked={selected.includes(opt.value)}
+            onChange={() => onToggle(opt.value)}
+          />
+          {opt.label}
+        </label>
+      ))}
+    </div>
+  </div>
+);
+
 // ── Grupos: panel compacto que contiene toda la lógica de grupos ──────────────
 const GruposPanel = ({
   data, grupos, setGrupos,
   grupoActivo, setGrupoActivo, grupoItems, setGrupoItems,
   itemsEnGrupos, setItemsEnGrupos,
-  selected, setSelected, setPage,
+  selected, setSelected,
   setOrdersAssigned, setOrdersUnassigned,
 }) => {
   const [loading,       setLoading]       = useState(false);
@@ -73,7 +96,6 @@ const GruposPanel = ({
   const handleCambiarVista = async (codGrupo) => {
     setGrupoActivo(codGrupo);
     setSelected([]);
-    setPage(1);
     setShowRenombrar(false);
     if (!codGrupo) { setGrupoItems(null); return; }
     setLoading(true);
@@ -354,12 +376,8 @@ const GruposPanel = ({
 // ── Componente principal ──────────────────────────────────────────────────────
 const ItemsAssigned = ({ token, t, data, unassignOrder, setOrdersAssigned, setOrdersUnassigned }) => {
   const [selected,  setSelected]  = useState([]);
-  const [filter,    setFilter]    = useState('');
   const [sortCol,   setSortCol]   = useState('');
   const [sortDir,   setSortDir]   = useState('asc');
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const sentinelRef = useRef(null);
-  const resetVisible = () => setVisibleCount(PAGE_SIZE);
   const headerOffset = useHeaderOffset();
 
   const [show_modal,    setShowModal]    = useState(false);
@@ -385,9 +403,13 @@ const ItemsAssigned = ({ token, t, data, unassignOrder, setOrdersAssigned, setOr
   const [grupoItems,    setGrupoItems]    = useState(null);
   const [itemsEnGrupos, setItemsEnGrupos] = useState(new Set());
 
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [advFilters,   setAdvFilters]   = useState(EMPTY_ADV_FILTERS);
+  const [draftFilters, setDraftFilters] = useState(EMPTY_ADV_FILTERS);
+
   const { register, getValues, setValue } = useForm();
 
-  useEffect(() => { setSelected([]); resetVisible(); }, [data]);
+  useEffect(() => { setSelected([]); }, [data]);
 
   useEffect(() => {
     data.forEach(o => {
@@ -415,17 +437,56 @@ const ItemsAssigned = ({ token, t, data, unassignOrder, setOrdersAssigned, setOr
     ? (grupoItems ?? [])
     : data.filter(o => !itemsEnGrupos.has(o.codRegistro));
 
+  // Catálogos del filtro avanzado — se arman en vivo desde los datos ya
+  // cargados (igual que purchase-reception/orders.js, no hay endpoint "controles").
+  const catalogs = useMemo(() => {
+    const ordenesSet = new Set();
+    const clientesMap = new Map();
+    const paisesSet = new Set();
+    const aplicacionesSet = new Set();
+    const creadorSet = new Set();
+
+    sourceData.forEach(o => {
+      if (o.nroCotizacion != null) ordenesSet.add(String(o.nroCotizacion));
+      if (o.nomCliente) clientesMap.set(o.nomCliente, o.nomCliente);
+      if (o.nomPais) paisesSet.add(o.nomPais);
+      if (o.nomMarca) aplicacionesSet.add(o.nomMarca);
+      creadorSet.add(o.creadoPor === 1 ? '1' : '0');
+    });
+
+    const toValueOptionList = (set) => [...set].map(v => ({ value: v, label: v })).sort((a, b) => a.label.localeCompare(b.label));
+
+    return {
+      ordenes:      [...ordenesSet].map(v => ({ value: v, label: v })).sort((a, b) => Number(b.value) - Number(a.value)),
+      clientes:     toValueOptionList(new Set(clientesMap.keys())),
+      paises:       toValueOptionList(paisesSet),
+      aplicaciones: toValueOptionList(aplicacionesSet),
+      creador: [{ value: '0', label: 'Usuario' }, { value: '1', label: 'Cliente' }].filter(opt => creadorSet.has(opt.value)),
+    };
+  }, [sourceData]);
+
+  const advFiltersActive =
+    advFilters.ordenes.length + advFilters.creador.length + advFilters.clientes.length +
+    advFilters.paises.length + advFilters.aplicaciones.length;
+
+  const toggleDraft = (key, value) => {
+    setDraftFilters(prev => ({
+      ...prev,
+      [key]: prev[key].includes(value) ? prev[key].filter(v => v !== value) : [...prev[key], value],
+    }));
+  };
+
+  const openFilterModal = () => { setDraftFilters(advFilters); setShowFilterModal(true); };
+  const applyAdvancedFilters = () => { setAdvFilters(draftFilters); setShowFilterModal(false); };
+  const clearAdvancedFilters = () => { setDraftFilters(EMPTY_ADV_FILTERS); setAdvFilters(EMPTY_ADV_FILTERS); setShowFilterModal(false); };
+
   const filteredData = useMemo(() => {
     let result = [...sourceData];
-    if (filter.trim()) {
-      const f = filter.trim().toLowerCase();
-      result = result.filter(item =>
-        (item.nomCliente      ?? '').toLowerCase().includes(f) ||
-        (item.nroCotizacion?.toString() ?? '').includes(f) ||
-        (item.nroParte        ?? '').toLowerCase().includes(f) ||
-        (item.nomMarca        ?? '').toLowerCase().includes(f)
-      );
-    }
+    if (advFilters.ordenes.length > 0) result = result.filter(o => advFilters.ordenes.includes(String(o.nroCotizacion)));
+    if (advFilters.creador.length > 0) result = result.filter(o => advFilters.creador.includes(o.creadoPor === 1 ? '1' : '0'));
+    if (advFilters.clientes.length > 0) result = result.filter(o => advFilters.clientes.includes(o.nomCliente));
+    if (advFilters.paises.length > 0) result = result.filter(o => advFilters.paises.includes(o.nomPais));
+    if (advFilters.aplicaciones.length > 0) result = result.filter(o => advFilters.aplicaciones.includes(o.nomMarca));
     if (sortCol) {
       result.sort((a, b) => {
         const va = a[sortCol] ?? '', vb = b[sortCol] ?? '';
@@ -436,30 +497,13 @@ const ItemsAssigned = ({ token, t, data, unassignOrder, setOrdersAssigned, setOr
       });
     }
     return result;
-  }, [sourceData, filter, sortCol, sortDir]);
+  }, [sourceData, advFilters, sortCol, sortDir]);
 
-  useEffect(() => { resetVisible(); }, [filter, sortCol, sortDir, grupoActivo]);
-
-  const pageData = filteredData.slice(0, visibleCount);
-  const hasMore  = visibleCount < filteredData.length;
-
-  // Centinela al final de la tabla: al acercarse al viewport revela el siguiente
-  // bloque ya cargado en memoria (sin red).
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el || !hasMore) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setVisibleCount(v => Math.min(v + PAGE_SIZE, filteredData.length)); },
-      { rootMargin: '300px' }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [hasMore, filteredData.length]);
+  const pageData = filteredData;
 
   const handleSort = (col) => {
     if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortCol(col); setSortDir('asc'); }
-    resetVisible();
   };
 
   const toggleAll = () =>
@@ -568,15 +612,6 @@ const ItemsAssigned = ({ token, t, data, unassignOrder, setOrdersAssigned, setOr
           </h2>
           <div className="mt-1 h-0.5 w-10 rounded bg-primary/60" />
         </div>
-        <div className="relative">
-          <input type="text" value={filter} onChange={e => setFilter(e.target.value)} placeholder={t.filter}
-            className="h-10 w-52 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 pe-8 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
-          {filter && (
-            <button onClick={() => setFilter('')} className="absolute inset-y-0 end-2 flex items-center text-gray-400 hover:text-gray-600">
-              <IconBackSpace className="h-4 w-4" />
-            </button>
-          )}
-        </div>
       </div>
 
       {/* Barra de acciones + Grupos: sticky sin z-index a propósito (igual que en
@@ -657,6 +692,20 @@ const ItemsAssigned = ({ token, t, data, unassignOrder, setOrdersAssigned, setOr
           {t.view_assignments}
         </button>
 
+        <div className="h-5 w-px bg-gray-200 dark:bg-gray-700 mx-0.5" />
+
+        {/* Grupo 5: filtro avanzado */}
+        <button type="button" onClick={openFilterModal}
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-xs font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>
+          {t.advanced_filter ?? 'Filtrar'}
+          {advFiltersActive > 0 && (
+            <span className="inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-primary text-white text-[10px] font-bold">
+              {advFiltersActive}
+            </span>
+          )}
+        </button>
+
         {/* Contador al extremo derecho */}
         {selected.length > 0 && (
           <span className="ml-auto inline-flex items-center rounded-full bg-primary/10 dark:bg-primary/20 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
@@ -678,7 +727,6 @@ const ItemsAssigned = ({ token, t, data, unassignOrder, setOrdersAssigned, setOr
         setItemsEnGrupos={setItemsEnGrupos}
         selected={selected}
         setSelected={setSelected}
-        setPage={resetVisible}
         setOrdersAssigned={setOrdersAssigned}
         setOrdersUnassigned={setOrdersUnassigned}
       />
@@ -754,14 +802,63 @@ const ItemsAssigned = ({ token, t, data, unassignOrder, setOrdersAssigned, setOr
         </div>
       </div>
 
-      {filteredData.length > 0 && (
-        <div ref={sentinelRef} className="flex items-center justify-center py-6 text-xs text-gray-400">
-          {!hasMore && <span>{pageData.length} / {filteredData.length}</span>}
-        </div>
-      )}
-
       <Modal size={modal_size} closeModal={() => setShowModal(false)} openModal={() => setShowModal(true)}
         showModal={show_modal} title={modal_title} content={modal_content} />
+
+      {/* Modal filtro avanzado */}
+      <Modal showModal={showFilterModal} closeModal={() => setShowFilterModal(false)} title={t.advanced_filter ?? 'Filtrar'} size="w-full max-w-5xl">
+        <div className="space-y-2.5">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <FilterChecklist
+              title={t.nro_order ?? 'Nro Orden'}
+              options={catalogs.ordenes}
+              selected={draftFilters.ordenes}
+              onToggle={(v) => toggleDraft('ordenes', v)}
+            />
+            <FilterChecklist
+              title="Usuario o Cliente"
+              options={catalogs.creador}
+              selected={draftFilters.creador}
+              onToggle={(v) => toggleDraft('creador', v)}
+            />
+            <FilterChecklist
+              title={t.customer ?? 'Cliente'}
+              options={catalogs.clientes}
+              selected={draftFilters.clientes}
+              onToggle={(v) => toggleDraft('clientes', v)}
+            />
+            <FilterChecklist
+              title={t.country ?? 'País'}
+              options={catalogs.paises}
+              selected={draftFilters.paises}
+              onToggle={(v) => toggleDraft('paises', v)}
+            />
+            <FilterChecklist
+              title={t.application ?? 'Aplicación'}
+              options={catalogs.aplicaciones}
+              selected={draftFilters.aplicaciones}
+              onToggle={(v) => toggleDraft('aplicaciones', v)}
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-1.5 border-t border-gray-100 dark:border-gray-800">
+            <button
+              type="button"
+              onClick={clearAdvancedFilters}
+              className="inline-flex items-center h-9 px-4 rounded-lg border border-gray-300 text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 hover:border-gray-400 transition-all duration-150"
+            >
+              {t.clear_filters ?? 'Limpiar'}
+            </button>
+            <button
+              type="button"
+              onClick={applyAdvancedFilters}
+              className="inline-flex items-center h-9 px-4 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition"
+            >
+              {t.accept ?? 'Aceptar'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

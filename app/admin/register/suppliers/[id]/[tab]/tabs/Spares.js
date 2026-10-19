@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useSupplier } from '../../SupplierContext';
 import { useTranslation } from '@/app/locales';
 import axiosClient from '@/app/lib/axiosClient';
@@ -8,6 +9,7 @@ import Select from '@/components/ui/Select';
 import SearchFilter from '@/components/SearchFilter';
 
 const PAGE_SIZE = 20;
+const MIN_SEARCH_CHARS = 4;
 
 const portalTarget = typeof document !== 'undefined' ? document.body : undefined;
 
@@ -39,7 +41,12 @@ export default function Spares() {
   const [page,    setPage]    = useState(1);
   const [term,    setTerm]    = useState('');
   const [estado,  setEstado]  = useState('AC');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  // No se carga nada hasta que el usuario busque algo explícitamente — puede
+  // haber repuestos para este proveedor aunque todavía no se vean, así que el
+  // estado inicial no puede confundirse con "no tiene repuestos".
+  const [hasSearched, setHasSearched] = useState(false);
 
   const fetchSpares = async () => {
     setLoading(true);
@@ -57,7 +64,10 @@ export default function Spares() {
     }
   };
 
-  useEffect(() => { fetchSpares(); }, [page, term, estado]);
+  useEffect(() => {
+    if (!hasSearched) return;
+    fetchSpares();
+  }, [page, term, estado, hasSearched]);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
@@ -68,20 +78,39 @@ export default function Spares() {
           {t.spare_parts ?? 'Repuestos'} <span className="font-normal text-gray-400">({total})</span>
         </h2>
 
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="flex flex-col gap-1">
-            <span className="text-xs text-gray-500 dark:text-gray-400 px-1">{t.status}</span>
-            <Select isClearable={false} options={ESTADO_OPTIONS(t)}
-              value={ESTADO_OPTIONS(t).find(o => o.value === estado) ?? null}
-              onChange={opt => { setPage(1); setEstado(opt.value); }}
-              menuPortalTarget={portalTarget}
-              styles={{ control: (b) => ({ ...b, minWidth: '130px', width: '130px' }), menuPortal: (b) => ({ ...b, zIndex: 9999 }) }}
-            />
+        {/* Columna: fila de filtros + una línea fija reservada para el error
+            de búsqueda (siempre ocupa espacio, así nunca se superpone con la
+            tabla ni desacomoda el resto cuando aparece/desaparece). */}
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-gray-500 dark:text-gray-400 px-1">{t.status}</span>
+              <Select isClearable={false} options={ESTADO_OPTIONS(t)}
+                value={ESTADO_OPTIONS(t).find(o => o.value === estado) ?? null}
+                onChange={opt => { setPage(1); setEstado(opt.value); setHasSearched(true); }}
+                menuPortalTarget={portalTarget}
+                styles={{ control: (b) => ({ ...b, minWidth: '130px', width: '130px' }), menuPortal: (b) => ({ ...b, zIndex: 9999 }) }}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs px-1 invisible select-none">{t.status}</span>
+              <SearchFilter t={t} value={term}
+                onSearch={(v) => {
+                  const trimmed = v.trim();
+                  if (trimmed.length > 0 && trimmed.length < MIN_SEARCH_CHARS) {
+                    setSearchError((t.type_n_chars_search ?? 'Ingresa {n} caracteres para buscar').replace('{n}', MIN_SEARCH_CHARS));
+                    return;
+                  }
+                  setSearchError('');
+                  setPage(1);
+                  setTerm(trimmed);
+                  setHasSearched(true);
+                }}
+                onClear={() => { setSearchError(''); setPage(1); setTerm(''); setHasSearched(true); }}
+                placeholder={t.nro_part_ph ?? 'Nro. Parte...'} className="w-56" />
+            </div>
           </div>
-          <SearchFilter t={t} value={term}
-            onSearch={(v) => { setPage(1); setTerm(v); }}
-            onClear={() => { setPage(1); setTerm(''); }}
-            placeholder={t.nro_part_ph ?? 'Nro. Parte...'} className="w-56" />
+          <span className="h-4 text-[11px] text-red-500 px-1">{searchError}</span>
         </div>
       </div>
 
@@ -89,6 +118,10 @@ export default function Spares() {
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          </div>
+        ) : !hasSearched ? (
+          <div className="flex items-center justify-center py-16 text-sm text-gray-400">
+            {t.search_to_see_results ?? 'Realiza una búsqueda para ver los repuestos de este proveedor'}
           </div>
         ) : rows.length === 0 ? (
           <div className="flex items-center justify-center py-16 text-sm text-gray-400">
@@ -113,7 +146,11 @@ export default function Spares() {
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                   {rows.map((r) => (
                     <tr key={r.codRepuesto} className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                      <td className={`${tdClass} font-medium text-gray-800 dark:text-gray-100`}>{r.nroParte}</td>
+                      <td className={`${tdClass} font-medium`}>
+                        <Link href={`/admin/register/spares/${r.codRepuesto}`} className="text-primary hover:underline">
+                          {r.nroParte}
+                        </Link>
+                      </td>
                       <td className={tdClass}>
                         <span className="block truncate max-w-[220px]" title={r.desRepuesto}>{r.desRepuesto}</span>
                       </td>

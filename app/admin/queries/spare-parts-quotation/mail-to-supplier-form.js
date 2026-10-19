@@ -46,6 +46,7 @@ const MailToSupplierForm = ({ close, t, selected = [] }) => {
   const [loadingContacts,  setLoadingContacts]  = useState(false);
   const [para,             setPara]             = useState('');
   const [paraError,        setParaError]        = useState('');
+  const [supplierError,    setSupplierError]    = useState('');
   const [loading,          setLoading]          = useState(false);
 
   const quillRef    = useRef(null);
@@ -89,6 +90,7 @@ const MailToSupplierForm = ({ close, t, selected = [] }) => {
 
   const handleSelectSupplier = async (supplier) => {
     setSelectedSupplier(supplier);
+    setSupplierError('');
     setSelectedContacts([]);
     setEditingContact(undefined);
     setPara('');
@@ -113,6 +115,10 @@ const MailToSupplierForm = ({ close, t, selected = [] }) => {
   };
 
   const onSend = async (data) => {
+    if (!selectedSupplier) {
+      setSupplierError('Debe seleccionar un proveedor');
+      return;
+    }
     const emails = para.split(';').map(e => e.trim()).filter(Boolean);
     if (emails.length === 0 || emails.some(e => !emailRegex.test(e))) {
       setParaError('Ingrese al menos un correo válido. Separe varios con ";"');
@@ -127,6 +133,7 @@ const MailToSupplierForm = ({ close, t, selected = [] }) => {
         asuntoMail:  data.subject,
         destinoMail: para,
         cuerpoMail:  bodyHtml,
+        codPrv:      Number(selectedSupplier.value),
       });
       close();
       if (rs.data?.correoEnviado === false) swalMailNotSent(t);
@@ -198,6 +205,7 @@ const MailToSupplierForm = ({ close, t, selected = [] }) => {
           onChange={handleSelectSupplier}
           placeholder="Seleccionar proveedor..."
         />
+        {supplierError && <p className="text-red-400 text-xs mt-1">{supplierError}</p>}
       </div>
 
       {/* Tabla de contactos — solo visible cuando hay proveedor seleccionado */}

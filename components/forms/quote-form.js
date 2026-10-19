@@ -430,13 +430,14 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
   const ordenado     = order.Estado === 'ORDENADO';
   const recepcionado = order.Estado === 'RECEPCIONADO';
   const entregado    = order.Estado === 'ENTREGADO';
-  // Una vez que la cotización avanzó a orden de compra (ORDENADO, RECEPCIONADO
-  // o ENTREGADO) ya no se puede "actualizar" aunque el back siga marcando
+  const comprado     = order.Estado === 'COMPRADO';
+  // Una vez que la cotización avanzó a orden de compra (ORDENADO, RECEPCIONADO,
+  // COMPRADO o ENTREGADO) ya no se puede "actualizar" aunque el back siga marcando
   // Vencido=true por los 7 días de precios — ese aviso solo aplica mientras
   // sigue siendo una cotización. blockedStrict bloquea todo salvo lo poco que
   // sigue habilitado ya entregado (imprimir, adjuntos, resumen de costo,
   // instrucciones de entrega).
-  const blockedStrict = vencido || ordenado || recepcionado;
+  const blockedStrict = vencido || ordenado || recepcionado || comprado;
   const blocked        = blockedStrict || entregado;
 
   const tablaRef = useRef(null);
@@ -1681,6 +1682,16 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
           <div className="flex-1">
             <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">{t.received_quote_title}</p>
             <p className="mt-0.5 text-xs text-blue-700 dark:text-blue-400">{t.received_quote_message}</p>
+          </div>
+        </div>
+      ) : comprado ? (
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-blue-300 bg-blue-50 px-4 py-3.5 dark:border-blue-700/50 dark:bg-blue-900/20">
+          <svg className="mt-0.5 h-5 w-5 shrink-0 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">{t.purchased_quote_title}</p>
+            <p className="mt-0.5 text-xs text-blue-700 dark:text-blue-400">{t.purchased_quote_message}</p>
           </div>
         </div>
       ) : vencido && (
