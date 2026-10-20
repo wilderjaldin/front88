@@ -99,7 +99,7 @@ const Toast = Swal.mixin({
   },
 });
 
-function fireMessageToast(nombre: string, mensaje: string, onNavigate: () => void, onLinkNavigate?: () => void) {
+function fireMessageToast(nombre: string, mensaje: string, onNavigate: () => void, onLinkNavigate?: () => void, titulo?: string) {
   const initials = getInitials(nombre);
   const color = avatarColor(nombre);
   // background/color van inline (opciones nativas de Swal) en vez de clases de
@@ -120,6 +120,7 @@ function fireMessageToast(nombre: string, mensaje: string, onNavigate: () => voi
           <div class="${color} h-9 w-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0">${initials}</div>
           <div class="min-w-0 flex-1 pt-0.5 pr-6">
             <p class="text-sm font-semibold text-gray-800 dark:text-white truncate">${nombre}</p>
+            ${titulo ? `<p class="text-xs font-semibold text-gray-700 dark:text-gray-300 leading-snug mt-0.5 truncate">${titulo}</p>` : ""}
             <p class="text-xs text-gray-500 dark:text-gray-400 leading-snug mt-0.5" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${mensaje}</p>
           </div>
         </div>
@@ -204,7 +205,7 @@ export default function NotificationsProvider() {
       }
       fireMessageToast(data?.nomUsuario ?? "Nuevo mensaje", data?.desMensaje ?? "", () => {
         router.push("/admin/inbox?status=unread");
-      });
+      }, undefined, data?.titulo);
     };
 
     // El backend todavía no dispara estos dos en flujos reales — los listeners

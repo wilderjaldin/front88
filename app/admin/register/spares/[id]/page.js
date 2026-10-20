@@ -112,9 +112,16 @@ export default function SpareDetail() {
     return { label: fmtDate(spare.fecVencimiento), color: null };
   })();
 
-  const pedidoCaption = spare?.blnPedidoEspecial
-    ? (spare?.blnPedEspecialSinFecha ? 'Sin fecha definida' : `${fmt(spare?.canDias)} días de espera`)
-    : 'Sin pedido especial';
+  const esPedidoEspecial = spare?.blnPedidoEspecial || spare?.blnPedEspecialSinFecha;
+
+  const pedidoCaption = esPedidoEspecial
+    ? (spare?.blnPedEspecialSinFecha ? null : `${fmt(spare?.canDias)} días de espera`)
+    : (canStock > 0 ? 'Sin pedido especial' : 'Sin stock disponible');
+
+  const disponibilidadLabel = esPedidoEspecial
+    ? (spare?.blnPedEspecialSinFecha ? 'Pedido Especial Sin Fecha' : 'Pedido Especial')
+    : (canStock > 0 ? 'Disponible' : 'No Disponible');
+  const disponibilidadColor = esPedidoEspecial || canStock > 0 ? 'indigo' : 'red';
 
   const imgPrincipal = spare?.imagenes?.find(i => i.esPrincipal) ?? spare?.imagenes?.[0] ?? null;
 
@@ -151,9 +158,7 @@ export default function SpareDetail() {
               {imgPrincipal ? (
                 <img src={imgPrincipal.urlImagen} alt={spare?.nroParte} className="w-full h-full object-cover" />
               ) : (
-                <span className="text-primary font-bold text-lg tracking-tight">
-                  {spare?.nroParte?.slice(0, 2).toUpperCase() ?? 'SP'}
-                </span>
+                <IconBox className="h-6 w-6 text-primary" />
               )}
             </button>
 
@@ -253,10 +258,10 @@ export default function SpareDetail() {
           value={`${fmt(spare?.peso)} KG`}
         />
         <StatCard
-          color="indigo"
+          color={disponibilidadColor}
           icon={<IconClock className="h-5 w-5" />}
           label="Disponibilidad"
-          value={spare?.blnPedidoEspecial ? 'Pedido Especial' : 'Disponible'}
+          value={disponibilidadLabel}
           caption={pedidoCaption}
         />
       </div>

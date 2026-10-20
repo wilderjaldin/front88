@@ -164,6 +164,35 @@ export default function SpareFormPage() {
           });
 
           setNotesHistory(d.notasAdicionales ?? []);
+        } else {
+          // "Nuevo" — limpia cualquier dato que haya quedado de una edición
+          // anterior. Next.js reutiliza esta MISMA instancia del componente al
+          // navegar entre /form?id=X (editar) y /form (nuevo) — mismo route,
+          // sin remount — así que sin este reset explícito, campos como
+          // "Pedido Especial" (tipoPedido) quedaban con el valor del último
+          // repuesto editado en la sesión, y se enviaban sin que el usuario
+          // los tocara en el formulario de "Nuevo". BUG REAL reportado:
+          // blnPedidoEspecial llegaba en true en un registro nuevo sin que
+          // nadie marcara esa opción.
+          reset({
+            nroParte:      '',
+            desRepuesto:   '',
+            codPrv:        null,
+            codAplicacion: null,
+            codMarca:      null,
+            tipRepuesto:   null,
+            estado:        { value: 'NU', label: 'NUEVO' },
+            estNroParte:   { value: 'VA', label: 'VALIDO' },
+            peso:          '0.00',
+            costo:         '0.00',
+            canMin:        1,
+            uniMed:        { value: 'UNI', label: 'UNIDAD' },
+            tipoPedido:    '',
+            canDias:       0,
+            blnNoExpress:  false,
+            notaAdicional: '',
+          });
+          setNotesHistory([]);
         }
       } catch (err) {
         // manejar error silenciosamente o mostrar toast
@@ -173,7 +202,11 @@ export default function SpareFormPage() {
     };
 
     init();
-  }, []);
+    // "id" en las dependencias — sin esto, navegar entre dos repuestos (o entre
+    // editar y nuevo) sin recarga completa de página no volvía a ejecutar este
+    // efecto (Next.js reutiliza la misma instancia del componente), dejando el
+    // formulario con los datos del repuesto anterior. Ver comentario del "else".
+  }, [id]);
 
   // ── Submit ────────────────────────────────────────────────────────────────
   // Mismo modelo para crear y editar: TODO — datos del repuesto, nota adicional
