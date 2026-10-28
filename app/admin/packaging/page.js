@@ -61,7 +61,8 @@ export default function PackagingPage() {
     DirEntrega:     o.dirEnvio,
     Transporte:     o.transporte,
     Monto:          o.monto,
-    CodPais:        o.codPais,
+    CodPais:        o.codPais,         // país de la recepción (llave)
+    CodPaisCliente: o.codPaisCliente,  // país del cliente (bandera)
     NomPais:        o.nomPais,
   }));
 
@@ -144,6 +145,7 @@ export default function PackagingPage() {
         Descripcion:     o.desRepuesto,
         CantRecibida:    o.canRecibida,
         Origen:          o.origen,
+        CodPais:         o.codPais,
         HCode:           o.hCode,
         Material:        o.material,
         Presentacion:    o.presentacion,

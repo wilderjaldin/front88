@@ -175,8 +175,9 @@ const Packaging = ({ t, packages, saveEmbalaje, setPackagings }) => {
       reset();
     } catch (error) {
       swalError(t.error, t.packaging_error_saved, t.close);
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   }
 
   return (
@@ -331,7 +332,20 @@ const Packaging = ({ t, packages, saveEmbalaje, setPackagings }) => {
               ) : packages.map((o, index) => (
                 <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
                   <td className={tdClass}>{o.NroOrden}</td>
-                  <td className={tdClass}>{o.NomCliente}</td>
+                  <td className={tdClass}>
+                    <div className="inline-flex items-center gap-1.5">
+                      {o.CodPais && (
+                        <img
+                          src={`/assets/flags/${o.CodPais.toLowerCase()}.svg`}
+                          alt={o.CodPais}
+                          title={o.CodPais}
+                          className="h-3 w-4 rounded-sm object-cover shrink-0"
+                          onError={e => { e.currentTarget.style.display = 'none'; }}
+                        />
+                      )}
+                      <span>{o.NomCliente}</span>
+                    </div>
+                  </td>
                   <td className={tdClass}>{o.NroParteCliente}</td>
                   <td className={tdClass}>{o.Descripcion}</td>
                   <td className={`${tdClass} text-center`}>{o.CantRecibida}</td>

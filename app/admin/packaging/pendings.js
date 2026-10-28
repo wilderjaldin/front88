@@ -203,11 +203,11 @@ const Pendings = ({ t, data = [], attachOrder, cancelReception, onSearch, onClea
                   <td className={tdClass}>{o.NroOrdenCompra}</td>
                   <td className={tdClass}>
                     <div className="inline-flex items-center gap-1.5">
-                      {o.CodPais && (
+                      {o.CodPaisCliente && (
                         <img
-                          src={`/assets/flags/${o.CodPais.toLowerCase()}.svg`}
-                          alt={o.NomPais || o.CodPais}
-                          title={o.NomPais || o.CodPais}
+                          src={`/assets/flags/${o.CodPaisCliente.toLowerCase()}.svg`}
+                          alt={o.NomPais || o.CodPaisCliente}
+                          title={o.NomPais || o.CodPaisCliente}
                           className="h-3 w-4 rounded-sm object-cover shrink-0"
                           onError={e => { e.currentTarget.style.display = 'none'; }}
                         />
