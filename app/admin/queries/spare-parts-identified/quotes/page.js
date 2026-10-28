@@ -22,6 +22,7 @@ import IconArrowsExchange from "@/components/icon/icon-arrows-exchange";
 import MailToSupplierForm from "@/app/admin/queries/spare-parts-identified/quotes/mail-to-supplier-form";
 import MailToCustomerForm from "@/app/admin/queries/spare-parts-identified/quotes/mail-to-customer-form";
 import AttachQuoteForm from "@/components/forms/attach-quote-form";
+import QuoteIdentifyBatchForm from "@/app/admin/queries/spare-parts-identified/quotes/quote-identify-batch-form";
 
 const labelClass = "text-xs font-medium text-gray-500 dark:text-gray-400 w-28 shrink-0 text-right pr-3";
 const inputClass = "h-9 flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:bg-gray-50 disabled:text-gray-400 dark:disabled:bg-gray-800";
@@ -29,6 +30,14 @@ const thClass    = "text-[11px] font-semibold uppercase tracking-wide text-gray-
 const tdClass    = "text-xs text-gray-700 dark:text-gray-300 px-3 py-1.5";
 const btnPrimary = "inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 disabled:opacity-35 disabled:cursor-not-allowed transition";
 const btnSecondary = "inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-transparent text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition";
+
+const IconBatch = ({ className }) => (
+  <svg className={className} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2 2 7l10 5 10-5-10-5Z" />
+    <path d="M2 17l10 5 10-5" />
+    <path d="M2 12l10 5 10-5" />
+  </svg>
+);
 
 
 const selectStyles = {
@@ -53,6 +62,7 @@ export default function QuoteIdentify() {
   const [customer, setCustomer] = useState({});
   const [quote,    setQuote]    = useState({});
   const [items,    setItems]    = useState([]);
+  const [initial_items, setInitialItems] = useState([]);
   const [follow,   setFollow]   = useState(null);
 
   const [current_row, setCurrentRow] = useState(1);
@@ -72,7 +82,7 @@ export default function QuoteIdentify() {
   const [modal_content, setModalContent] = useState(null);
   const [modal_size,    setModalSize]    = useState('w-full max-w-xl');
 
-  const { register, setValue, getValues, formState: { errors } } = useForm();
+  const { register, setValue, getValues, unregister, formState: { errors } } = useForm();
 
   useEffect(() => {
     async function fetchData() {
@@ -125,7 +135,9 @@ export default function QuoteIdentify() {
         return;
       }
       setQuote(d.cotizacion ?? {});
-      setItems((d.items ?? []).map((o, i) => ({ ...o, id: i })));
+      const loadedItems = (d.items ?? []).map((o, i) => ({ ...o, id: i }));
+      setItems(loadedItems);
+      setInitialItems(loadedItems);
       setFollow(d.seguimiento ?? null);
       setCustomer(d.cliente ?? {});
       const nomSeg = d.seguimiento?.nomUsuario ?? null;
@@ -166,6 +178,42 @@ export default function QuoteIdentify() {
       setItems(items.filter(item => !selected.includes(item)));
       setSelected([]);
     }
+  };
+
+  const resetRows = async () => {
+    const { isConfirmed } = await swalConfirm(t.question_reset_items, '', {
+      confirmText: t.yes_reset,
+      cancelText: t.btn_cancel,
+      confirmColor: '#dc2626',
+    });
+    if (!isConfirmed) return;
+
+    items.forEach(r => {
+      unregister(`items.${r.codItem}.amount`);
+      unregister(`items.${r.codItem}.description`);
+      unregister(`items.${r.codItem}.description_real`);
+      unregister(`items.${r.codItem}.nro_part`);
+    });
+    setItems(initial_items);
+    setSelected([]);
+    setCurrentRow(initial_items.length > 0 ? Math.max(...initial_items.map(i => i.codItem)) + 1 : 1);
+  };
+
+  const openBatchModal = () => {
+    setModalTitle(t.enter_codes_in_batch ?? 'Añadir en Lote');
+    setModalSize('w-full max-w-2xl');
+    setModalContent(
+      <QuoteIdentifyBatchForm
+        close={() => setShowModal(false)}
+        t={t}
+        items={items}
+        setItems={setItems}
+        currentRow={current_row}
+        setCurrentRow={setCurrentRow}
+        setValue={setValue}
+      />
+    );
+    setShowModal(true);
   };
 
   const handleChangeOptionShare = (select) => {
@@ -524,6 +572,16 @@ export default function QuoteIdentify() {
               <div className="h-0.5 w-8 rounded bg-primary/60 mt-0.5" />
             </div>
             <div className="flex items-center gap-2">
+              <button onClick={resetRows} type="button"
+                className="flex h-8 items-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-gray-500 dark:text-gray-400 text-xs font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+                <IconTrashLines className="h-3.5 w-3.5" />
+                {t.btn_reset}
+              </button>
+              <button onClick={openBatchModal} type="button"
+                className="flex h-8 items-center gap-1.5 rounded-lg border border-primary/40 px-3 text-primary text-xs font-medium hover:bg-primary/5 transition">
+                <IconBatch className="h-3.5 w-3.5" />
+                {t.enter_codes_in_batch ?? 'Añadir en Lote'}
+              </button>
               <button onClick={addRow} type="button"
                 className="flex h-8 items-center gap-1.5 rounded-lg border border-primary/40 px-3 text-primary text-xs font-medium hover:bg-primary/5 transition">
                 <IconPlusCircle className="h-3.5 w-3.5" />

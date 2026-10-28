@@ -33,6 +33,7 @@ const mapCotizacion = (c) => ({
   NroSerieMotor:  c.nroSerieMotor  ?? '',
   FleteInterno:   c.mtoFlete       ?? 0,
   MostrarCodigo:  c.mostrarCodigo  ?? 0,
+  MostrarPeso:    c.mostrarPeso    ?? 0,
   TotalPeso:      c.totPeso        ?? 0,
   Total:          c.totalSus       ?? 0,
   TipoCambio:     c.tipCambio      ?? 0,
@@ -42,6 +43,22 @@ const mapCotizacion = (c) => ({
   TotRepuestos:   c.totRepuestos   ?? 0,
   Descuento:      c.mtoDescuento   ?? 0,
   MtoIva:         c.mtoIva         ?? 0,
+  Vencido:        c.vencido        ?? false,
+  Categoria:      c.categoria      ?? '',
+  TipCotizacion:  c.tipCotizacion  ?? '',
+  FecCotizacion:  c.fecCotizacion  ?? '',
+  CodEstado:      c.codEstado      ?? '',
+  Estado:         c.estado         ?? '',
+  TipEnvio:       c.tipEnvio       ?? '',
+  Vendedor:       c.vendedor       ?? '',
+  TieneCopiaAr:   c.tieneCopiaAr   ?? null,
+  Considerar:             c.considerar             ?? false,
+  ConsiderarEnvio:        c.considerarEnvio        ?? false,
+  ConsiderarEnvioAduana:  c.considerarEnvioAduana  ?? false,
+  Pais:                   c.pais                   ?? '',
+  MtoFleteInternac:       c.mtoFleteInternac       ?? 0,
+  MtoFleteItem:           c.mtoFleteItem           ?? 0,
+  MtoAduanaItem:          c.mtoAduanaItem          ?? 0,
 });
 
 const mapDetalle = (detalle) => (detalle ?? []).map(d => ({
@@ -60,7 +77,13 @@ const mapDetalle = (detalle) => (detalle ?? []).map(d => ({
   Indicador:    d.indicador     ?? '',
   Estado:       d.estado        ?? '',
   DiasVigencia: d.diasVigencia  ?? '',
+  DiasVigenciaProveedor: d.diasVigenciaProveedor ?? '',
+  CodPaisHub:   d.codPaisHub    ?? '',
+  NomPaisHub:   d.nomPaisHub    ?? '',
   ParPrecio:    d.parPrecio     ?? false,
+  NotasAdicionales: d.notasAdicionales ?? [],
+  TieneImagen:      d.tieneImagen    ?? false,
+  TieneDocumento:   d.tieneDocumento ?? false,
 }));
 
 function TypeBadge({ label, muted = false }) {
@@ -342,7 +365,19 @@ const OptionsItemsQuote = ({ confirmed = false, close, options, customer, data, 
         <td className={cellClass}>{o.DesRepuesto}</td>
         <td className={cellClass}>{o.Aplicacion}</td>
         <td className={`${cellClass} font-medium`}>{o.Marca}</td>
-        <td className={cellClass}>{o.Proveedor}</td>
+        <td className={cellClass}>
+          <div className="flex items-center gap-1.5">
+            {o.PaisProveedor && (
+              <img
+                src={`/assets/flags/${o.PaisProveedor.toLowerCase()}.svg`}
+                alt={o.PaisProveedor}
+                title={o.PaisProveedor}
+                className="h-4 w-5 shrink-0 rounded-sm object-cover border border-gray-200 dark:border-gray-600"
+              />
+            )}
+            <span>{o.Proveedor}</span>
+          </div>
+        </td>
         <td className={cellClass}>
           <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
             isSelected

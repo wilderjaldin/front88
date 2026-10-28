@@ -27,6 +27,7 @@ import NotFoundPartForm from "@/components/forms/not-found-part-form"
 import CostSummary from "@/components/cost-summary"
 import SpareSummary from "@/components/spare-summary"
 import DeliveryAddressForm from "@/components/forms/delivery-address-form"
+import SendItemToHubForm from "@/components/forms/send-item-to-hub-form"
 import { customFormat } from '@/app/lib/format';
 import { useSelector } from 'react-redux';
 import { getLocale } from '@/store/localeSlice';
@@ -744,6 +745,9 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
     Aplicacion:  d.aplicacion    ?? '',
     TipoRepuesto: d.tipoRepuesto ?? '',
     DiasVigencia: d.diasVigencia ?? '',
+    DiasVigenciaProveedor: d.diasVigenciaProveedor ?? '',
+    CodPaisHub:  d.codPaisHub    ?? '',
+    NomPaisHub:  d.nomPaisHub    ?? '',
     Precio:      d.preUniSus     ?? 0,
     Total:       d.totSus        ?? 0,
     Peso:        d.peso          ?? 0,
@@ -764,6 +768,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
     Aplicacion:    o.nomAplicacion,
     Marca:         o.nomMarca,
     Proveedor:     o.nomPrv,
+    PaisProveedor: o.paisProveedor ?? '',
     Estado:        o.nomEstado,
     Precio:        o.precioUnitario,
     DesTieEntrega: o.desTiempoEntrega,
@@ -1192,6 +1197,7 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
         Aplicacion:    o.nomAplicacion,
         Marca:         o.nomMarca,
         Proveedor:     o.nomPrv,
+        PaisProveedor: o.paisProveedor ?? '',
         Estado:        o.nomEstado,
         Precio:        o.precioUnitario,
         DesTieEntrega: o.desTiempoEntrega,
@@ -1488,6 +1494,21 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
     nextSearchParams.set('step', 'verify')
     router.replace(`${pathname}?${nextSearchParams}`);
   }
+
+  const handleSendToQuote = (item) => {
+    setModalTitle('ENVIAR A COTIZAR');
+    setModalSize('w-full max-w-xl');
+    setModalContent(
+      <SendItemToHubForm
+        item={item}
+        nroCotizacion={order.NroOrden}
+        codPaisDestino={item.CodPaisHub}
+        nomPaisDestino={item.NomPaisHub}
+        close={() => setShowModal(false)}
+      />
+    );
+    setShowModal(true);
+  };
 
   const showSpareSummary = (item) => {
     setModalTitle(t.spare_summary ?? 'Resumen del Repuesto');
@@ -2351,6 +2372,21 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                                   <IconFile className="h-4 w-4" />
                                 </button>
                               )}
+                              {item.CodPaisHub && (
+                                <span className="inline-flex items-center gap-1 shrink-0">
+                                  <img
+                                    src={`/assets/flags/${item.CodPaisHub.toLowerCase()}.svg`}
+                                    alt={item.CodPaisHub}
+                                    title={item.NomPaisHub || item.CodPaisHub}
+                                    className="h-4 w-5 rounded-sm object-cover border border-gray-200 dark:border-gray-600"
+                                  />
+                                  <button onClick={run(() => handleSendToQuote(item))} type="button" disabled={isSubmitting || blocked}
+                                    title={`Enviar a cotizar (${item.NomPaisHub || item.CodPaisHub})`}
+                                    className="text-[10px] font-semibold text-sky-600 dark:text-sky-400 border border-sky-300 dark:border-sky-700 rounded px-1.5 py-0.5 hover:bg-sky-50 dark:hover:bg-sky-900/20 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap">
+                                    Enviar a Cotizar
+                                  </button>
+                                </span>
+                              )}
                             </div>
                           </td>
                           <td className={tdClass}>{item.DesRepuesto}</td>
@@ -2369,7 +2405,17 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                             )}
                           </td>
                           <td className={tdClass}>{item.TiEntrega}</td>
-                          <td className={`${tdClass} text-right`}>{item.DiasVigencia}</td>
+                          <td className={`${tdClass} text-right`}>
+                            <span>{item.DiasVigencia}</span>
+                            {item.DiasVigenciaProveedor !== '' && item.DiasVigenciaProveedor != null && (
+                              <>
+                                {' / '}
+                                <span className="text-gray-400 dark:text-gray-500" title={t.days_of_validity_provider}>
+                                  {item.DiasVigenciaProveedor}
+                                </span>
+                              </>
+                            )}
+                          </td>
                         </SortableRow>
                         );
                       })}
@@ -2485,16 +2531,24 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                         onClick={run(handleToggleConsiderarEnvio)}
                         disabled={isSubmitting}
                         title={order.ConsiderarEnvio ? (t.hide_additional_charges ?? 'Ocultar Costos Adicionales') : (t.show_additional_charges ?? 'Mostrar Costos Adicionales')}
-                        className={`h-7 w-7 flex items-center justify-center rounded-lg border transition disabled:opacity-50 ${
+                        className={`h-8 w-8 flex items-center justify-center rounded-full border transition disabled:opacity-50 ${
                           order.ConsiderarEnvio
                             ? 'border-primary bg-primary/10 text-primary'
-                            : 'border-gray-300 dark:border-gray-600 text-gray-400 hover:border-primary hover:text-primary hover:bg-primary/5'
+                            : 'border-amber-400 bg-amber-400 text-white shadow-[0_0_0_4px_rgba(251,191,36,0.25)] hover:bg-amber-500 hover:border-amber-500'
                         }`}
                       >
-                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-                          <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
-                        </svg>
+                        {order.ConsiderarEnvio ? (
+                          <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.8 21.8 0 0 1 5.06-5.94M9.9 4.24A10.4 10.4 0 0 1 12 4c7 0 11 8 11 8a21.75 21.75 0 0 1-2.16 3.19"/>
+                            <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/>
+                            <line x1="1" y1="1" x2="23" y2="23"/>
+                          </svg>
+                        ) : (
+                          <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                          </svg>
+                        )}
                       </button>
                     )}
                   </div>
@@ -2507,11 +2561,10 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                     </p>
                     <div className="flex items-center justify-between pl-2">
                       <span className="text-xs text-gray-500">{t.freight}:</span>
-                      { console.log('ORDER', order) }
                       <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{customFormat(order.MtoFleteInternac + order.MtoFleteItem )}</span>
                     </div>
                     <div className="flex items-center justify-between pl-2">
-                      {order.ConsiderarEnvioAduana && <span className="text-xs text-gray-500">{t.customs ?? 'Aduana'}:</span>}
+                      <span className="text-xs text-gray-500">{t.customs ?? 'Aduana'}:</span>
                       <div className="flex items-center gap-1.5 ml-auto">
                         {order.ConsiderarEnvioAduana && (
                           <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
@@ -2523,16 +2576,24 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                           onClick={run(handleToggleConsiderarEnvioAduana)}
                           disabled={isSubmitting}
                           title={order.ConsiderarEnvioAduana ? (t.hide_customs ?? 'Ocultar Aduana') : (t.show_customs ?? 'Mostrar Aduana')}
-                          className={`h-5 w-5 flex items-center justify-center rounded border transition disabled:opacity-50 ${
+                          className={`h-6 w-6 flex items-center justify-center rounded-full border transition disabled:opacity-50 ${
                             order.ConsiderarEnvioAduana
                               ? 'border-primary bg-primary/10 text-primary'
-                              : 'border-gray-300 dark:border-gray-600 text-gray-400 hover:border-primary hover:text-primary hover:bg-primary/5'
+                              : 'border-amber-400 bg-amber-400 text-white shadow-[0_0_0_3px_rgba(251,191,36,0.25)] hover:bg-amber-500 hover:border-amber-500'
                           }`}
                         >
-                          <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-                            <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
-                          </svg>
+                          {order.ConsiderarEnvioAduana ? (
+                            <svg className="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.8 21.8 0 0 1 5.06-5.94M9.9 4.24A10.4 10.4 0 0 1 12 4c7 0 11 8 11 8a21.75 21.75 0 0 1-2.16 3.19"/>
+                              <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/>
+                              <line x1="1" y1="1" x2="23" y2="23"/>
+                            </svg>
+                          ) : (
+                            <svg className="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                              <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                          )}
                         </button>
                       </div>
                     </div>

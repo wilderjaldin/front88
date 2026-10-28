@@ -225,13 +225,13 @@ const QuoteBatchForm = ({ t, _customer_, _order_ = [], _items_ }) => {
     FleteInterno:   c.mtoFlete      ?? 0,
     TipoCambio:     c.tipCambio     ?? 0,
     MtoIva:         c.mtoIva        ?? 0,
-    MarcaEquipo:    c.marca         ?? '',
-    ModeloEquipo:   c.modelo        ?? '',
-    AnioEquipo:     c.anio          ?? '',
-    NroSerieEquipo: c.nroSerie      ?? '',
-    MarcaMotor:     c.marcaMo       ?? '',
-    ModeloMotor:    c.modeloMo      ?? '',
-    NroSerieMotor:  c.nroSerieMo    ?? '',
+    MarcaEquipo:    c.marcaEquipo ?? c.marca         ?? '',
+    ModeloEquipo:   c.modeloEquipo ?? c.modelo        ?? '',
+    AnioEquipo:     c.anioEquipo ?? c.anio          ?? '',
+    NroSerieEquipo: c.nroSerieEquipo ?? c.nroSerie      ?? '',
+    MarcaMotor:     c.marcaMotor ?? c.marcaMo       ?? '',
+    ModeloMotor:    c.modeloMotor ?? c.modeloMo      ?? '',
+    NroSerieMotor:  c.nroSerieMotor ?? c.nroSerieMo    ?? '',
   });
 
   const mapDetalle = (detalle = []) => detalle.map(d => ({

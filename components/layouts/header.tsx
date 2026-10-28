@@ -32,7 +32,6 @@ import IconSend from '@/components/icon/icon-send';
 import Select from '@/components/ui/Select';
 import axiosClient from '@/app/lib/axiosClient';
 import { swalSuccess } from '@/app/lib/swal';
-import Swal from 'sweetalert2'
 import IconHome from '../icon/icon-home';
 import IconMenuDashboard from '../icon/menu/icon-menu-dashboard';
 import IconSquares from '../icon/icon-squares';
@@ -169,32 +168,7 @@ const Header = () => {
 
   const onSearch = (data: any) => {
     if (data.option == 'all') {
-      const swalWithBootstrapButtons = Swal.mixin({
-        customClass: {
-          confirmButton: "btn btn-lg btn-dark mr-4",
-          cancelButton: "btn btn-lg btn-dark ml-4"
-        },
-        buttonsStyling: false
-      });
-      swalWithBootstrapButtons.fire({
-        title: t.search_by,
-        showCancelButton: true,
-        confirmButtonText: t.nro_part,
-        cancelButtonText: t.reference,
-        allowOutsideClick: false,
-        allowEscapeKey: false
-      }).then((result) => {
-        if (result.isConfirmed) {
-          //part
-          router.push(`/admin/search?term=${data.term}&type=part`)
-        } else if (
-          result.dismiss === Swal.DismissReason.cancel
-        ) {
-          //reference
-          router.push(`/admin/search?term=${data.term}&type=reference`)
-        }
-      });
-
+      router.push('/admin/search')
     } else if (data.option == 'purchase-orders' || data.option == "orders-placed") {
       router.push(`/admin/queries/${data.option}?term=${data.term}`)
     } else {
@@ -285,13 +259,19 @@ const Header = () => {
                       </button>
                     </div>
                     <div>
-                      <select {...register("option", { required: true })} className='form-select'>
+                      <select
+                        {...register("option", {
+                          required: true,
+                          onChange: (e) => { if (e.target.value === 'all') router.push('/admin/search'); },
+                        })}
+                        className='form-select'
+                      >
                         <option value="spares">{t.spare_parts}</option>
                         <option value="customers">{t.customers}</option>
                         <option value="suppliers">{t.suppliers}</option>
                         <option value="purchase-orders">{t.purchase_order}</option>
                         <option value="orders-placed">{t.quotes}</option>
-                        <option value="all">{t.all}</option>
+                        <option value="all">Avanzado</option>
                       </select>
                     </div>
                     <button type="submit" className="btn btn-primary appearance-none peer-focus:text-primary ltr:right-auto rtl:left-auto">

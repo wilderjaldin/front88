@@ -16,12 +16,23 @@ import Select from '@/components/ui/Select';
 export function filterBrandOptions(options, query, { showAllWhenEmpty = false } = {}) {
   const q = (query ?? '').trim().toLowerCase();
   if (!q) return showAllWhenEmpty ? (options ?? []) : [];
+  // razSoc (razón social) es opcional — cuando una opción lo trae (ej.
+  // proveedores: "SANDEN" con razSoc "RANSHU LLC") también se busca ahí,
+  // así se encuentra el proveedor escribiendo cualquiera de los dos nombres.
   if (q.length <= 2) {
-    return (options ?? []).filter(o => (o.label ?? '').toLowerCase().startsWith(q));
+    return (options ?? []).filter(o =>
+      (o.label ?? '').toLowerCase().startsWith(q) ||
+      (o.razSoc ?? '').toLowerCase().startsWith(q)
+    );
   }
   return (options ?? [])
-    .map(o => ({ option: o, idx: (o.label ?? '').toLowerCase().indexOf(q) }))
-    .filter(({ idx }) => idx !== -1)
+    .map(o => {
+      const labelIdx  = (o.label  ?? '').toLowerCase().indexOf(q);
+      const razSocIdx = (o.razSoc ?? '').toLowerCase().indexOf(q);
+      const idx = labelIdx !== -1 ? labelIdx : razSocIdx;
+      return { option: o, idx, matched: labelIdx !== -1 || razSocIdx !== -1 };
+    })
+    .filter(({ matched }) => matched)
     .sort((a, b) => a.idx - b.idx)
     .map(({ option }) => option);
 }

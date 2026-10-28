@@ -61,6 +61,8 @@ export default function PackagingPage() {
     DirEntrega:     o.dirEnvio,
     Transporte:     o.transporte,
     Monto:          o.monto,
+    CodPais:        o.codPais,
+    NomPais:        o.nomPais,
   }));
 
   const getLists = async (searchTerm = term) => {

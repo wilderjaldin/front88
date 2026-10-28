@@ -50,6 +50,56 @@ const selectStyles = {
 const isBinary  = (v) => ['0', '1'].includes((v ?? '').trim());
 const isNumeric = (v) => (v ?? '').trim() !== '' && !isNaN(Number((v ?? '').trim()));
 
+const trim = (v) => typeof v === 'string' ? v.trim() : v;
+
+// Los números pegados pueden venir en formato es-ES ("7.198,56"), en-US
+// ("7,198.56"), con o sin separador de miles, o mezclados dentro del mismo
+// lote — sin esta normalización se mandaban como string tal cual y el
+// backend los interpretaba mal (bug: Peso "979,5" se guardó como 9795,
+// Costo "7.198,56" se guardó como 7,2). Regla: el ÚLTIMO "." o "," del
+// valor es el separador de miles si tiene exactamente 3 dígitos detrás
+// (grupo de miles completo); en cualquier otro caso (1, 2 o 4+ dígitos) es
+// el separador decimal, y cualquier otro "." o "," antes de él se descarta
+// por ser separador de miles.
+// maxDecimals rechaza valores con más decimales que los permitidos (p.ej. un
+// Costo/Peso pegado como "2753,6214" es ambiguo/corrupto, no un número con 4
+// decimales válido) devolviendo null, igual que un valor no numérico.
+const parseFlexibleNumber = (v, { maxDecimals } = {}) => {
+  let s = trim(v);
+  if (s === '' || s == null) return null;
+  s = String(s);
+  const neg = s.startsWith('-');
+  if (neg) s = s.slice(1);
+
+  const sepCount   = (s.match(/[.,]/g) || []).length;
+  const lastSepIdx = Math.max(s.lastIndexOf('.'), s.lastIndexOf(','));
+  let normalized;
+  if (lastSepIdx === -1) {
+    normalized = s;
+  } else {
+    const before      = s.slice(0, lastSepIdx);
+    const after        = s.slice(lastSepIdx + 1);
+    const isThousands = /^\d{3}$/.test(after);
+    // Un único separador con exactamente 3 dígitos detrás ("97.555") es
+    // ambiguo: ¿miles (97555) o decimal corrupto de 3 dígitos? Sin un
+    // segundo separador que confirme el agrupamiento de miles no se
+    // adivina — se rechaza como inválido.
+    if (isThousands && maxDecimals != null && sepCount === 1) return null;
+    normalized = isThousands
+      ? (before + after).replace(/[.,]/g, '')
+      : before.replace(/[.,]/g, '') + '.' + after;
+  }
+
+  if (maxDecimals != null) {
+    const decimals = normalized.includes('.') ? normalized.split('.')[1].length : 0;
+    if (decimals > maxDecimals) return null;
+  }
+
+  const n = Number(normalized);
+  if (isNaN(n)) return null;
+  return neg ? -n : n;
+};
+
 function parseLines(text, units) {
   const lines         = text.split(/\r\n|\r|\n/);
   const rows          = [];
@@ -65,6 +115,12 @@ function parseLines(text, units) {
     if (!units.some(obj => obj.label?.toUpperCase() === unit)) bad_units.push(unit);
 
     const lineNo = i + 1;
+    const cost   = parseFlexibleNumber(spare[2], { maxDecimals: 2 });
+    const weight = parseFlexibleNumber(spare[3], { maxDecimals: 2 });
+    if (cost === null)        bad_values.push(`${lineNo}: Costo (formato inválido)`);
+    else if (cost <= 0)       bad_values.push(`${lineNo}: Costo (debe ser mayor a 0)`);
+    if (weight === null)      bad_values.push(`${lineNo}: Peso (formato inválido)`);
+    else if (weight <= 0)     bad_values.push(`${lineNo}: Peso (debe ser mayor a 0)`);
     if (!isBinary(spare[6]))  bad_values.push(`${lineNo}: Ped. Especial`);
     if (!isNumeric(spare[7])) bad_values.push(`${lineNo}: Can. Días`);
     if (!isBinary(spare[8]))  bad_values.push(`${lineNo}: Ped. Especial Sin Fecha`);
@@ -72,8 +128,8 @@ function parseLines(text, units) {
 
     rows.push({
       id: i, nro_part: spare[0], description: spare[1],
-      cost: spare[2], weight: spare[3], min_amount: spare[4],
-      unit, special_order: spare[6], days: spare[7],
+      cost, weight, min_amount: parseFlexibleNumber(spare[4]),
+      unit, special_order: spare[6], days: parseFlexibleNumber(spare[7]),
       special_order_without_date: spare[8], low_inventory: spare[9],
     });
   }
@@ -173,8 +229,8 @@ export default function SparesInLot() {
     setSaving(true);
     try {
       const data_send = rowData.map(row => ({
-        NroParte:            row.nro_part,
-        DesRepuesto:         row.description,
+        NroParte:            trim(row.nro_part),
+        DesRepuesto:         trim(row.description),
         CodProveedor:        data.supplier?.value    ?? null,
         CodMarca:            data.brand?.value       ?? null,
         CodAplicacion:       data.application?.value ?? null,

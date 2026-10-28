@@ -9,11 +9,14 @@ import IconPlusCircle from '../icon/icon-plus-circle';
 import IconInfoCircle from '../icon/icon-info-circle';
 import EquipmentForm from '@/components/forms/equipment-form'
 import EngineForm from '@/components/forms/engine-form'
+import QuoteWithoutCodeBatchForm from '@/components/forms/quote-without-code-batch-form'
 import Modal from '@/components/modal';
 import { useRouter, useSearchParams } from 'next/navigation';
 import axiosClient from '@/app/lib/axiosClient'
 import Swal from 'sweetalert2'
+import { swalConfirm } from '@/app/lib/swal'
 import ContactQuoteSection from '@/components/forms/contact-quote-section'
+import { registerUpper } from '@/app/lib/uppercaseField'
 
 const URL_SAVE_QUOTE   = 'cotizacion/registrar-sin-codigo';
 const URL_UPDATE_QUOTE = (id) => `cotizacion/registrar-sin-codigo/${id}`;
@@ -21,6 +24,14 @@ const URL_GET_QUOTE    = (id) => `cotizacion/sin-codigo/${id}`;
 const URL_GET_SEGUIMIENTO  = 'usuarios/seguimiento';
 const URL_SAVE_SEGUIMIENTO = 'cotizacion/registrar-seguimiento';
 const URL_MARCAS     = 'cotizacion/marcas';
+
+const IconBatch = ({ className }) => (
+  <svg className={className} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2 2 7l10 5 10-5-10-5Z" />
+    <path d="M2 17l10 5 10-5" />
+    <path d="M2 12l10 5 10-5" />
+  </svg>
+);
 
 
 const QuoteWithoutCodeForm = ({ _customer_, t, _order_ = [], _items_ }) => {
@@ -178,6 +189,28 @@ const QuoteWithoutCodeForm = ({ _customer_, t, _order_ = [], _items_ }) => {
     setCurrentRow(6);
   }
 
+  const resetRows = async () => {
+    const { isConfirmed } = await swalConfirm(t.question_reset_items, '', {
+      confirmText: t.yes_reset,
+      cancelText: t.btn_cancel,
+      confirmColor: '#dc2626',
+    });
+    if (!isConfirmed) return;
+
+    items.forEach(r => {
+      unregister(`data[${r.CodItem}][amount]`);
+      unregister(`data[${r.CodItem}][description]`);
+    });
+
+    const _rows = [1, 2, 3, 4, 5].map(i => ({ CodItem: i, Cantidad: 1, DesRepuesto: '' }));
+    setItems(_rows);
+    setCurrentRow(6);
+    _rows.forEach(r => {
+      setValue(`data[${r.CodItem}][amount]`, r.Cantidad);
+      setValue(`data[${r.CodItem}][description]`, r.DesRepuesto);
+    });
+  }
+
 
   const setDataEquipment = (data, select_brand) => {
     setValue('equipment_model', data.equipment_model);
@@ -206,6 +239,13 @@ const QuoteWithoutCodeForm = ({ _customer_, t, _order_ = [], _items_ }) => {
     setModalSize('w-full max-w-lg');
     setModalTitle(type === 'equipment' ? t.equipment_data : t.engine_data);
     setModalType(type);
+    setShowModal(true);
+  }
+
+  const openBatchModal = () => {
+    setModalSize('w-full max-w-2xl');
+    setModalTitle(t.enter_codes_in_batch ?? 'Añadir en Lote');
+    setModalType('batch');
     setShowModal(true);
   }
 
@@ -357,7 +397,7 @@ const QuoteWithoutCodeForm = ({ _customer_, t, _order_ = [], _items_ }) => {
                     type="text"
                     disabled={disabled}
                     autoComplete="off"
-                    {...register("nro_order", { required: { value: true, message: t.required_field } })}
+                    {...registerUpper(register, "nro_order", { required: { value: true, message: t.required_field } })}
                     placeholder={t.enter_nro_order}
                     className={`h-8 w-full sm:w-72 rounded-lg border-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:bg-gray-50 disabled:text-gray-400 dark:disabled:bg-gray-800 bg-white dark:bg-gray-900 ${errors.nro_order ? 'border-red-400' : 'border-gray-400 dark:border-gray-500'}`}
                   />
@@ -407,15 +447,15 @@ const QuoteWithoutCodeForm = ({ _customer_, t, _order_ = [], _items_ }) => {
                 </div>
                 <div className="flex items-center gap-2">
                   <label className={labelClass}>{t.model}</label>
-                  <input type="text" disabled={disabled} autoComplete="off" {...register("equipment_model")} placeholder={t.enter_equipment_model} className={inputClass} />
+                  <input type="text" disabled={disabled} autoComplete="off" {...registerUpper(register, "equipment_model")} placeholder={t.enter_equipment_model} className={inputClass} />
                 </div>
                 <div className="flex items-center gap-2">
                   <label className={labelClass}>{t.equipment_serie}</label>
-                  <input type="text" disabled={disabled} autoComplete="off" {...register("equipment_serie")} placeholder={t.enter_equipment_serie} className={inputClass} />
+                  <input type="text" disabled={disabled} autoComplete="off" {...registerUpper(register, "equipment_serie")} placeholder={t.enter_equipment_serie} className={inputClass} />
                 </div>
                 <div className="flex items-center gap-2">
                   <label className={labelClass}>{t.year}</label>
-                  <input type="text" disabled={disabled} autoComplete="off" {...register("equipment_year")} placeholder={t.enter_equipment_year} className={inputClass} />
+                  <input type="text" disabled={disabled} autoComplete="off" {...registerUpper(register, "equipment_year")} placeholder={t.enter_equipment_year} className={inputClass} />
                 </div>
               </div>
             </div>
@@ -445,11 +485,11 @@ const QuoteWithoutCodeForm = ({ _customer_, t, _order_ = [], _items_ }) => {
                 </div>
                 <div className="flex items-center gap-2">
                   <label className={labelClass}>{t.model}</label>
-                  <input type="text" disabled={disabled} autoComplete="off" {...register("engine_model")} placeholder={t.enter_engine_model} className={inputClass} />
+                  <input type="text" disabled={disabled} autoComplete="off" {...registerUpper(register, "engine_model")} placeholder={t.enter_engine_model} className={inputClass} />
                 </div>
                 <div className="flex items-center gap-2">
                   <label className={labelClass}>{t.engine_serie}</label>
-                  <input type="text" disabled={disabled} autoComplete="off" {...register("engine_serie")} placeholder={t.enter_engine_serie} className={inputClass} />
+                  <input type="text" disabled={disabled} autoComplete="off" {...registerUpper(register, "engine_serie")} placeholder={t.enter_engine_serie} className={inputClass} />
                 </div>
               </div>
             </div>
@@ -463,7 +503,7 @@ const QuoteWithoutCodeForm = ({ _customer_, t, _order_ = [], _items_ }) => {
               {/* Nota */}
               <div className="flex items-center gap-2 px-3 py-3">
                 <label className={labelClass}>{t.note}</label>
-                <input type="text" autoComplete="off" {...register("note")} placeholder={t.enter_note} className={inputClass} />
+                <input type="text" autoComplete="off" {...registerUpper(register, "note")} placeholder={t.enter_note} className={inputClass} />
               </div>
 
               {/* Tracking + Contacto */}
@@ -538,14 +578,32 @@ const QuoteWithoutCodeForm = ({ _customer_, t, _order_ = [], _items_ }) => {
                   <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t.part_description}</p>
                   <div className="h-0.5 w-8 rounded bg-primary/60 mt-0.5" />
                 </div>
-                <button
-                  onClick={() => addRow()}
-                  type="button"
-                  className="flex h-8 items-center gap-1.5 rounded-lg border border-primary/40 px-3 text-primary text-xs font-medium hover:bg-primary/5 transition"
-                >
-                  <IconPlusCircle className="h-3.5 w-3.5" />
-                  {t.btn_add}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={resetRows}
+                    type="button"
+                    className="flex h-8 items-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-gray-500 dark:text-gray-400 text-xs font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+                  >
+                    <IconTrashLines className="h-3.5 w-3.5" />
+                    {t.btn_reset}
+                  </button>
+                  <button
+                    onClick={openBatchModal}
+                    type="button"
+                    className="flex h-8 items-center gap-1.5 rounded-lg border border-primary/40 px-3 text-primary text-xs font-medium hover:bg-primary/5 transition"
+                  >
+                    <IconBatch className="h-3.5 w-3.5" />
+                    {t.enter_codes_in_batch ?? 'Añadir en Lote'}
+                  </button>
+                  <button
+                    onClick={() => addRow()}
+                    type="button"
+                    className="flex h-8 items-center gap-1.5 rounded-lg border border-primary/40 px-3 text-primary text-xs font-medium hover:bg-primary/5 transition"
+                  >
+                    <IconPlusCircle className="h-3.5 w-3.5" />
+                    {t.btn_add}
+                  </button>
+                </div>
               </div>
 
               <div className="overflow-x-auto">
@@ -577,7 +635,7 @@ const QuoteWithoutCodeForm = ({ _customer_, t, _order_ = [], _items_ }) => {
                             type="text"
                             defaultValue={r.DesRepuesto}
                             autoComplete="off"
-                            {...register(`data[${r.CodItem}][description]`)}
+                            {...registerUpper(register, `data[${r.CodItem}][description]`)}
                             className="h-8 w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
                           />
                         </td>
@@ -621,6 +679,17 @@ const QuoteWithoutCodeForm = ({ _customer_, t, _order_ = [], _items_ }) => {
         )}
         {modal_type === 'engine' && (
           <EngineForm t={t} brands={brands} setDataEngine={setDataEngine} showModal={showModal} close={() => setShowModal(false)} />
+        )}
+        {modal_type === 'batch' && (
+          <QuoteWithoutCodeBatchForm
+            close={() => setShowModal(false)}
+            t={t}
+            items={items}
+            setItems={setItems}
+            setCurrentRow={setCurrentRow}
+            setValue={setValue}
+            unregister={unregister}
+          />
         )}
       </Modal>
     </>

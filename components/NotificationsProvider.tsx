@@ -1,9 +1,8 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import * as signalR from "@microsoft/signalr";
-import Swal from "sweetalert2";
 import axiosClient from "@/app/lib/axiosClient";
 import { useTranslation } from "@/app/locales";
 import { selectToken } from "@/store/authSlice";
@@ -12,6 +11,7 @@ import { getHubConnection, setHubToken, stopHubConnection, setOnReconnected } fr
 import { checkSession, forceLogout } from "@/app/lib/session";
 
 const URL_NO_LEIDOS = "inbox/no-leidos";
+const TOAST_DURATION_MS = 8000;
 
 // Misma tabla que usa app/admin/revision/quotes/page.js para elegir el sub-form
 // según la categoría de la cotización — la necesitamos acá para armar el link.
@@ -32,147 +32,94 @@ function avatarColor(name: string = ""): string {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
-// Click en el toast → ir al inbox (comportamiento por defecto, igual en todos
-// los toasts). Si el click cae dentro de un [data-quote-link] (el "#numero"
-// dentro del mensaje), va a esa cotización en cambio. Se setean justo antes de
-// cada fire() porque SweetAlert2 no deja pasar callbacks por fire() sin pisar
-// el didOpen del mixin.
-let pendingNavigate: (() => void) | null = null;
-let pendingLinkNavigate: (() => void) | null = null;
-
-const Toast = Swal.mixin({
-  toast: true,
-  position: "top-end",
-  showConfirmButton: false,
-  showCloseButton: false, // el cierre lo maneja nuestro propio botón dentro del html (evita el solapamiento del close nativo)
-  timer: 8000,
-  timerProgressBar: true,
-  width: 360,
-  padding: "0.75rem",
-  customClass: {
-    // Sin redondeo, con borde visible y sombra pareja (mismo valor que usan
-    // los paneles tipo card del resto de la app, no el shadow-2xl de Tailwind
-    // — ese es un shadow "flotante" con offset-y grande, por diseño se ve
-    // solo abajo/tosco). OJO: NO agregar overflow-hidden acá — el box-shadow
-    // se pinta fuera de la caja, así que un overflow≠visible en el mismo
-    // elemento recorta la propia sombra (por eso antes no se veía pese a
-    // estar declarada). Sin cursor-pointer forzado: el puntero solo debe
-    // verse sobre el link interno. min-w fija un ancho mínimo uniforme para
-    // todas las notificaciones SignalR (si no, sweetalert2 encoge el toast
-    // al contenido cuando el texto es corto).
-    popup: "!rounded-none !shadow-[0_4px_24px_rgba(0,0,0,0.18)] !border !border-gray-300 dark:!border-gray-600 !min-w-[360px]",
-    timerProgressBar: "!bg-primary",
-  },
-  didOpen: (el) => {
-    // Bug real: `.swal2-popup` (regla base de sweetalert2, sin !important) trae
-    // `justify-content: center`, y `.swal2-popup.swal2-toast` solo pisa
-    // `align-items` — nunca `justify-content`. Como nuestro contenido no ocupa
-    // el 100% del ancho del toast, quedaba centrado horizontalmente en vez de
-    // pegado a la izquierda. Se fuerza acá por inline style (gana por cascada
-    // sin pelear con la especificidad del css externo, que no usa !important).
-    el.style.justifyContent = "flex-start";
-    el.style.alignItems = "flex-start";
-    // Otro bug real: `.swal2-html-container` (el contenedor que envuelve
-    // nuestro html) NO tiene `width:100%` — dentro del popup en fila (flex
-    // row) se achica al contenido, así que nuestro botón "X" (posicionado
-    // absolute top-right relativo a un wrapper propio adentro) terminaba
-    // pegado al texto en vez de en la esquina real del toast. Forzado acá
-    // porque no hay una clase de customClass para ganarle a esto de forma
-    // más limpia.
-    const htmlContainer = el.querySelector<HTMLElement>(".swal2-html-container");
-    if (htmlContainer) htmlContainer.style.width = "100%";
-    el.onmouseenter = Swal.stopTimer;
-    el.onmouseleave = Swal.resumeTimer;
-    el.addEventListener("click", (e) => {
-      const isLinkClick = (e.target as HTMLElement).closest("[data-quote-link]");
-      if (isLinkClick && pendingLinkNavigate) {
-        pendingLinkNavigate();
-      } else {
-        pendingNavigate?.();
-      }
-      Swal.close();
-    });
-    el.querySelector<HTMLElement>("[data-toast-close]")?.addEventListener("click", (e) => {
-      e.stopPropagation();
-      Swal.close();
-    });
-  },
-});
-
-function fireMessageToast(nombre: string, mensaje: string, onNavigate: () => void, onLinkNavigate?: () => void, titulo?: string) {
-  const initials = getInitials(nombre);
-  const color = avatarColor(nombre);
-  // background/color van inline (opciones nativas de Swal) en vez de clases de
-  // Tailwind porque el CSS propio de sweetalert2 le ganaba a las clases con
-  // !important — un estilo inline sí se impone sin pelea de especificidad.
-  const isDark = document.documentElement.classList.contains("dark");
-  pendingNavigate = onNavigate;
-  pendingLinkNavigate = onLinkNavigate ?? null;
-  Toast.fire({
-    background: isDark ? "#1f2937" : "#eef2ff",
-    color: isDark ? "#f3f4f6" : "#1e293b",
-    html: `
-      <div class="relative w-full">
-        <button data-toast-close type="button" aria-label="Cerrar" class="absolute top-0 right-0 flex items-center justify-center h-6 w-6 text-gray-700 hover:text-black dark:text-gray-300 dark:hover:text-white transition-colors">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.25" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-        </button>
-        <div class="flex items-start gap-2.5 text-left">
-          <div class="${color} h-9 w-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0">${initials}</div>
-          <div class="min-w-0 flex-1 pt-0.5 pr-6">
-            <p class="text-sm font-semibold text-gray-800 dark:text-white truncate">${nombre}</p>
-            ${titulo ? `<p class="text-xs font-semibold text-gray-700 dark:text-gray-300 leading-snug mt-0.5 truncate">${titulo}</p>` : ""}
-            <p class="text-xs text-gray-500 dark:text-gray-400 leading-snug mt-0.5" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${mensaje}</p>
-          </div>
-        </div>
-      </div>
-    `,
-  });
-}
-
-// Formato propio (no fireMessageToast) para notificaciones de evento con varios
-// datos estructurados — a diferencia de un mensaje de chat, acá nada se trunca:
-// bandera en proporción horizontal real (no el círculo de iniciales) + 3 líneas.
-function fireOcToast(title: string, data: {
-  numOrdenCompra?: number | string;
-  nomUsuario?: string;
+// Antes esto usaba Swal.mixin({ toast: true }) — SweetAlert2 solo mantiene UNA
+// instancia visible por posición: un segundo .fire() mientras el primero
+// seguía abierto lo REEMPLAZABA en vez de apilarlo (el primero desaparecía
+// sin que nadie lo viera). Si llegan varios eventos de SignalR casi
+// simultáneos (p.ej. "cotizar-items" mandando una notificación por ítem), se
+// perdían todos menos el último. La solución no es encolarlos uno detrás de
+// otro (eso solo retrasa el mismo problema) sino mostrarlos TODOS a la vez,
+// apilados — por eso acá cada notificación es un ítem en un state array,
+// renderizado como su propia tarjeta, con su propio timer de auto-cierre.
+type ToastItem = {
+  id: string;
+  kind: "message" | "oc";
+  // kind "message"
+  avatarInitials?: string;
+  avatarColorClass?: string;
+  nombre?: string;
+  titulo?: string;
+  mensajeHtml?: string; // puede traer un <span data-quote-link> adentro
+  // kind "oc"
+  ocTitle?: string;
+  numOrdenCompra?: string;
   empresaRepresentante?: string;
+  nomUsuario?: string;
   codPaisOrigen?: string;
-  fecha?: string;
-}, onNavigate: () => void) {
-  const isDark = document.documentElement.classList.contains("dark");
-  pendingNavigate = onNavigate;
-  pendingLinkNavigate = null;
-  const flag = data.codPaisOrigen
-    ? `<img src="/assets/flags/${String(data.codPaisOrigen).toLowerCase()}.svg" alt="${data.codPaisOrigen}" class="h-7 w-10 rounded object-cover shrink-0 border border-gray-200 dark:border-gray-600 mt-0.5" />`
-    : `<div class="h-7 w-10 rounded bg-primary/10 shrink-0"></div>`;
-  Toast.fire({
-    background: isDark ? "#1f2937" : "#eef2ff",
-    color: isDark ? "#f3f4f6" : "#1e293b",
-    html: `
-      <div class="relative w-full">
-        <button data-toast-close type="button" aria-label="Cerrar" class="absolute top-0 right-0 flex items-center justify-center h-6 w-6 text-gray-700 hover:text-black dark:text-gray-300 dark:hover:text-white transition-colors">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.25" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-        </button>
-        <div class="flex items-start gap-3 text-left">
-          ${flag}
-          <div class="min-w-0 flex-1 pr-6">
-            <p class="text-sm font-semibold text-gray-800 dark:text-white">
-              ${title} <span class="text-primary dark:text-blue-400">N° ${data.numOrdenCompra ?? ""}</span>
-            </p>
-            <p class="text-xs text-gray-600 dark:text-gray-300 mt-1 leading-snug">${data.empresaRepresentante ?? ""}</p>
-            <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-1">${data.nomUsuario ?? ""}</p>
-          </div>
-        </div>
-      </div>
-    `,
-  });
-}
+  // común
+  onNavigate: () => void;
+  onLinkNavigate?: () => void;
+};
+
+let toastIdSeq = 0;
 
 export default function NotificationsProvider() {
   const token = useSelector(selectToken);
   const dispatch = useDispatch();
   const router = useRouter();
   const t = useTranslation();
+
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  // Barra de progreso: se anima por CSS (más preciso que recalcular % a mano
+  // en cada render) — pausedIds solo controla animation-play-state, y al
+  // pausar/reanudar la propia animación CSS congela y retoma el ancho actual
+  // sola, en sincronía exacta con el timer real de abajo (ambos miden el
+  // mismo reloj: Date.now()).
+  const [pausedIds, setPausedIds] = useState<Set<string>>(new Set());
+  // Por toast: tiempo restante + cuándo arrancó el timer actual (para poder
+  // pausar en hover y reanudar con el tiempo que quedaba, no desde cero).
+  const timersRef = useRef<Record<string, { remaining: number; startedAt: number; timeoutId: ReturnType<typeof setTimeout> | null }>>({});
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((x) => x.id !== id));
+    const timer = timersRef.current[id];
+    if (timer?.timeoutId) clearTimeout(timer.timeoutId);
+    delete timersRef.current[id];
+  };
+
+  const pauseToast = (id: string) => {
+    const timer = timersRef.current[id];
+    if (!timer?.timeoutId) return;
+    clearTimeout(timer.timeoutId);
+    timer.timeoutId = null;
+    timer.remaining -= Date.now() - timer.startedAt;
+    setPausedIds((prev) => new Set(prev).add(id));
+  };
+
+  const resumeToast = (id: string) => {
+    const timer = timersRef.current[id];
+    if (!timer || timer.timeoutId) return;
+    timer.startedAt = Date.now();
+    timer.timeoutId = setTimeout(() => removeToast(id), Math.max(timer.remaining, 300));
+    setPausedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+  };
+
+  const addToast = (item: Omit<ToastItem, "id">) => {
+    const id = `t${++toastIdSeq}`;
+    setToasts((prev) => [...prev, { ...item, id }]);
+    timersRef.current[id] = {
+      remaining: TOAST_DURATION_MS,
+      startedAt: Date.now(),
+      timeoutId: setTimeout(() => removeToast(id), TOAST_DURATION_MS),
+    };
+  };
+
+  const handleCardClick = (item: ToastItem, e: React.MouseEvent) => {
+    const isLinkClick = (e.target as HTMLElement).closest("[data-quote-link]");
+    if (isLinkClick && item.onLinkNavigate) item.onLinkNavigate();
+    else item.onNavigate();
+    removeToast(item.id);
+  };
 
   useEffect(() => {
     if (!token) {
@@ -203,9 +150,16 @@ export default function NotificationsProvider() {
         specialCodMensajes.delete(data.codMensaje);
         return;
       }
-      fireMessageToast(data?.nomUsuario ?? "Nuevo mensaje", data?.desMensaje ?? "", () => {
-        router.push("/admin/inbox?status=unread");
-      }, undefined, data?.titulo);
+      const nombre = data?.nomUsuario ?? "Nuevo mensaje";
+      addToast({
+        kind: "message",
+        avatarInitials: getInitials(nombre),
+        avatarColorClass: avatarColor(nombre),
+        nombre,
+        titulo: data?.titulo,
+        mensajeHtml: data?.desMensaje ?? "",
+        onNavigate: () => router.push("/admin/inbox?status=unread"),
+      });
     };
 
     // El backend todavía no dispara estos dos en flujos reales — los listeners
@@ -224,12 +178,16 @@ export default function NotificationsProvider() {
       const numeroLink = `<span data-quote-link class="text-primary dark:text-blue-400 underline underline-offset-2 font-semibold cursor-pointer">#${data?.nroCotizacion ?? ""}</span>`;
       const mensaje = (t.quote_assigned_notification ?? "Te asignó la cotización {number}")
         .replace("{number}", numeroLink);
-      fireMessageToast(
-        data?.nomUsuarioAsigna ?? "Cotización asignada",
-        mensaje,
-        () => router.push("/admin/inbox?status=unread"), // click general → inbox, igual que los mensajes
-        () => router.push(link),                          // click en "#numero" → la cotización
-      );
+      const nombre = data?.nomUsuarioAsigna ?? "Cotización asignada";
+      addToast({
+        kind: "message",
+        avatarInitials: getInitials(nombre),
+        avatarColorClass: avatarColor(nombre),
+        nombre,
+        mensajeHtml: mensaje,
+        onNavigate: () => router.push("/admin/inbox?status=unread"), // click general → inbox, igual que los mensajes
+        onLinkNavigate: () => router.push(link),                      // click en "#numero" → la cotización
+      });
     };
 
     // Payload de OrdenesCompraService al generar una OC: { numOrdenCompra, codUsuario,
@@ -243,11 +201,15 @@ export default function NotificationsProvider() {
       // Solo pisa el badge si el backend realmente mandó el dato — si todavía no lo
       // envía (undefined/null), mejor dejar el contador actual que resetearlo a 0.
       if (data?.totalNoLeidos != null) dispatch(setTotalNoLeidos(data.totalNoLeidos));
-      fireOcToast(
-        t.purchase_order_generated_title ?? "Nueva Orden de Compra",
-        data,
-        () => router.push(`/admin/queries/purchase-orders?oc=${data?.numOrdenCompra ?? ""}`),
-      );
+      addToast({
+        kind: "oc",
+        ocTitle: t.purchase_order_generated_title ?? "Nueva Orden de Compra",
+        numOrdenCompra: String(data?.numOrdenCompra ?? ""),
+        empresaRepresentante: data?.empresaRepresentante ?? "",
+        nomUsuario: data?.nomUsuario ?? "",
+        codPaisOrigen: data?.codPaisOrigen,
+        onNavigate: () => router.push(`/admin/queries/purchase-orders?oc=${data?.numOrdenCompra ?? ""}`),
+      });
     };
 
     // Mismo payload que ordenCompraGenerada, pero se dispara al anular una OC del
@@ -255,11 +217,15 @@ export default function NotificationsProvider() {
     const onOrdenCompraAnulada = (data: any) => {
       if (data?.codMensaje != null) specialCodMensajes.add(data.codMensaje);
       if (data?.totalNoLeidos != null) dispatch(setTotalNoLeidos(data.totalNoLeidos));
-      fireOcToast(
-        t.purchase_order_cancelled_title ?? "Orden de Compra Anulada",
-        data,
-        () => router.push(`/admin/queries/purchase-orders?oc=${data?.numOrdenCompra ?? ""}`),
-      );
+      addToast({
+        kind: "oc",
+        ocTitle: t.purchase_order_cancelled_title ?? "Orden de Compra Anulada",
+        numOrdenCompra: String(data?.numOrdenCompra ?? ""),
+        empresaRepresentante: data?.empresaRepresentante ?? "",
+        nomUsuario: data?.nomUsuario ?? "",
+        codPaisOrigen: data?.codPaisOrigen,
+        onNavigate: () => router.push(`/admin/queries/purchase-orders?oc=${data?.numOrdenCompra ?? ""}`),
+      });
     };
 
     // Corte directo de sesión (revocada por un admin) — sin session-check, no hay
@@ -302,5 +268,69 @@ export default function NotificationsProvider() {
     };
   }, [token, dispatch, router, t]);
 
-  return null;
+  return (
+    <div className="fixed top-4 right-4 z-[99999] flex flex-col gap-2 w-[360px] pointer-events-none">
+      <style>{`
+        @keyframes toast-progress { from { width: 100%; } to { width: 0%; } }
+      `}</style>
+      {toasts.map((item) => (
+        <div
+          key={item.id}
+          onMouseEnter={() => pauseToast(item.id)}
+          onMouseLeave={() => resumeToast(item.id)}
+          onClick={(e) => handleCardClick(item, e)}
+          className="pointer-events-auto relative w-full overflow-hidden border border-gray-300 dark:border-gray-600 shadow-[0_4px_24px_rgba(0,0,0,0.18)] bg-[#eef2ff] dark:bg-gray-800 text-[#1e293b] dark:text-gray-100 p-3 cursor-pointer"
+        >
+          <button
+            type="button"
+            aria-label="Cerrar"
+            onClick={(e) => { e.stopPropagation(); removeToast(item.id); }}
+            className="absolute top-2 right-2 flex items-center justify-center h-6 w-6 text-gray-700 hover:text-black dark:text-gray-300 dark:hover:text-white transition-colors"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.25" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+
+          {item.kind === "message" ? (
+            <div className="flex items-start gap-2.5 text-left pr-6">
+              <div className={`${item.avatarColorClass} h-9 w-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0`}>
+                {item.avatarInitials}
+              </div>
+              <div className="min-w-0 flex-1 pt-0.5">
+                <p className="text-sm font-semibold truncate">{item.nombre}</p>
+                {item.titulo && <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 leading-snug mt-0.5 truncate">{item.titulo}</p>}
+                <p
+                  className="text-xs text-gray-500 dark:text-gray-400 leading-snug mt-0.5"
+                  style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
+                  dangerouslySetInnerHTML={{ __html: item.mensajeHtml ?? "" }}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-start gap-3 text-left pr-6">
+              {item.codPaisOrigen ? (
+                <img src={`/assets/flags/${String(item.codPaisOrigen).toLowerCase()}.svg`} alt={item.codPaisOrigen} className="h-7 w-10 rounded object-cover shrink-0 border border-gray-200 dark:border-gray-600 mt-0.5" />
+              ) : (
+                <div className="h-7 w-10 rounded bg-primary/10 shrink-0" />
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">
+                  {item.ocTitle} <span className="text-primary dark:text-blue-400">N° {item.numOrdenCompra}</span>
+                </p>
+                <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 leading-snug">{item.empresaRepresentante}</p>
+                <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">{item.nomUsuario}</p>
+              </div>
+            </div>
+          )}
+
+          <div
+            className="absolute bottom-0 left-0 h-0.5 bg-primary"
+            style={{
+              animation: `toast-progress ${TOAST_DURATION_MS}ms linear forwards`,
+              animationPlayState: pausedIds.has(item.id) ? "paused" : "running",
+            }}
+          />
+        </div>
+      ))}
+    </div>
+  );
 }

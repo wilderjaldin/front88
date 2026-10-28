@@ -109,6 +109,5 @@
 
 .ql-snow .ql-editor table th strong,
 .ql-snow .ql-editor table td:has(strong) strong {
-  color: #e2a03f;
   font-weight: 600;
 }

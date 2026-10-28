@@ -7,6 +7,7 @@ import DeleteForm from './delete-form';
 import ShowAssignmentsForm from './show-assignments-form';
 import MailToCustomerForm from './mail-to-customer-form';
 import MailToSupplierForm from './mail-to-supplier-form';
+import QuoteToCountryForm from './quote-to-country-form';
 import Link from 'next/link';
 import axiosClient from '@/app/lib/axiosClient';
 import { swalSuccess, swalError, swalConfirm } from '@/app/lib/swal';
@@ -15,6 +16,7 @@ import { useHeaderOffset } from '@/app/hooks/useHeaderOffset';
 const URL_EXPORT      = 'repuestosporcotizar/exportar';
 const URL_SAVE_NOTE   = 'repuestosporcotizar/guardar-notas';
 const URL_EXCLUIR = 'repuestosporcotizar/excluir-item';
+const URL_ACTUALIZAR_SUGERENCIAS = 'repuestosporcotizar/actualizar-sugerencias';
 
 const URL_GRUPOS          = 'repuestosporcotizar/grupos';
 const URL_GRUPOS_GUARDAR  = 'repuestosporcotizar/grupos/guardar';
@@ -24,7 +26,7 @@ const URL_GRUPOS_ITEMS    = (id) => `repuestosporcotizar/grupos/${id}/items`;
 const URL_GRUPOS_ELIMINAR = (id) => `repuestosporcotizar/grupos/${id}`;
 
 const thClass = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap select-none";
-const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-3 py-2";
+const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-3 py-2 align-top";
 
 const SortIcon = ({ active, dir }) => {
   if (!active)
@@ -389,6 +391,7 @@ const ItemsAssigned = ({ token, t, data, unassignOrder, setOrdersAssigned, setOr
   const [loadUsers,  setLoadUsers]  = useState(true);
   const [notesDirty,     setNotesDirty]     = useState(false);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+  const [updatingSuggestions, setUpdatingSuggestions] = useState(false);
   const statusMenuRef = useRef(null);
 
   useEffect(() => {
@@ -407,15 +410,20 @@ const ItemsAssigned = ({ token, t, data, unassignOrder, setOrdersAssigned, setOr
   const [advFilters,   setAdvFilters]   = useState(EMPTY_ADV_FILTERS);
   const [draftFilters, setDraftFilters] = useState(EMPTY_ADV_FILTERS);
 
-  const { register, getValues, setValue } = useForm();
+  const { register, getValues, setValue, watch } = useForm();
 
   useEffect(() => { setSelected([]); }, [data]);
 
   useEffect(() => {
     data.forEach(o => {
       setValue(`note.${o.codRegistro}`, o.nota ?? '');
-      if (o.sugerencias?.length > 0)
-        setValue(`sugerPrv.${o.codRegistro}`, o.sugerencias[0].value);
+      // Prioridad de la sugerencia preseleccionada: por nro. de parte (más
+      // específica) > por marca > por país (más genérica). sugerencias_pais
+      // viene agrupada por país ({ codPais, nomPais, proveedores: [] }), con
+      // algunos países sin proveedores — hay que aplanarla primero.
+      const paisProveedores = (o.sugerencias_pais ?? []).flatMap(g => g.proveedores ?? []);
+      const primera = o.sugerencias_parte?.[0] ?? o.sugerencias_marca?.[0] ?? paisProveedores[0];
+      if (primera) setValue(`sugerPrv.${o.codRegistro}`, primera.value);
     });
   }, [data]);
 
@@ -557,6 +565,19 @@ const ItemsAssigned = ({ token, t, data, unassignOrder, setOrdersAssigned, setOr
     } catch {}
   };
 
+  const handleUpdateSuggestions = async () => {
+    setUpdatingSuggestions(true);
+    try {
+      const rs = await axiosClient.post(URL_ACTUALIZAR_SUGERENCIAS);
+      setOrdersAssigned((rs.data.asignados ?? []).map((o, i) => ({ ...o, id: i })));
+      swalSuccess('Sugerencias de proveedores actualizadas');
+    } catch (err) {
+      swalError('Error', err?.response?.data?.mensaje ?? 'No se pudieron actualizar las sugerencias.');
+    } finally {
+      setUpdatingSuggestions(false);
+    }
+  };
+
   const handleMailToCustomer = () => {
     const names = [...new Set(selected.map(o => o.nomCliente))];
     if (names.length > 1) { Swal.fire({ title: t.error, text: t.different_customers_send_email_error, icon: 'error', confirmButtonColor: '#dc2626', confirmButtonText: t.close }); return; }
@@ -568,6 +589,24 @@ const ItemsAssigned = ({ token, t, data, unassignOrder, setOrdersAssigned, setOr
   const handleMailToSupplier = () => {
     setModalSize('w-full max-w-3xl'); setModalTitle('Mail a Proveedor');
     setModalContent(<MailToSupplierForm selected={selected} close={() => setShowModal(false)} t={t} token={token} />);
+    setShowModal(true);
+  };
+
+  // Ítems seleccionados cuya "Sugerencia Prv." es un país sin proveedor
+  // concreto (value "pais:XX") — son los únicos que "Cotizar" debe enviar,
+  // aunque haya otros ítems tildados en la tabla.
+  const sugerPrvValues = watch('sugerPrv') || {};
+  const paisSeleccionados = selected.filter(o => (sugerPrvValues[o.codRegistro] || '').startsWith('pais:'));
+
+  const handleQuote = () => {
+    if (paisSeleccionados.length === 0) return;
+    const items = paisSeleccionados.map(o => {
+      const codPaisDestino = sugerPrvValues[o.codRegistro].slice('pais:'.length);
+      const nomPaisDestino = o.sugerencias_pais?.find(g => g.codPais === codPaisDestino)?.nomPais ?? codPaisDestino;
+      return { ...o, codPaisDestino, nomPaisDestino };
+    });
+    setModalSize('w-full max-w-xl'); setModalTitle('ENVIAR A COTIZAR');
+    setModalContent(<QuoteToCountryForm selected_orders={items} action_cancel={() => setShowModal(false)} setOrdersAssigned={setOrdersAssigned} setOrdersUnassigned={setOrdersUnassigned} />);
     setShowModal(true);
   };
 
@@ -646,6 +685,12 @@ const ItemsAssigned = ({ token, t, data, unassignOrder, setOrdersAssigned, setOr
           <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path strokeLinecap="round" d="M2 7l10 7 10-7"/></svg>
           {t.mail_to_supplier}
         </button>
+        <button onClick={handleQuote} disabled={paisSeleccionados.length === 0}
+          title={paisSeleccionados.length === 0 ? 'Seleccione al menos un ítem con sugerencia de país' : `${paisSeleccionados.length} ítem(s) con sugerencia de país`}
+          className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border text-xs font-semibold transition ${paisSeleccionados.length === 0 ? 'border-gray-200 text-gray-300 cursor-not-allowed dark:border-gray-700 dark:text-gray-600' : 'border-lime-200 bg-lime-50 text-lime-700 hover:bg-lime-100 dark:border-lime-800 dark:bg-lime-900/20 dark:text-lime-400'}`}>
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4.5L6 21l1.5-7.5L2 9h7z"/></svg>
+          Cotizar
+        </button>
 
         <div className="h-5 w-px bg-gray-200 dark:bg-gray-700 mx-0.5" />
 
@@ -677,19 +722,27 @@ const ItemsAssigned = ({ token, t, data, unassignOrder, setOrdersAssigned, setOr
 
         {/* Grupo 4: utilidades */}
         <button onClick={handleExportOrders} disabled={noSel}
-          className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border text-xs font-semibold transition ${noSel ? 'border-gray-200 text-gray-300 cursor-not-allowed dark:border-gray-700 dark:text-gray-600' : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:bg-transparent dark:text-gray-300'}`}>
+          className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border text-xs font-semibold transition ${noSel ? 'border-gray-200 text-gray-300 cursor-not-allowed dark:border-gray-700 dark:text-gray-600' : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400'}`}>
           <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 3v13m0 0l-4-4m4 4l4-4M3 19h18"/></svg>
           Exportar xlsx
         </button>
         <button onClick={handleSaveNote} disabled={!notesDirty} title="Guardar notas de la página actual"
-          className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border text-xs font-semibold transition ${!notesDirty ? 'border-gray-200 text-gray-300 cursor-not-allowed dark:border-gray-700 dark:text-gray-600' : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:bg-transparent dark:text-gray-300'}`}>
+          className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border text-xs font-semibold transition ${!notesDirty ? 'border-gray-200 text-gray-300 cursor-not-allowed dark:border-gray-700 dark:text-gray-600' : 'border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100 dark:border-teal-800 dark:bg-teal-900/20 dark:text-teal-400'}`}>
           <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
           Guardar Notas
         </button>
         <button onClick={handleShowAssignments}
-          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-transparent text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-400 text-xs font-semibold transition">
           <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path strokeLinecap="round" strokeLinejoin="round" d="M23 21v-2a4 4 0 00-3-3.87"/><path strokeLinecap="round" strokeLinejoin="round" d="M16 3.13a4 4 0 010 7.75"/></svg>
           {t.view_assignments}
+        </button>
+        <button onClick={handleUpdateSuggestions} disabled={updatingSuggestions}
+          className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border text-xs font-semibold transition ${updatingSuggestions ? 'border-gray-200 text-gray-300 cursor-not-allowed dark:border-gray-700 dark:text-gray-600' : 'border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-900/20 dark:text-violet-400'}`}>
+          {updatingSuggestions
+            ? <span className="h-3.5 w-3.5 rounded-full border-2 border-violet-400 border-t-transparent animate-spin shrink-0" />
+            : <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          }
+          {updatingSuggestions ? 'Actualizando...' : 'Actualizar Sugerencias de Proveedores'}
         </button>
 
         <div className="h-5 w-px bg-gray-200 dark:bg-gray-700 mx-0.5" />
@@ -781,11 +834,56 @@ const ItemsAssigned = ({ token, t, data, unassignOrder, setOrdersAssigned, setOr
                   <td className={`${tdClass} text-center`}>{o.nomPais}</td>
                   <td className={`${tdClass} text-gray-500`}>{o.nomMarca}</td>
                   <td className={tdClass}>
-                    <select {...register(`sugerPrv.${o.codRegistro}`)}
-                      className="h-7 w-full min-w-[130px] rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40">
-                      <option value="">—</option>
-                      {(o.sugerencias ?? []).map(s => (<option key={s.value} value={s.value}>{s.label}</option>))}
-                    </select>
+                    <div className="flex items-center gap-1">
+                      <select {...register(`sugerPrv.${o.codRegistro}`)}
+                        className="h-7 flex-1 min-w-[110px] rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40">
+                        <option value="">—</option>
+                        {o.sugerencias_parte?.length > 0 && (
+                          <optgroup label="Por Nro. Parte">
+                            {o.sugerencias_parte.map(s => (<option key={`p-${s.value}`} value={s.value}>{s.label}</option>))}
+                          </optgroup>
+                        )}
+                        {o.sugerencias_marca?.length > 0 && (
+                          <optgroup label="Por Marca">
+                            {o.sugerencias_marca.map(s => (<option key={`m-${s.value}`} value={s.value}>{s.label}</option>))}
+                          </optgroup>
+                        )}
+                        {/* Por país viene agrupado ({ codPais, nomPais, proveedores: [] }) —
+                            cada país con proveedores es su propio optgroup; un país sin
+                            proveedores se muestra igual, como opción seleccionable (value
+                            prefijado "pais:" para no chocar con un value de proveedor). Si
+                            ese país ya está en paises_cotizando, la opción queda deshabilitada
+                            — el backend lo ignora igual si se reenvía, pero así se evita
+                            mandarlo de nuevo por error. */}
+                        {(o.sugerencias_pais ?? []).map(g => {
+                          if (g.proveedores?.length > 0) {
+                            return (
+                              <optgroup key={g.codPais} label={g.nomPais}>
+                                {g.proveedores.map(s => (<option key={`c-${g.codPais}-${s.value}`} value={s.value}>{s.label}</option>))}
+                              </optgroup>
+                            );
+                          }
+                          const yaCotizando = o.paises_cotizando?.some(p => p.codPais === g.codPais);
+                          return (
+                            <option key={g.codPais} value={`pais:${g.codPais}`} disabled={yaCotizando}>
+                              {g.nomPais}{yaCotizando ? ' (ya cotizando)' : ''}
+                            </option>
+                          );
+                        })}
+                      </select>
+                      {/* Bandera(s) en vez de debajo del select — evita que la fila
+                          crezca y desalinee las demás columnas; el nombre completo
+                          va en el title (tooltip) de cada una. */}
+                      {o.paises_cotizando?.length > 0 && (
+                        <div className="shrink-0 flex items-center gap-0.5">
+                          {o.paises_cotizando.map(p => (
+                            <img key={p.codPais} src={`/assets/flags/${p.codPais.toLowerCase()}.svg`} alt={p.codPais}
+                              title={`Cotizando: ${p.nomPais}`}
+                              className="h-5 w-7 rounded-sm object-cover border border-gray-200 dark:border-gray-600 cursor-help" />
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className={tdClass}>
                     <input type="text" {...register(`note.${o.codRegistro}`, { onChange: () => setNotesDirty(true) })}

@@ -201,7 +201,20 @@ const Pendings = ({ t, data = [], attachOrder, cancelReception, onSearch, onClea
                   </td>
                   <td className={`${tdClass} font-medium`}>{o.NroOrden}</td>
                   <td className={tdClass}>{o.NroOrdenCompra}</td>
-                  <td className={tdClass}>{o.NomCliente}</td>
+                  <td className={tdClass}>
+                    <div className="inline-flex items-center gap-1.5">
+                      {o.CodPais && (
+                        <img
+                          src={`/assets/flags/${o.CodPais.toLowerCase()}.svg`}
+                          alt={o.NomPais || o.CodPais}
+                          title={o.NomPais || o.CodPais}
+                          className="h-3 w-4 rounded-sm object-cover shrink-0"
+                          onError={e => { e.currentTarget.style.display = 'none'; }}
+                        />
+                      )}
+                      <span>{o.NomCliente}</span>
+                    </div>
+                  </td>
                   <td className={tdClass}>{o.NroRecepcion}</td>
                   <td className={tdClass}>{o.DirEntrega}</td>
                   <td className={tdClass}>{o.Transporte}</td>
