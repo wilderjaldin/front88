@@ -17,7 +17,8 @@ const URL_CONFIRM_DOC = (numEmbalaje) => `embalajes/documentado/${numEmbalaje}`;
 const mapOrder = (o, index) => ({
   id:              index,
   NumEmbalaje:     o.numEmbalaje,
-  CodPais:         o.codPais,
+  CodPaisEmbalaje: o.codPaisEmbalaje, // país del embalaje → ?codPais= de los reportes
+  CodPais:         o.codPais,         // país del cliente (NAFTA)
   NumDespacho:     o.numEntrega,
   Cliente:         o.cliente,
   Transporte:      o.transporte,
@@ -60,7 +61,11 @@ export default function DocumentDelivery() {
     if (!result.isConfirmed) return;
 
     try {
-      const rs = await axiosClient.post(URL_CANCEL(row.NumEmbalaje));
+      // codPais: el número de embalaje se repite entre países — el backend anula solo
+      // el de este país (sin él usaría el país del usuario).
+      const rs = await axiosClient.post(URL_CANCEL(row.NumEmbalaje), null, {
+        params: row.CodPaisEmbalaje ? { codPais: row.CodPaisEmbalaje } : {},
+      });
       swalSuccess(t.record_updated ?? 'Registro anulado');
       setOrders((rs.data ?? []).map(mapOrder));
     } catch (error) {

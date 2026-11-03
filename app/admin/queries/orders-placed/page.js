@@ -59,6 +59,20 @@ const SortIcon = ({ active, dir }) => {
   );
 };
 
+// Resalta las coincidencias del término buscado dentro del texto mostrado.
+const highlightText = (text, term) => {
+  const str = text == null ? '' : String(text);
+  const q = term?.trim();
+  if (!q) return str;
+  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const parts = str.split(new RegExp(`(${escaped})`, 'gi'));
+  return parts.map((part, i) =>
+    part.toLowerCase() === q.toLowerCase()
+      ? <mark key={i} className="bg-amber-200 dark:bg-amber-500/40 text-inherit rounded-sm px-0.5">{part}</mark>
+      : part
+  );
+};
+
 const SortableHeader = ({ col, label, sort, dir, onSort, className = '' }) => (
   <th
     onClick={() => onSort(col)}
@@ -409,7 +423,7 @@ export default function OrdersPlaced() {
                     <td className={tdClass}>
                       <div className="inline-flex items-center gap-2">
                         <Link href={quoteUrl(o)} className="font-semibold text-primary hover:underline">
-                          {o.nroCotizacion}
+                          {highlightText(o.nroCotizacion, urlTerm)}
                         </Link>
                         <CatBadge cat={o.tipCot} t={t} />
                       </div>

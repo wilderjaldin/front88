@@ -110,7 +110,7 @@ const TableUnassigned = ({ t, orders_unassigned, assignOrder, goToTab, onSearch,
                     <input type="checkbox" className="form-checkbox" checked={selected.includes(o)} onChange={() => toggleRow(o)} />
                   </td>
                   <td className={`${tdClass} font-medium`}>{o.NomProveedor}</td>
-                  <td className={`${tdClass} text-center`}>{o.NroOrden}</td>
+                  <td className={`${tdClass} text-center`}>{o.CodPrefijo ? `${o.CodPrefijo}-${o.NroOrden}` : o.NroOrden}</td>
                   <td className={`${tdClass} text-center`}>{o.NroItems}</td>
                   <td className={`${tdClass} text-right`}>{customFormat(o.Monto)}</td>
                   <td className={`${tdClass} text-center`}>{o.Dias}</td>

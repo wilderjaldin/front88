@@ -136,6 +136,7 @@ const DispatchDataModal = ({ t, row, onClose, onSaved }) => {
       const list = Array.isArray(d.items) ? d.items : [];
       setItems(list.map(i => ({
         NroOrden:    i.nroCotizacion,
+        CodPrefijo:  i.codPrefijo,
         CodItem:     i.codItem,
         CodRepuesto: i.codRepuesto,
         NroParte:    i.nroParte,
@@ -156,6 +157,7 @@ const DispatchDataModal = ({ t, row, onClose, onSaved }) => {
         const list = Array.isArray(rs.data) ? rs.data : [];
         setItems(list.map(i => ({
           NroOrden:       i.nroCotizacion,
+          CodPrefijo:     i.codPrefijo,
           CodItem:        i.codItem,
           CodRepuesto:    i.codRepuesto,
           NroParte:       i.nroParte,
@@ -476,7 +478,7 @@ const DispatchDataModal = ({ t, row, onClose, onSaved }) => {
                 <tr><td colSpan={5} className="py-8 text-center text-xs text-gray-400">{t.no_matches}</td></tr>
               ) : items.map((i, index) => (
                 <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                  <td className={tdClass}>{i.NroOrden}</td>
+                  <td className={tdClass}>{i.CodPrefijo ? `${i.CodPrefijo}-${i.NroOrden}` : i.NroOrden}</td>
                   <td className={tdClass}>{i.NroParte}</td>
                   <td className={tdClass}>{i.Descripcion}</td>
                   <td className={`${tdClass} text-center`}>{i.Cantidad}</td>

@@ -199,7 +199,7 @@ const Pendings = ({ t, data = [], attachOrder, cancelReception, onSearch, onClea
                       onChange={() => toggleRow(o)}
                     />
                   </td>
-                  <td className={`${tdClass} font-medium`}>{o.NroOrden}</td>
+                  <td className={`${tdClass} font-medium`}>{o.CodPrefijo ? `${o.CodPrefijo}-${o.NroOrden}` : o.NroOrden}</td>
                   <td className={tdClass}>{o.NroOrdenCompra}</td>
                   <td className={tdClass}>
                     <div className="inline-flex items-center gap-1.5">

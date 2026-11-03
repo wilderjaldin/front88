@@ -31,6 +31,7 @@ const mapOrder = (o, index) => ({
   id:              index,
   NumOrdenCompra:  o.numOrdenCompra,
   NroOrden:        o.nroOrden,
+  CodPrefijo:      o.codPrefijo,
   CodCliente:      o.codCliente,
   CatCotizacion:   o.catCotizacion,
   NomPrv:          o.proveedor,
@@ -125,25 +126,30 @@ const Orders = ({ t, data, setOrders, attachOrder, loading, onRefresh, onSearch,
   const catalogs = useMemo(() => {
     const proveedoresMap = new Map();
     const paisesMap = new Map();
-    const ordenesSet = new Set();
+    const ordenesMap = new Map();
     const ocSet = new Set();
     const statusInList = new Set();
 
     data.forEach(o => {
       if (o.CodPrv != null) proveedoresMap.set(String(o.CodPrv), o.NomPrv || String(o.CodPrv));
       if (o.CodPaisCliente) paisesMap.set(o.CodPaisCliente, o.NomPais || o.CodPaisCliente);
-      if (o.NroOrden != null) ordenesSet.add(String(o.NroOrden));
+      if (o.NroOrden != null) ordenesMap.set(String(o.NroOrden), o.CodPrefijo);
       if (o.NumOrdenCompra != null) ocSet.add(String(o.NumOrdenCompra));
       if (o.NomStatus) statusInList.add(o.NomStatus);
     });
 
     const toOptionList = (map) => [...map.entries()].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label));
     const toValueOptionList = (set) => [...set].map(v => ({ value: v, label: v })).sort((a, b) => Number(b.value) - Number(a.value));
+    // El valor sigue siendo el NroOrden "pelado" (es lo que se compara al filtrar);
+    // solo la etiqueta muestra el prefijo. Se ordena por prefijo y luego por NroOrden.
+    const toOrdenOptionList = (map) => [...map.entries()]
+      .map(([value, codPrefijo]) => ({ value, codPrefijo, label: codPrefijo ? `${codPrefijo}-${value}` : value }))
+      .sort((a, b) => (Number(b.codPrefijo) || 0) - (Number(a.codPrefijo) || 0) || Number(b.value) - Number(a.value));
 
     return {
       proveedores: toOptionList(proveedoresMap),
       paises:      toOptionList(paisesMap),
-      ordenes:     toValueOptionList(ordenesSet),
+      ordenes:     toOrdenOptionList(ordenesMap),
       oc:          toValueOptionList(ocSet),
       // Solo los estados fijos que efectivamente aparecen en el listado actual.
       status: STATUS_OPTIONS.filter(opt => statusInList.has(opt.value)),
@@ -498,7 +504,7 @@ const Orders = ({ t, data, setOrders, attachOrder, loading, onRefresh, onSearch,
                         href={`/admin/revision/quotes?customer=${o.CodCliente}&option=${CATEGORY_OPTION[o.CatCotizacion] ?? 'quotes'}&id=${o.NroOrden}`}
                         className="break-words min-w-0 text-primary hover:underline"
                       >
-                        {o.NroOrden}
+                        {o.CodPrefijo ? `${o.CodPrefijo}-${o.NroOrden}` : o.NroOrden}
                       </Link>
                     </div>
                   </td>

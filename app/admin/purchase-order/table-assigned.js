@@ -27,7 +27,7 @@ const TableAssigned = ({ t, orders_assigned, unassignOrder, createPurchaseOrder,
 
     const result = await swalConfirm(
       t.question_undo_changes ?? '¿Deshacer los cambios de este proveedor?',
-      `${o.NomProveedor} — ${codItems.length} ${codItems.length !== 1 ? (t.items ?? 'ítems') : (t.item ?? 'ítem')} (${t.nro_order ?? 'Cotización'} ${o.NroOrden})`,
+      `${o.NomProveedor} — ${codItems.length} ${codItems.length !== 1 ? (t.items ?? 'ítems') : (t.item ?? 'ítem')} (${t.nro_order ?? 'Cotización'} ${o.CodPrefijo ? `${o.CodPrefijo}-${o.NroOrden}` : o.NroOrden})`,
       { confirmText: t.yes ?? 'Sí', cancelText: t.btn_cancel ?? 'Cancelar', confirmColor: '#dc2626' }
     );
     if (!result.isConfirmed) return;
@@ -192,7 +192,7 @@ const TableAssigned = ({ t, orders_assigned, unassignOrder, createPurchaseOrder,
                       )}
                     </div>
                   </td>
-                  <td className={`${tdClass} text-center`}>{o.NroOrden}</td>
+                  <td className={`${tdClass} text-center`}>{o.CodPrefijo ? `${o.CodPrefijo}-${o.NroOrden}` : o.NroOrden}</td>
                   <td className={`${tdClass} text-center`}>{o.NroItems}</td>
                   <td className={`${tdClass} text-right`}>{customFormat(o.Monto)}</td>
                   <td className={`${tdClass} text-center`}>{o.Dias}</td>

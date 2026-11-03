@@ -645,6 +645,7 @@
   "different_customers_error" : "El embalaje debe realizarse por Cliente, no puedes realizar el embalaje para diferentes clientes",
   "different_customers_send_email_error" : "El correo electrónico debe enviarse al mismo Cliente, no puedes realizar el envio a diferentes clientes.",
   "different_address_error" : "El embalaje debe realizarse para la misma dirección, no puedes realizar el embalaje para diferentes direcciones",
+  "different_order_error" : "El embalaje debe realizarse por Nro. Orden, no puedes realizar el embalaje para diferentes órdenes",
   "packaging_type_is_not_selected" : "Debes seleccionar el tipo de embalaje",
   "packaging_successfully_saved" : "El embalaje se registro correctamente",
   "packaging_error_saved" : "Ocurrio un error al registrar el embalaje. Por favor, inténtalo nuevamente",

@@ -94,6 +94,7 @@ export default function PurchaseOrder() {
   const mapPendingOrder = (o) => ({
     NomProveedor: o.razSoc,
     NroOrden: o.nroCotizacion,
+    CodPrefijo: o.codPrefijo,
     NroItems: o.nroTems,
     Monto: o.total,
     Dias: o.dias,

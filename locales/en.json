@@ -645,6 +645,7 @@
   "different_customers_error" : "Packaging must be done for one customer at a time",
   "different_customers_send_email_error" : "Email sent must be donde for one customer at a time.",
   "different_address_error" : "Packaging must be done for 1 delivery address at a time",
+  "different_order_error" : "Packaging must be done for one order number at a time",
   "packaging_type_is_not_selected" : "Select package type",
   "packaging_successfully_saved" : "Package saved correctly",
   "packaging_error_saved" : " An error occurred, please try again or contact support ",

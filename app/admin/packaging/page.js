@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { useSelector } from "react-redux";
 import { useTranslation } from "@/app/locales";
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from "next/navigation";
@@ -9,6 +10,7 @@ import Packaging from "@/app/admin/packaging/packaging"
 import axiosClient from '@/app/lib/axiosClient';
 import { swalError } from '@/app/lib/swal';
 import { useDynamicTitle } from "@/app/hooks/useDynamicTitle";
+import { selectUser } from "@/store/authSlice";
 
 const URL_LIST_ORDERS = 'embalajes/listar';
 const URL_ATTACH_ITEM = 'embalajes/adicionar-item';
@@ -22,6 +24,7 @@ export default function PackagingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const t = useTranslation();
+  const user = useSelector(selectUser);
 
   const option = searchParams.get("option") || "";
   const activeTab = Math.max(0, TAB_KEYS.indexOf(option));
@@ -58,6 +61,7 @@ export default function PackagingPage() {
     NroOrdenCompra: o.numOrdenCompra,
     NomCliente:     o.cliente,
     NroOrden:       o.nroCotizacion,
+    CodPrefijo:     o.codPrefijo,
     DirEntrega:     o.dirEnvio,
     Transporte:     o.transporte,
     Monto:          o.monto,
@@ -101,21 +105,33 @@ export default function PackagingPage() {
     let CadNroRecepcion = [];
     let customers_names = [];
     let address_names = [];
+    let order_numbers = [];
     selected.map(o => {
       CadNroOrden.push(o.NroOrden);
       CadNroOrdenCompra.push(o.NroOrdenCompra);
       CadNroRecepcion.push(o.NroRecepcion);
       customers_names.push(o.NomCliente);
       address_names.push(o.DirEntrega);
+      order_numbers.push(o.NroOrden);
     });
 
-    if (new Set(customers_names).size > 1) {
-      swalError(t.error, t.different_customers_error, t.close);
-      return;
-    }
-    if (new Set(address_names).size > 1) {
-      swalError(t.error, t.different_address_error, t.close);
-      return;
+    // US agrupa el embalaje por Cliente + misma dirección de entrega (pueden
+    // mezclar distintos Nro. Orden); el resto de países agrupa únicamente
+    // por Nro. Orden, sin importar cliente/dirección.
+    if (user?.countryCode === 'US') {
+      if (new Set(customers_names).size > 1) {
+        swalError(t.error, t.different_customers_error, t.close);
+        return;
+      }
+      if (new Set(address_names).size > 1) {
+        swalError(t.error, t.different_address_error, t.close);
+        return;
+      }
+    } else {
+      if (new Set(order_numbers).size > 1) {
+        swalError(t.error, t.different_order_error, t.close);
+        return;
+      }
     }
 
     try {
@@ -137,6 +153,7 @@ export default function PackagingPage() {
         CodItem:         o.codItem,
         CodRepuesto:     o.codRepuesto,
         NroOrden:        o.nroCotizacion,
+        CodPrefijo:      o.codPrefijo,
         NroOrdenCompra:  o.numOrdenCompra,
         NroRecepcion:    o.numRecepcion,
         NomCliente:      o.cliente,
@@ -145,7 +162,8 @@ export default function PackagingPage() {
         Descripcion:     o.desRepuesto,
         CantRecibida:    o.canRecibida,
         Origen:          o.origen,
-        CodPais:         o.codPais,
+        CodPais:         o.codPais,         // país de la recepción (llave)
+        CodPaisCliente:  o.codPaisCliente,  // país del cliente (bandera)
         HCode:           o.hCode,
         Material:        o.material,
         Presentacion:    o.presentacion,

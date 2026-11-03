@@ -11,16 +11,16 @@ import {
 
 // "tipo" es el valor que espera el endpoint combinado (?tipos=...).
 const REPORT_TYPES = [
-  { key: 'label',            tipo: 'etiqueta',      labelKey: 'label_print',      download: (row) => downloadLabel(row.NumEmbalaje) },
-  { key: 'invoice',          tipo: 'invoice',        labelKey: 'invoice',          download: (row) => downloadInvoice(row.NumEmbalaje, row.NumDespacho) },
-  { key: 'packing_list',     tipo: 'lista-empaque',  labelKey: 'packing_list',     download: (row) => downloadPackingList(row.NumEmbalaje, row.NumDespacho) },
-  { key: 'delivery_receipt', tipo: 'recibo-entrega', labelKey: 'delivery_receipt', download: (row) => downloadDeliveryReceipt(row.NumEmbalaje) },
+  { key: 'label',            tipo: 'etiqueta',      labelKey: 'label_print',      download: (row) => downloadLabel(row.NumEmbalaje, row.CodPaisEmbalaje) },
+  { key: 'invoice',          tipo: 'invoice',        labelKey: 'invoice',          download: (row) => downloadInvoice(row.NumEmbalaje, row.NumDespacho, row.CodPaisEmbalaje) },
+  { key: 'packing_list',     tipo: 'lista-empaque',  labelKey: 'packing_list',     download: (row) => downloadPackingList(row.NumEmbalaje, row.NumDespacho, row.CodPaisEmbalaje) },
+  { key: 'delivery_receipt', tipo: 'recibo-entrega', labelKey: 'delivery_receipt', download: (row) => downloadDeliveryReceipt(row.NumEmbalaje, row.CodPaisEmbalaje) },
 ];
 
 // NAFTA solo aplica a envíos con destino Chile, Perú o USA — el resto de países
 // ni siquiera muestra la opción. Endpoint de descarga sin confirmar todavía.
 const NAFTA_COUNTRIES = ['CL', 'PE', 'US'];
-const NAFTA_TYPE = { key: 'nafta', tipo: 'nafta', staticLabel: 'NAFTA', download: (row) => downloadNafta(row.NumEmbalaje) };
+const NAFTA_TYPE = { key: 'nafta', tipo: 'nafta', staticLabel: 'NAFTA', download: (row) => downloadNafta(row.NumEmbalaje, row.CodPaisEmbalaje) };
 const isNaftaAvailable = (row) => NAFTA_COUNTRIES.includes((row?.CodPais || '').toUpperCase());
 const ALL_TYPES = [...REPORT_TYPES, NAFTA_TYPE];
 
@@ -76,7 +76,7 @@ const BtnImprimir = ({ t, row, className = "", onOpenDispatch }) => {
     setDownloading(true);
     try {
       const tipos = keys.map(key => ALL_TYPES.find(rt => rt.key === key)?.tipo).filter(Boolean);
-      await downloadCombinedReports(row.NumEmbalaje, row.NumDespacho, tipos);
+      await downloadCombinedReports(row.NumEmbalaje, row.NumDespacho, tipos, row.CodPaisEmbalaje);
       setShowModal(false);
     } catch (error) {
       const apiMsg = error?.response?.data?.mensaje;
@@ -90,7 +90,7 @@ const BtnImprimir = ({ t, row, className = "", onOpenDispatch }) => {
   const downloadInvoiceExcelOnly = async () => {
     setDownloading(true);
     try {
-      await downloadInvoiceExcel(row.NumEmbalaje, row.NumDespacho);
+      await downloadInvoiceExcel(row.NumEmbalaje, row.NumDespacho, row.CodPaisEmbalaje);
     } catch (error) {
       swalError(t.error, t.invoice_excel_unavailable ?? 'El Invoice Excel todavía no está disponible.', t.close);
     } finally {

@@ -22,6 +22,7 @@ export default function PdfViewerOrder({ order, token, payload, onClose, onSendM
   const t = useTranslation();
 
   const nro = order?.nroOrdenCompra ?? order?.NroOrdenCompra ?? order?.NroOrden;
+  const codPais = order?.codPaisDestino ?? order?.CodPaisDestino;
 
   useEffect(() => {
     if (!nro) return;
@@ -29,7 +30,7 @@ export default function PdfViewerOrder({ order, token, payload, onClose, onSendM
     const loadPdf = async () => {
       try {
         timeout = setTimeout(async () => {
-          const res = await axiosClient.get(`ordenescompra/${nro}/pdf`, { responseType: 'blob' });
+          const res = await axiosClient.get(`ordenescompra/${nro}/pdf`, { params: { codPais }, responseType: 'blob' });
           const disposition = res.headers['content-disposition'] ?? '';
           const match = disposition.match(/filename[^;=\n]*=["']?([^"';\n]+)["']?/i);
           setPdfFilename(match ? match[1].trim() : `OC${nro}.pdf`);

@@ -449,8 +449,8 @@ const Receptions = ({ t, data, setReceptions, selected_orders, onRefresh, origen
           <table className="w-full border-collapse bg-white dark:bg-gray-900">
             <thead>
               <tr>
-                <th className={`${thClass} text-center`} style={{ width: 64 }}>{t.nro_purchase_order}</th>
-                <th className={`${thClass} text-center`} style={{ width: 64 }}>{t.nro_order}</th>
+                <th className={`${thClass} text-center`} style={{ width: 90 }}>{t.nro_purchase_order}</th>
+                <th className={`${thClass} text-center`} style={{ width: 90 }}>{t.nro_order}</th>
                 <th className={thClass} style={{ width: 240 }}>{t.customer}</th>
                 <th className={thClass} style={{ width: 100 }}>{t.nro_part}</th>
                 <th className={thClass} style={{ width: 100 }}>{t.nro_part_customer}</th>
@@ -472,7 +472,7 @@ const Receptions = ({ t, data, setReceptions, selected_orders, onRefresh, origen
                 return (
                 <tr key={index}>
                   <td className={`${tdClass} text-center font-medium border-b border-gray-100 dark:border-gray-700`}>{o.NumOrdenCompra}</td>
-                  <td className={`${tdClass} text-center border-b border-gray-100 dark:border-gray-700`}>{o.NroOrden}</td>
+                  <td className={`${tdClass} text-center border-b border-gray-100 dark:border-gray-700`}>{o.CodPrefijo ? `${o.CodPrefijo}-${o.NroOrden}` : o.NroOrden}</td>
                   <td className={`${tdClass} border-b border-gray-100 dark:border-gray-700`}>{o.NomCliente}</td>
                   <td className={`${tdClass} text-primary border-b border-gray-100 dark:border-gray-700`}>{o.NroParte}</td>
                   <td className={`${tdClass} border-b border-gray-100 dark:border-gray-700`}>{o.NroParteCliente}</td>

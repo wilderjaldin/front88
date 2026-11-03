@@ -32,6 +32,20 @@ const ASYNC_LIMIT     = 20;
 const thClass = "text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-left whitespace-nowrap";
 const tdClass = "text-xs text-gray-700 dark:text-gray-300 px-3 py-2";
 
+// Resalta las coincidencias del término buscado dentro del texto mostrado.
+const highlightText = (text, term) => {
+  const str = text == null ? '' : String(text);
+  const q = term?.trim();
+  if (!q) return str;
+  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const parts = str.split(new RegExp(`(${escaped})`, 'gi'));
+  return parts.map((part, i) =>
+    part.toLowerCase() === q.toLowerCase()
+      ? <mark key={i} className="bg-amber-200 dark:bg-amber-500/40 text-inherit rounded-sm px-0.5">{part}</mark>
+      : part
+  );
+};
+
 const SortIcon = ({ active, dir }) => {
   if (!active)
     return (
@@ -536,7 +550,7 @@ export default function OrdersProcess() {
                             onClick={() => router.push(`?customer=${o.codCliente}&option=quotes`)}
                             className="text-left hover:text-primary hover:underline transition-colors"
                           >
-                            {o.nomCliente}
+                            {highlightText(o.nomCliente, urlTerm)}
                           </button>
                         </td>
                         <td className={`${tdClass} text-center`}>
@@ -545,12 +559,12 @@ export default function OrdersProcess() {
                                 href={`/admin/revision/quotes?customer=${o.codCliente}&option=confirmed-quote&id=${o.nroCotizacion}`}
                                 className="font-semibold text-primary hover:underline"
                               >
-                                {o.nroCotizacion}
+                                {highlightText(o.codPrefijo ? `${o.codPrefijo}-${o.nroCotizacion}` : o.nroCotizacion, urlTerm)}
                               </Link>
-                            : <span className="text-gray-400">{o.nroCotizacion}</span>
+                            : <span className="text-gray-400">{highlightText(o.codPrefijo ? `${o.codPrefijo}-${o.nroCotizacion}` : o.nroCotizacion, urlTerm)}</span>
                           }
                         </td>
-                        <td className={`${tdClass} text-gray-500`}>{o.nomCiudad}</td>
+                        <td className={`${tdClass} text-gray-500`}>{highlightText(o.nomCiudad, urlTerm)}</td>
                         <td className={tdClass}>
                           <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
                             {o.estado}

@@ -156,6 +156,7 @@ const Packaging = ({ t, packages, saveEmbalaje, setPackagings }) => {
 
       const items = packages.map(p => ({
         numRecepcion:   p.NroRecepcion,
+        codPais:        p.CodPais,          // país de la recepción/OC (llave)
         numOrdenCompra: p.NroOrdenCompra,
         nroCotizacion:  p.NroOrden,
         codItem:        p.CodItem,
@@ -331,14 +332,14 @@ const Packaging = ({ t, packages, saveEmbalaje, setPackagings }) => {
                 <tr><td colSpan={6} className="py-8 text-center text-xs text-gray-400">{t.no_matches}</td></tr>
               ) : packages.map((o, index) => (
                 <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                  <td className={tdClass}>{o.NroOrden}</td>
+                  <td className={tdClass}>{o.CodPrefijo ? `${o.CodPrefijo}-${o.NroOrden}` : o.NroOrden}</td>
                   <td className={tdClass}>
                     <div className="inline-flex items-center gap-1.5">
-                      {o.CodPais && (
+                      {o.CodPaisCliente && (
                         <img
-                          src={`/assets/flags/${o.CodPais.toLowerCase()}.svg`}
-                          alt={o.CodPais}
-                          title={o.CodPais}
+                          src={`/assets/flags/${o.CodPaisCliente.toLowerCase()}.svg`}
+                          alt={o.CodPaisCliente}
+                          title={o.CodPaisCliente}
                           className="h-3 w-4 rounded-sm object-cover shrink-0"
                           onError={e => { e.currentTarget.style.display = 'none'; }}
                         />
