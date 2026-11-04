@@ -2183,6 +2183,10 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                   className="h-8 w-8 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700">
                   <IconAttachment className="h-4 w-4" />
                 </button>
+                <button type="button" title={t.send_to_quote ?? 'Enviar a Cotizar'} disabled={isSubmitting || isSelectItems || blocked}
+                  className="h-8 w-8 flex items-center justify-center rounded-lg bg-teal-50 text-teal-600 hover:bg-teal-100 transition dark:bg-teal-900/20 dark:text-teal-400 disabled:opacity-40 disabled:cursor-not-allowed">
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z"/></svg>
+                </button>
               </div>
 
               <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1" />

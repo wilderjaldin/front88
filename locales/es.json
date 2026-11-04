@@ -1546,5 +1546,6 @@
   "adding_item": "Agregando ítem...",
   "changing_item": "Cambiando repuesto...",
   "mark_as": "Marcar como",
-  "available_options_for_code": "TENEMOS LAS SIGUIENTES OPCIONES PARA EL CODIGO:"
+  "available_options_for_code": "TENEMOS LAS SIGUIENTES OPCIONES PARA EL CODIGO:",
+  "send_to_quote": "Enviar a Cotizar"
 }
