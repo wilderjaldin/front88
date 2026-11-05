@@ -1545,5 +1545,12 @@
   "changing_item": "Changing part...",
   "mark_as": "Mark as",
   "available_options_for_code": "WE HAVE THE FOLLOWING OPTIONS FOR THE CODE:",
-  "send_to_quote": "Send to Quote"
+  "send_to_quote": "Send to Quote",
+  "question_send_to_quote_hub_one": "Do you want to send the selected item to be quoted in China?",
+  "question_send_to_quote_hub": "Do you want to send {n} selected items to be quoted in China?",
+  "send_to_quote_hub_success": "Items sent to quote successfully",
+  "could_not_send_to_quote_hub": "Could not send the items to quote",
+  "send_to_quote_hub_partial": "Partial send to quote",
+  "sent": "Sent",
+  "omitted": "Omitted"
 }

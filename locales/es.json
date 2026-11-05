@@ -1547,5 +1547,12 @@
   "changing_item": "Cambiando repuesto...",
   "mark_as": "Marcar como",
   "available_options_for_code": "TENEMOS LAS SIGUIENTES OPCIONES PARA EL CODIGO:",
-  "send_to_quote": "Enviar a Cotizar"
+  "send_to_quote": "Enviar a Cotizar",
+  "question_send_to_quote_hub_one": "¿Desea enviar el ítem seleccionado a cotizar a China?",
+  "question_send_to_quote_hub": "¿Desea enviar {n} ítems seleccionados a cotizar a China?",
+  "send_to_quote_hub_success": "Ítems enviados a cotizar correctamente",
+  "could_not_send_to_quote_hub": "No se pudo enviar los ítems a cotizar",
+  "send_to_quote_hub_partial": "Envío parcial a cotizar",
+  "sent": "Enviados",
+  "omitted": "Omitidos"
 }

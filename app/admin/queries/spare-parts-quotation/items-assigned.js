@@ -883,6 +883,16 @@ const ItemsAssigned = ({ token, t, data, unassignOrder, setOrdersAssigned, setOr
                           ))}
                         </div>
                       )}
+                      {/* Solo viene con valor en la copia asignada al usuario del hub —
+                          indica en qué país debe buscar este ítem, independiente de las
+                          sugerencias (pueden venir vacías igual). */}
+                      {o.pais_cotizar && (
+                        <div className="shrink-0 flex items-center whitespace-nowrap">
+                          <img src={`/assets/flags/${o.pais_cotizar.codPais.toLowerCase()}.svg`} alt={o.pais_cotizar.codPais}
+                            title={`Buscar en: ${o.pais_cotizar.nomPais}`}
+                            className="h-5 w-7 rounded-sm object-cover border border-gray-200 dark:border-gray-600 cursor-help" />
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className={tdClass}>

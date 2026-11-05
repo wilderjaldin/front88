@@ -139,8 +139,6 @@ export default function Quotes() {
           TipoRepuesto: d.tipoRepuesto ?? '',
           DiasVigencia: d.diasVigencia ?? '',
           DiasVigenciaProveedor: d.diasVigenciaProveedor ?? '',
-          CodPaisHub:  d.codPaisHub    ?? '',
-          NomPaisHub:  d.nomPaisHub    ?? '',
           Precio:      d.preUniSus     ?? 0,
           Total:       d.totSus        ?? 0,
           Peso:        d.peso          ?? 0,

@@ -27,7 +27,6 @@ import NotFoundPartForm from "@/components/forms/not-found-part-form"
 import CostSummary from "@/components/cost-summary"
 import SpareSummary from "@/components/spare-summary"
 import DeliveryAddressForm from "@/components/forms/delivery-address-form"
-import SendItemToHubForm from "@/components/forms/send-item-to-hub-form"
 import { customFormat } from '@/app/lib/format';
 import { useSelector } from 'react-redux';
 import { getLocale } from '@/store/localeSlice';
@@ -88,6 +87,7 @@ const URL_SAVE_ESTADO        = 'cotizaciondetalle/cambiar-estado';
 // Endpoint propio de cotizaciondetalle para "Marcar como" — mismo body que
 // repuestosporcotizar/excluir-item (codRegistro va con el CodItem del ítem).
 const URL_EXCLUIR_ITEM       = 'cotizaciondetalle/excluir-item';
+const URL_SEND_TO_QUOTE_HUB  = 'repuestosporcotizar/enviar-a-cotizar-hub';
 
 const formatDateTime = (val) => {
   if (!val) return '—';
@@ -746,8 +746,6 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
     TipoRepuesto: d.tipoRepuesto ?? '',
     DiasVigencia: d.diasVigencia ?? '',
     DiasVigenciaProveedor: d.diasVigenciaProveedor ?? '',
-    CodPaisHub:  d.codPaisHub    ?? '',
-    NomPaisHub:  d.nomPaisHub    ?? '',
     Precio:      d.preUniSus     ?? 0,
     Total:       d.totSus        ?? 0,
     Peso:        d.peso          ?? 0,
@@ -1288,6 +1286,48 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
     }
   }
 
+  const sendToQuoteHub = async () => {
+    const count = seleccionados.length;
+    if (!count) return;
+
+    const title = (count === 1
+      ? (t.question_send_to_quote_hub_one ?? '¿Desea enviar el ítem seleccionado a cotizar a China?')
+      : (t.question_send_to_quote_hub ?? '¿Desea enviar {n} ítems seleccionados a cotizar a China?').replace('{n}', count));
+
+    const result = await swalConfirm(title, '', {
+      confirmText: t.yes ?? 'Sí',
+      cancelText:  t.btn_cancel ?? 'Cancelar',
+      confirmColor: '#0d9488',
+    });
+    if (!result.isConfirmed) return;
+
+    try {
+      const rs = await axiosClient.post(URL_SEND_TO_QUOTE_HUB, {
+        nroCotizacion: order.NroOrden,
+        codItems:      seleccionados.map(i => i.CodItem),
+        mensaje:       'Cotizar',
+      });
+      const enviados = rs.data?.enviados ?? [];
+      const omitidos = rs.data?.omitidos ?? [];
+      setSeleccionados([]);
+
+      if (omitidos.length === 0) {
+        swalSuccess(t.send_to_quote_hub_success ?? 'Ítems enviados a cotizar correctamente');
+        return;
+      }
+
+      const resumen = `${t.sent ?? 'Enviados'}: ${enviados.length} &nbsp;·&nbsp; ${t.omitted ?? 'Omitidos'}: ${omitidos.length}`;
+      const list = omitidos.map(o => `<li><strong>${o.nroParte}</strong>: ${o.motivo}</li>`).join('');
+      swalInfo(
+        t.send_to_quote_hub_partial ?? 'Envío parcial a cotizar',
+        `<p style="margin:0 0 8px">${resumen}</p><ul style="text-align:left;margin:0;padding-left:18px;font-size:12px;color:#64748b">${list}</ul>`,
+        t.close ?? 'Cerrar'
+      );
+    } catch (err) {
+      swalError(t.error ?? 'Error', err?.response?.data?.mensaje ?? (t.could_not_send_to_quote_hub ?? 'No se pudo enviar los ítems a cotizar'), t.close ?? 'Cerrar');
+    }
+  };
+
   // "Marcar como" (Inválido/Descontinuado/Sin Opción) sobre los ítems
   // seleccionados — mismo body que items-assigned.js: codRegistro va con el
   // CodItem del ítem de la cotización.
@@ -1494,21 +1534,6 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
     nextSearchParams.set('step', 'verify')
     router.replace(`${pathname}?${nextSearchParams}`);
   }
-
-  const handleSendToQuote = (item) => {
-    setModalTitle('ENVIAR A COTIZAR');
-    setModalSize('w-full max-w-xl');
-    setModalContent(
-      <SendItemToHubForm
-        item={item}
-        nroCotizacion={order.NroOrden}
-        codPaisDestino={item.CodPaisHub}
-        nomPaisDestino={item.NomPaisHub}
-        close={() => setShowModal(false)}
-      />
-    );
-    setShowModal(true);
-  };
 
   const showSpareSummary = (item) => {
     setModalTitle(t.spare_summary ?? 'Resumen del Repuesto');
@@ -2148,10 +2173,10 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                 sobre la zona donde la barra queda pegada. Sticky sin z-index ya alcanza
                 para quedar por encima de las filas de la tabla (contenido normal, sin
                 position), que es lo único que necesita tapar mientras se hace scroll. */}
-            <div style={{ top: toolbarTop }} className="sticky rounded-t-md flex flex-wrap items-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+            <div style={{ top: toolbarTop }} className="sticky rounded-t-md flex flex-nowrap items-center gap-1 lg:gap-2 px-2 lg:px-4 py-2 lg:py-2.5 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
 
               {/* Acciones sobre ítems */}
-              <div className="flex flex-wrap items-center gap-1.5">
+              <div className="flex flex-nowrap shrink-0 items-center gap-1.5">
                 <button onClick={run(newQuote)} title={t.btn_new} type="button" disabled={isSubmitting || blocked}
                   className="h-8 w-8 flex items-center justify-center rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition disabled:opacity-50 disabled:cursor-not-allowed">
                   <IconFile className="h-4 w-4" />
@@ -2183,18 +2208,18 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                   className="h-8 w-8 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700">
                   <IconAttachment className="h-4 w-4" />
                 </button>
-                <button type="button" title={t.send_to_quote ?? 'Enviar a Cotizar'} disabled={isSubmitting || isSelectItems || blocked}
+                <button onClick={run(sendToQuoteHub)} type="button" title={t.send_to_quote ?? 'Enviar a Cotizar'} disabled={isSubmitting || isSelectItems || blocked}
                   className="h-8 w-8 flex items-center justify-center rounded-lg bg-teal-50 text-teal-600 hover:bg-teal-100 transition dark:bg-teal-900/20 dark:text-teal-400 disabled:opacity-40 disabled:cursor-not-allowed">
                   <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z"/></svg>
                 </button>
               </div>
 
-              <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1" />
+              <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1 shrink-0" />
 
               {/* Preferencia */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500 shrink-0">{t.preference}</span>
-                <div className="w-40">
+              <div className="flex items-center gap-1 lg:gap-2 shrink-0">
+                <span className="hidden lg:inline text-xs text-gray-500 shrink-0">{t.preference}</span>
+                <div className="w-24 lg:w-40 shrink-0">
                   <Select
                     options={optsTipoRepuesto}
                     isClearable={false} isSearchable={false} isDisabled={blocked || isSubmitting}
@@ -2212,15 +2237,15 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
 
               {/* Marcar como — solo para ítems sin precio (Precio 0/vacío), como
                   los "NO REGISTRADO, EN BREVE SERA ACTUALIZADO" resaltados en rojo */}
-              <div className="relative" ref={statusMenuRef}>
+              <div className="relative shrink-0" ref={statusMenuRef}>
                 <button
                   type="button"
                   onClick={() => setStatusMenuOpen(o => !o)}
                   disabled={isSubmitting || blocked || !canMarkStatus}
-                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border text-xs font-semibold transition border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-amber-50 dark:disabled:hover:bg-amber-900/20"
+                  className="inline-flex items-center gap-1.5 h-8 px-2 lg:px-3 rounded-lg border text-xs font-semibold transition border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-amber-50 dark:disabled:hover:bg-amber-900/20"
                 >
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path strokeLinecap="round" d="M12 8v4m0 4h.01"/></svg>
-                  {t.mark_as ?? 'Marcar como'}
+                  <span className="hidden lg:inline whitespace-nowrap">{t.mark_as ?? 'Marcar como'}</span>
                   <svg className={`w-3 h-3 transition-transform ${statusMenuOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6"/></svg>
                 </button>
                 {statusMenuOpen && (
@@ -2239,44 +2264,47 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                 )}
               </div>
 
-              {seleccionados.length > 0 && (
-                <span className="inline-flex items-center rounded-full bg-primary/10 dark:bg-primary/20 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
-                  {seleccionados.length} {t.selected ?? 'seleccionado(s)'}
-                </span>
-              )}
+              {/* Siempre se renderiza (oculto con invisible, no con && ni hidden) para
+                  reservar su espacio en la barra — si no, al aparecer/desaparecer el
+                  flex-wrap recalcula qué entra en la primera línea y todo el resto de
+                  la barra "salta" de lugar al seleccionar/deseleccionar un ítem. */}
+              <span className={`inline-flex items-center rounded-full bg-primary/10 dark:bg-primary/20 px-2 lg:px-2.5 py-0.5 text-[11px] font-semibold text-primary shrink-0 whitespace-nowrap ${seleccionados.length > 0 ? '' : 'invisible'}`}>
+                {seleccionados.length}<span className="hidden lg:inline">&nbsp;{t.selected ?? 'seleccionado(s)'}</span>
+              </span>
 
-              <div className="flex-1" />
+              <div className="flex-1 min-w-2" />
 
               {/* Opciones de cotización */}
-              <div className="flex flex-wrap items-center gap-1.5">
-                <button onClick={run(priceParameters)} type="button" disabled={isSubmitting || blocked}
-                  className="inline-flex items-center gap-1.5 h-8 rounded-lg border border-amber-200 bg-amber-50 px-3 text-[11px] font-semibold text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400 transition disabled:opacity-50 disabled:cursor-not-allowed">
+              <div className="flex flex-nowrap shrink-0 items-center gap-1 lg:gap-1.5">
+                <button onClick={run(priceParameters)} type="button" disabled={isSubmitting || blocked} title={t.price_parameter}
+                  className="inline-flex items-center gap-1.5 h-8 rounded-lg border border-amber-200 bg-amber-50 px-2 lg:px-3 text-[11px] font-semibold text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap">
                   <IconTag className="h-3.5 w-3.5" />
-                  {t.price_parameter}
+                  <span className="hidden lg:inline">{t.price_parameter}</span>
                 </button>
-                <button onClick={costSummary} type="button"
-                  className="inline-flex items-center gap-1.5 h-8 rounded-lg border border-sky-200 bg-sky-50 px-3 text-[11px] font-semibold text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-400 transition">
+                <button onClick={costSummary} type="button" title={t.cost_summary}
+                  className="inline-flex items-center gap-1.5 h-8 rounded-lg border border-sky-200 bg-sky-50 px-2 lg:px-3 text-[11px] font-semibold text-sky-700 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-400 transition whitespace-nowrap">
                   <IconClipboardText className="h-3.5 w-3.5" />
-                  {t.cost_summary}
+                  <span className="hidden lg:inline">{t.cost_summary}</span>
                 </button>
                 {(ordenado || entregado) && (
-                  <button onClick={instructions} type="button"
-                    className="h-8 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-[11px] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
-                    {t.delivery_instruction}
+                  <button onClick={instructions} type="button" title={t.delivery_instruction}
+                    className="inline-flex items-center gap-1.5 h-8 rounded-lg border border-gray-300 dark:border-gray-600 px-2 lg:px-3 text-[11px] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition whitespace-nowrap">
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 7h11v9H3zM14 10h4l3 3v3h-7zM6.5 19.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM17.5 19.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/></svg>
+                    <span className="hidden lg:inline">{t.delivery_instruction}</span>
                   </button>
                 )}
-                <button onClick={run(cloneQuote)} type="button" disabled={isSubmitting || blocked}
-                  className="inline-flex items-center gap-1.5 h-8 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-[11px] font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                <button onClick={run(cloneQuote)} type="button" disabled={isSubmitting || blocked} title={t.duplicate}
+                  className="inline-flex items-center gap-1.5 h-8 rounded-lg border border-gray-300 dark:border-gray-600 px-2 lg:px-3 text-[11px] font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap">
                   <IconCopy className="h-3.5 w-3.5" />
-                  {t.duplicate}
+                  <span className="hidden lg:inline">{t.duplicate}</span>
                 </button>
-                <button onClick={run(() => validateQuote())} type="button" disabled={isSubmitting || isSelectItems || blocked}
-                  className="inline-flex items-center gap-1.5 h-8 rounded-lg border border-primary/30 bg-primary/5 px-3 text-[11px] font-semibold text-primary hover:bg-primary/10 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                <button onClick={run(() => validateQuote())} type="button" disabled={isSubmitting || isSelectItems || blocked} title={t.validate}
+                  className="inline-flex items-center gap-1.5 h-8 rounded-lg border border-primary/30 bg-primary/5 px-2 lg:px-3 text-[11px] font-semibold text-primary hover:bg-primary/10 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap">
                   <IconCircleCheck className="h-3.5 w-3.5" />
-                  {t.validate}
+                  <span className="hidden lg:inline">{t.validate}</span>
                 </button>
                 <button onClick={run(buyQuote)} type="button" disabled={isSubmitting || hasItemsWithoutPrice || blocked}
-                  className="h-8 rounded-lg bg-green-600 px-4 text-white text-[11px] font-bold hover:bg-green-700 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                  className="h-8 rounded-lg bg-green-600 px-2.5 lg:px-4 text-white text-[11px] font-bold hover:bg-green-700 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap">
                   {t.buy}
                 </button>
               </div>
@@ -2375,21 +2403,6 @@ const QuoteForm = ({ t, token, _customer_, _order_ = [], _items_, _tracking_, on
                                   className="text-indigo-500 hover:text-indigo-600 transition disabled:opacity-50 disabled:cursor-not-allowed">
                                   <IconFile className="h-4 w-4" />
                                 </button>
-                              )}
-                              {item.CodPaisHub && (
-                                <span className="inline-flex items-center gap-1 shrink-0">
-                                  <img
-                                    src={`/assets/flags/${item.CodPaisHub.toLowerCase()}.svg`}
-                                    alt={item.CodPaisHub}
-                                    title={item.NomPaisHub || item.CodPaisHub}
-                                    className="h-4 w-5 rounded-sm object-cover border border-gray-200 dark:border-gray-600"
-                                  />
-                                  <button onClick={run(() => handleSendToQuote(item))} type="button" disabled={isSubmitting || blocked}
-                                    title={`Enviar a cotizar (${item.NomPaisHub || item.CodPaisHub})`}
-                                    className="text-[10px] font-semibold text-sky-600 dark:text-sky-400 border border-sky-300 dark:border-sky-700 rounded px-1.5 py-0.5 hover:bg-sky-50 dark:hover:bg-sky-900/20 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap">
-                                    Enviar a Cotizar
-                                  </button>
-                                </span>
                               )}
                             </div>
                           </td>

@@ -78,8 +78,6 @@ const mapDetalle = (detalle) => (detalle ?? []).map(d => ({
   Estado:       d.estado        ?? '',
   DiasVigencia: d.diasVigencia  ?? '',
   DiasVigenciaProveedor: d.diasVigenciaProveedor ?? '',
-  CodPaisHub:   d.codPaisHub    ?? '',
-  NomPaisHub:   d.nomPaisHub    ?? '',
   ParPrecio:    d.parPrecio     ?? false,
   NotasAdicionales: d.notasAdicionales ?? [],
   TieneImagen:      d.tieneImagen    ?? false,
