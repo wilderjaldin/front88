@@ -215,7 +215,7 @@ const Pendings = ({ t, data = [], attachOrder, cancelReception, onSearch, onClea
                       <span>{o.NomCliente}</span>
                     </div>
                   </td>
-                  <td className={tdClass}>{o.NroRecepcion}</td>
+                  <td className={tdClass}>RE-{o.CodPais}-{o.NroRecepcion}</td>
                   <td className={tdClass}>{o.DirEntrega}</td>
                   <td className={tdClass}>{o.Transporte}</td>
                   <td className={`${tdClass} text-right tabular-nums`}>{customFormat(o.Monto)}</td>
